@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MapPin, DollarSign, ChevronDown, LogOut, Loader2 } from 'lucide-react'
+import { MapPin, DollarSign, ChevronDown, LogOut, Loader2, Car } from 'lucide-react'
 import { Stop, Trip, Hotel, Activity } from '@/types'
 import StopCard from './StopCard'
 import BudgetSummary from './BudgetSummary'
@@ -140,23 +140,46 @@ export default function PlanSidebar({
             <p className="text-slate-500 text-xs mt-1">Søk etter en by eller klikk på kartet</p>
           </div>
         ) : (
-          stops.map((stop, index) => (
-            <StopCard
-              key={stop.id}
-              stop={stop}
-              index={index}
-              totalStops={stops.length}
-              isSelected={stop.id === selectedStopId}
-              legFromPrev={index > 0 ? drivingLegs[index - 1] : undefined}
-              arrivalTime={arrivalTimes[stop.id]}
-              hotel={hotels.find((h) => h.stop_id === stop.id) ?? null}
-              activities={activities.filter((a) => a.stop_id === stop.id)}
-              onSelect={() => onSelectStop(stop.id)}
-              onRemove={() => onRemoveStop(stop.id)}
-              onMoveUp={() => moveStop(index, 'up')}
-              onMoveDown={() => moveStop(index, 'down')}
-            />
-          ))
+          stops.map((stop, index) => {
+            const leg = index > 0 ? drivingLegs[index - 1] : null
+            return (
+              <div key={stop.id}>
+                {/* Drive connector */}
+                {index > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5">
+                    <div className="flex-1 border-t border-dashed border-slate-700" />
+                    {leg === null ? (
+                      <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                        <span>Beregner…</span>
+                      </div>
+                    ) : leg ? (
+                      <div className="flex items-center gap-1 text-[10px] text-blue-400 font-medium whitespace-nowrap">
+                        <Car className="w-2.5 h-2.5 flex-shrink-0" />
+                        <span>{leg.durationText} · {leg.distanceText}</span>
+                        {arrivalTimes[stop.id] && (
+                          <span className="text-slate-500 ml-0.5">· {arrivalTimes[stop.id]}</span>
+                        )}
+                      </div>
+                    ) : null}
+                    <div className="flex-1 border-t border-dashed border-slate-700" />
+                  </div>
+                )}
+                <StopCard
+                  stop={stop}
+                  index={index}
+                  totalStops={stops.length}
+                  isSelected={stop.id === selectedStopId}
+                  hotel={hotels.find((h) => h.stop_id === stop.id) ?? null}
+                  activities={activities.filter((a) => a.stop_id === stop.id)}
+                  onSelect={() => onSelectStop(stop.id)}
+                  onRemove={() => onRemoveStop(stop.id)}
+                  onMoveUp={() => moveStop(index, 'up')}
+                  onMoveDown={() => moveStop(index, 'down')}
+                />
+              </div>
+            )
+          })
         )}
       </div>
 

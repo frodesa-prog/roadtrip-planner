@@ -1,16 +1,13 @@
 'use client'
 
-import { ChevronUp, ChevronDown, Trash2, Car, Loader2 } from 'lucide-react'
+import { ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 import { Stop, Hotel as HotelType, Activity } from '@/types'
-import { LegInfo } from '@/hooks/useDrivingInfo'
 
 interface StopCardProps {
   stop: Stop
   index: number
   totalStops: number
   isSelected: boolean
-  legFromPrev?: LegInfo | null
-  arrivalTime?: string
   hotel: HotelType | null
   activities: Activity[]
   onSelect: () => void
@@ -24,8 +21,6 @@ export default function StopCard({
   index,
   totalStops,
   isSelected,
-  legFromPrev,
-  arrivalTime,
   hotel,
   activities,
   onSelect,
@@ -49,21 +44,6 @@ export default function StopCard({
           : 'border-slate-700 bg-slate-800/80 hover:border-slate-500 hover:bg-slate-800'
       }`}
     >
-      {/* Drive connector info above (shown inline in card for context) */}
-      {index > 0 && legFromPrev === null && (
-        <div className="flex items-center gap-1.5 px-3 pt-2 text-[10px] text-slate-500">
-          <Loader2 className="w-2.5 h-2.5 animate-spin" />
-          <span>Beregner kjøretid…</span>
-        </div>
-      )}
-      {index > 0 && legFromPrev && (
-        <div className="flex items-center gap-1.5 px-3 pt-2 text-[10px] text-blue-400 font-medium">
-          <Car className="w-2.5 h-2.5" />
-          <span>{legFromPrev.durationText} · {legFromPrev.distanceText}</span>
-          {arrivalTime && <span className="text-slate-500 ml-1">· Ankomst {arrivalTime}</span>}
-        </div>
-      )}
-
       {/* Main clickable row */}
       <div
         className="flex items-center gap-3 px-3 py-2.5 cursor-pointer"

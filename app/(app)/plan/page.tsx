@@ -65,6 +65,24 @@ export default function PlanPage() {
         onDeleteTrip={deleteTrip}
       />
 
+      {/* Detaljpanel – mellom sidebar og kart */}
+      {selectedStop && (
+        <div className="w-[300px] flex-shrink-0 h-full border-r border-slate-700/50 overflow-hidden shadow-xl">
+          <StopDetailPanel
+            stop={selectedStop}
+            hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
+            activities={activities.filter((a) => a.stop_id === selectedStop.id)}
+            leg={selectedStopLeg}
+            selectedDate={selectedDate}
+            onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
+            onSaveHotel={(updates) => saveHotel(selectedStop.id, updates)}
+            onAddActivity={(data) => addActivity(selectedStop.id, data)}
+            onRemoveActivity={removeActivity}
+            onClose={() => setSelectedStopId(null)}
+          />
+        </div>
+      )}
+
       {/* Høyre: kart */}
       <div className="flex-1 relative overflow-hidden">
         <PlanningMap
@@ -74,24 +92,6 @@ export default function PlanPage() {
           onSelectStop={handleSelectStop}
           disabled={!currentTrip}
         />
-
-        {/* Flytende detaljpanel over kartet */}
-        {selectedStop && (
-          <div className="absolute top-3 right-3 bottom-3 w-[300px] z-10 rounded-xl overflow-hidden shadow-2xl border border-slate-700/50">
-            <StopDetailPanel
-              stop={selectedStop}
-              hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
-              activities={activities.filter((a) => a.stop_id === selectedStop.id)}
-              leg={selectedStopLeg}
-              selectedDate={selectedDate}
-              onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
-              onSaveHotel={(updates) => saveHotel(selectedStop.id, updates)}
-              onAddActivity={(data) => addActivity(selectedStop.id, data)}
-              onRemoveActivity={removeActivity}
-              onClose={() => setSelectedStopId(null)}
-            />
-          </div>
-        )}
       </div>
     </div>
   )
