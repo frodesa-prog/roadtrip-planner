@@ -1,42 +1,47 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import PlanSidebar from '@/components/planning/PlanSidebar'
 import PlanningMap from '@/components/map/PlanningMap'
+import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
 import { useActivities } from '@/hooks/useActivities'
+import { useDrivingInfo } from '@/hooks/useDrivingInfo'
 import { Stop } from '@/types'
 
 export default function PlanPage() {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
 
   const {
-    trips,
-    currentTrip,
-    loading: tripsLoading,
-    setCurrentTrip,
-    createTrip,
-    deleteTrip,
+    trips, currentTrip, loading: tripsLoading,
+    setCurrentTrip, createTrip, deleteTrip,
   } = useTrips()
 
   const {
-    stops,
-    loading: stopsLoading,
-    addStop,
-    removeStop,
-    reorderStops,
-    updateStop,
+    stops, loading: stopsLoading,
+    addStop, removeStop, reorderStops, updateStop,
   } = useStops(currentTrip?.id ?? null)
 
-  const stopIds = stops.map((s) => s.id)
+  const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
   const { hotels, saveHotel } = useHotels(stopIds)
   const { activities, addActivity, removeActivity } = useActivities(stopIds)
+  const drivingLegs = useDrivingInfo(stops)
+
+  // Selected stop + its driving leg
+  const selectedStop = stops.find((s) => s.id === selectedStopId) ?? null
+  const selectedStopIndex = stops.findIndex((s) => s.id === selectedStopId)
+  const selectedStopLeg = selectedStopIndex > 0 ? (drivingLegs[selectedStopIndex - 1] ?? null) : null
+  const selectedDate = selectedStop?.arrival_date ?? new Date().toISOString().split('T')[0]
 
   function handleAddStop(stop: Stop) {
     if (!currentTrip) return
     addStop({ ...stop, trip_id: currentTrip.id })
+  }
+
+  function handleSelectStop(id: string) {
+    setSelectedStopId((prev) => (prev === id ? null : id))
   }
 
   return (
@@ -51,27 +56,42 @@ export default function PlanPage() {
         selectedStopId={selectedStopId}
         hotels={hotels}
         activities={activities}
-        onSelectStop={setSelectedStopId}
+        onSelectStop={handleSelectStop}
         onRemoveStop={removeStop}
         onReorderStops={reorderStops}
         onUpdateStop={updateStop}
-        onSaveHotel={saveHotel}
-        onAddActivity={addActivity}
-        onRemoveActivity={removeActivity}
         onSelectTrip={setCurrentTrip}
         onCreateTrip={createTrip}
         onDeleteTrip={deleteTrip}
       />
 
       {/* Høyre: kart */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative overflow-hidden">
         <PlanningMap
           stops={stops}
           selectedStopId={selectedStopId}
           onAddStop={handleAddStop}
-          onSelectStop={setSelectedStopId}
+          onSelectStop={handleSelectStop}
           disabled={!currentTrip}
         />
+
+        {/* Flytende detaljpanel over kartet */}
+        {selectedStop && (
+          <div className="absolute top-3 right-3 bottom-3 w-[300px] z-10 rounded-xl overflow-hidden shadow-2xl border border-slate-700/50">
+            <StopDetailPanel
+              stop={selectedStop}
+              hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
+              activities={activities.filter((a) => a.stop_id === selectedStop.id)}
+              leg={selectedStopLeg}
+              selectedDate={selectedDate}
+              onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
+              onSaveHotel={(updates) => saveHotel(selectedStop.id, updates)}
+              onAddActivity={(data) => addActivity(selectedStop.id, data)}
+              onRemoveActivity={removeActivity}
+              onClose={() => setSelectedStopId(null)}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MapPin, DollarSign, ChevronDown, LogOut, Loader2, Car } from 'lucide-react'
+import { MapPin, DollarSign, ChevronDown, LogOut, Loader2 } from 'lucide-react'
 import { Stop, Trip, Hotel, Activity } from '@/types'
-import { AddActivityData } from '@/hooks/useActivities'
 import StopCard from './StopCard'
 import BudgetSummary from './BudgetSummary'
 import TripManager from './TripManager'
@@ -24,9 +23,6 @@ interface PlanSidebarProps {
   onRemoveStop: (id: string) => void
   onReorderStops: (stops: Stop[]) => void
   onUpdateStop: (id: string, updates: Partial<Stop>) => void
-  onSaveHotel: (stopId: string, updates: Partial<Pick<Hotel, 'name' | 'url' | 'status' | 'cost'>>) => void
-  onAddActivity: (stopId: string, data: AddActivityData) => void
-  onRemoveActivity: (id: string) => void
   onSelectTrip: (trip: Trip) => void
   onCreateTrip: (name: string, year: number) => Promise<Trip | null>
   onDeleteTrip: (id: string) => void
@@ -38,8 +34,7 @@ export default function PlanSidebar({
   selectedStopId,
   hotels,
   activities,
-  onSelectStop, onRemoveStop, onReorderStops, onUpdateStop, onSaveHotel,
-  onAddActivity, onRemoveActivity,
+  onSelectStop, onRemoveStop, onReorderStops, onUpdateStop,
   onSelectTrip, onCreateTrip, onDeleteTrip,
 }: PlanSidebarProps) {
   const [showBudget, setShowBudget] = useState(false)
@@ -48,12 +43,10 @@ export default function PlanSidebar({
   const drivingLegs = useDrivingInfo(stops)
 
   // ── Auto-cascade arrival dates ──────────────────────────────────────────────
-  // When stop[i] has arrival_date + nights, compute stop[i+1].arrival_date.
-  // Only fires when the computed date differs from what's in the DB (prevents loops).
   useEffect(() => {
     if (stops.length < 2) return
     stops.forEach((stop, i) => {
-      if (i === stops.length - 1) return // no next stop
+      if (i === stops.length - 1) return
       if (!stop.arrival_date || stop.nights < 1) return
       const next = stops[i + 1]
       const d = new Date(stop.arrival_date + 'T12:00:00')
@@ -63,7 +56,6 @@ export default function PlanSidebar({
         onUpdateStop(next.id, { arrival_date: computed })
       }
     })
-  // Re-run when the combination of ids, arrival_dates and nights changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stops.map((s) => `${s.id}:${s.arrival_date}:${s.nights}`).join('|')])
 
@@ -97,7 +89,7 @@ export default function PlanSidebar({
   }
 
   return (
-    <div className="w-[380px] min-w-[340px] h-full bg-slate-900 border-r border-slate-800 flex flex-col">
+    <div className="w-[340px] min-w-[300px] h-full bg-slate-900 border-r border-slate-800 flex flex-col">
       <TripManager
         trips={trips} currentTrip={currentTrip} loading={tripsLoading}
         onSelectTrip={onSelectTrip} onCreateTrip={onCreateTrip} onDeleteTrip={onDeleteTrip}
@@ -105,7 +97,7 @@ export default function PlanSidebar({
 
       {/* Stats */}
       {currentTrip && (
-        <div className="px-5 py-2.5 bg-slate-800/50 border-b border-slate-800 flex gap-3 flex-wrap">
+        <div className="px-4 py-2.5 bg-slate-800/50 border-b border-slate-800 flex gap-3 flex-wrap">
           <div className="flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-blue-400" />
             <span className="text-xs text-slate-400">
@@ -126,8 +118,8 @@ export default function PlanSidebar({
         </div>
       )}
 
-      {/* Stopp-liste */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+      {/* Stop list */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
         {!currentTrip ? (
           <div className="flex flex-col items-center justify-center h-48 text-center px-4">
             <p className="text-slate-500 text-sm">
@@ -145,41 +137,30 @@ export default function PlanSidebar({
               <MapPin className="w-8 h-8 text-slate-600" />
             </div>
             <p className="text-slate-400 text-sm font-medium">Ingen stopp ennå</p>
-            <p className="text-slate-500 text-xs mt-1">
-              Søk etter en by eller klikk på kartet
-            </p>
+            <p className="text-slate-500 text-xs mt-1">Søk etter en by eller klikk på kartet</p>
           </div>
         ) : (
           stops.map((stop, index) => (
-            <div key={stop.id}>
-              {index > 0 && <DriveConnector leg={drivingLegs[index - 1] ?? null} />}
-              <StopCard
-                stop={stop}
-                index={index}
-                totalStops={stops.length}
-                isSelected={stop.id === selectedStopId}
-                legFromPrev={index > 0 ? drivingLegs[index - 1] : undefined}
-                arrivalTime={arrivalTimes[stop.id]}
-                hotel={hotels.find((h) => h.stop_id === stop.id) ?? null}
-                activities={activities.filter((a) => a.stop_id === stop.id)}
-                onDepartureChange={(time) =>
-                  setDepartureTimes((prev) => ({ ...prev, [stop.id]: time }))
-                }
-                onSaveHotel={(updates) => onSaveHotel(stop.id, updates)}
-                onUpdateStop={(updates) => onUpdateStop(stop.id, updates)}
-                onAddActivity={(data) => onAddActivity(stop.id, data)}
-                onRemoveActivity={onRemoveActivity}
-                onSelect={() => onSelectStop(stop.id)}
-                onRemove={() => onRemoveStop(stop.id)}
-                onMoveUp={() => moveStop(index, 'up')}
-                onMoveDown={() => moveStop(index, 'down')}
-              />
-            </div>
+            <StopCard
+              key={stop.id}
+              stop={stop}
+              index={index}
+              totalStops={stops.length}
+              isSelected={stop.id === selectedStopId}
+              legFromPrev={index > 0 ? drivingLegs[index - 1] : undefined}
+              arrivalTime={arrivalTimes[stop.id]}
+              hotel={hotels.find((h) => h.stop_id === stop.id) ?? null}
+              activities={activities.filter((a) => a.stop_id === stop.id)}
+              onSelect={() => onSelectStop(stop.id)}
+              onRemove={() => onRemoveStop(stop.id)}
+              onMoveUp={() => moveStop(index, 'up')}
+              onMoveDown={() => moveStop(index, 'down')}
+            />
           ))
         )}
       </div>
 
-      {/* Budsjett */}
+      {/* Budget */}
       {currentTrip && (
         <div className="border-t border-slate-800">
           <button
@@ -208,33 +189,6 @@ export default function PlanSidebar({
         >
           <LogOut className="w-3.5 h-3.5" />
         </button>
-      </div>
-    </div>
-  )
-}
-
-function DriveConnector({ leg }: { leg: ReturnType<typeof useDrivingInfo>[0] }) {
-  return (
-    <div className="flex items-center gap-2 py-1 px-1">
-      <div className="flex flex-col items-center w-7 flex-shrink-0">
-        <div className="w-0.5 h-2 bg-slate-700" />
-        <div className="w-0.5 h-2 bg-slate-700" />
-      </div>
-      <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-        leg === null
-          ? 'bg-slate-800 text-slate-500'
-          : 'bg-blue-950/60 text-blue-400 border border-blue-900/50'
-      }`}>
-        <Car className="w-3 h-3 flex-shrink-0" />
-        {leg === null ? (
-          <span className="animate-pulse">Beregner…</span>
-        ) : (
-          <>
-            <span>{leg.durationText}</span>
-            <span className="text-blue-700">·</span>
-            <span>{leg.distanceText}</span>
-          </>
-        )}
       </div>
     </div>
   )
