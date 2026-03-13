@@ -34,7 +34,7 @@ export function useHotels(stopIds: string[]) {
   const saveHotel = useCallback(
     async (
       stopId: string,
-      updates: Partial<Pick<Hotel, 'name' | 'url' | 'status' | 'cost' | 'remaining_amount'>>
+      updates: Partial<Pick<Hotel, 'name' | 'address' | 'url' | 'status' | 'cost' | 'remaining_amount'>>
     ) => {
       const existing = hotels.find((h) => h.stop_id === stopId)
 
@@ -59,6 +59,7 @@ export function useHotels(stopIds: string[]) {
           id: crypto.randomUUID(),
           stop_id: stopId,
           name: updates.name ?? '',
+          address: updates.address ?? null,
           url: updates.url ?? null,
           status: (updates.status ?? 'not_booked') as BookingStatus,
           cost: updates.cost ?? null,

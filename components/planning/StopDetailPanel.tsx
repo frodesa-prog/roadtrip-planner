@@ -19,7 +19,7 @@ interface StopDetailPanelProps {
   selectedDate: string         // ISO date the user clicked
   stopIndex?: number           // 0-based (reserved for future use)
   onUpdateStop: (updates: Partial<Pick<Stop, 'nights' | 'arrival_date'>>) => void
-  onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'url' | 'status' | 'cost'>>) => void
+  onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'address' | 'url' | 'status' | 'cost'>>) => void
   onAddActivity: (data: AddActivityData) => void
   onRemoveActivity: (id: string) => void
   onClose: () => void
@@ -51,6 +51,7 @@ export default function StopDetailPanel({
 }: StopDetailPanelProps) {
   // Hotel local state
   const [hotelName, setHotelName] = useState(hotel?.name ?? '')
+  const [hotelAddress, setHotelAddress] = useState(hotel?.address ?? '')
   const [hotelUrl, setHotelUrl] = useState(hotel?.url ?? '')
   const [hotelCost, setHotelCost] = useState(hotel?.cost != null ? String(hotel.cost) : '')
   const [hotelBooked, setHotelBooked] = useState(hotel?.status === 'confirmed')
@@ -65,6 +66,7 @@ export default function StopDetailPanel({
   const [newActUrl, setNewActUrl] = useState('')
   const [newActCost, setNewActCost] = useState('')
   const [newActDate, setNewActDate] = useState(selectedDate)
+  const [newActTime, setNewActTime] = useState('')
 
   // Stop dates for the date picker
   const stopDates = getStopDates(stop)
@@ -74,6 +76,7 @@ export default function StopDetailPanel({
   useEffect(() => {
     if (hotel && hotel.id !== prevHotelId.current) {
       setHotelName(hotel.name ?? '')
+      setHotelAddress(hotel.address ?? '')
       setHotelUrl(hotel.url ?? '')
       setHotelCost(hotel.cost != null ? String(hotel.cost) : '')
       setHotelBooked(hotel.status === 'confirmed')
@@ -102,11 +105,13 @@ export default function StopDetailPanel({
       url: newActUrl.trim() || undefined,
       cost: newActCost ? Number(newActCost) : undefined,
       activity_date: newActDate || undefined,
+      activity_time: newActTime.trim() || undefined,
     })
     setNewActName('')
     setNewActUrl('')
     setNewActCost('')
     setNewActDate(selectedDate)
+    setNewActTime('')
     setShowAddActivity(false)
   }
 
@@ -116,6 +121,7 @@ export default function StopDetailPanel({
     setNewActUrl('')
     setNewActCost('')
     setNewActDate(selectedDate)
+    setNewActTime('')
   }
 
   const totalActivityCost = activities.reduce((s, a) => s + (a.cost ?? 0), 0)
@@ -220,6 +226,16 @@ export default function StopDetailPanel({
               placeholder="Hotellnavn"
               className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
             />
+            <Input
+              value={hotelAddress}
+              onChange={(e) => setHotelAddress(e.target.value)}
+              onBlur={() => {
+                if (hotelAddress !== (hotel?.address ?? ''))
+                  onSaveHotel({ address: hotelAddress.trim() || null })
+              }}
+              placeholder="Adresse"
+              className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
+            />
             <div className="flex gap-1.5">
               <Input
                 value={hotelUrl}
@@ -298,11 +314,12 @@ export default function StopDetailPanel({
                   <div className="w-1.5 h-1.5 rounded-full bg-purple-500 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <span className="block text-xs text-slate-200 truncate">{act.name}</span>
-                    {act.activity_date && (
+                    {(act.activity_date || act.activity_time) && (
                       <span className="text-[10px] text-slate-500">
-                        {new Date(act.activity_date + 'T12:00:00').toLocaleDateString('nb-NO', {
+                        {act.activity_date && new Date(act.activity_date + 'T12:00:00').toLocaleDateString('nb-NO', {
                           weekday: 'short', day: 'numeric', month: 'short',
                         })}
+                        {act.activity_time && ` · ${act.activity_time}`}
                       </span>
                     )}
                   </div>
@@ -357,6 +374,17 @@ export default function StopDetailPanel({
                   className="h-7 text-xs w-20 bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
                 />
                 <span className="text-xs text-slate-500 self-center flex-shrink-0">kr</span>
+              </div>
+
+              {/* Time input */}
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="time"
+                  value={newActTime}
+                  onChange={(e) => setNewActTime(e.target.value)}
+                  className="h-7 text-xs w-28 bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
+                />
+                <span className="text-[10px] text-slate-500">Klokkeslett (valgfritt)</span>
               </div>
 
               {/* Date picker – select which day this activity is on */}

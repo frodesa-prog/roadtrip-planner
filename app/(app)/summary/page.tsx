@@ -22,23 +22,16 @@ function buildWeeks(stops: Stop[]): Date[][] {
   if (dated.length === 0) return []
 
   const firstDate = new Date(dated[0].arrival_date! + 'T12:00:00')
-  const last = dated[dated.length - 1]
-  const lastDate = new Date(last.arrival_date! + 'T12:00:00')
-  lastDate.setDate(lastDate.getDate() + Math.max(0, last.nights - 1))
 
   // Find Monday of the first week (ISO week: Mon=start)
   const start = new Date(firstDate)
   const dow = start.getDay()
   start.setDate(start.getDate() - (dow === 0 ? 6 : dow - 1))
 
-  // Find Sunday of the last week
-  const end = new Date(lastDate)
-  const edow = end.getDay()
-  if (edow !== 0) end.setDate(end.getDate() + (7 - edow))
-
+  // Always show exactly 6 complete weeks
   const weeks: Date[][] = []
   const cur = new Date(start)
-  while (cur <= end) {
+  for (let w = 0; w < 6; w++) {
     const week: Date[] = []
     for (let d = 0; d < 7; d++) {
       week.push(new Date(cur))
@@ -323,8 +316,15 @@ function DayCell({
 }) {
   const isFirstOfMonth = date.getDate() === 1
 
-  const hasBaseball = activitiesOnDay.some((a) => a.name.toLowerCase().includes('baseball'))
-  const hasOtherActivities = activitiesOnDay.some((a) => !a.name.toLowerCase().includes('baseball'))
+  const baseballActivities = activitiesOnDay.filter((a) =>
+    a.name.toLowerCase().includes('baseball')
+  )
+  const otherActivities = activitiesOnDay.filter(
+    (a) => !a.name.toLowerCase().includes('baseball')
+  )
+
+  const hasAnyIcons =
+    hasConfirmedHotel || baseballActivities.length > 0 || otherActivities.length > 0
 
   return (
     <div
@@ -338,7 +338,7 @@ function DayCell({
         isSelected ? `ring-2 ${palette?.sel ?? 'ring-white'} ring-offset-1 ring-offset-slate-950` : '',
       ].join(' ')}
     >
-      {/* Date number */}
+      {/* Date number – always at top */}
       <p className={`text-[11px] font-semibold leading-none ${stop ? 'text-slate-300' : 'text-slate-700'}`}>
         {isFirstOfMonth
           ? date.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
@@ -346,33 +346,50 @@ function DayCell({
       </p>
 
       {stop && (
-        <div className="mt-1 flex-1 flex flex-col justify-end space-y-0.5">
-          {/* Drive indicator: duration + distance on arrival days */}
+        <>
+          {/* Drive info – right under date on arrival days */}
           {isArrival && leg && (
-            <div className={`flex items-center gap-0.5 text-[9px] font-medium ${palette?.drive ?? 'text-slate-400'}`}>
+            <div className={`mt-0.5 flex items-center gap-0.5 text-[9px] font-medium ${palette?.drive ?? 'text-slate-400'}`}>
               <Car className="w-2.5 h-2.5 flex-shrink-0" />
               <span className="truncate">{leg.durationText} · {leg.distanceText}</span>
             </div>
           )}
-          {/* City name */}
-          <p className={`text-[11px] font-semibold truncate leading-tight ${palette?.text ?? 'text-slate-300'}`}>
+
+          {/* City name – always right under drive info (or date) */}
+          <p className={`text-[11px] font-semibold truncate leading-tight mt-0.5 ${palette?.text ?? 'text-slate-300'}`}>
             {stop.city}
           </p>
-          {/* Status icons – larger, below city name */}
-          {(hasConfirmedHotel || hasBaseball || hasOtherActivities) && (
-            <div className="flex items-center gap-1 pt-0.5">
+
+          {/* Spacer pushes icons to bottom */}
+          <div className="flex-1" />
+
+          {/* Status icons at bottom – one row per activity so time is visible */}
+          {hasAnyIcons && (
+            <div className="flex flex-col gap-0.5 pt-0.5">
               {hasConfirmedHotel && (
-                <HotelIcon className="w-3.5 h-3.5 text-green-400" />
+                <div className="flex items-center gap-0.5">
+                  <HotelIcon className="w-3 h-3 text-green-400 flex-shrink-0" />
+                </div>
               )}
-              {hasBaseball && (
-                <span className="text-[13px] leading-none">⚾</span>
-              )}
-              {hasOtherActivities && (
-                <Ticket className="w-3.5 h-3.5 text-purple-400" />
-              )}
+              {baseballActivities.map((a) => (
+                <div key={a.id} className="flex items-center gap-0.5">
+                  <span className="text-[11px] leading-none flex-shrink-0">⚾</span>
+                  {a.activity_time && (
+                    <span className="text-[8px] text-slate-400 truncate">{a.activity_time}</span>
+                  )}
+                </div>
+              ))}
+              {otherActivities.map((a) => (
+                <div key={a.id} className="flex items-center gap-0.5">
+                  <Ticket className="w-3 h-3 text-purple-400 flex-shrink-0" />
+                  {a.activity_time && (
+                    <span className="text-[8px] text-purple-300 truncate">{a.activity_time}</span>
+                  )}
+                </div>
+              ))}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   )

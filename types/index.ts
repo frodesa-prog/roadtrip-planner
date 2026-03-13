@@ -29,6 +29,7 @@ export interface Hotel {
   id: string
   stop_id: string
   name: string
+  address: string | null
   url: string | null
   status: BookingStatus
   cost: number | null
@@ -45,6 +46,7 @@ export interface Activity {
   remaining_amount: number | null
   notes: string | null
   activity_date: string | null   // ISO date – which day the activity takes place
+  activity_time: string | null   // HH:MM – what time the activity starts
 }
 
 export interface Photo {
