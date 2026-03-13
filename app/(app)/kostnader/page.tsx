@@ -6,9 +6,14 @@ import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
 import { useActivities } from '@/hooks/useActivities'
 import { useBudgetItems } from '@/hooks/useBudgetItems'
+import { useFlights } from '@/hooks/useFlights'
+import { useCarRental } from '@/hooks/useCarRental'
+import { Flight, CarRental } from '@/types'
 import {
   Plane, Car, Fuel, BedDouble, Ticket,
   ChevronDown, Loader2, Receipt, ExternalLink,
+  PlaneTakeoff, PlaneLanding, X, ChevronRight,
+  Link as LinkIcon,
 } from 'lucide-react'
 
 // ── Formattering ─────────────────────────────────────────────────────────────
@@ -93,7 +98,7 @@ function RemainingCell({
           if (e.key === 'Enter') commit()
           if (e.key === 'Escape') setEditing(false)
         }}
-        className="w-20 text-right text-[11px] bg-slate-800 border border-amber-500 rounded-md px-2 py-1 text-slate-100 focus:outline-none"
+        className="w-full text-right text-[11px] bg-slate-800 border border-amber-500 rounded-md px-1 py-0.5 text-slate-100 focus:outline-none"
       />
     )
   }
@@ -102,7 +107,7 @@ function RemainingCell({
       <button
         onClick={() => setEditing(true)}
         title="Klikk for å redigere gjenstående beløp"
-        className="text-[11px] font-semibold text-amber-300 bg-amber-900/40 border border-amber-600/50 rounded-md px-2 py-0.5 hover:bg-amber-900/60 whitespace-nowrap transition-colors"
+        className="w-full text-right text-[11px] font-semibold text-amber-300 bg-amber-900/40 border border-amber-600/50 rounded-md px-1.5 py-0.5 hover:bg-amber-900/60 whitespace-nowrap transition-colors"
       >
         {fmt(remainingAmount)} kr
       </button>
@@ -112,7 +117,7 @@ function RemainingCell({
     <button
       onClick={() => setEditing(true)}
       title="Klikk for å registrere gjenstående beløp"
-      className="text-[11px] text-green-600 hover:text-green-400 transition-colors px-1 py-0.5 rounded hover:bg-slate-800"
+      className="w-full text-center text-[11px] text-green-600 hover:text-green-400 transition-colors py-0.5 rounded hover:bg-slate-800"
     >
       ✓
     </button>
@@ -147,6 +152,231 @@ function TableTotal({ label, amount }: { label: string; amount: number }) {
   )
 }
 
+// ── FlightInfoModal ────────────────────────────────────────────────────────────
+function FlightInfoModal({
+  outbound,
+  returnFlight,
+  onClose,
+}: {
+  outbound: Flight | null
+  returnFlight: Flight | null
+  onClose: () => void
+}) {
+  const [tab, setTab] = useState<'outbound' | 'return'>('outbound')
+  const flight = tab === 'outbound' ? outbound : returnFlight
+
+  function FlightInfo({ f }: { f: Flight | null }) {
+    if (!f) return (
+      <p className="text-slate-500 text-xs text-center py-6">Ingen flyinformasjon registrert</p>
+    )
+    return (
+      <div className="space-y-3">
+        {/* Etappe 1 */}
+        <div className="bg-slate-800/60 rounded-lg p-3 space-y-2">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Etappe 1</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+            <InfoField label="Fra" value={f.leg1_from} />
+            <InfoField label="Avgang" value={f.leg1_departure} />
+            <InfoField label="Flightnr." value={f.leg1_flight_nr} />
+            <InfoField label="Til" value={f.leg1_to} />
+            <InfoField label="Ankomst" value={f.leg1_arrival} />
+          </div>
+        </div>
+        {/* Mellomlanding */}
+        {f.has_stopover && (
+          <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-3 space-y-2">
+            <p className="text-[10px] font-bold text-amber-500/70 uppercase tracking-wide">Mellomlanding</p>
+            <InfoField label="Tid på flyplass" value={f.stopover_duration} />
+          </div>
+        )}
+        {/* Etappe 2 */}
+        {f.has_stopover && (
+          <div className="bg-slate-800/60 rounded-lg p-3 space-y-2">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Etappe 2</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+              <InfoField label="Flightnr." value={f.leg2_flight_nr} />
+              <InfoField label="Avgang" value={f.leg2_departure} />
+              <InfoField label="Til" value={f.leg2_to} />
+              <InfoField label="Ankomst" value={f.leg2_arrival} />
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function InfoField({ label, value }: { label: string; value: string | null }) {
+    return (
+      <div>
+        <p className="text-[10px] text-slate-600 uppercase tracking-wide">{label}</p>
+        <p className="text-xs text-slate-200 font-medium">{value || <span className="text-slate-600 italic">—</span>}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <Plane className="w-4 h-4 text-sky-400" />
+            <h3 className="text-sm font-bold text-white">Flyinformasjon</h3>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {/* Tabs */}
+        <div className="flex border-b border-slate-800">
+          <button
+            onClick={() => setTab('outbound')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
+              tab === 'outbound'
+                ? 'text-sky-400 border-b-2 border-sky-500 bg-sky-500/5'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <PlaneTakeoff className="w-3 h-3" />
+            Utreise
+          </button>
+          <button
+            onClick={() => setTab('return')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
+              tab === 'return'
+                ? 'text-sky-400 border-b-2 border-sky-500 bg-sky-500/5'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <PlaneLanding className="w-3 h-3" />
+            Hjemreise
+          </button>
+        </div>
+        {/* Content */}
+        <div className="p-4">
+          <FlightInfo f={flight} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── CarRentalModal ────────────────────────────────────────────────────────────
+function CarRentalModal({
+  rental,
+  onSave,
+  onClose,
+}: {
+  rental: CarRental | null
+  onSave: (updates: Partial<Omit<CarRental, 'id' | 'trip_id'>>) => void
+  onClose: () => void
+}) {
+  function Field({
+    label,
+    field,
+    defaultValue,
+    placeholder,
+    textarea,
+  }: {
+    label: string
+    field: keyof Omit<CarRental, 'id' | 'trip_id'>
+    defaultValue: string | null
+    placeholder?: string
+    textarea?: boolean
+  }) {
+    const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
+
+    function handleBlur() {
+      const val = ref.current?.value.trim() ?? ''
+      onSave({ [field]: val || null })
+    }
+
+    const cls =
+      'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors'
+
+    return (
+      <div>
+        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
+          {label}
+        </label>
+        {textarea ? (
+          <textarea
+            ref={ref as React.RefObject<HTMLTextAreaElement>}
+            defaultValue={defaultValue ?? ''}
+            placeholder={placeholder}
+            rows={3}
+            onBlur={handleBlur}
+            className={cls + ' resize-none'}
+          />
+        ) : (
+          <input
+            ref={ref as React.RefObject<HTMLInputElement>}
+            type="text"
+            defaultValue={defaultValue ?? ''}
+            placeholder={placeholder}
+            onBlur={handleBlur}
+            onKeyDown={(e) => { if (e.key === 'Enter') ref.current?.blur() }}
+            className={cls}
+          />
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <Car className="w-4 h-4 text-violet-400" />
+            <h3 className="text-sm font-bold text-white">Leiebilinfo</h3>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {/* Form */}
+        <div className="p-4 space-y-3">
+          <Field label="Leiebilfirma" field="company" defaultValue={rental?.company ?? null} placeholder="f.eks. Hertz, Avis…" />
+          <Field label="Type bil" field="car_type" defaultValue={rental?.car_type ?? null} placeholder="f.eks. Toyota Camry" />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Referansenr." field="reference_nr" defaultValue={rental?.reference_nr ?? null} placeholder="Ref.nr." />
+            <Field label="Bekreftelsesnr." field="confirmation_nr" defaultValue={rental?.confirmation_nr ?? null} placeholder="Bekr.nr." />
+          </div>
+          <Field label="Link til bestilling" field="url" defaultValue={rental?.url ?? null} placeholder="https://…" />
+          {rental?.url && (
+            <a
+              href={rental.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 hover:underline"
+            >
+              <LinkIcon className="w-3 h-3" />
+              Åpne bestillingslink
+            </a>
+          )}
+          <Field label="Tilleggsinfo" field="notes" defaultValue={rental?.notes ?? null} placeholder="Andre opplysninger…" textarea />
+        </div>
+        <div className="px-4 pb-4">
+          <button
+            onClick={onClose}
+            className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold rounded-lg transition-colors"
+          >
+            Lukk
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 export default function KostnaderPage() {
   const { trips, currentTrip, loading: tripsLoading, setCurrentTrip } = useTrips()
@@ -161,6 +391,12 @@ export default function KostnaderPage() {
   const { hotels, saveHotel } = useHotels(stopIds)
   const { activities, updateActivity } = useActivities(stopIds)
   const { saveItem, getAmount, getRemaining } = useBudgetItems(currentTrip?.id ?? null)
+  const { outbound, returnFlight } = useFlights(currentTrip?.id ?? null)
+  const { rental, saveRental } = useCarRental(currentTrip?.id ?? null)
+
+  // ── Modal state ─────────────────────────────────────────────────────────
+  const [showFlightModal, setShowFlightModal] = useState(false)
+  const [showCarRentalModal, setShowCarRentalModal] = useState(false)
 
   // ── Rader ────────────────────────────────────────────────────────────────
   const hotelRows = useMemo(() =>
@@ -201,11 +437,9 @@ export default function KostnaderPage() {
     (getRemaining('car') ?? 0) +
     (getRemaining('gas') ?? 0)
 
-  const budgetLines = [
-    { key: 'flight' as const, label: 'Fly', icon: <Plane className="w-3 h-3 text-sky-400" />, amount: totalFlight },
-    { key: 'car' as const, label: 'Leiebil', icon: <Car className="w-3 h-3 text-violet-400" />, amount: totalCar },
-    { key: 'gas' as const, label: 'Bensin (est.)', icon: <Fuel className="w-3 h-3 text-amber-400" />, amount: totalGas },
-  ]
+  // Felles kolonne-grid for aktiviteter og andre kostnader
+  // [Label | Kostnad (5.5rem) | Gjenstår (4.5rem)]
+  const rightGrid = 'grid-cols-[1fr_5.5rem_4.5rem]'
 
   const loading = stopsLoading
 
@@ -256,6 +490,22 @@ export default function KostnaderPage() {
         </div>
       </div>
 
+      {/* ── Modaler ──────────────────────────────────────────────────────── */}
+      {showFlightModal && (
+        <FlightInfoModal
+          outbound={outbound}
+          returnFlight={returnFlight}
+          onClose={() => setShowFlightModal(false)}
+        />
+      )}
+      {showCarRentalModal && (
+        <CarRentalModal
+          rental={rental}
+          onSave={saveRental}
+          onClose={() => setShowCarRentalModal(false)}
+        />
+      )}
+
       {/* ── Innhold ──────────────────────────────────────────────────────── */}
       {!currentTrip ? (
         <div className="flex-1 flex items-center justify-center">
@@ -268,20 +518,24 @@ export default function KostnaderPage() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto p-3">
-          <div className="flex gap-3 items-start min-h-0">
+          <div className="grid grid-cols-2 gap-3 items-start">
 
             {/* ══ VENSTRE: Hoteller ════════════════════════════════════════ */}
-            <div className="flex-[3] min-w-0">
+            <div className="min-w-0">
               <SectionTitle
                 icon={<BedDouble className="w-3.5 h-3.5 text-blue-400" />}
                 title="Hoteller"
               />
               <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-                {/* Kolonne-hoder: By | Hotell | N | Kostnad | Snitt | Gjenstår */}
-                <div className="grid grid-cols-[minmax(64px,auto)_1fr_1.5rem_5.5rem_3.5rem_auto] border-b border-slate-800 bg-slate-800/50">
+                {/*
+                  Kolonner: By | Hotell | NETTER | Kostnad | Snitt | Gjenstår
+                  Faste bredder for de to siste slik at beløpene alltid er på
+                  samme plass uavhengig av gjenstår-innhold.
+                */}
+                <div className="grid grid-cols-[minmax(60px,auto)_1fr_3.5rem_5.5rem_3.5rem_4.5rem] border-b border-slate-800 bg-slate-800/50">
                   <Th>By</Th>
                   <Th>Hotell</Th>
-                  <Th right>N</Th>
+                  <Th right>NETTER</Th>
                   <Th right>Kostnad</Th>
                   <Th right>Snitt</Th>
                   <Th right>Gjenstår</Th>
@@ -297,12 +551,12 @@ export default function KostnaderPage() {
                     return (
                       <div
                         key={hotel.id}
-                        className={`grid grid-cols-[minmax(64px,auto)_1fr_1.5rem_5.5rem_3.5rem_auto] items-center ${
+                        className={`grid grid-cols-[minmax(60px,auto)_1fr_3.5rem_5.5rem_3.5rem_4.5rem] items-center ${
                           i % 2 === 0 ? '' : 'bg-slate-800/20'
                         } hover:bg-slate-800/40 transition-colors`}
                       >
                         {/* By */}
-                        <div className="px-2 py-2 text-[11px] text-slate-400 truncate max-w-[90px]">
+                        <div className="px-2 py-2 text-[11px] text-slate-400 truncate">
                           {stop.city}
                           {stop.state && <span className="text-slate-600">, {stop.state}</span>}
                         </div>
@@ -346,7 +600,7 @@ export default function KostnaderPage() {
                         </div>
 
                         {/* Gjenstår */}
-                        <div className="px-2 py-2 flex justify-end">
+                        <div className="px-1.5 py-1.5">
                           <RemainingCell
                             remainingAmount={hotel.remaining_amount ?? null}
                             onSave={(v) => saveHotel(hotel.stop_id, { remaining_amount: v })}
@@ -362,7 +616,7 @@ export default function KostnaderPage() {
             </div>
 
             {/* ══ HØYRE: Aktiviteter + Andre kostnader ════════════════════ */}
-            <div className="flex-[2] min-w-0 space-y-3" key={currentTrip.id}>
+            <div className="min-w-0 space-y-3" key={currentTrip.id}>
 
               {/* Aktiviteter */}
               <div>
@@ -371,7 +625,7 @@ export default function KostnaderPage() {
                   title="Aktiviteter"
                 />
                 <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_5.5rem_auto] border-b border-slate-800 bg-slate-800/50">
+                  <div className={`grid ${rightGrid} border-b border-slate-800 bg-slate-800/50`}>
                     <Th>Aktivitet</Th>
                     <Th right>Kostnad</Th>
                     <Th right>Gjenstår</Th>
@@ -383,12 +637,24 @@ export default function KostnaderPage() {
                     activityRows.map(({ activity, stop }, i) => (
                       <div
                         key={activity.id}
-                        className={`grid grid-cols-[1fr_5.5rem_auto] items-center ${
+                        className={`grid ${rightGrid} items-center ${
                           i % 2 === 0 ? '' : 'bg-slate-800/20'
                         } hover:bg-slate-800/40 transition-colors`}
                       >
                         <div className="px-2 py-2 min-w-0">
-                          <p className="text-xs text-slate-200 truncate">{activity.name}</p>
+                          {activity.url ? (
+                            <a
+                              href={activity.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 truncate group"
+                            >
+                              <span className="truncate">{activity.name}</span>
+                              <ExternalLink className="w-2.5 h-2.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </a>
+                          ) : (
+                            <p className="text-xs text-slate-200 truncate">{activity.name}</p>
+                          )}
                           <p className="text-[10px] text-slate-500 truncate">
                             {stop.city}
                             {activity.activity_date && ` · ${fmtDate(activity.activity_date)}`}
@@ -401,7 +667,7 @@ export default function KostnaderPage() {
                             onSave={(v) => updateActivity(activity.id, { cost: v })}
                           />
                         </div>
-                        <div className="px-2 py-2 flex justify-end">
+                        <div className="px-1.5 py-1.5">
                           <RemainingCell
                             remainingAmount={activity.remaining_amount ?? null}
                             onSave={(v) => updateActivity(activity.id, { remaining_amount: v })}
@@ -422,37 +688,87 @@ export default function KostnaderPage() {
                   title="Andre kostnader"
                 />
                 <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_5.5rem_auto] border-b border-slate-800 bg-slate-800/50">
+                  <div className={`grid ${rightGrid} border-b border-slate-800 bg-slate-800/50`}>
                     <Th>Post</Th>
                     <Th right>Kostnad</Th>
                     <Th right>Gjenstår</Th>
                   </div>
 
-                  {budgetLines.map(({ key, label, icon, amount }, i) => (
-                    <div
-                      key={key}
-                      className={`grid grid-cols-[1fr_5.5rem_auto] items-center ${
-                        i % 2 === 0 ? '' : 'bg-slate-800/20'
-                      } hover:bg-slate-800/40 transition-colors`}
+                  {/* Fly – klikk åpner FlightInfoModal */}
+                  <div
+                    className={`grid ${rightGrid} items-center hover:bg-slate-800/40 transition-colors`}
+                  >
+                    <button
+                      onClick={() => setShowFlightModal(true)}
+                      className="px-2 py-2 flex items-center gap-1.5 text-left group"
+                      title="Vis flyinformasjon"
                     >
-                      <div className="px-2 py-2 flex items-center gap-1.5">
-                        {icon}
-                        <span className="text-xs text-slate-200">{label}</span>
-                      </div>
-                      <div className="px-1.5 py-1.5">
-                        <CostInput
-                          defaultValue={amount || null}
-                          onSave={(v) => saveItem(key, { amount: v })}
-                        />
-                      </div>
-                      <div className="px-2 py-2 flex justify-end">
-                        <RemainingCell
-                          remainingAmount={getRemaining(key)}
-                          onSave={(v) => saveItem(key, { remaining_amount: v })}
-                        />
-                      </div>
+                      <Plane className="w-3 h-3 text-sky-400 flex-shrink-0" />
+                      <span className="text-xs text-slate-200">Fly</span>
+                      <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-colors ml-auto" />
+                    </button>
+                    <div className="px-1.5 py-1.5">
+                      <CostInput
+                        defaultValue={totalFlight || null}
+                        onSave={(v) => saveItem('flight', { amount: v })}
+                      />
                     </div>
-                  ))}
+                    <div className="px-1.5 py-1.5">
+                      <RemainingCell
+                        remainingAmount={getRemaining('flight')}
+                        onSave={(v) => saveItem('flight', { remaining_amount: v })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Leiebil – klikk åpner CarRentalModal */}
+                  <div
+                    className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors`}
+                  >
+                    <button
+                      onClick={() => setShowCarRentalModal(true)}
+                      className="px-2 py-2 flex items-center gap-1.5 text-left group"
+                      title="Vis/rediger leiebilinfo"
+                    >
+                      <Car className="w-3 h-3 text-violet-400 flex-shrink-0" />
+                      <span className="text-xs text-slate-200">Leiebil</span>
+                      <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-colors ml-auto" />
+                    </button>
+                    <div className="px-1.5 py-1.5">
+                      <CostInput
+                        defaultValue={totalCar || null}
+                        onSave={(v) => saveItem('car', { amount: v })}
+                      />
+                    </div>
+                    <div className="px-1.5 py-1.5">
+                      <RemainingCell
+                        remainingAmount={getRemaining('car')}
+                        onSave={(v) => saveItem('car', { remaining_amount: v })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bensin */}
+                  <div
+                    className={`grid ${rightGrid} items-center hover:bg-slate-800/40 transition-colors`}
+                  >
+                    <div className="px-2 py-2 flex items-center gap-1.5">
+                      <Fuel className="w-3 h-3 text-amber-400" />
+                      <span className="text-xs text-slate-200">Bensin (est.)</span>
+                    </div>
+                    <div className="px-1.5 py-1.5">
+                      <CostInput
+                        defaultValue={totalGas || null}
+                        onSave={(v) => saveItem('gas', { amount: v })}
+                      />
+                    </div>
+                    <div className="px-1.5 py-1.5">
+                      <RemainingCell
+                        remainingAmount={getRemaining('gas')}
+                        onSave={(v) => saveItem('gas', { remaining_amount: v })}
+                      />
+                    </div>
+                  </div>
 
                   <TableTotal label="Total andre" amount={totalOther} />
                 </div>

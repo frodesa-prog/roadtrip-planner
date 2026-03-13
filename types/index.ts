@@ -95,3 +95,14 @@ export interface Flight {
   leg2_to: string | null          // endelig destinasjon
   leg2_arrival: string | null     // HH:MM
 }
+
+export interface CarRental {
+  id: string
+  trip_id: string
+  company: string | null          // Leiebilfirma
+  car_type: string | null         // Type bil
+  reference_nr: string | null     // Referansenr.
+  confirmation_nr: string | null  // Bekreftelsesnr.
+  url: string | null              // Link til bestilling
+  notes: string | null            // Tilleggsinfo
+}
