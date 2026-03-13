@@ -81,7 +81,7 @@ export default function PlanningMap({
         <Map
           defaultCenter={USA_CENTER}
           defaultZoom={4}
-          defaultMapTypeId="satellite"
+          mapTypeId="satellite"
           onClick={handleMapClick}
           className="w-full h-full"
           gestureHandling="greedy"
