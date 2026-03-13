@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MapPin, DollarSign, ChevronDown, LogOut, Loader2, Car } from 'lucide-react'
+import { MapPin, LogOut, Loader2, Car } from 'lucide-react'
 import { Stop, Trip, Hotel, Activity } from '@/types'
 import StopCard from './StopCard'
-import BudgetSummary from './BudgetSummary'
+import FlightPanel from './FlightPanel'
 import TripManager from './TripManager'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -37,7 +37,6 @@ export default function PlanSidebar({
   onSelectStop, onRemoveStop, onReorderStops, onUpdateStop,
   onSelectTrip, onCreateTrip, onDeleteTrip,
 }: PlanSidebarProps) {
-  const [showBudget, setShowBudget] = useState(false)
   const [departureTimes, setDepartureTimes] = useState<Record<string, string>>({})
   const router = useRouter()
   const drivingLegs = useDrivingInfo(stops)
@@ -183,24 +182,8 @@ export default function PlanSidebar({
         )}
       </div>
 
-      {/* Budget */}
-      {currentTrip && (
-        <div className="border-t border-slate-800">
-          <button
-            onClick={() => setShowBudget(!showBudget)}
-            className="w-full px-5 py-3 flex items-center gap-2 text-sm font-medium text-slate-300 hover:bg-slate-800/50 transition-colors"
-          >
-            <DollarSign className="w-4 h-4 text-green-400" />
-            Budsjett &amp; kostnader
-            <ChevronDown className={`w-4 h-4 ml-auto text-slate-500 transition-transform ${showBudget ? 'rotate-180' : ''}`} />
-          </button>
-          {showBudget && (
-            <div className="px-4 pb-4">
-              <BudgetSummary />
-            </div>
-          )}
-        </div>
-      )}
+      {/* Fly */}
+      {currentTrip && <FlightPanel tripId={currentTrip.id} />}
 
       {/* Footer */}
       <div className="px-5 py-2.5 bg-slate-800/30 border-t border-slate-800 flex items-center justify-between">

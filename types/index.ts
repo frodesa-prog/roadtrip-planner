@@ -72,3 +72,23 @@ export interface Note {
   created_at: string
   updated_at: string
 }
+
+export interface Flight {
+  id: string
+  trip_id: string
+  direction: 'outbound' | 'return'
+  // Etappe 1
+  leg1_from: string | null        // avreiseflyplass / -by
+  leg1_departure: string | null   // HH:MM
+  leg1_flight_nr: string | null
+  leg1_to: string | null          // mellomstasjon ELLER endelig destinasjon
+  leg1_arrival: string | null     // HH:MM
+  // Mellomlanding
+  has_stopover: boolean
+  stopover_duration: string | null
+  // Etappe 2 (etter mellomlanding)
+  leg2_flight_nr: string | null
+  leg2_departure: string | null   // HH:MM
+  leg2_to: string | null          // endelig destinasjon
+  leg2_arrival: string | null     // HH:MM
+}
