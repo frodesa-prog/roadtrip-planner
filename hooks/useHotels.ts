@@ -34,7 +34,7 @@ export function useHotels(stopIds: string[]) {
   const saveHotel = useCallback(
     async (
       stopId: string,
-      updates: Partial<Pick<Hotel, 'name' | 'url' | 'status' | 'cost'>>
+      updates: Partial<Pick<Hotel, 'name' | 'url' | 'status' | 'cost' | 'remaining_amount'>>
     ) => {
       const existing = hotels.find((h) => h.stop_id === stopId)
 
@@ -62,6 +62,7 @@ export function useHotels(stopIds: string[]) {
           url: updates.url ?? null,
           status: (updates.status ?? 'not_booked') as BookingStatus,
           cost: updates.cost ?? null,
+          remaining_amount: updates.remaining_amount ?? null,
           confirmation_number: null,
         }
         // Optimistic add

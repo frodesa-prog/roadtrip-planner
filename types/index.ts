@@ -32,6 +32,7 @@ export interface Hotel {
   url: string | null
   status: BookingStatus
   cost: number | null
+  remaining_amount: number | null
   confirmation_number: string | null
 }
 
@@ -41,6 +42,7 @@ export interface Activity {
   name: string
   url: string | null
   cost: number | null
+  remaining_amount: number | null
   notes: string | null
   activity_date: string | null   // ISO date – which day the activity takes place
 }
@@ -61,6 +63,7 @@ export interface BudgetItem {
   trip_id: string
   category: 'gas' | 'car' | 'flight' | 'hotel' | 'other'
   amount: number
+  remaining_amount: number | null
   notes: string | null
 }
 

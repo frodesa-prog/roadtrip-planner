@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { BudgetItem } from '@/types'
 import { toast } from 'sonner'
 
+type ItemUpdates = Partial<Pick<BudgetItem, 'amount' | 'remaining_amount'>>
+
 export function useBudgetItems(tripId: string | null) {
   const [items, setItems] = useState<BudgetItem[]>([])
   const supabase = useMemo(() => createClient(), [])
@@ -23,19 +25,19 @@ export function useBudgetItems(tripId: string | null) {
       })
   }, [tripId, supabase])
 
-  /** Upsert a category amount for the current trip */
+  /** Upsert a category's amount and/or remaining_amount */
   const saveItem = useCallback(
-    async (category: BudgetItem['category'], amount: number) => {
+    async (category: BudgetItem['category'], updates: ItemUpdates) => {
       if (!tripId) return
       const existing = items.find((i) => i.category === category)
 
       if (existing) {
         setItems((prev) =>
-          prev.map((i) => (i.category === category ? { ...i, amount } : i))
+          prev.map((i) => (i.category === category ? { ...i, ...updates } : i))
         )
         const { error } = await supabase
           .from('budget_items')
-          .update({ amount })
+          .update(updates)
           .eq('id', existing.id)
         if (error) {
           setItems((prev) =>
@@ -48,7 +50,8 @@ export function useBudgetItems(tripId: string | null) {
           id: crypto.randomUUID(),
           trip_id: tripId,
           category,
-          amount,
+          amount: updates.amount ?? 0,
+          remaining_amount: updates.remaining_amount ?? null,
           notes: null,
         }
         setItems((prev) => [...prev, newItem])
@@ -67,5 +70,10 @@ export function useBudgetItems(tripId: string | null) {
     return items.find((i) => i.category === category)?.amount ?? 0
   }
 
-  return { items, saveItem, getAmount }
+  /** Get the remaining amount for a category (null if not set) */
+  function getRemaining(category: BudgetItem['category']): number | null {
+    return items.find((i) => i.category === category)?.remaining_amount ?? null
+  }
+
+  return { items, saveItem, getAmount, getRemaining }
 }

@@ -38,6 +38,7 @@ export function useActivities(stopIds: string[]) {
         name: data.name,
         url: data.url ?? null,
         cost: data.cost ?? null,
+        remaining_amount: null,
         notes: null,
         activity_date: data.activity_date ?? null,
       }
@@ -65,7 +66,7 @@ export function useActivities(stopIds: string[]) {
   )
 
   const updateActivity = useCallback(
-    async (id: string, updates: Partial<Pick<Activity, 'name' | 'url' | 'cost' | 'activity_date'>>) => {
+    async (id: string, updates: Partial<Pick<Activity, 'name' | 'url' | 'cost' | 'activity_date' | 'remaining_amount'>>) => {
       setActivities((prev) =>
         prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
       )
