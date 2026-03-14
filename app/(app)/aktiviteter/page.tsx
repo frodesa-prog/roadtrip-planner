@@ -17,12 +17,20 @@ export default function AktiviteterPage() {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
-  // Auto-select activity from URL hash (e.g. navigated from summary page)
+  // Auto-select activity or dining from URL hash (e.g. navigated from summary page)
+  // Activity hash: #<activityId>   Dining hash: #d-<diningId>
   useEffect(() => {
     const hash = window.location.hash.slice(1)
-    if (hash) {
+    if (!hash) return
+    if (hash.startsWith('d-')) {
+      const diningId = hash.slice(2)
+      setSelectedDiningId(diningId)
+      setTimeout(() => {
+        const el = itemRefs.current[diningId]
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 400)
+    } else {
       setSelectedActivityId(hash)
-      // Scroll to list item after activities have loaded
       setTimeout(() => {
         const el = itemRefs.current[hash]
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })

@@ -59,6 +59,8 @@ export default function StopDetailPanel({
   const [hotelUrl, setHotelUrl]         = useState(hotel?.url ?? '')
   const [hotelCost, setHotelCost]       = useState(hotel?.cost != null ? String(hotel.cost) : '')
   const [hotelBooked, setHotelBooked]   = useState(hotel?.status === 'confirmed')
+  // Compact view when hotel has a name; open edit form when no hotel yet
+  const [editingHotel, setEditingHotel] = useState(!(hotel?.name))
   const [nights, setNights]             = useState(stop.nights)
   const [arrivalDate, setArrivalDate]   = useState(stop.arrival_date ?? '')
 
@@ -160,13 +162,25 @@ export default function StopDetailPanel({
   const prevHotelId = useRef<string | null>(null)
 
   useEffect(() => {
-    if (hotel && hotel.id !== prevHotelId.current) {
-      setHotelName(hotel.name ?? '')
-      setHotelAddress(hotel.address ?? '')
-      setHotelUrl(hotel.url ?? '')
-      setHotelCost(hotel.cost != null ? String(hotel.cost) : '')
-      setHotelBooked(hotel.status === 'confirmed')
-      prevHotelId.current = hotel.id
+    if (hotel) {
+      if (hotel.id !== prevHotelId.current) {
+        setHotelName(hotel.name ?? '')
+        setHotelAddress(hotel.address ?? '')
+        setHotelUrl(hotel.url ?? '')
+        setHotelCost(hotel.cost != null ? String(hotel.cost) : '')
+        setHotelBooked(hotel.status === 'confirmed')
+        setEditingHotel(!hotel.name)
+        prevHotelId.current = hotel.id
+      }
+    } else if (prevHotelId.current !== null) {
+      // Switched to a stop with no hotel – clear all fields
+      setHotelName('')
+      setHotelAddress('')
+      setHotelUrl('')
+      setHotelCost('')
+      setHotelBooked(false)
+      setEditingHotel(true)
+      prevHotelId.current = null
     }
   }, [hotel])
 
@@ -179,6 +193,25 @@ export default function StopDetailPanel({
     const newStatus = hotelBooked ? 'not_booked' : 'confirmed'
     setHotelBooked(!hotelBooked)
     onSaveHotel({ status: newStatus as 'not_booked' | 'confirmed' })
+  }
+
+  function handleSaveHotel() {
+    onSaveHotel({
+      name: hotelName.trim(),
+      address: hotelAddress.trim() || null,
+      url: hotelUrl.trim() || null,
+      cost: hotelCost ? Number(hotelCost) : null,
+    })
+    setEditingHotel(false)
+  }
+
+  function handleCancelHotel() {
+    setHotelName(hotel?.name ?? '')
+    setHotelAddress(hotel?.address ?? '')
+    setHotelUrl(hotel?.url ?? '')
+    setHotelCost(hotel?.cost != null ? String(hotel.cost) : '')
+    setHotelBooked(hotel?.status === 'confirmed')
+    setEditingHotel(!hotel?.name)
   }
 
   function handleAddActivity(e: React.FormEvent) {
@@ -296,57 +329,115 @@ export default function StopDetailPanel({
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1">
               <Hotel className="w-3 h-3" /> Hotell
             </h3>
-            <div className="space-y-1.5">
-              <Input value={hotelName} onChange={(e) => setHotelName(e.target.value)}
-                onBlur={() => { if (hotelName.trim() !== (hotel?.name ?? '')) onSaveHotel({ name: hotelName.trim() }) }}
-                placeholder="Hotellnavn"
-                className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
-              <div className="flex gap-1.5">
-                <Input value={hotelAddress} onChange={(e) => setHotelAddress(e.target.value)}
-                  onBlur={() => { if (hotelAddress !== (hotel?.address ?? '')) onSaveHotel({ address: hotelAddress.trim() || null }) }}
-                  placeholder="Adresse"
+
+            {editingHotel ? (
+              /* ── Edit / add form ─────────────────────────────────────── */
+              <div className="space-y-1.5 bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/50">
+                <Input value={hotelName} onChange={(e) => setHotelName(e.target.value)}
+                  placeholder="Hotellnavn" autoFocus
                   className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
+                <div className="flex gap-1.5">
+                  <Input value={hotelAddress} onChange={(e) => setHotelAddress(e.target.value)}
+                    placeholder="Adresse"
+                    className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
+                  {hotelAddress.trim() && (
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hotelAddress.trim())}`}
+                      target="_blank" rel="noopener noreferrer" title="Åpne i Google Maps"
+                      className="flex items-center px-2 rounded border border-slate-700 hover:bg-slate-700 transition-colors">
+                      <MapPin className="w-3 h-3 text-slate-400" />
+                    </a>
+                  )}
+                </div>
+                <div className="flex gap-1.5">
+                  <Input value={hotelUrl} onChange={(e) => setHotelUrl(e.target.value)}
+                    placeholder="https://booking.com/..."
+                    className="h-7 text-xs flex-1 bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
+                  {hotelUrl && (
+                    <a href={hotelUrl} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center px-2 rounded border border-slate-700 hover:bg-slate-700">
+                      <ExternalLink className="w-3 h-3 text-slate-400" />
+                    </a>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Input type="number" min={0} value={hotelCost} onChange={(e) => setHotelCost(e.target.value)}
+                    placeholder="Pris"
+                    className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
+                  <span className="text-xs text-slate-500 flex-shrink-0">kr</span>
+                </div>
+                <button onClick={handleBookedToggle} className="flex items-center">
+                  <Badge variant={hotelBooked ? 'default' : 'secondary'}
+                    className={`text-xs cursor-pointer ${
+                      hotelBooked
+                        ? 'bg-green-900/50 text-green-400 border border-green-700/50 hover:bg-green-900/70'
+                        : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                    }`}>
+                    {hotelBooked ? '✓ Bekreftet' : '○ Ikke booket'}
+                  </Badge>
+                </button>
+                <div className="flex gap-1.5 pt-0.5">
+                  <button onClick={handleSaveHotel} disabled={!hotelName.trim()}
+                    className="flex-1 h-7 rounded bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-xs font-medium flex items-center justify-center gap-1 transition-colors">
+                    <Check className="w-3 h-3" /> Lagre
+                  </button>
+                  {(hotel?.name || hotelName) && (
+                    <button onClick={handleCancelHotel}
+                      className="px-3 h-7 rounded border border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
+                      Avbryt
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : hotelName ? (
+              /* ── Compact card ────────────────────────────────────────── */
+              <div className="flex items-center gap-2 px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50">
+                <Hotel className="w-4 h-4 text-green-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs text-slate-200 truncate block">{hotelName}</span>
+                  {hotelAddress && (
+                    <span className="text-[10px] text-slate-500 truncate block">{hotelAddress}</span>
+                  )}
+                </div>
+                {/* Booking status toggle */}
+                <button onClick={handleBookedToggle}
+                  title={hotelBooked ? 'Bekreftet – klikk for å endre' : 'Ikke booket – klikk for å bekrefte'}>
+                  <Badge variant={hotelBooked ? 'default' : 'secondary'}
+                    className={`text-[10px] cursor-pointer px-1.5 ${
+                      hotelBooked
+                        ? 'bg-green-900/50 text-green-400 border border-green-700/50 hover:bg-green-900/70'
+                        : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                    }`}>
+                    {hotelBooked ? '✓' : '○'}
+                  </Badge>
+                </button>
+                {/* Address map link */}
                 {hotelAddress.trim() && (
                   <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hotelAddress.trim())}`}
                     target="_blank" rel="noopener noreferrer" title="Åpne i Google Maps"
-                    className="flex items-center px-2 rounded border border-slate-700 hover:bg-slate-700 transition-colors">
-                    <MapPin className="w-3 h-3 text-slate-400" />
+                    className="text-slate-500 hover:text-green-400 flex-shrink-0 transition-colors">
+                    <MapPin className="w-3 h-3" />
                   </a>
                 )}
-              </div>
-              <div className="flex gap-1.5">
-                <Input value={hotelUrl} onChange={(e) => setHotelUrl(e.target.value)}
-                  onBlur={() => { if (hotelUrl !== (hotel?.url ?? '')) onSaveHotel({ url: hotelUrl || null }) }}
-                  placeholder="https://booking.com/..."
-                  className="h-7 text-xs flex-1 bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
+                {/* Hotel URL link */}
                 {hotelUrl && (
-                  <a href={hotelUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center px-2 rounded border border-slate-700 hover:bg-slate-700">
-                    <ExternalLink className="w-3 h-3 text-slate-400" />
+                  <a href={hotelUrl} target="_blank" rel="noopener noreferrer" title="Åpne hotellside"
+                    className="text-slate-500 hover:text-green-400 flex-shrink-0 transition-colors">
+                    <ExternalLink className="w-3 h-3" />
                   </a>
                 )}
+                {/* Edit */}
+                <button onClick={() => setEditingHotel(true)} title="Rediger hotell"
+                  className="text-slate-500 hover:text-green-400 flex-shrink-0 transition-colors">
+                  <Pencil className="w-3 h-3" />
+                </button>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Input type="number" min={0} value={hotelCost} onChange={(e) => setHotelCost(e.target.value)}
-                  onBlur={() => {
-                    const cost = hotelCost ? Number(hotelCost) : null
-                    if (cost !== (hotel?.cost ?? null)) onSaveHotel({ cost })
-                  }}
-                  placeholder="Pris"
-                  className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
-                <span className="text-xs text-slate-500 flex-shrink-0">kr</span>
-              </div>
-              <button onClick={handleBookedToggle} className="flex items-center">
-                <Badge variant={hotelBooked ? 'default' : 'secondary'}
-                  className={`text-xs cursor-pointer ${
-                    hotelBooked
-                      ? 'bg-green-900/50 text-green-400 border border-green-700/50 hover:bg-green-900/70'
-                      : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
-                  }`}>
-                  {hotelBooked ? '✓ Bekreftet' : '○ Ikke booket'}
-                </Badge>
+            ) : (
+              /* ── No hotel yet ────────────────────────────────────────── */
+              <button onClick={() => setEditingHotel(true)}
+                className="w-full flex items-center justify-center gap-1.5 h-8 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-xs transition-colors">
+                <Plus className="w-3 h-3" /> Legg til hotell
               </button>
-            </div>
+            )}
           </section>
 
           {/* ── Aktiviteter ─────────────────────────────────────────────── */}

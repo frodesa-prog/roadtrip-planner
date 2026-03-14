@@ -49,15 +49,19 @@ function buildWeeks(stops: Stop[]): Date[][] {
   return weeks
 }
 
-// Color palettes per stop index (full Tailwind strings for PurgeCSS)
+// Color palettes per stop – 11 distinct hues (full Tailwind strings for PurgeCSS)
 const PALETTES = [
-  { bg: 'bg-blue-900/50',   border: 'border-blue-700/60',   sel: 'ring-blue-400',   text: 'text-blue-200',   drive: 'text-blue-300',   dot: 'bg-blue-400'   },
+  { bg: 'bg-blue-900/50',    border: 'border-blue-700/60',    sel: 'ring-blue-400',    text: 'text-blue-200',    drive: 'text-blue-300',    dot: 'bg-blue-400'    },
   { bg: 'bg-emerald-900/50', border: 'border-emerald-700/60', sel: 'ring-emerald-400', text: 'text-emerald-200', drive: 'text-emerald-300', dot: 'bg-emerald-400' },
-  { bg: 'bg-amber-900/50',  border: 'border-amber-700/60',  sel: 'ring-amber-400',  text: 'text-amber-200',  drive: 'text-amber-300',  dot: 'bg-amber-400'  },
-  { bg: 'bg-pink-900/50',   border: 'border-pink-700/60',   sel: 'ring-pink-400',   text: 'text-pink-200',   drive: 'text-pink-300',   dot: 'bg-pink-400'   },
-  { bg: 'bg-violet-900/50', border: 'border-violet-700/60', sel: 'ring-violet-400', text: 'text-violet-200', drive: 'text-violet-300', dot: 'bg-violet-400' },
-  { bg: 'bg-teal-900/50',   border: 'border-teal-700/60',   sel: 'ring-teal-400',   text: 'text-teal-200',   drive: 'text-teal-300',   dot: 'bg-teal-400'   },
-  { bg: 'bg-orange-900/50', border: 'border-orange-700/60', sel: 'ring-orange-400', text: 'text-orange-200', drive: 'text-orange-300', dot: 'bg-orange-400' },
+  { bg: 'bg-amber-900/50',   border: 'border-amber-700/60',   sel: 'ring-amber-400',   text: 'text-amber-200',   drive: 'text-amber-300',   dot: 'bg-amber-400'   },
+  { bg: 'bg-pink-900/50',    border: 'border-pink-700/60',    sel: 'ring-pink-400',    text: 'text-pink-200',    drive: 'text-pink-300',    dot: 'bg-pink-400'    },
+  { bg: 'bg-violet-900/50',  border: 'border-violet-700/60',  sel: 'ring-violet-400',  text: 'text-violet-200',  drive: 'text-violet-300',  dot: 'bg-violet-400'  },
+  { bg: 'bg-teal-900/50',    border: 'border-teal-700/60',    sel: 'ring-teal-400',    text: 'text-teal-200',    drive: 'text-teal-300',    dot: 'bg-teal-400'    },
+  { bg: 'bg-orange-900/50',  border: 'border-orange-700/60',  sel: 'ring-orange-400',  text: 'text-orange-200',  drive: 'text-orange-300',  dot: 'bg-orange-400'  },
+  { bg: 'bg-sky-900/50',     border: 'border-sky-700/60',     sel: 'ring-sky-400',     text: 'text-sky-200',     drive: 'text-sky-300',     dot: 'bg-sky-400'     },
+  { bg: 'bg-lime-900/50',    border: 'border-lime-700/60',    sel: 'ring-lime-400',    text: 'text-lime-200',    drive: 'text-lime-300',    dot: 'bg-lime-400'    },
+  { bg: 'bg-rose-900/50',    border: 'border-rose-700/60',    sel: 'ring-rose-400',    text: 'text-rose-200',    drive: 'text-rose-300',    dot: 'bg-rose-400'    },
+  { bg: 'bg-purple-900/50',  border: 'border-purple-700/60',  sel: 'ring-purple-400',  text: 'text-purple-200',  drive: 'text-purple-300',  dot: 'bg-purple-400'  },
 ]
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -117,10 +121,39 @@ export default function SummaryPage() {
   }, [stops, drivingLegs])
 
   // Map: stop id → palette index
+  // Strategy: first use a color no other stop has ever received (prefer unique);
+  // only recycle when all 11 colors are exhausted, avoiding proximity conflicts.
   const stopPaletteIndex = useMemo(() => {
-    const map: Record<string, number> = {}
-    stops.forEach((stop, i) => { map[stop.id] = i % PALETTES.length })
-    return map
+    const sorted = [...stops].sort((a, b) => a.order - b.order)
+    const assigned: number[] = []
+    sorted.forEach((stop, i) => {
+      // Colors forbidden by proximity (calendar adjacency ≤ 21 days or adjacent in sequence)
+      const forbidden = new Set<number>()
+      if (i > 0) forbidden.add(assigned[i - 1])
+      if (i > 1) forbidden.add(assigned[i - 2])
+      if (stop.arrival_date) {
+        const d0 = +new Date(stop.arrival_date + 'T00:00:00')
+        sorted.forEach((other, j) => {
+          if (j >= i || !other.arrival_date) return
+          const d1 = +new Date(other.arrival_date + 'T00:00:00')
+          if (Math.abs(d0 - d1) <= 21 * 86_400_000) forbidden.add(assigned[j])
+        })
+      }
+      const usedSoFar = new Set(assigned)
+      // 1st priority: a color that has never been used AND is not forbidden
+      const freshColor = [...Array(PALETTES.length).keys()].find(
+        (c) => !usedSoFar.has(c) && !forbidden.has(c)
+      )
+      if (freshColor !== undefined) {
+        assigned.push(freshColor)
+        return
+      }
+      // 2nd priority: any color not forbidden by proximity (even if reused)
+      let color = 0
+      while (forbidden.has(color) && color < PALETTES.length) color++
+      assigned.push(color < PALETTES.length ? color : 0)
+    })
+    return Object.fromEntries(sorted.map((s, i) => [s.id, assigned[i]]))
   }, [stops])
 
   // Set of stop IDs with confirmed hotels
@@ -449,6 +482,7 @@ export default function SummaryPage() {
             onSave={(updates) => updateDining(diningModal.id, updates)}
             onDelete={() => { removeDining(diningModal.id); setDiningModal(null) }}
             onClose={() => setDiningModal(null)}
+            onNavigate={() => { setDiningModal(null); router.push(`/aktiviteter#d-${diningModal.id}`) }}
           />
         )}
 
@@ -1138,13 +1172,14 @@ function ActivityModal({
 // ─── Dining Modal ────────────────────────────────────────────────────────────
 
 function DiningModal({
-  dining, stop, onSave, onDelete, onClose,
+  dining, stop, onSave, onDelete, onClose, onNavigate,
 }: {
   dining: Dining
   stop: Stop | null
   onSave: (updates: UpdateDiningData) => void
   onDelete: () => void
   onClose: () => void
+  onNavigate: () => void
 }) {
   const [name, setName] = useState(dining.name)
   const [url, setUrl]   = useState(dining.url ?? '')
@@ -1246,6 +1281,13 @@ function DiningModal({
             <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
               className="h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 outline-none focus:border-red-500 transition-colors" />
           </div>
+
+          {/* Navigate to aktiviteter page */}
+          <button onClick={onNavigate}
+            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-xs transition-colors">
+            <Navigation className="w-3.5 h-3.5 text-red-400" />
+            Vis på aktivitetssiden
+          </button>
         </div>
 
         {/* Footer */}
