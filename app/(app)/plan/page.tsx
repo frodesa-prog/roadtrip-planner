@@ -92,7 +92,6 @@ export default function PlanPage() {
           onAddStop={handleAddStop}
           onSelectStop={handleSelectStop}
           disabled={!currentTrip}
-          activities={activities}
         />
       </div>
     </div>
