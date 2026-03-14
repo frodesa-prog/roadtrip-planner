@@ -93,6 +93,7 @@ export default function PlanPage() {
           onSelectStop={handleSelectStop}
           disabled={!currentTrip}
           hotels={hotels}
+          mapCenter={selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null}
         />
       </div>
     </div>
