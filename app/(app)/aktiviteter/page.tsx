@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useActivities } from '@/hooks/useActivities'
@@ -13,6 +13,19 @@ import Link from 'next/link'
 export default function AktiviteterPage() {
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  // Auto-select activity from URL hash (e.g. navigated from summary page)
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    if (hash) {
+      setSelectedActivityId(hash)
+      // Scroll to list item after activities have loaded
+      setTimeout(() => {
+        const el = itemRefs.current[hash]
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 400)
+    }
+  }, [])
 
   const { currentTrip } = useTrips()
   const { stops } = useStops(currentTrip?.id ?? null)

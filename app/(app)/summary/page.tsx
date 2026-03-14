@@ -1,11 +1,14 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Car, CalendarDays, Hotel as HotelIcon, Ticket, ExternalLink, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
 import { useActivities } from '@/hooks/useActivities'
+import { UpdateActivityData } from '@/hooks/useActivities'
+import { ActivityTypeIcon, getActivityTypeConfig, ACTIVITY_TYPE_PRESETS } from '@/lib/activityTypes'
 import { useDrivingInfo, LegInfo } from '@/hooks/useDrivingInfo'
 import { useFlights } from '@/hooks/useFlights'
 import { useNotes } from '@/hooks/useNotes'
@@ -59,6 +62,7 @@ const PALETTES = [
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function SummaryPage() {
+  const router = useRouter()
   const { trips, currentTrip, loading: tripsLoading, setCurrentTrip, createTrip, deleteTrip } = useTrips()
   const { stops, loading: stopsLoading, updateStop } = useStops(currentTrip?.id ?? null)
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
@@ -70,6 +74,7 @@ export default function SummaryPage() {
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [flightModal, setFlightModal] = useState<Flight | null>(null)
+  const [activityModal, setActivityModal] = useState<Activity | null>(null)
   type NoteModalState =
     | { mode: 'new'; stopId: string | null; initialDate: string | null }
     | { mode: 'edit'; note: Note }
@@ -353,6 +358,7 @@ export default function SummaryPage() {
                           onFlightClick={setFlightModal}
                           notesOnDay={notesByDate[dateStr] ?? []}
                           onNoteClick={(note) => setNoteModal({ mode: 'edit', note })}
+                          onActivityClick={setActivityModal}
                           onClick={stop ? () => setSelectedDate(isSelected ? null : dateStr) : undefined}
                         />
                       )
@@ -403,6 +409,21 @@ export default function SummaryPage() {
           />
         )}
 
+        {/* Activity modal */}
+        {activityModal && (
+          <ActivityModal
+            activity={activityModal}
+            stop={stops.find((s) => s.id === activityModal.stop_id) ?? null}
+            onSave={(updates) => updateActivity(activityModal.id, updates)}
+            onDelete={() => { removeActivity(activityModal.id); setActivityModal(null) }}
+            onClose={() => setActivityModal(null)}
+            onNavigate={() => {
+              router.push(`/aktiviteter#${activityModal.id}`)
+              setActivityModal(null)
+            }}
+          />
+        )}
+
         {/* Detail panel */}
         {selectedStop && selectedDate && (
           <div className="w-[320px] flex-shrink-0 overflow-hidden">
@@ -445,6 +466,7 @@ function DayCell({
   onFlightClick,
   notesOnDay,
   onNoteClick,
+  onActivityClick,
   onClick,
 }: {
   date: Date
@@ -460,19 +482,10 @@ function DayCell({
   onFlightClick: (f: Flight) => void
   notesOnDay: Note[]
   onNoteClick: (note: Note) => void
+  onActivityClick: (activity: Activity) => void
   onClick?: () => void
 }) {
   const isFirstOfMonth = date.getDate() === 1
-
-  const baseballActivities = activitiesOnDay.filter((a) =>
-    a.name.toLowerCase().includes('baseball')
-  )
-  const otherActivities = activitiesOnDay.filter(
-    (a) => !a.name.toLowerCase().includes('baseball')
-  )
-
-  const hasAnyIcons =
-    hasConfirmedHotel || baseballActivities.length > 0 || otherActivities.length > 0
 
   return (
     <div
@@ -551,25 +564,25 @@ function DayCell({
             )
         )}
 
-        {/* Baseball activities */}
-        {baseballActivities.map((a) => (
-          <div key={a.id} className="flex items-center gap-0.5 flex-shrink-0">
-            <span className="text-[11px] leading-none">⚾</span>
-            {a.activity_time && (
-              <span className="text-[8px] text-slate-400">{a.activity_time}</span>
-            )}
-          </div>
-        ))}
-
-        {/* Other activities */}
-        {otherActivities.map((a) => (
-          <div key={a.id} className="flex items-center gap-0.5 flex-shrink-0">
-            <Ticket className="w-3 h-3 text-purple-400" />
-            {a.activity_time && (
-              <span className="text-[8px] text-purple-300">{a.activity_time}</span>
-            )}
-          </div>
-        ))}
+        {/* Activities – type-specific icon, clickable */}
+        {activitiesOnDay.map((a) => {
+          const cfg = getActivityTypeConfig(a.activity_type)
+          return (
+            <button
+              key={a.id}
+              onClick={(e) => { e.stopPropagation(); onActivityClick(a) }}
+              title={a.name}
+              className="flex items-center gap-0.5 flex-shrink-0 hover:opacity-75 transition-opacity"
+            >
+              <span className="leading-none"><ActivityTypeIcon type={a.activity_type} size={12} /></span>
+              {a.activity_time && (
+                <span className="text-[8px]" style={{ color: cfg.color }}>
+                  {a.activity_time}
+                </span>
+              )}
+            </button>
+          )
+        })}
 
         {/* Note icons */}
         {notesOnDay.map((note) => (
@@ -880,6 +893,189 @@ function NoteModal({
             onClick={onClose}
             className="px-3 h-8 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 text-xs transition-colors"
           >
+            Avbryt
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Activity Modal ───────────────────────────────────────────────────────────
+
+function ActivityModal({
+  activity, stop, onSave, onDelete, onClose, onNavigate,
+}: {
+  activity: Activity
+  stop: Stop | null
+  onSave: (updates: UpdateActivityData) => void
+  onDelete: () => void
+  onClose: () => void
+  onNavigate: () => void
+}) {
+  const [name, setName]       = useState(activity.name)
+  const [type, setType]       = useState(activity.activity_type)
+  const [date, setDate]       = useState(activity.activity_date ?? '')
+  const [time, setTime]       = useState(activity.activity_time ?? '')
+  const [cost, setCost]       = useState(activity.cost != null ? String(activity.cost) : '')
+  const [url, setUrl]         = useState(activity.url ?? '')
+  const [customType, setCustomType] = useState('')
+  const [showCustom, setShowCustom] = useState(false)
+
+  const stopDates = stop ? getStopDateRange(stop) : []
+  const cfg = getActivityTypeConfig(type)
+
+  function handleSave() {
+    onSave({
+      name: name.trim() || activity.name,
+      activity_type: type,
+      activity_date: date || null,
+      activity_time: time || null,
+      cost: cost ? Number(cost) : null,
+      url: url.trim() || null,
+    })
+    onClose()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: cfg.color + '33' }}
+            >
+              <ActivityTypeIcon type={type} size={15} />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-slate-100">Aktivitet</span>
+              {stop && <span className="text-xs text-slate-500 ml-1.5">{stop.city}</span>}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-3">
+          {/* Name */}
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Aktivitetsnavn"
+            autoFocus
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-purple-500/60 transition-colors"
+          />
+
+          {/* Type */}
+          <div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Type</p>
+            <div className="flex flex-wrap gap-1">
+              {ACTIVITY_TYPE_PRESETS.map((p) => (
+                <button key={p.value} type="button"
+                  onClick={() => { setType(p.value); setShowCustom(false) }}
+                  className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                    type === p.value
+                      ? 'bg-purple-700 border-purple-600 text-white'
+                      : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                  }`}>
+                  <ActivityTypeIcon type={p.value} size={11} />
+                  <span>{p.label}</span>
+                </button>
+              ))}
+              <button type="button"
+                onClick={() => { setShowCustom(!showCustom); if (!showCustom) setType(null) }}
+                className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                  showCustom
+                    ? 'border-slate-600 text-slate-300 bg-slate-700'
+                    : 'border-dashed border-slate-700 text-slate-500 hover:border-slate-500'
+                }`}>
+                + Annen
+              </button>
+            </div>
+            {showCustom && (
+              <input value={customType}
+                onChange={(e) => { setCustomType(e.target.value); setType(e.target.value || null) }}
+                placeholder="Skriv inn type…"
+                className="mt-1.5 w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors"
+              />
+            )}
+          </div>
+
+          {/* Date pills */}
+          {stopDates.length > 0 && (
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Dato</p>
+              <div className="flex flex-wrap gap-1">
+                {stopDates.map((d) => (
+                  <button key={d} type="button"
+                    onClick={() => setDate(d === date ? '' : d)}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                      d === date
+                        ? 'bg-purple-700 border-purple-600 text-white'
+                        : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                    }`}>
+                    {new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Time + Cost */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-[10px] text-slate-500 mb-1">Klokkeslett</p>
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
+                className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 outline-none focus:border-purple-500 transition-colors" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 mb-1">Kostnad (kr)</p>
+              <input type="number" min={0} value={cost} onChange={(e) => setCost(e.target.value)}
+                placeholder="0"
+                className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors" />
+            </div>
+          </div>
+
+          {/* URL */}
+          <div>
+            <p className="text-[10px] text-slate-500 mb-1">Lenke</p>
+            <input value={url} onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://…"
+              className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors" />
+          </div>
+
+          {/* Navigate to activities page */}
+          {activity.map_lat && activity.map_lng && (
+            <button onClick={onNavigate}
+              className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-xs transition-colors">
+              <Navigation className="w-3.5 h-3.5 text-blue-400" />
+              Vis i Aktiviteter og zoom inn
+            </button>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 pb-4 flex gap-2">
+          <button onClick={handleSave} disabled={!name.trim()}
+            className="flex-1 h-8 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-semibold transition-colors">
+            Lagre
+          </button>
+          <button onClick={onDelete}
+            className="px-3 h-8 rounded-lg border border-red-800/60 text-red-400 hover:bg-red-900/30 text-xs transition-colors">
+            Slett
+          </button>
+          <button onClick={onClose}
+            className="px-3 h-8 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 text-xs transition-colors">
             Avbryt
           </button>
         </div>
