@@ -303,6 +303,14 @@ export default function StopDetailPanel({
     : null
 
   const totalActivityCost = activities.reduce((s, a) => s + (a.cost ?? 0), 0)
+  const sortedActivities = [...activities].sort((a, b) => {
+    const dateA = a.activity_date ?? '9999-12-31'
+    const dateB = b.activity_date ?? '9999-12-31'
+    if (dateA !== dateB) return dateA < dateB ? -1 : 1
+    const timeA = a.activity_time ?? '99:99'
+    const timeB = b.activity_time ?? '99:99'
+    return timeA < timeB ? -1 : timeA > timeB ? 1 : 0
+  })
   const dayLabel = new Date(selectedDate + 'T12:00:00').toLocaleDateString('nb-NO', {
     weekday: 'long', day: 'numeric', month: 'long',
   })
@@ -515,7 +523,7 @@ export default function StopDetailPanel({
 
             {activities.length > 0 && (
               <div className="space-y-1 mb-2">
-                {activities.map((act) => {
+                {sortedActivities.map((act) => {
                   const isPinned = !!(act.map_lat && act.map_lng)
                   const isEditing = editingActivityId === act.id
 
