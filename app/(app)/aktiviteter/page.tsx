@@ -7,11 +7,13 @@ import { useActivities } from '@/hooks/useActivities'
 import { useHotels } from '@/hooks/useHotels'
 import PlanningMap from '@/components/map/PlanningMap'
 import { ActivityTypeIcon, getActivityTypeConfig } from '@/lib/activityTypes'
-import { MapPin, Clock, X, ExternalLink, Navigation } from 'lucide-react'
+import { MapPin, Clock, X, ExternalLink, Navigation, Car, Footprints, Ruler } from 'lucide-react'
+import type { RouteInfo } from '@/components/map/ActivityRoutePolyline'
 import Link from 'next/link'
 
 export default function AktiviteterPage() {
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   // Auto-select activity from URL hash (e.g. navigated from summary page)
@@ -92,7 +94,14 @@ export default function AktiviteterPage() {
   ])
 
   function handleSelectActivity(id: string) {
-    setSelectedActivityId((prev) => (prev === id ? null : id))
+    setSelectedActivityId((prev) => {
+      if (prev === id) {
+        setRouteInfo(null)
+        return null
+      }
+      setRouteInfo(null)
+      return id
+    })
     setTimeout(() => {
       const el = itemRefs.current[id]
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -229,6 +238,7 @@ export default function AktiviteterPage() {
           onSelectActivity={handleSelectActivity}
           mapCenter={mapCenter}
           activityRoute={activityRoute}
+          onActivityRouteInfo={setRouteInfo}
         />
 
         {/* ─── Activity info box overlay ─────────────────────────────── */}
@@ -299,6 +309,27 @@ export default function AktiviteterPage() {
                       ? selectedHotel.name
                       : selectedStop?.city ?? 'hotellet'}
                   </span>
+                </div>
+              )}
+
+              {/* Route stats */}
+              {routeInfo && (
+                <div className="mt-1 grid grid-cols-3 gap-1 rounded-lg bg-slate-800/60 p-2">
+                  <div className="flex flex-col items-center gap-0.5">
+                    <Ruler className="w-3 h-3 text-slate-400" />
+                    <span className="text-[10px] text-slate-300 font-medium">{routeInfo.distance}</span>
+                    <span className="text-[9px] text-slate-500">distanse</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <Car className="w-3 h-3 text-amber-400" />
+                    <span className="text-[10px] text-slate-300 font-medium">{routeInfo.drivingTime}</span>
+                    <span className="text-[9px] text-slate-500">bil</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <Footprints className="w-3 h-3 text-green-400" />
+                    <span className="text-[10px] text-slate-300 font-medium">{routeInfo.walkingTime}</span>
+                    <span className="text-[9px] text-slate-500">gange</span>
+                  </div>
                 </div>
               )}
             </div>

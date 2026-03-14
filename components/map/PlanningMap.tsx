@@ -13,7 +13,7 @@ import StopMarker from './StopMarker'
 import AddStopPopup from './AddStopPopup'
 import MapSearchBox from './MapSearchBox'
 import ActivityMarker from './ActivityMarker'
-import ActivityRoutePolyline from './ActivityRoutePolyline'
+import ActivityRoutePolyline, { RouteInfo } from './ActivityRoutePolyline'
 
 interface ActivityRoute {
   fromLat: number
@@ -35,6 +35,7 @@ interface PlanningMapProps {
   onSelectActivity?: (id: string) => void
   mapCenter?: { lat: number; lng: number } | null
   activityRoute?: ActivityRoute | null
+  onActivityRouteInfo?: (info: RouteInfo) => void
 }
 
 interface PendingStop {
@@ -78,6 +79,7 @@ export default function PlanningMap({
   onSelectActivity,
   mapCenter,
   activityRoute,
+  onActivityRouteInfo,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
 
@@ -161,6 +163,7 @@ export default function PlanningMap({
               toAddress={activityRoute.toAddress}
               toLat={activityRoute.toLat}
               toLng={activityRoute.toLng}
+              onRouteInfo={onActivityRouteInfo}
             />
           )}
 
