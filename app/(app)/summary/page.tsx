@@ -569,28 +569,26 @@ function DayCell({
         isSelected ? `ring-2 ${palette?.sel ?? 'ring-white'} ring-offset-1 ring-offset-slate-950` : '',
       ].join(' ')}
     >
-      {/* Date number – always at top */}
-      <p className={`text-[11px] font-semibold leading-none ${stop || flight ? 'text-slate-300' : 'text-slate-700'}`}>
-        {isFirstOfMonth
-          ? date.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
-          : date.getDate()}
-      </p>
+      {/* Date + drive info on same line */}
+      <div className="flex items-center gap-1 leading-none min-w-0">
+        <span className={`text-[11px] font-semibold flex-shrink-0 ${stop || flight ? 'text-slate-300' : 'text-slate-700'}`}>
+          {isFirstOfMonth
+            ? date.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
+            : date.getDate()}
+        </span>
+        {stop && isArrival && leg && (
+          <div className={`flex items-center gap-0.5 text-[9px] font-medium min-w-0 ${palette?.drive ?? 'text-slate-400'}`}>
+            <Car className="w-2.5 h-2.5 flex-shrink-0" />
+            <span className="truncate">{leg.durationText} · {leg.distanceText}</span>
+          </div>
+        )}
+      </div>
 
+      {/* City name – always on line 2, same position for all days */}
       {stop && (
-        <>
-          {/* Drive info – right under date on arrival days */}
-          {isArrival && leg && (
-            <div className={`mt-0.5 flex items-center gap-0.5 text-[9px] font-medium ${palette?.drive ?? 'text-slate-400'}`}>
-              <Car className="w-2.5 h-2.5 flex-shrink-0" />
-              <span className="truncate">{leg.durationText} · {leg.distanceText}</span>
-            </div>
-          )}
-
-          {/* City name – always right under drive info (or date) */}
-          <p className={`text-[11px] font-semibold truncate leading-tight mt-0.5 ${palette?.text ?? 'text-slate-300'}`}>
-            {stop.city}
-          </p>
-        </>
+        <p className={`text-[11px] font-semibold truncate leading-tight mt-0.5 ${palette?.text ?? 'text-slate-300'}`}>
+          {stop.city}
+        </p>
       )}
 
       {/* Spacer pushes icons to bottom */}
