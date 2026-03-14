@@ -52,6 +52,17 @@ export interface Activity {
   map_lng: number | null          // pinned location longitude
 }
 
+export interface Dining {
+  id: string
+  stop_id: string
+  name: string
+  url: string | null
+  booking_date: string | null   // ISO date (YYYY-MM-DD)
+  booking_time: string | null   // HH:MM
+  map_lat: number | null
+  map_lng: number | null
+}
+
 export interface Photo {
   id: string
   trip_id: string

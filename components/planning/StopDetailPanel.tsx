@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   X, Calendar, Moon, Hotel, ExternalLink,
-  Ticket, Plus, Trash2, MapPin, Car, Pencil, Check,
+  Ticket, Plus, Trash2, MapPin, Car, Pencil, Check, UtensilsCrossed, Clock,
 } from 'lucide-react'
-import { Stop, Hotel as HotelType, Activity } from '@/types'
+import { Stop, Hotel as HotelType, Activity, Dining } from '@/types'
 import { AddActivityData, UpdateActivityData } from '@/hooks/useActivities'
+import { AddDiningData, UpdateDiningData } from '@/hooks/useDining'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { LegInfo } from '@/hooks/useDrivingInfo'
@@ -21,6 +22,7 @@ interface StopDetailPanelProps {
   stop: Stop
   hotel: HotelType | null
   activities: Activity[]
+  dining: Dining[]
   leg: LegInfo | null
   selectedDate: string
   stopIndex?: number
@@ -29,6 +31,9 @@ interface StopDetailPanelProps {
   onAddActivity: (data: AddActivityData) => void
   onRemoveActivity: (id: string) => void
   onUpdateActivity: (id: string, updates: UpdateActivityData) => void
+  onAddDining: (data: AddDiningData) => void
+  onRemoveDining: (id: string) => void
+  onUpdateDining: (id: string, updates: UpdateDiningData) => void
   onClose: () => void
 }
 
@@ -45,8 +50,9 @@ function getStopDates(stop: Stop): string[] {
 }
 
 export default function StopDetailPanel({
-  stop, hotel, activities, leg, selectedDate,
-  onUpdateStop, onSaveHotel, onAddActivity, onRemoveActivity, onUpdateActivity, onClose,
+  stop, hotel, activities, dining, leg, selectedDate,
+  onUpdateStop, onSaveHotel, onAddActivity, onRemoveActivity, onUpdateActivity,
+  onAddDining, onRemoveDining, onUpdateDining, onClose,
 }: StopDetailPanelProps) {
   const [hotelName, setHotelName]       = useState(hotel?.name ?? '')
   const [hotelAddress, setHotelAddress] = useState(hotel?.address ?? '')
@@ -70,7 +76,7 @@ export default function StopDetailPanel({
   const [pinningActivityId, setPinningActivityId]   = useState<string | null>(null)
   const [editingStopLocation, setEditingStopLocation] = useState(false)
 
-  // Inline edit state
+  // Inline edit state – activities
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
   const [editActName, setEditActName]   = useState('')
   const [editActUrl, setEditActUrl]     = useState('')
@@ -102,6 +108,54 @@ export default function StopDetailPanel({
 
   function cancelEdit() { setEditingActivityId(null) }
 
+  // Dining state
+  const [showAddDining, setShowAddDining]       = useState(false)
+  const [newDiningName, setNewDiningName]       = useState('')
+  const [newDiningUrl, setNewDiningUrl]         = useState('')
+  const [newDiningDate, setNewDiningDate]       = useState(selectedDate)
+  const [newDiningTime, setNewDiningTime]       = useState('')
+  const [pinningDiningId, setPinningDiningId]   = useState<string | null>(null)
+
+  // Inline edit state – dining
+  const [editingDiningId, setEditingDiningId]   = useState<string | null>(null)
+  const [editDiningName, setEditDiningName]     = useState('')
+  const [editDiningUrl, setEditDiningUrl]       = useState('')
+  const [editDiningDate, setEditDiningDate]     = useState('')
+  const [editDiningTime, setEditDiningTime]     = useState('')
+
+  function startEditDining(d: Dining) {
+    setEditingDiningId(d.id)
+    setEditDiningName(d.name)
+    setEditDiningUrl(d.url ?? '')
+    setEditDiningDate(d.booking_date ?? '')
+    setEditDiningTime(d.booking_time ?? '')
+  }
+
+  function saveEditDining() {
+    if (!editingDiningId || !editDiningName.trim()) return
+    onUpdateDining(editingDiningId, {
+      name: editDiningName.trim(),
+      url: editDiningUrl.trim() || null,
+      booking_date: editDiningDate || null,
+      booking_time: editDiningTime || null,
+    })
+    setEditingDiningId(null)
+  }
+
+  function handleAddDining(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newDiningName.trim()) return
+    onAddDining({
+      name: newDiningName.trim(),
+      url: newDiningUrl.trim() || undefined,
+      booking_date: newDiningDate || undefined,
+      booking_time: newDiningTime.trim() || undefined,
+    })
+    setNewDiningName(''); setNewDiningUrl('')
+    setNewDiningDate(selectedDate); setNewDiningTime('')
+    setShowAddDining(false)
+  }
+
   const stopDates = getStopDates(stop)
   const prevHotelId = useRef<string | null>(null)
 
@@ -119,6 +173,7 @@ export default function StopDetailPanel({
   useEffect(() => { setNights(stop.nights) }, [stop.nights])
   useEffect(() => { setArrivalDate(stop.arrival_date ?? '') }, [stop.arrival_date])
   useEffect(() => { setNewActDate(selectedDate) }, [selectedDate])
+  useEffect(() => { setNewDiningDate(selectedDate) }, [selectedDate])
 
   function handleBookedToggle() {
     const newStatus = hotelBooked ? 'not_booked' : 'confirmed'
@@ -148,6 +203,10 @@ export default function StopDetailPanel({
     setNewActDate(selectedDate); setNewActTime('')
     setNewActType(null); setCustomTypeInput(''); setShowCustomType(false)
   }
+
+  const pinningDining = pinningDiningId
+    ? dining.find((d) => d.id === pinningDiningId) ?? null
+    : null
 
   const totalActivityCost = activities.reduce((s, a) => s + (a.cost ?? 0), 0)
   const dayLabel = new Date(selectedDate + 'T12:00:00').toLocaleDateString('nb-NO', {
@@ -540,6 +599,164 @@ export default function StopDetailPanel({
               </button>
             )}
           </section>
+
+          {/* ── Spisestedet ──────────────────────────────────────────────── */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                <UtensilsCrossed className="w-3 h-3" /> Spisestedet
+                {dining.length > 0 && <span className="text-slate-600 normal-case font-normal">({dining.length})</span>}
+              </h3>
+            </div>
+
+            {dining.length > 0 && (
+              <div className="space-y-1 mb-2">
+                {dining.map((d) => {
+                  const isPinned = !!(d.map_lat && d.map_lng)
+                  const isEditing = editingDiningId === d.id
+
+                  if (isEditing) {
+                    return (
+                      <div key={d.id} className="bg-slate-800/80 rounded-lg border border-red-600/40 p-2.5 space-y-1.5">
+                        <input
+                          value={editDiningName} onChange={(e) => setEditDiningName(e.target.value)}
+                          placeholder="Navn på spisested"
+                          autoFocus
+                          className="w-full h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-red-500 transition-colors" />
+                        <input value={editDiningUrl} onChange={(e) => setEditDiningUrl(e.target.value)}
+                          placeholder="https://..."
+                          className="w-full h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-red-500 transition-colors" />
+                        <div className="flex gap-1.5 items-center">
+                          <input type="time" value={editDiningTime} onChange={(e) => setEditDiningTime(e.target.value)}
+                            className="w-28 h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 outline-none focus:border-red-500 transition-colors" />
+                          <span className="text-[10px] text-slate-500">Klokkeslett</span>
+                        </div>
+                        {stopDates.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {stopDates.map((sd) => (
+                              <button key={sd} type="button" onClick={() => setEditDiningDate(sd)}
+                                className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                  sd === editDiningDate ? 'bg-red-700 border-red-600 text-white' : 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                                }`}>
+                                {new Date(sd + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-1.5">
+                          <button onClick={saveEditDining} disabled={!editDiningName.trim()}
+                            className="flex-1 h-7 rounded bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-medium flex items-center justify-center gap-1 transition-colors">
+                            <Check className="w-3 h-3" /> Lagre
+                          </button>
+                          <button onClick={() => setEditingDiningId(null)}
+                            className="px-3 h-7 rounded border border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
+                            Avbryt
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div key={d.id}
+                      className="flex items-center gap-2 px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 group">
+                      <span className="text-base flex-shrink-0" style={{ lineHeight: 1 }}>🍽️</span>
+
+                      <div className="flex-1 min-w-0">
+                        <span className="block text-xs text-slate-200 truncate">{d.name}</span>
+                        {(d.booking_date || d.booking_time) && (
+                          <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" />
+                            {d.booking_date && new Date(d.booking_date + 'T12:00:00').toLocaleDateString('nb-NO', {
+                              weekday: 'short', day: 'numeric', month: 'short',
+                            })}
+                            {d.booking_time && ` · ${d.booking_time}`}
+                          </span>
+                        )}
+                      </div>
+
+                      {d.url && (
+                        <a href={d.url} target="_blank" rel="noopener noreferrer"
+                          className="text-slate-600 hover:text-blue-400 flex-shrink-0">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+
+                      <button onClick={() => startEditDining(d)}
+                        title="Rediger"
+                        className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors">
+                        <Pencil className="w-3 h-3" />
+                      </button>
+
+                      <button
+                        onClick={() => setPinningDiningId(d.id)}
+                        title={isPinned ? 'Endre kartplassering' : 'Fest på kart'}
+                        className={`flex-shrink-0 transition-colors ${
+                          isPinned ? 'text-red-400 hover:text-red-300' : 'text-slate-500 hover:text-red-400'
+                        }`}>
+                        <MapPin className="w-3 h-3" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Slett spisestedet "${d.name}"?`)) {
+                            onRemoveDining(d.id)
+                          }
+                        }}
+                        className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {showAddDining ? (
+              <form onSubmit={handleAddDining} className="space-y-1.5 bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/50">
+                <Input value={newDiningName} onChange={(e) => setNewDiningName(e.target.value)}
+                  placeholder="Navn på spisested"
+                  className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" autoFocus />
+                <Input value={newDiningUrl} onChange={(e) => setNewDiningUrl(e.target.value)} placeholder="https://..."
+                  className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
+                <div className="flex items-center gap-1.5">
+                  <Input type="time" value={newDiningTime} onChange={(e) => setNewDiningTime(e.target.value)}
+                    className="h-7 text-xs w-28 bg-slate-800 border-slate-700 text-slate-100" />
+                  <span className="text-[10px] text-slate-500">Bookingklokkeslett</span>
+                </div>
+                {stopDates.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-1">Dato</p>
+                    <div className="flex flex-wrap gap-1">
+                      {stopDates.map((sd) => (
+                        <button key={sd} type="button" onClick={() => setNewDiningDate(sd)}
+                          className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                            sd === newDiningDate ? 'bg-red-700 border-red-600 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                          }`}>
+                          {new Date(sd + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-1.5">
+                  <button type="submit" disabled={!newDiningName.trim()}
+                    className="flex-1 h-7 rounded-md bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
+                    Legg til
+                  </button>
+                  <button type="button" onClick={() => { setShowAddDining(false); setNewDiningName(''); setNewDiningUrl(''); setNewDiningTime(''); setNewDiningDate(selectedDate) }}
+                    className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
+                    Avbryt
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button onClick={() => setShowAddDining(true)}
+                className="w-full flex items-center justify-center gap-1.5 h-8 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-xs transition-colors">
+                <Plus className="w-3 h-3" /> Legg til spisested
+              </button>
+            )}
+          </section>
         </div>
       </div>
 
@@ -549,6 +766,15 @@ export default function StopDetailPanel({
           activityName={pinningActivity.name}
           onConfirm={(lat, lng) => { onUpdateActivity(pinningActivity.id, { map_lat: lat, map_lng: lng }); setPinningActivityId(null) }}
           onClose={() => setPinningActivityId(null)}
+        />
+      )}
+
+      {/* Dining location search modal */}
+      {pinningDining && (
+        <ActivityLocationSearch
+          activityName={pinningDining.name}
+          onConfirm={(lat, lng) => { onUpdateDining(pinningDining.id, { map_lat: lat, map_lng: lng }); setPinningDiningId(null) }}
+          onClose={() => setPinningDiningId(null)}
         />
       )}
 

@@ -8,6 +8,7 @@ import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
 import { useActivities } from '@/hooks/useActivities'
+import { useDining } from '@/hooks/useDining'
 import { useDrivingInfo } from '@/hooks/useDrivingInfo'
 import { Stop } from '@/types'
 
@@ -27,6 +28,7 @@ export default function PlanPage() {
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
   const { hotels, saveHotel } = useHotels(stopIds)
   const { activities, addActivity, removeActivity, updateActivity } = useActivities(stopIds)
+  const { dining, addDining, removeDining, updateDining } = useDining(stopIds)
   const drivingLegs = useDrivingInfo(stops)
 
   // Selected stop + its driving leg
@@ -72,6 +74,7 @@ export default function PlanPage() {
             stop={selectedStop}
             hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
             activities={activities.filter((a) => a.stop_id === selectedStop.id)}
+            dining={dining.filter((d) => d.stop_id === selectedStop.id)}
             leg={selectedStopLeg}
             selectedDate={selectedDate}
             onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
@@ -79,6 +82,9 @@ export default function PlanPage() {
             onAddActivity={(data) => addActivity(selectedStop.id, data)}
             onRemoveActivity={removeActivity}
             onUpdateActivity={updateActivity}
+            onAddDining={(data) => addDining(selectedStop.id, data)}
+            onRemoveDining={removeDining}
+            onUpdateDining={updateDining}
             onClose={() => setSelectedStopId(null)}
           />
         </div>
@@ -93,6 +99,8 @@ export default function PlanPage() {
           onSelectStop={handleSelectStop}
           disabled={!currentTrip}
           hotels={hotels}
+          activities={activities}
+          dining={dining}
           mapCenter={selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null}
         />
       </div>

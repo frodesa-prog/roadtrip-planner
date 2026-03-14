@@ -7,12 +7,13 @@ import {
   MapMouseEvent,
   useMap,
 } from '@vis.gl/react-google-maps'
-import { Activity, Hotel, Stop } from '@/types'
+import { Activity, Dining, Hotel, Stop } from '@/types'
 import RoutePolyline from './RoutePolyline'
 import StopMarker from './StopMarker'
 import AddStopPopup from './AddStopPopup'
 import MapSearchBox from './MapSearchBox'
 import ActivityMarker from './ActivityMarker'
+import DiningMarker from './DiningMarker'
 import ActivityRoutePolyline, { RouteInfo } from './ActivityRoutePolyline'
 
 interface ActivityRoute {
@@ -33,6 +34,9 @@ interface PlanningMapProps {
   activities?: Activity[]
   selectedActivityId?: string | null
   onSelectActivity?: (id: string) => void
+  dining?: Dining[]
+  selectedDiningId?: string | null
+  onSelectDining?: (id: string) => void
   mapCenter?: { lat: number; lng: number } | null
   activityRoute?: ActivityRoute | null
   onActivityRouteInfo?: (info: RouteInfo) => void
@@ -96,6 +100,9 @@ export default function PlanningMap({
   activities = [],
   selectedActivityId = null,
   onSelectActivity,
+  dining = [],
+  selectedDiningId = null,
+  onSelectDining,
   mapCenter,
   activityRoute,
   onActivityRouteInfo,
@@ -173,6 +180,16 @@ export default function PlanningMap({
               activity={activity}
               isSelected={activity.id === selectedActivityId}
               onClick={onSelectActivity ? () => onSelectActivity(activity.id) : undefined}
+            />
+          ))}
+
+          {/* Spisestedmarkører */}
+          {dining.filter((d) => d.map_lat != null && d.map_lng != null).map((d) => (
+            <DiningMarker
+              key={d.id}
+              dining={d}
+              isSelected={d.id === selectedDiningId}
+              onClick={onSelectDining ? () => onSelectDining(d.id) : undefined}
             />
           ))}
 

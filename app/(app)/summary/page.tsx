@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
-import { useActivities } from '@/hooks/useActivities'
-import { UpdateActivityData } from '@/hooks/useActivities'
+import { useActivities, UpdateActivityData } from '@/hooks/useActivities'
+import { useDining } from '@/hooks/useDining'
 import { ActivityTypeIcon, getActivityTypeConfig, ACTIVITY_TYPE_PRESETS } from '@/lib/activityTypes'
 import { useDrivingInfo, LegInfo } from '@/hooks/useDrivingInfo'
 import { useFlights } from '@/hooks/useFlights'
@@ -68,6 +68,7 @@ export default function SummaryPage() {
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
   const { hotels, saveHotel } = useHotels(stopIds)
   const { activities, addActivity, removeActivity, updateActivity } = useActivities(stopIds)
+  const { dining, addDining, removeDining, updateDining } = useDining(stopIds)
   const drivingLegs = useDrivingInfo(stops)
   const { outbound, returnFlight } = useFlights(currentTrip?.id ?? null)
   const { notes, addNote, updateNote, deleteNote } = useNotes(currentTrip?.id ?? null)
@@ -431,6 +432,7 @@ export default function SummaryPage() {
               stop={selectedStop}
               hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
               activities={activities.filter((a) => a.stop_id === selectedStop.id)}
+              dining={dining.filter((d) => d.stop_id === selectedStop.id)}
               leg={selectedStopLeg}
               selectedDate={selectedDate}
               stopIndex={selectedStopIndex}
@@ -439,6 +441,9 @@ export default function SummaryPage() {
               onAddActivity={(data) => addActivity(selectedStop.id, data)}
               onRemoveActivity={removeActivity}
               onUpdateActivity={updateActivity}
+              onAddDining={(data) => addDining(selectedStop.id, data)}
+              onRemoveDining={removeDining}
+              onUpdateDining={updateDining}
               onClose={() => setSelectedDate(null)}
             />
           </div>
