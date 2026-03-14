@@ -27,8 +27,7 @@ export default function MapSearchBox({ onPlaceSelect }: MapSearchBoxProps) {
 
     const autocomplete = new placesLib.Autocomplete(inputRef.current, {
       fields: ['geometry', 'address_components', 'name'],
-      componentRestrictions: { country: 'us' },
-      types: ['(cities)'],
+      // Ingen types-begrensning → støtter byer, adresser og steder/hoteller
     })
 
     const listener = autocomplete.addListener('place_changed', () => {
@@ -45,8 +44,11 @@ export default function MapSearchBox({ onPlaceSelect }: MapSearchBoxProps) {
       const stateComp = components.find((c) =>
         c.types.includes('administrative_area_level_1')
       )
+      // Zoom langt inn for spesifikke adresser, moderat for byer
+      const hasStreet = components.some((c) => c.types.includes('street_number'))
+      const zoom = hasStreet ? 17 : 11
 
-      if (map) { map.panTo({ lat, lng }); map.setZoom(11) }
+      if (map) { map.panTo({ lat, lng }); map.setZoom(zoom) }
       onPlaceSelect({ lat, lng, city: cityComp?.long_name ?? place.name ?? '', state: stateComp?.short_name ?? '' })
       setInputValue('')
       inputRef.current?.blur()
@@ -70,7 +72,7 @@ export default function MapSearchBox({ onPlaceSelect }: MapSearchBoxProps) {
           onChange={(e) => setInputValue(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholder="Søk etter by eller sted i USA..."
+          placeholder="Søk etter by, adresse eller hotell..."
           className="flex-1 text-sm outline-none bg-transparent text-slate-100 placeholder:text-slate-500 min-w-0"
           autoComplete="off"
         />
@@ -89,7 +91,7 @@ export default function MapSearchBox({ onPlaceSelect }: MapSearchBoxProps) {
       </div>
       {isFocused && (
         <p className="text-xs text-slate-400 text-center mt-1.5 drop-shadow">
-          Velg et sted fra listen for å legge det til som stoppested
+          Søk på by, adresse eller stedsnavn – velg fra listen for å gå dit
         </p>
       )}
     </div>
