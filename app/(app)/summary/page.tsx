@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
@@ -14,7 +14,8 @@ import { useFlights } from '@/hooks/useFlights'
 import { useNotes } from '@/hooks/useNotes'
 import TripManager from '@/components/planning/TripManager'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
-import { Stop, Activity, Flight, Note } from '@/types'
+import { Stop, Activity, Flight, Note, Dining } from '@/types'
+import { UpdateDiningData } from '@/hooks/useDining'
 import { getOffset, calcFlightMinutes, calcStopoverMinutes, formatDuration } from '@/data/airports'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -76,6 +77,7 @@ export default function SummaryPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [flightModal, setFlightModal] = useState<Flight | null>(null)
   const [activityModal, setActivityModal] = useState<Activity | null>(null)
+  const [diningModal, setDiningModal] = useState<Dining | null>(null)
   type NoteModalState =
     | { mode: 'new'; stopId: string | null; initialDate: string | null }
     | { mode: 'edit'; note: Note }
@@ -145,6 +147,18 @@ export default function SummaryPage() {
     })
     return map
   }, [activities, stops])
+
+  // Map: ISO date → dining bookings on that day
+  const diningByDate = useMemo(() => {
+    const map: Record<string, Dining[]> = {}
+    dining.forEach((d) => {
+      const date = d.booking_date ?? (stops.find((s) => s.id === d.stop_id)?.arrival_date ?? null)
+      if (!date) return
+      if (!map[date]) map[date] = []
+      map[date].push(d)
+    })
+    return map
+  }, [dining, stops])
 
   // Calendar week grid
   const weeks = useMemo(() => buildWeeks(stops), [stops])
@@ -353,6 +367,7 @@ export default function SummaryPage() {
                           palette={pal}
                           isSelected={isSelected}
                           activitiesOnDay={activitiesByDate[dateStr] ?? []}
+                          diningOnDay={diningByDate[dateStr] ?? []}
                           hasConfirmedHotel={stop ? confirmedHotelStopIds.has(stop.id) : false}
                           confirmedHotelUrl={stop ? (confirmedHotelUrls[stop.id] ?? null) : null}
                           flight={flightsByDate[dateStr] ?? null}
@@ -360,6 +375,7 @@ export default function SummaryPage() {
                           notesOnDay={notesByDate[dateStr] ?? []}
                           onNoteClick={(note) => setNoteModal({ mode: 'edit', note })}
                           onActivityClick={setActivityModal}
+                          onDiningClick={setDiningModal}
                           onClick={stop ? () => setSelectedDate(isSelected ? null : dateStr) : undefined}
                         />
                       )
@@ -425,6 +441,17 @@ export default function SummaryPage() {
           />
         )}
 
+        {/* Dining modal */}
+        {diningModal && (
+          <DiningModal
+            dining={diningModal}
+            stop={stops.find((s) => s.id === diningModal.stop_id) ?? null}
+            onSave={(updates) => updateDining(diningModal.id, updates)}
+            onDelete={() => { removeDining(diningModal.id); setDiningModal(null) }}
+            onClose={() => setDiningModal(null)}
+          />
+        )}
+
         {/* Detail panel */}
         {selectedStop && selectedDate && (
           <div className="w-[320px] flex-shrink-0 overflow-hidden">
@@ -465,6 +492,7 @@ function DayCell({
   palette,
   isSelected,
   activitiesOnDay,
+  diningOnDay,
   hasConfirmedHotel,
   confirmedHotelUrl,
   flight,
@@ -472,6 +500,7 @@ function DayCell({
   notesOnDay,
   onNoteClick,
   onActivityClick,
+  onDiningClick,
   onClick,
 }: {
   date: Date
@@ -481,6 +510,7 @@ function DayCell({
   palette: Palette
   isSelected: boolean
   activitiesOnDay: Activity[]
+  diningOnDay: Dining[]
   hasConfirmedHotel: boolean
   confirmedHotelUrl: string | null
   flight: Flight | null
@@ -488,6 +518,7 @@ function DayCell({
   notesOnDay: Note[]
   onNoteClick: (note: Note) => void
   onActivityClick: (activity: Activity) => void
+  onDiningClick: (dining: Dining) => void
   onClick?: () => void
 }) {
   const isFirstOfMonth = date.getDate() === 1
@@ -588,6 +619,21 @@ function DayCell({
             </button>
           )
         })}
+
+        {/* Dining icons */}
+        {diningOnDay.map((d) => (
+          <button
+            key={d.id}
+            onClick={(e) => { e.stopPropagation(); onDiningClick(d) }}
+            title={d.name}
+            className="flex items-center gap-0.5 flex-shrink-0 hover:opacity-75 transition-opacity"
+          >
+            <UtensilsCrossed className="w-3 h-3 text-red-400" />
+            {d.booking_time && (
+              <span className="text-[8px] text-red-400/70">{d.booking_time}</span>
+            )}
+          </button>
+        ))}
 
         {/* Note icons */}
         {notesOnDay.map((note) => (
@@ -1076,6 +1122,140 @@ function ActivityModal({
             Lagre
           </button>
           <button onClick={onDelete}
+            className="px-3 h-8 rounded-lg border border-red-800/60 text-red-400 hover:bg-red-900/30 text-xs transition-colors">
+            Slett
+          </button>
+          <button onClick={onClose}
+            className="px-3 h-8 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 text-xs transition-colors">
+            Avbryt
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Dining Modal ────────────────────────────────────────────────────────────
+
+function DiningModal({
+  dining, stop, onSave, onDelete, onClose,
+}: {
+  dining: Dining
+  stop: Stop | null
+  onSave: (updates: UpdateDiningData) => void
+  onDelete: () => void
+  onClose: () => void
+}) {
+  const [name, setName] = useState(dining.name)
+  const [url, setUrl]   = useState(dining.url ?? '')
+  const [date, setDate] = useState(dining.booking_date ?? '')
+  const [time, setTime] = useState(dining.booking_time ?? '')
+
+  const stopDates = stop ? getStopDateRange(stop) : []
+
+  function handleSave() {
+    onSave({
+      name: name.trim() || dining.name,
+      url: url.trim() || null,
+      booking_date: date || null,
+      booking_time: time || null,
+    })
+    onClose()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-900 border border-red-800/40 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-red-900/40">
+              <UtensilsCrossed className="w-4 h-4 text-red-400" />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-slate-100">Spisested</span>
+              {stop && <span className="text-xs text-slate-500 ml-1.5">{stop.city}</span>}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-3">
+          {/* Name */}
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Navn på spisested"
+            autoFocus
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-red-500/60 transition-colors"
+          />
+
+          {/* URL */}
+          <div className="flex gap-2">
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://…"
+              className="flex-1 h-8 text-xs bg-slate-800 border border-slate-700 rounded-lg px-3 text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-red-500/60 transition-colors"
+            />
+            {url && (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center px-2 rounded-lg border border-slate-700 hover:bg-slate-700 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+              </a>
+            )}
+          </div>
+
+          {/* Date pills */}
+          {stopDates.length > 0 && (
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Dato</p>
+              <div className="flex flex-wrap gap-1">
+                {stopDates.map((d) => (
+                  <button key={d} type="button"
+                    onClick={() => setDate(d === date ? '' : d)}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                      d === date
+                        ? 'bg-red-700 border-red-600 text-white'
+                        : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                    }`}>
+                    {new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Time */}
+          <div>
+            <p className="text-[10px] text-slate-500 mb-1">Bookingklokkeslett</p>
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
+              className="h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 outline-none focus:border-red-500 transition-colors" />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 pb-4 flex gap-2">
+          <button onClick={handleSave} disabled={!name.trim()}
+            className="flex-1 h-8 rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-semibold transition-colors">
+            Lagre
+          </button>
+          <button
+            onClick={() => { if (window.confirm(`Slett spisestedet "${dining.name}"?`)) onDelete() }}
             className="px-3 h-8 rounded-lg border border-red-800/60 text-red-400 hover:bg-red-900/30 text-xs transition-colors">
             Slett
           </button>
