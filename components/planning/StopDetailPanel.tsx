@@ -24,7 +24,7 @@ interface StopDetailPanelProps {
   leg: LegInfo | null
   selectedDate: string
   stopIndex?: number
-  onUpdateStop: (updates: Partial<Pick<Stop, 'nights' | 'arrival_date'>>) => void
+  onUpdateStop: (updates: Partial<Pick<Stop, 'nights' | 'arrival_date' | 'lat' | 'lng'>>) => void
   onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'address' | 'url' | 'status' | 'cost'>>) => void
   onAddActivity: (data: AddActivityData) => void
   onRemoveActivity: (id: string) => void
@@ -66,8 +66,9 @@ export default function StopDetailPanel({
   const [customTypeInput, setCustomTypeInput] = useState('')
   const [showCustomType, setShowCustomType]   = useState(false)
 
-  const [typePickerForId, setTypePickerForId]     = useState<string | null>(null)
-  const [pinningActivityId, setPinningActivityId] = useState<string | null>(null)
+  const [typePickerForId, setTypePickerForId]       = useState<string | null>(null)
+  const [pinningActivityId, setPinningActivityId]   = useState<string | null>(null)
+  const [editingStopLocation, setEditingStopLocation] = useState(false)
 
   // Inline edit state
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
@@ -173,6 +174,13 @@ export default function StopDetailPanel({
               <p className="text-xs text-slate-500 capitalize ml-5">{dayLabel}</p>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={() => setEditingStopLocation(true)}
+                title="Endre kartplassering"
+                className="p-1 rounded-md text-slate-500 hover:text-blue-400 hover:bg-slate-800 transition-colors"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+              </button>
               <a
                 href={`https://www.google.com/maps?q=${stop.lat},${stop.lng}`}
                 target="_blank"
@@ -535,12 +543,22 @@ export default function StopDetailPanel({
         </div>
       </div>
 
-      {/* Location search modal */}
+      {/* Activity location search modal */}
       {pinningActivity && (
         <ActivityLocationSearch
           activityName={pinningActivity.name}
           onConfirm={(lat, lng) => { onUpdateActivity(pinningActivity.id, { map_lat: lat, map_lng: lng }); setPinningActivityId(null) }}
           onClose={() => setPinningActivityId(null)}
+        />
+      )}
+
+      {/* Stop location edit modal */}
+      {editingStopLocation && (
+        <ActivityLocationSearch
+          activityName={`${stop.city}${stop.state ? `, ${stop.state}` : ''}`}
+          confirmLabel="Oppdater kartplassering"
+          onConfirm={(lat, lng) => { onUpdateStop({ lat, lng }); setEditingStopLocation(false) }}
+          onClose={() => setEditingStopLocation(false)}
         />
       )}
     </>

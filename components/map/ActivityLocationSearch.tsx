@@ -6,13 +6,14 @@ import { MapPin, X, Search } from 'lucide-react'
 
 interface Props {
   activityName: string
+  confirmLabel?: string
   onConfirm: (lat: number, lng: number) => void
   onClose: () => void
 }
 
 // ─── Inner component (needs APIProvider) ─────────────────────────────────────
 
-function SearchBody({ activityName, onConfirm, onClose }: Props) {
+function SearchBody({ activityName, confirmLabel = 'Legg til på kart', onConfirm, onClose }: Props) {
   const placesLib = useMapsLibrary('places')
   const inputRef  = useRef<HTMLInputElement>(null)
   const [inputValue, setInputValue] = useState('')
@@ -88,7 +89,7 @@ function SearchBody({ activityName, onConfirm, onClose }: Props) {
             disabled={!selected}
             className="flex-1 h-8 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-semibold transition-colors"
           >
-            Legg til på kart
+            {confirmLabel}
           </button>
           <button
             onClick={onClose}
@@ -105,10 +106,10 @@ function SearchBody({ activityName, onConfirm, onClose }: Props) {
 // ─── Public export – wraps in its own APIProvider ────────────────────────────
 // (Google Maps JS API loads only once per page, so this is safe alongside PlanningMap's provider)
 
-export default function ActivityLocationSearch({ activityName, onConfirm, onClose }: Props) {
+export default function ActivityLocationSearch({ activityName, confirmLabel, onConfirm, onClose }: Props) {
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <SearchBody activityName={activityName} onConfirm={onConfirm} onClose={onClose} />
+      <SearchBody activityName={activityName} confirmLabel={confirmLabel} onConfirm={onConfirm} onClose={onClose} />
     </APIProvider>
   )
 }
