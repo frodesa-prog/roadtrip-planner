@@ -7,8 +7,8 @@ import {
   MapMouseEvent,
   useMap,
 } from '@vis.gl/react-google-maps'
-import { Activity, Dining, Hotel, Stop } from '@/types'
-import RoutePolyline from './RoutePolyline'
+import { Activity, Dining, Hotel, RouteLeg, Stop } from '@/types'
+import RoutePolyline, { LegWaypoints } from './RoutePolyline'
 import StopMarker from './StopMarker'
 import AddStopPopup from './AddStopPopup'
 import MapSearchBox from './MapSearchBox'
@@ -41,6 +41,9 @@ interface PlanningMapProps {
   activityRoute?: ActivityRoute | null
   onActivityRouteInfo?: (info: RouteInfo) => void
   hotels?: Hotel[]
+  routeLegs?: RouteLeg[]
+  routeLegsLoaded?: boolean
+  onRouteLegsChange?: (legs: LegWaypoints[]) => void
 }
 
 interface PendingStop {
@@ -107,6 +110,9 @@ export default function PlanningMap({
   activityRoute,
   onActivityRouteInfo,
   hotels = [],
+  routeLegs = [],
+  routeLegsLoaded = true,
+  onRouteLegsChange,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
 
@@ -229,7 +235,14 @@ export default function PlanningMap({
           )}
 
           {/* Rute mellom stopp */}
-          {stops.length >= 2 && <RoutePolyline stops={stops} />}
+          {stops.length >= 2 && (
+            <RoutePolyline
+              stops={stops}
+              routeLegs={routeLegs}
+              routeLegsLoaded={routeLegsLoaded}
+              onLegsChange={onRouteLegsChange}
+            />
+          )}
 
           {/* Søkeboks */}
           {!readOnly && <MapSearchBox onPlaceSelect={handleSearchSelect} />}

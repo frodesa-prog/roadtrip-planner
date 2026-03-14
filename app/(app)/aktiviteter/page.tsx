@@ -6,6 +6,7 @@ import { useStops } from '@/hooks/useStops'
 import { useActivities } from '@/hooks/useActivities'
 import { useDining } from '@/hooks/useDining'
 import { useHotels } from '@/hooks/useHotels'
+import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
 import PlanningMap from '@/components/map/PlanningMap'
 import { ActivityTypeIcon, getActivityTypeConfig } from '@/lib/activityTypes'
 import { MapPin, Clock, X, ExternalLink, Navigation, Car, Footprints, Ruler, UtensilsCrossed } from 'lucide-react'
@@ -43,6 +44,7 @@ export default function AktiviteterPage() {
 
   const { currentTrip } = useTrips()
   const { stops } = useStops(currentTrip?.id ?? null)
+  const { legs: routeLegs, loaded: routeLegsLoaded } = useRouteWaypoints(currentTrip?.id ?? null)
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
   const { activities } = useActivities(stopIds)
   const { dining } = useDining(stopIds)
@@ -366,6 +368,8 @@ export default function AktiviteterPage() {
           mapCenter={mapCenter}
           activityRoute={selectedDining ? diningRoute : activityRoute}
           onActivityRouteInfo={selectedDining ? setDiningRouteInfo : setRouteInfo}
+          routeLegs={routeLegs}
+          routeLegsLoaded={routeLegsLoaded}
         />
 
         {/* ─── Activity info box overlay ─────────────────────────────── */}

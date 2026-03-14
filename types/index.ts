@@ -131,6 +131,15 @@ export interface NoteImage {
   publicUrl: string  // beregnet fra Supabase Storage, lagres ikke i DB
 }
 
+export interface RouteLeg {
+  id: string
+  trip_id: string
+  from_stop_id: string
+  to_stop_id: string
+  waypoints: Array<{ lat: number; lng: number }>
+  updated_at: string
+}
+
 export interface CarRental {
   id: string
   trip_id: string

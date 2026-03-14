@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import PlanSidebar from '@/components/planning/PlanSidebar'
 import PlanningMap from '@/components/map/PlanningMap'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
@@ -12,7 +12,9 @@ import { useDining } from '@/hooks/useDining'
 import { usePossibleActivities } from '@/hooks/usePossibleActivities'
 import { useNotes } from '@/hooks/useNotes'
 import { useDrivingInfo } from '@/hooks/useDrivingInfo'
+import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
 import { Stop } from '@/types'
+import type { LegWaypoints } from '@/components/map/RoutePolyline'
 
 export default function PlanPage() {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
@@ -34,6 +36,16 @@ export default function PlanPage() {
   const { possibleActivities, addPossibleActivity, removePossibleActivity, updatePossibleActivity } = usePossibleActivities(stopIds)
   const { notes, updateNote, deleteNote } = useNotes(currentTrip?.id ?? null)
   const drivingLegs = useDrivingInfo(stops)
+  const { legs: routeLegs, loaded: routeLegsLoaded, saveLeg } = useRouteWaypoints(currentTrip?.id ?? null)
+
+  const handleRouteLegsChange = useCallback(
+    (legs: LegWaypoints[]) => {
+      for (const leg of legs) {
+        saveLeg(leg.fromStopId, leg.toStopId, leg.waypoints)
+      }
+    },
+    [saveLeg]
+  )
 
   // Selected stop + its driving leg
   const selectedStop = stops.find((s) => s.id === selectedStopId) ?? null
@@ -111,6 +123,9 @@ export default function PlanPage() {
           disabled={!currentTrip}
           hotels={hotels}
           mapCenter={selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null}
+          routeLegs={routeLegs}
+          routeLegsLoaded={routeLegsLoaded}
+          onRouteLegsChange={handleRouteLegsChange}
         />
       </div>
     </div>
