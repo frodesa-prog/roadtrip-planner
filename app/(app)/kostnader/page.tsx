@@ -9,6 +9,7 @@ import { useBudgetItems } from '@/hooks/useBudgetItems'
 import { useFlights } from '@/hooks/useFlights'
 import { useCarRental } from '@/hooks/useCarRental'
 import { useDrivingInfo } from '@/hooks/useDrivingInfo'
+import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
 import { Flight, CarRental } from '@/types'
 import {
   Plane, Car, Fuel, BedDouble, Ticket,
@@ -700,7 +701,8 @@ export default function KostnaderPage() {
 
   // ── Kjøreavstand for bensinskalkulator ───────────────────────────────────
   const sortedStops = useMemo(() => [...stops].sort((a, b) => a.order - b.order), [stops])
-  const drivingLegs = useDrivingInfo(sortedStops)
+  const { legs: routeLegs } = useRouteWaypoints(currentTrip?.id ?? null)
+  const drivingLegs = useDrivingInfo(sortedStops, routeLegs)
   const totalKm = useMemo(
     () => drivingLegs.reduce((s, l) => s + (l?.distanceKm ?? 0), 0),
     [drivingLegs]

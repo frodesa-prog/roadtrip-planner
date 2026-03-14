@@ -35,8 +35,8 @@ export default function PlanPage() {
   const { dining, addDining, removeDining, updateDining } = useDining(stopIds)
   const { possibleActivities, addPossibleActivity, removePossibleActivity, updatePossibleActivity } = usePossibleActivities(stopIds)
   const { notes, updateNote, deleteNote } = useNotes(currentTrip?.id ?? null)
-  const drivingLegs = useDrivingInfo(stops)
   const { legs: routeLegs, loaded: routeLegsLoaded, saveLeg } = useRouteWaypoints(currentTrip?.id ?? null)
+  const drivingLegs = useDrivingInfo(stops, routeLegs)
 
   const handleRouteLegsChange = useCallback(
     (legs: LegWaypoints[]) => {
@@ -81,6 +81,7 @@ export default function PlanPage() {
         onSelectTrip={setCurrentTrip}
         onCreateTrip={createTrip}
         onDeleteTrip={deleteTrip}
+        routeLegs={routeLegs}
       />
 
       {/* Detaljpanel – mellom sidebar og kart */}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { MapPin, LogOut, Loader2, Car } from 'lucide-react'
-import { Stop, Trip, Hotel, Activity } from '@/types'
+import { Stop, Trip, Hotel, Activity, RouteLeg } from '@/types'
 import StopCard from './StopCard'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FlightPanel from './FlightPanel'
@@ -27,6 +27,7 @@ interface PlanSidebarProps {
   onSelectTrip: (trip: Trip) => void
   onCreateTrip: (name: string, year: number) => Promise<Trip | null>
   onDeleteTrip: (id: string) => void
+  routeLegs?: RouteLeg[]
 }
 
 export default function PlanSidebar({
@@ -37,11 +38,12 @@ export default function PlanSidebar({
   activities,
   onSelectStop, onRemoveStop, onReorderStops, onUpdateStop,
   onSelectTrip, onCreateTrip, onDeleteTrip,
+  routeLegs,
 }: PlanSidebarProps) {
   const [departureTimes, setDepartureTimes] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
   const router = useRouter()
-  const drivingLegs = useDrivingInfo(stops)
+  const drivingLegs = useDrivingInfo(stops, routeLegs)
 
   // ── Auto-cascade arrival dates ──────────────────────────────────────────────
   useEffect(() => {

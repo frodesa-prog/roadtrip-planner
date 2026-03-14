@@ -13,6 +13,7 @@ import { ActivityTypeIcon, getActivityTypeConfig, ACTIVITY_TYPE_PRESETS } from '
 import { useDrivingInfo, LegInfo } from '@/hooks/useDrivingInfo'
 import { useFlights } from '@/hooks/useFlights'
 import { useNotes } from '@/hooks/useNotes'
+import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
 import TripManager from '@/components/planning/TripManager'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import NoteModal from '@/components/planning/NoteModal'
@@ -78,7 +79,8 @@ export default function SummaryPage() {
   const { activities, addActivity, removeActivity, updateActivity } = useActivities(stopIds)
   const { dining, addDining, removeDining, updateDining } = useDining(stopIds)
   const { possibleActivities, addPossibleActivity, removePossibleActivity, updatePossibleActivity } = usePossibleActivities(stopIds)
-  const drivingLegs = useDrivingInfo(stops)
+  const { legs: routeLegs } = useRouteWaypoints(currentTrip?.id ?? null)
+  const drivingLegs = useDrivingInfo(stops, routeLegs)
   const { outbound, returnFlight } = useFlights(currentTrip?.id ?? null)
   const { notes, addNote, updateNote, deleteNote } = useNotes(currentTrip?.id ?? null)
 
