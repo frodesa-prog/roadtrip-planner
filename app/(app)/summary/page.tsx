@@ -1,15 +1,17 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Car, CalendarDays, Hotel as HotelIcon, Ticket, ExternalLink } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, Ticket, ExternalLink, PlaneTakeoff, PlaneLanding, X, Clock } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
 import { useActivities } from '@/hooks/useActivities'
 import { useDrivingInfo, LegInfo } from '@/hooks/useDrivingInfo'
+import { useFlights } from '@/hooks/useFlights'
 import TripManager from '@/components/planning/TripManager'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
-import { Stop, Activity } from '@/types'
+import { Stop, Activity, Flight } from '@/types'
+import { getOffset, calcFlightMinutes, calcStopoverMinutes, formatDuration } from '@/data/airports'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -62,8 +64,10 @@ export default function SummaryPage() {
   const { hotels, saveHotel } = useHotels(stopIds)
   const { activities, addActivity, removeActivity } = useActivities(stopIds)
   const drivingLegs = useDrivingInfo(stops)
+  const { outbound, returnFlight } = useFlights(currentTrip?.id ?? null)
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [flightModal, setFlightModal] = useState<Flight | null>(null)
 
   // ── Derived data ────────────────────────────────────────────────────────────
 
@@ -125,6 +129,14 @@ export default function SummaryPage() {
 
   // Calendar week grid
   const weeks = useMemo(() => buildWeeks(stops), [stops])
+
+  // Map: ISO date → Flight on that day
+  const flightsByDate = useMemo(() => {
+    const map: Record<string, Flight> = {}
+    if (outbound?.flight_date) map[outbound.flight_date] = outbound
+    if (returnFlight?.flight_date) map[returnFlight.flight_date] = returnFlight
+    return map
+  }, [outbound, returnFlight])
 
   // Selected stop (from clicked date)
   const selectedStop = selectedDate ? (stopsByDate[selectedDate] ?? null) : null
@@ -271,6 +283,8 @@ export default function SummaryPage() {
                           isSelected={isSelected}
                           activitiesOnDay={activitiesByDate[dateStr] ?? []}
                           hasConfirmedHotel={stop ? confirmedHotelStopIds.has(stop.id) : false}
+                          flight={flightsByDate[dateStr] ?? null}
+                          onFlightClick={setFlightModal}
                           onClick={stop ? () => setSelectedDate(isSelected ? null : dateStr) : undefined}
                         />
                       )
@@ -281,6 +295,11 @@ export default function SummaryPage() {
             </>
           )}
         </div>
+
+        {/* Flight modal */}
+        {flightModal && (
+          <FlightModal flight={flightModal} onClose={() => setFlightModal(null)} />
+        )}
 
         {/* Detail panel */}
         {selectedStop && selectedDate && (
@@ -318,6 +337,8 @@ function DayCell({
   isSelected,
   activitiesOnDay,
   hasConfirmedHotel,
+  flight,
+  onFlightClick,
   onClick,
 }: {
   date: Date
@@ -328,6 +349,8 @@ function DayCell({
   isSelected: boolean
   activitiesOnDay: Activity[]
   hasConfirmedHotel: boolean
+  flight: Flight | null
+  onFlightClick: (f: Flight) => void
   onClick?: () => void
 }) {
   const isFirstOfMonth = date.getDate() === 1
@@ -355,7 +378,7 @@ function DayCell({
       ].join(' ')}
     >
       {/* Date number – always at top */}
-      <p className={`text-[11px] font-semibold leading-none ${stop ? 'text-slate-300' : 'text-slate-700'}`}>
+      <p className={`text-[11px] font-semibold leading-none ${stop || flight ? 'text-slate-300' : 'text-slate-700'}`}>
         {isFirstOfMonth
           ? date.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
           : date.getDate()}
@@ -375,38 +398,197 @@ function DayCell({
           <p className={`text-[11px] font-semibold truncate leading-tight mt-0.5 ${palette?.text ?? 'text-slate-300'}`}>
             {stop.city}
           </p>
-
-          {/* Spacer pushes icons to bottom */}
-          <div className="flex-1" />
-
-          {/* Status icons at bottom – one row per activity so time is visible */}
-          {hasAnyIcons && (
-            <div className="flex flex-col gap-0.5 pt-0.5">
-              {hasConfirmedHotel && (
-                <div className="flex items-center gap-0.5">
-                  <HotelIcon className="w-3 h-3 text-green-400 flex-shrink-0" />
-                </div>
-              )}
-              {baseballActivities.map((a) => (
-                <div key={a.id} className="flex items-center gap-0.5">
-                  <span className="text-[11px] leading-none flex-shrink-0">⚾</span>
-                  {a.activity_time && (
-                    <span className="text-[8px] text-slate-400 truncate">{a.activity_time}</span>
-                  )}
-                </div>
-              ))}
-              {otherActivities.map((a) => (
-                <div key={a.id} className="flex items-center gap-0.5">
-                  <Ticket className="w-3 h-3 text-purple-400 flex-shrink-0" />
-                  {a.activity_time && (
-                    <span className="text-[8px] text-purple-300 truncate">{a.activity_time}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </>
       )}
+
+      {/* Spacer pushes icons to bottom */}
+      <div className="flex-1" />
+
+      {/* Icons row at bottom */}
+      <div className="flex flex-col gap-0.5 pt-0.5">
+        {/* Flight icon – always show if flight on this date */}
+        {flight && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onFlightClick(flight) }}
+            className="flex items-center gap-0.5 group/fly hover:opacity-80 transition-opacity w-fit"
+            title={flight.direction === 'outbound' ? 'Utreise – vis flyinfo' : 'Hjemreise – vis flyinfo'}
+          >
+            {flight.direction === 'outbound'
+              ? <PlaneTakeoff className="w-3 h-3 text-sky-400 flex-shrink-0" />
+              : <PlaneLanding className="w-3 h-3 text-sky-400 flex-shrink-0" />
+            }
+            {flight.leg1_departure && (
+              <span className="text-[8px] text-sky-400/70 truncate">{flight.leg1_departure}</span>
+            )}
+          </button>
+        )}
+
+        {/* Hotel + activity icons */}
+        {hasAnyIcons && (
+          <>
+            {hasConfirmedHotel && (
+              <div className="flex items-center gap-0.5">
+                <HotelIcon className="w-3 h-3 text-green-400 flex-shrink-0" />
+              </div>
+            )}
+            {baseballActivities.map((a) => (
+              <div key={a.id} className="flex items-center gap-0.5">
+                <span className="text-[11px] leading-none flex-shrink-0">⚾</span>
+                {a.activity_time && (
+                  <span className="text-[8px] text-slate-400 truncate">{a.activity_time}</span>
+                )}
+              </div>
+            ))}
+            {otherActivities.map((a) => (
+              <div key={a.id} className="flex items-center gap-0.5">
+                <Ticket className="w-3 h-3 text-purple-400 flex-shrink-0" />
+                {a.activity_time && (
+                  <span className="text-[8px] text-purple-300 truncate">{a.activity_time}</span>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Flight Modal ─────────────────────────────────────────────────────────────
+
+function FlightModal({ flight, onClose }: { flight: Flight; onClose: () => void }) {
+  const isOutbound = flight.direction === 'outbound'
+  const label = isOutbound ? 'Utreise' : 'Hjemreise'
+  const Icon = isOutbound ? PlaneTakeoff : PlaneLanding
+
+  // Duration calculations
+  const fromOffset  = getOffset(flight.leg1_from)
+  const viaOffset   = getOffset(flight.leg1_to)
+  const finalOffset = getOffset(flight.leg2_to)
+
+  const leg1Min = calcFlightMinutes(flight.leg1_departure, fromOffset, flight.leg1_arrival, viaOffset)
+  const leg2Min = flight.has_stopover
+    ? calcFlightMinutes(flight.leg2_departure, viaOffset, flight.leg2_arrival, finalOffset)
+    : null
+  const stopoverMin = flight.has_stopover
+    ? calcStopoverMinutes(flight.leg1_arrival, flight.leg2_departure)
+    : null
+
+  const dateStr = flight.flight_date
+    ? new Date(flight.flight_date + 'T12:00:00').toLocaleDateString('nb-NO', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      })
+    : null
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <Icon className="w-4 h-4 text-sky-400" />
+            <span className="font-semibold text-slate-100 text-sm">{label}</span>
+            {dateStr && <span className="text-xs text-slate-400 capitalize">{dateStr}</span>}
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="px-5 py-4 space-y-3">
+          {/* Leg 1 */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Fra</p>
+                <p className="text-sm font-semibold text-slate-100">{flight.leg1_from ?? '—'}</p>
+              </div>
+              <div className="text-center px-3">
+                <p className="text-xs text-slate-400">{flight.leg1_departure ?? ''}</p>
+                <div className="flex items-center gap-1 my-0.5">
+                  <div className="h-px w-8 bg-slate-600" />
+                  <PlaneTakeoff className="w-3 h-3 text-sky-500" />
+                  <div className="h-px w-8 bg-slate-600" />
+                </div>
+                <p className="text-xs text-slate-400">{flight.leg1_arrival ?? ''}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">
+                  {flight.has_stopover ? 'Via' : 'Til'}
+                </p>
+                <p className="text-sm font-semibold text-slate-100">{flight.leg1_to ?? '—'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {flight.leg1_flight_nr && (
+                <span className="text-[10px] font-mono bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
+                  {flight.leg1_flight_nr}
+                </span>
+              )}
+              {leg1Min !== null && (
+                <span className="text-[10px] text-sky-500/80 flex items-center gap-0.5">
+                  <Clock className="w-2.5 h-2.5" />
+                  {formatDuration(leg1Min)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Stopover + Leg 2 */}
+          {flight.has_stopover && (
+            <>
+              {stopoverMin !== null && (
+                <div className="flex items-center gap-2 py-1 text-[10px] text-amber-400/80">
+                  <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                  <span>Ventetid på flyplass: {formatDuration(stopoverMin)}</span>
+                </div>
+              )}
+
+              <div className="border-t border-slate-800 pt-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Fra</p>
+                    <p className="text-sm font-semibold text-slate-100">{flight.leg1_to ?? '—'}</p>
+                  </div>
+                  <div className="text-center px-3">
+                    <p className="text-xs text-slate-400">{flight.leg2_departure ?? ''}</p>
+                    <div className="flex items-center gap-1 my-0.5">
+                      <div className="h-px w-8 bg-slate-600" />
+                      <PlaneTakeoff className="w-3 h-3 text-sky-500" />
+                      <div className="h-px w-8 bg-slate-600" />
+                    </div>
+                    <p className="text-xs text-slate-400">{flight.leg2_arrival ?? ''}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Til</p>
+                    <p className="text-sm font-semibold text-slate-100">{flight.leg2_to ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {flight.leg2_flight_nr && (
+                    <span className="text-[10px] font-mono bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
+                      {flight.leg2_flight_nr}
+                    </span>
+                  )}
+                  {leg2Min !== null && (
+                    <span className="text-[10px] text-sky-500/80 flex items-center gap-0.5">
+                      <Clock className="w-2.5 h-2.5" />
+                      {formatDuration(leg2Min)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
