@@ -378,6 +378,14 @@ export default function SummaryPage() {
                 })}
               </div>
 
+              {/* Missing-hotel legend – vises kun hvis minst ett stopp mangler bekreftet hotell */}
+              {stops.some((s) => s.arrival_date && !confirmedHotelStopIds.has(s.id)) && (
+                <div className="flex items-center gap-2 text-xs mb-4 px-2.5 py-1.5 rounded-md bg-red-950/30 border border-red-800/30 w-fit">
+                  <span className="w-3.5 h-3.5 rounded border-2 border-red-600/70 flex-shrink-0" />
+                  <span className="text-slate-400">Dager med rød ring mangler bekreftet hotell</span>
+                </div>
+              )}
+
               {/* Day-of-week headers */}
               <div className="grid grid-cols-7 gap-1 mb-1">
                 {['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'].map((d) => (
@@ -579,7 +587,11 @@ function DayCell({
         palette
           ? `${palette.bg} ${palette.border} hover:brightness-125`
           : 'border-slate-800/40 bg-slate-900/20',
-        isSelected ? `ring-2 ${palette?.sel ?? 'ring-white'} ring-offset-1 ring-offset-slate-950` : '',
+        isSelected
+          ? `ring-2 ${palette?.sel ?? 'ring-white'} ring-offset-1 ring-offset-slate-950`
+          : stop && !hasConfirmedHotel
+            ? 'ring-2 ring-red-600/70 ring-offset-1 ring-offset-slate-950'
+            : '',
       ].join(' ')}
     >
       {/* Date + drive info on same line */}
