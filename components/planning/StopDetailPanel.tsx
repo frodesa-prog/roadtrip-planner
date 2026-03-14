@@ -617,9 +617,6 @@ export default function StopDetailPanel({
                         )}
                       </div>
 
-                      {act.cost != null && (
-                        <span className="text-xs text-slate-500 flex-shrink-0">{act.cost.toLocaleString('nb-NO')} kr</span>
-                      )}
                       {act.url && (
                         <a href={act.url} target="_blank" rel="noopener noreferrer"
                           className="text-slate-600 hover:text-blue-400 flex-shrink-0">
