@@ -14,7 +14,7 @@ import {
   Plane, Car, Fuel, BedDouble, Ticket,
   ChevronDown, Loader2, Receipt, ExternalLink,
   PlaneTakeoff, PlaneLanding, X, ChevronRight,
-  Link as LinkIcon, Clock,
+  Link as LinkIcon, Clock, Calculator,
 } from 'lucide-react'
 import {
   getOffset,
@@ -871,16 +871,15 @@ export default function KostnaderPage() {
                 {hotelRows.length === 0 ? (
                   <EmptyRow text="Ingen hoteller registrert ennå" />
                 ) : (
-                  hotelRows.map(({ hotel, stop }, i) => {
+                  <div className="divide-y divide-slate-800">
+                  {hotelRows.map(({ hotel, stop }) => {
                     const avg = hotel.cost && stop.nights > 0
                       ? hotel.cost / stop.nights
                       : null
                     return (
                       <div
                         key={hotel.id}
-                        className={`grid grid-cols-[minmax(60px,auto)_1fr_3.5rem_5.5rem_3.5rem_4.5rem] items-center ${
-                          i % 2 === 0 ? '' : 'bg-slate-800/20'
-                        } hover:bg-slate-800/40 transition-colors`}
+                        className="grid grid-cols-[minmax(60px,auto)_1fr_3.5rem_5.5rem_3.5rem_4.5rem] items-center hover:bg-slate-800/40 transition-colors"
                       >
                         {/* By */}
                         <div className="px-2 py-2 text-[11px] text-slate-400 truncate">
@@ -935,7 +934,8 @@ export default function KostnaderPage() {
                         </div>
                       </div>
                     )
-                  })
+                  })}
+                  </div>
                 )}
 
                 <TableTotal label="Total hoteller" amount={totalHotels} />
@@ -1075,25 +1075,29 @@ export default function KostnaderPage() {
                     </div>
                   </div>
 
-                  {/* Bensin – klikk åpner FuelCalculatorModal */}
+                  {/* Bensin */}
                   <div
                     className={`grid ${rightGrid} items-center hover:bg-slate-800/40 transition-colors`}
                   >
-                    <button
-                      onClick={() => setShowFuelModal(true)}
-                      className="px-2 py-2 flex items-center gap-1.5 text-left group"
-                      title="Beregn bensinkostnad automatisk"
-                    >
+                    <div className="px-2 py-2 flex items-center gap-1.5">
                       <Fuel className="w-3 h-3 text-amber-400 flex-shrink-0" />
                       <span className="text-xs text-slate-200">Bensin</span>
-                      <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-colors ml-auto" />
-                    </button>
-                    <div className="px-1.5 py-1.5">
-                      <CostInput
-                        key={`gas-${totalGas}`}
-                        defaultValue={totalGas || null}
-                        onSave={(v) => saveItem('gas', { amount: v })}
-                      />
+                    </div>
+                    <div className="px-1.5 py-1.5 flex items-center gap-1">
+                      <button
+                        onClick={() => setShowFuelModal(true)}
+                        title="Beregn bensinkostnad automatisk"
+                        className="text-amber-400/50 hover:text-amber-400 flex-shrink-0 transition-colors"
+                      >
+                        <Calculator className="w-3.5 h-3.5" />
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <CostInput
+                          key={`gas-${totalGas}`}
+                          defaultValue={totalGas || null}
+                          onSave={(v) => saveItem('gas', { amount: v })}
+                        />
+                      </div>
                     </div>
                     <div className="px-1.5 py-1.5">
                       <RemainingCell
