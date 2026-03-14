@@ -322,15 +322,17 @@ export default function StopDetailPanel({
                       <button
                         onClick={() => setPinningActivityId(act.id)}
                         title={isPinned ? 'Endre kartplassering' : 'Fest på kart'}
-                        className={`flex-shrink-0 transition-all ${
-                          isPinned ? 'text-blue-400 hover:text-blue-300' : 'text-slate-700 hover:text-blue-400 opacity-0 group-hover:opacity-100'
+                        className={`flex-shrink-0 transition-colors ${
+                          isPinned
+                            ? 'text-blue-400 hover:text-blue-300'
+                            : 'text-slate-500 hover:text-blue-400'
                         }`}>
                         <MapPin className="w-3 h-3" />
                       </button>
 
                       {/* Delete */}
                       <button onClick={() => onRemoveActivity(act.id)}
-                        className="text-slate-700 hover:text-red-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
