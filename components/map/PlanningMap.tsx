@@ -49,18 +49,36 @@ interface PendingStop {
 
 const USA_CENTER = { lat: 39.5, lng: -98.35 }
 
-// ─── Pans + zooms map when a new activity is selected ────────────────────────
+// ─── Pans + zooms map; zooms back out to full route on deselect ──────────────
 
-function MapController({ center }: { center: { lat: number; lng: number } | null | undefined }) {
+function MapController({
+  center,
+  stops,
+}: {
+  center: { lat: number; lng: number } | null | undefined
+  stops: Stop[]
+}) {
   const map = useMap()
-  const prevRef = useRef<{ lat: number; lng: number } | null>(null)
+  const prevCenterRef = useRef<typeof center>(undefined)
+  const stopsRef = useRef(stops)
+  stopsRef.current = stops
 
   useEffect(() => {
-    if (!map || !center) return
-    if (prevRef.current?.lat === center.lat && prevRef.current?.lng === center.lng) return
-    map.panTo(center)
-    map.setZoom(14)
-    prevRef.current = center
+    if (!map) return
+    const prev = prevCenterRef.current
+    prevCenterRef.current = center
+
+    if (center) {
+      if (prev?.lat === center.lat && prev?.lng === center.lng) return
+      map.panTo(center)
+      map.setZoom(18)
+    } else if (prev != null && stopsRef.current.length > 0) {
+      // Deselected – zoom out to show all stops
+      const bounds = new google.maps.LatLngBounds()
+      stopsRef.current.forEach((s) => bounds.extend({ lat: s.lat, lng: s.lng }))
+      map.fitBounds(bounds, 80)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, center])
 
   return null
@@ -134,7 +152,7 @@ export default function PlanningMap({
           fullscreenControl={false}
         >
           {/* Programmatic pan + zoom */}
-          <MapController center={mapCenter} />
+          <MapController center={mapCenter} stops={stops} />
 
           {/* Stoppesteder */}
           {stops.map((stop, index) => (

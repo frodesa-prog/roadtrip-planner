@@ -172,10 +172,21 @@ export default function StopDetailPanel({
               </div>
               <p className="text-xs text-slate-500 capitalize ml-5">{dayLabel}</p>
             </div>
-            <button onClick={onClose}
-              className="flex-shrink-0 p-1 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <a
+                href={`https://www.google.com/maps?q=${stop.lat},${stop.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Åpne i Google Maps"
+                className="p-1 rounded-md text-slate-500 hover:text-blue-400 hover:bg-slate-800 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+              <button onClick={onClose}
+                className="p-1 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           {leg && (
             <div className="mt-2 flex items-center gap-2 px-2 py-1.5 bg-blue-950/40 border border-blue-800/40 rounded-lg">
