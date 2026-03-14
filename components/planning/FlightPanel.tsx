@@ -209,25 +209,8 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
     ? calcStopoverMinutes(flight?.leg1_arrival, flight?.leg2_departure)
     : null
 
-  /** Lagre ankomsttid etappe 1 og auto-beregn ventetid */
-  function saveLeg1Arrival(v: string) {
-    const updates: Partial<Omit<Flight, 'id' | 'trip_id' | 'direction'>> = { leg1_arrival: v }
-    if (stopover && flight?.leg2_departure) {
-      const mins = calcStopoverMinutes(v, flight.leg2_departure)
-      if (mins !== null) updates.stopover_duration = formatDuration(mins)
-    }
-    onSave(updates)
-  }
-
-  /** Lagre avgangstid etappe 2 og auto-beregn ventetid */
-  function saveLeg2Departure(v: string) {
-    const updates: Partial<Omit<Flight, 'id' | 'trip_id' | 'direction'>> = { leg2_departure: v }
-    if (stopover && flight?.leg1_arrival) {
-      const mins = calcStopoverMinutes(flight.leg1_arrival, v)
-      if (mins !== null) updates.stopover_duration = formatDuration(mins)
-    }
-    onSave(updates)
-  }
+  function saveLeg1Arrival(v: string) { onSave({ leg1_arrival: v }) }
+  function saveLeg2Departure(v: string) { onSave({ leg2_departure: v }) }
 
   return (
     <div className="px-4 pt-2 pb-4 space-y-2.5">
@@ -332,23 +315,10 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
             <DurationBadge minutes={leg1Min} label="Flytid etappe 1" />
           )}
 
-          {/* Tid på flyplass (automatisk beregnet, kan overstyres) */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <Label>Tid på flyplass</Label>
-              {stopoverMin !== null && (
-                <span className="text-[9px] text-sky-500/70 font-medium">
-                  beregnet: {formatDuration(stopoverMin)}
-                </span>
-              )}
-            </div>
-            <Txt
-              key={`dur-${flight?.id}`}
-              defaultValue={flight?.stopover_duration}
-              placeholder={stopoverMin !== null ? formatDuration(stopoverMin) : '1t 30min'}
-              onSave={(v) => onSave({ stopover_duration: v })}
-            />
-          </div>
+          {/* Ventetid på mellomlandingsflyplass – beregnes automatisk */}
+          {stopoverMin !== null && (
+            <DurationBadge minutes={stopoverMin} label="Ventetid på flyplass" />
+          )}
 
           <Divider label="Neste etappe" />
 
@@ -479,9 +449,9 @@ export default function FlightPanel({ tripId }: FlightPanelProps) {
             ))}
           </div>
 
-          {/* Skjema – remount ved tab-skifte, mellomlanding-toggle og auto-beregnet ventetid */}
+          {/* Skjema – remount ved tab-skifte og mellomlanding-toggle */}
           <FlightForm
-            key={`${tab}-${activeFlight?.has_stopover ?? false}-${activeFlight?.stopover_duration ?? ''}`}
+            key={`${tab}-${activeFlight?.has_stopover ?? false}`}
             flight={activeFlight}
             onSave={(updates) => saveFlight(tab, updates)}
           />
