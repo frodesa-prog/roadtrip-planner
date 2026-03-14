@@ -682,6 +682,77 @@ function FuelCalculatorModal({
   )
 }
 
+// ── ParkingModal ──────────────────────────────────────────────────────────────
+function ParkingModal({
+  rows,
+  onClose,
+}: {
+  rows: Array<{
+    hotel: { id: string; name: string; parking_cost_per_night: number | null }
+    stop: { city: string; state: string | null; nights: number }
+  }>
+  onClose: () => void
+}) {
+  const parkingRows = rows.filter((r) => r.hotel.parking_cost_per_night && r.hotel.parking_cost_per_night > 0)
+  const total = parkingRows.reduce((s, r) => s + (r.hotel.parking_cost_per_night ?? 0) * r.stop.nights, 0)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="w-4 h-4 bg-slate-500 rounded text-white flex items-center justify-center text-[9px] font-bold leading-none">P</span>
+            <h3 className="text-sm font-bold text-white">Parkering per hotell</h3>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          {parkingRows.length === 0 ? (
+            <p className="text-slate-500 text-xs text-center py-4">Ingen parkeringspriser registrert på hotellene</p>
+          ) : (
+            <div className="space-y-2">
+              {parkingRows.map(({ hotel, stop }) => {
+                const perNight = hotel.parking_cost_per_night ?? 0
+                const rowTotal = perNight * stop.nights
+                return (
+                  <div key={hotel.id} className="bg-slate-800/60 rounded-lg p-3">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-slate-200 truncate">{hotel.name || 'Ukjent hotell'}</p>
+                        <p className="text-[10px] text-slate-500">{stop.city}{stop.state && `, ${stop.state}`}</p>
+                      </div>
+                      <span className="text-sm font-bold text-white tabular-nums flex-shrink-0">{fmt(rowTotal)} kr</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                      <span className="tabular-nums">{fmt(perNight)} kr/natt</span>
+                      <span>×</span>
+                      <span>{stop.nights} netter</span>
+                    </div>
+                  </div>
+                )
+              })}
+              <div className="flex items-center justify-between pt-2 mt-1 border-t border-slate-700">
+                <span className="text-xs font-semibold text-slate-400">Total parkering</span>
+                <span className="text-sm font-bold text-white tabular-nums">{fmt(total)} kr</span>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="px-4 pb-4">
+          <button onClick={onClose} className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold rounded-lg transition-colors">
+            Lukk
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 export default function KostnaderPage() {
   const { trips, currentTrip, loading: tripsLoading, setCurrentTrip } = useTrips()
@@ -714,6 +785,7 @@ export default function KostnaderPage() {
   const [showFlightModal, setShowFlightModal] = useState(false)
   const [showCarRentalModal, setShowCarRentalModal] = useState(false)
   const [showFuelModal, setShowFuelModal] = useState(false)
+  const [showParkingModal, setShowParkingModal] = useState(false)
 
   // ── Rader ────────────────────────────────────────────────────────────────
   const hotelRows = useMemo(() =>
@@ -744,7 +816,10 @@ export default function KostnaderPage() {
   const totalFlight = getAmount('flight')
   const totalCar = getAmount('car')
   const totalGas = getAmount('gas')
-  const totalOther = totalFlight + totalCar + totalGas
+  const totalParking = hotelRows.reduce(
+    (s, r) => s + (r.hotel.parking_cost_per_night ?? 0) * r.stop.nights, 0
+  )
+  const totalOther = totalFlight + totalCar + totalGas + totalParking
   const grandTotal = totalHotels + totalActivities + totalOther
 
   const grandRemaining =
@@ -752,7 +827,8 @@ export default function KostnaderPage() {
     activityRows.reduce((s, r) => s + (r.activity.remaining_amount ?? 0), 0) +
     (getRemaining('flight') ?? 0) +
     (getRemaining('car') ?? 0) +
-    (getRemaining('gas') ?? 0)
+    (getRemaining('gas') ?? 0) +
+    totalParking
 
   // Felles kolonne-grid for aktiviteter og andre kostnader
   // [Label | Kostnad (5.5rem) | Gjenstår (4.5rem)]
@@ -832,6 +908,12 @@ export default function KostnaderPage() {
             setShowFuelModal(false)
           }}
           onClose={() => setShowFuelModal(false)}
+        />
+      )}
+      {showParkingModal && (
+        <ParkingModal
+          rows={hotelRows}
+          onClose={() => setShowParkingModal(false)}
         />
       )}
 
@@ -1109,6 +1191,34 @@ export default function KostnaderPage() {
                     </div>
                   </div>
 
+                  {/* Parkering – auto-beregnet fra parkeringspris pr. natt × netter */}
+                  <div
+                    className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors cursor-pointer`}
+                    onClick={() => setShowParkingModal(true)}
+                    title="Vis parkeringsdetaljer per hotell"
+                  >
+                    <div className="px-2 py-2 flex items-center gap-1.5">
+                      <span className="w-3 h-3 bg-slate-500 rounded text-white flex items-center justify-center text-[7px] font-bold leading-none flex-shrink-0">P</span>
+                      <span className="text-xs text-slate-200">Parkering</span>
+                      <ChevronRight className="w-3 h-3 text-slate-600 ml-auto" />
+                    </div>
+                    <div className="px-1.5 py-2 text-[11px] text-right tabular-nums whitespace-nowrap">
+                      {totalParking > 0
+                        ? <span className="text-slate-300">{fmt(totalParking)} kr</span>
+                        : <span className="text-slate-600">—</span>
+                      }
+                    </div>
+                    <div className="px-1.5 py-1.5">
+                      {totalParking > 0 ? (
+                        <div className="w-full text-right text-[11px] font-semibold text-amber-300 bg-amber-900/40 border border-amber-600/50 rounded-md px-1.5 py-0.5 whitespace-nowrap">
+                          {fmt(totalParking)} kr
+                        </div>
+                      ) : (
+                        <div className="w-full text-center text-[11px] text-green-600 py-0.5">✓</div>
+                      )}
+                    </div>
+                  </div>
+
                   <TableTotal label="Total andre" amount={totalOther} />
                 </div>
               </div>
@@ -1135,6 +1245,7 @@ export default function KostnaderPage() {
                     { label: 'Aktiviteter', value: totalActivities },
                     { label: 'Fly + leiebil', value: totalFlight + totalCar },
                     { label: 'Bensin', value: totalGas },
+                    { label: 'Parkering', value: totalParking },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex items-center justify-between">
                       <span className="text-[10px] text-slate-500">{label}</span>
