@@ -46,6 +46,7 @@ export function useFlights(tripId: string | null) {
           id: crypto.randomUUID(),
           trip_id: tripId,
           direction,
+          flight_date: null,
           leg1_from: null,
           leg1_departure: null,
           leg1_flight_nr: null,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, MapPin, Car, Moon, CalendarDays, Hotel as HotelIcon, Ticket } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, Ticket, ExternalLink } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
@@ -133,11 +133,6 @@ export default function SummaryPage() {
     : null
   const selectedStopIndex = selectedStop ? (stopPaletteIndex[selectedStop.id] ?? 0) : 0
 
-  // Stats
-  const totalNights = stops.reduce((s, st) => s + st.nights, 0)
-  const totalKm = drivingLegs.reduce((s, l) => s + (l?.distanceKm ?? 0), 0)
-  const totalDays = Object.keys(stopsByDate).length
-
   const hasEnoughData = stops.length > 0 && stops.some((s) => s.arrival_date)
 
   // Date range label
@@ -163,33 +158,55 @@ export default function SummaryPage() {
           onSelectTrip={setCurrentTrip} onCreateTrip={createTrip} onDeleteTrip={deleteTrip}
         />
 
-        {currentTrip && !stopsLoading && stops.length > 0 && (
-          <div className="px-4 py-3 space-y-2 border-b border-slate-800">
-            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Statistikk</p>
-            <div className="space-y-1.5">
-              {[
-                { icon: <MapPin className="w-3 h-3 text-blue-400" />, label: 'Stopp', val: stops.length },
-                { icon: <CalendarDays className="w-3 h-3 text-orange-400" />, label: 'Dager', val: totalDays },
-                { icon: <Moon className="w-3 h-3 text-purple-400" />, label: 'Netter', val: totalNights },
-              ].map(({ icon, label, val }) => (
-                <div key={label} className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400 flex items-center gap-1.5">{icon}{label}</span>
-                  <span className="text-xs font-semibold text-slate-200">{val}</span>
-                </div>
-              ))}
-              {totalKm > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <Car className="w-3 h-3 text-green-400" /> Kjøring
-                  </span>
-                  <span className="text-xs font-semibold text-slate-200">{totalKm.toLocaleString()} km</span>
-                </div>
-              )}
+        {currentTrip && !stopsLoading && stops.filter((s) => s.arrival_date).length > 0 && (
+          <div className="flex-1 overflow-y-auto py-3">
+            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide px-4 mb-2">
+              Stoppesteder
+            </p>
+            <div className="space-y-1 px-2">
+              {stops.filter((s) => s.arrival_date).map((stop) => {
+                const pal = PALETTES[stopPaletteIndex[stop.id] ?? 0]
+                const hotel = hotels.find((h) => h.stop_id === stop.id)
+                const hotelUrl = hotel?.url ?? null
+                return (
+                  <div
+                    key={stop.id}
+                    className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border ${pal.bg} ${pal.border}`}
+                  >
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-[3px] ${pal.dot}`} />
+                    <div className="flex-1 min-w-0">
+                      {hotelUrl ? (
+                        <a
+                          href={hotelUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`text-xs font-semibold truncate flex items-center gap-1 group ${pal.text}`}
+                        >
+                          <span className="truncate">{stop.city}</span>
+                          <ExternalLink className="w-2.5 h-2.5 flex-shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
+                        </a>
+                      ) : (
+                        <span className={`text-xs font-semibold truncate block ${pal.text}`}>
+                          {stop.city}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-slate-500">
+                        {new Date(stop.arrival_date! + 'T12:00:00').toLocaleDateString('nb-NO', {
+                          day: 'numeric', month: 'short',
+                        })}
+                        {stop.nights > 0 && ` · ${stop.nights} netter`}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
 
-        <div className="flex-1" />
+        {(!currentTrip || stopsLoading || stops.filter((s) => s.arrival_date).length === 0) && (
+          <div className="flex-1" />
+        )}
       </div>
 
       {/* ── Main area ───────────────────────────────────────────────────── */}

@@ -226,16 +226,29 @@ export default function StopDetailPanel({
               placeholder="Hotellnavn"
               className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
             />
-            <Input
-              value={hotelAddress}
-              onChange={(e) => setHotelAddress(e.target.value)}
-              onBlur={() => {
-                if (hotelAddress !== (hotel?.address ?? ''))
-                  onSaveHotel({ address: hotelAddress.trim() || null })
-              }}
-              placeholder="Adresse"
-              className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
-            />
+            <div className="flex gap-1.5">
+              <Input
+                value={hotelAddress}
+                onChange={(e) => setHotelAddress(e.target.value)}
+                onBlur={() => {
+                  if (hotelAddress !== (hotel?.address ?? ''))
+                    onSaveHotel({ address: hotelAddress.trim() || null })
+                }}
+                placeholder="Adresse"
+                className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
+              />
+              {hotelAddress.trim() && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hotelAddress.trim())}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Åpne i Google Maps"
+                  className="flex items-center px-2 rounded border border-slate-700 hover:bg-slate-700 transition-colors"
+                >
+                  <MapPin className="w-3 h-3 text-slate-400" />
+                </a>
+              )}
+            </div>
             <div className="flex gap-1.5">
               <Input
                 value={hotelUrl}

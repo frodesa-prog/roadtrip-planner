@@ -94,6 +94,9 @@ export default function PlanSidebar({
         onSelectTrip={onSelectTrip} onCreateTrip={onCreateTrip} onDeleteTrip={onDeleteTrip}
       />
 
+      {/* Fly */}
+      {currentTrip && <FlightPanel tripId={currentTrip.id} />}
+
       {/* Stats */}
       {currentTrip && (
         <div className="px-4 py-2.5 bg-slate-800/50 border-b border-slate-800 flex gap-3 flex-wrap">
@@ -181,9 +184,6 @@ export default function PlanSidebar({
           })
         )}
       </div>
-
-      {/* Fly */}
-      {currentTrip && <FlightPanel tripId={currentTrip.id} />}
 
       {/* Footer */}
       <div className="px-5 py-2.5 bg-slate-800/30 border-t border-slate-800 flex items-center justify-between">

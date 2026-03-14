@@ -177,6 +177,18 @@ function Time({ defaultValue, onSave }: { defaultValue?: string | null; onSave: 
   )
 }
 
+function DateInput({ defaultValue, onSave }: { defaultValue?: string | null; onSave: (v: string) => void }) {
+  return (
+    <input
+      type="date"
+      defaultValue={defaultValue ?? ''}
+      onBlur={(e) => onSave(e.target.value)}
+      onChange={(e) => onSave(e.target.value)}
+      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
+    />
+  )
+}
+
 // ── Flyskjema for én retning ─────────────────────────────────────────────────
 
 interface FlightFormProps {
@@ -214,6 +226,16 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
 
   return (
     <div className="px-4 pt-2 pb-4 space-y-2.5">
+
+      {/* Dato */}
+      <div>
+        <Label>Dato</Label>
+        <DateInput
+          key={`date-${flight?.id}`}
+          defaultValue={flight?.flight_date}
+          onSave={(v) => onSave({ flight_date: v })}
+        />
+      </div>
 
       {/* Fra */}
       <div>
@@ -430,23 +452,37 @@ export default function FlightPanel({ tripId }: FlightPanelProps) {
           <div className="flex gap-0 border-b border-slate-800 bg-slate-900/50">
             {(
               [
-                { dir: 'outbound', label: 'Utreise', icon: PlaneTakeoff },
-                { dir: 'return',   label: 'Hjemreise', icon: PlaneLanding },
+                { dir: 'outbound', label: 'Utreise',   icon: PlaneTakeoff, flight: outbound },
+                { dir: 'return',   label: 'Hjemreise', icon: PlaneLanding, flight: returnFlight },
               ] as const
-            ).map(({ dir, label, icon: Icon }) => (
-              <button
-                key={dir}
-                onClick={() => setTab(dir)}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold transition-colors ${
-                  tab === dir
-                    ? 'text-sky-400 border-b-2 border-sky-400 bg-slate-800/40'
-                    : 'text-slate-500 hover:text-slate-300 border-b-2 border-transparent'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-              </button>
-            ))}
+            ).map(({ dir, label, icon: Icon, flight }) => {
+              const dateStr = flight?.flight_date
+                ? new Date(flight.flight_date + 'T12:00:00').toLocaleDateString('nb-NO', {
+                    day: 'numeric', month: 'short',
+                  })
+                : null
+              return (
+                <button
+                  key={dir}
+                  onClick={() => setTab(dir)}
+                  className={`flex-1 flex flex-col items-center justify-center px-3 py-2 text-xs font-semibold transition-colors ${
+                    tab === dir
+                      ? 'text-sky-400 border-b-2 border-sky-400 bg-slate-800/40'
+                      : 'text-slate-500 hover:text-slate-300 border-b-2 border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </div>
+                  {dateStr && (
+                    <span className={`text-[10px] mt-0.5 ${tab === dir ? 'text-sky-500/70' : 'text-slate-600'}`}>
+                      {dateStr}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
 
           {/* Skjema – remount ved tab-skifte og mellomlanding-toggle */}

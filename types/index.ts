@@ -82,6 +82,7 @@ export interface Flight {
   id: string
   trip_id: string
   direction: 'outbound' | 'return'
+  flight_date: string | null      // ISO dato (YYYY-MM-DD) for avreisedagen
   // Etappe 1
   leg1_from: string | null        // avreiseflyplass / -by
   leg1_departure: string | null   // HH:MM
