@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { BudgetItem } from '@/types'
 import { toast } from 'sonner'
 
-type ItemUpdates = Partial<Pick<BudgetItem, 'amount' | 'remaining_amount'>>
+type ItemUpdates = Partial<Pick<BudgetItem, 'amount' | 'remaining_amount' | 'notes'>>
 
 export function useBudgetItems(tripId: string | null) {
   const [items, setItems] = useState<BudgetItem[]>([])
@@ -52,7 +52,7 @@ export function useBudgetItems(tripId: string | null) {
           category,
           amount: updates.amount ?? 0,
           remaining_amount: updates.remaining_amount ?? null,
-          notes: null,
+          notes: updates.notes ?? null,
         }
         setItems((prev) => [...prev, newItem])
         const { error } = await supabase.from('budget_items').insert(newItem)
@@ -75,5 +75,10 @@ export function useBudgetItems(tripId: string | null) {
     return items.find((i) => i.category === category)?.remaining_amount ?? null
   }
 
-  return { items, saveItem, getAmount, getRemaining }
+  /** Get the notes for a category (null if not set) */
+  function getNotes(category: BudgetItem['category']): string | null {
+    return items.find((i) => i.category === category)?.notes ?? null
+  }
+
+  return { items, saveItem, getAmount, getRemaining, getNotes }
 }

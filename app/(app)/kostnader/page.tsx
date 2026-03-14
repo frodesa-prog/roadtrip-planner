@@ -8,6 +8,7 @@ import { useActivities } from '@/hooks/useActivities'
 import { useBudgetItems } from '@/hooks/useBudgetItems'
 import { useFlights } from '@/hooks/useFlights'
 import { useCarRental } from '@/hooks/useCarRental'
+import { useDrivingInfo } from '@/hooks/useDrivingInfo'
 import { Flight, CarRental } from '@/types'
 import {
   Plane, Car, Fuel, BedDouble, Ticket,
@@ -424,6 +425,262 @@ function CarRentalModal({
   )
 }
 
+// ── FuelCalculatorModal ───────────────────────────────────────────────────────
+interface CarPreset {
+  id: string
+  label: string
+  lPer100: number | null
+}
+
+const CAR_PRESETS: CarPreset[] = [
+  { id: 'compact',   label: 'Kompaktbil (Corolla o.l.)',     lPer100: 8.0  },
+  { id: 'midsize',   label: 'Mellomklasse (Camry o.l.)',     lPer100: 9.5  },
+  { id: 'suv_small', label: 'Kompakt SUV (RAV4 o.l.)',       lPer100: 10.5 },
+  { id: 'suv_large', label: 'Stor SUV/Pickup (Tahoe o.l.)',  lPer100: 13.5 },
+  { id: 'custom',    label: 'Egendefinert',                   lPer100: null },
+]
+
+type CarPresetId = 'compact' | 'midsize' | 'suv_small' | 'suv_large' | 'custom'
+
+interface FuelSettings {
+  carPresetId: CarPresetId
+  lPer100: number
+  pricePerGallon: number
+  exchangeRate: number
+}
+
+function parseFuelSettings(notes: string | null): Partial<FuelSettings> {
+  if (!notes) return {}
+  try { return JSON.parse(notes) as Partial<FuelSettings> } catch { return {} }
+}
+
+function FuelCalculatorModal({
+  totalKm,
+  legsLoading,
+  currentNotes,
+  onSave,
+  onClose,
+}: {
+  totalKm: number
+  legsLoading: boolean
+  currentNotes: string | null
+  onSave: (amount: number, remaining: number, notes: string) => void
+  onClose: () => void
+}) {
+  const saved = parseFuelSettings(currentNotes)
+
+  const [carPresetId, setCarPresetId] = useState<CarPresetId>(saved.carPresetId ?? 'midsize')
+  const [customL, setCustomL] = useState(
+    saved.carPresetId === 'custom' && saved.lPer100 ? String(saved.lPer100) : ''
+  )
+  const [pricePerGallon, setPricePerGallon] = useState(
+    saved.pricePerGallon ? String(saved.pricePerGallon) : '3.50'
+  )
+  const [exchangeRate, setExchangeRate] = useState(
+    saved.exchangeRate ? String(saved.exchangeRate) : '10.50'
+  )
+
+  const preset = CAR_PRESETS.find((c) => c.id === carPresetId)!
+  const lPer100 =
+    carPresetId === 'custom' ? (parseFloat(customL) || 0) : (preset.lPer100 ?? 0)
+  const ppg = parseFloat(pricePerGallon) || 0
+  const er = parseFloat(exchangeRate) || 0
+
+  // 1 gallon = 3.785 liter
+  const totalLiters = (totalKm * lPer100) / 100
+  const totalGallons = totalLiters / 3.785
+  const totalUSD = totalGallons * ppg
+  const totalNOK = Math.round(totalUSD * er)
+
+  const canSave = totalNOK > 0 && !legsLoading
+
+  function handleSave() {
+    const settings: FuelSettings = {
+      carPresetId,
+      lPer100: carPresetId === 'custom' ? (parseFloat(customL) || 0) : (preset.lPer100 ?? 0),
+      pricePerGallon: ppg,
+      exchangeRate: er,
+    }
+    onSave(totalNOK, totalNOK, JSON.stringify(settings))
+  }
+
+  const inputCls =
+    'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors'
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <Fuel className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-bold text-white">Bensinskalkulator</h3>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Total km */}
+          <div className="bg-slate-800/60 rounded-lg px-3 py-2.5 flex items-center justify-between">
+            <span className="text-xs text-slate-400">Total kjøreavstand (rute)</span>
+            {legsLoading ? (
+              <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Beregner…
+              </span>
+            ) : (
+              <span className="text-sm font-bold text-white tabular-nums">
+                {totalKm.toLocaleString('nb-NO')} km
+              </span>
+            )}
+          </div>
+
+          {/* Biltype */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+              Biltype
+            </label>
+            <div className="relative">
+              <select
+                value={carPresetId}
+                onChange={(e) => setCarPresetId(e.target.value as CarPresetId)}
+                className="w-full appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors"
+              >
+                {CAR_PRESETS.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}{c.lPer100 ? ` – ${c.lPer100} L/100km` : ''}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+            </div>
+          </div>
+
+          {/* Egendefinert forbruk */}
+          {carPresetId === 'custom' && (
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                Forbruk (L/100km)
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                value={customL}
+                onChange={(e) => setCustomL(e.target.value)}
+                placeholder="f.eks. 10.5"
+                className={inputCls}
+              />
+            </div>
+          )}
+
+          {/* Pris + valutakurs */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                Pris (USD/gallon)
+              </label>
+              <div className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 pointer-events-none">
+                  $
+                </span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={pricePerGallon}
+                  onChange={(e) => setPricePerGallon(e.target.value)}
+                  placeholder="3.50"
+                  className={inputCls + ' pl-6'}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                Valutakurs (kr/USD)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={exchangeRate}
+                onChange={(e) => setExchangeRate(e.target.value)}
+                placeholder="10.50"
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          {/* Resultatboks */}
+          <div className={`rounded-lg p-3 border transition-all ${
+            canSave
+              ? 'bg-amber-900/20 border-amber-700/40'
+              : 'bg-slate-800/40 border-slate-700/40'
+          }`}>
+            <p className="text-[10px] font-bold text-amber-400/70 uppercase tracking-wide mb-2">
+              Estimat
+            </p>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400">Forbruk totalt</span>
+                <span className="text-slate-200 tabular-nums">
+                  {lPer100 > 0 && totalKm > 0
+                    ? `${totalLiters.toFixed(0)} L (${totalGallons.toFixed(0)} gal)`
+                    : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400">Pris i USD</span>
+                <span className="text-slate-200 tabular-nums">
+                  {ppg > 0 && lPer100 > 0 && totalKm > 0 ? `$${totalUSD.toFixed(0)}` : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs pt-1.5 border-t border-amber-700/30">
+                <span className="font-semibold text-amber-300">Estimert kostnad (NOK)</span>
+                <span className={`font-bold tabular-nums ${canSave ? 'text-amber-300' : 'text-slate-500'}`}>
+                  {canSave ? `${fmt(totalNOK)} kr` : '—'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Info: gjenstår settes automatisk */}
+          {canSave && (
+            <p className="text-[10px] text-slate-500 text-center -mt-1">
+              Gjenstående beløp settes automatisk lik estimert kostnad
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 pb-4 flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-colors"
+          >
+            Avbryt
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!canSave}
+            className="flex-1 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors"
+          >
+            Lagre estimat
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 export default function KostnaderPage() {
   const { trips, currentTrip, loading: tripsLoading, setCurrentTrip } = useTrips()
@@ -437,13 +694,24 @@ export default function KostnaderPage() {
 
   const { hotels, saveHotel } = useHotels(stopIds)
   const { activities, updateActivity } = useActivities(stopIds)
-  const { saveItem, getAmount, getRemaining } = useBudgetItems(currentTrip?.id ?? null)
+  const { saveItem, getAmount, getRemaining, getNotes } = useBudgetItems(currentTrip?.id ?? null)
   const { outbound, returnFlight } = useFlights(currentTrip?.id ?? null)
   const { rental, saveRental } = useCarRental(currentTrip?.id ?? null)
+
+  // ── Kjøreavstand for bensinskalkulator ───────────────────────────────────
+  const sortedStops = useMemo(() => [...stops].sort((a, b) => a.order - b.order), [stops])
+  const drivingLegs = useDrivingInfo(sortedStops)
+  const totalKm = useMemo(
+    () => drivingLegs.reduce((s, l) => s + (l?.distanceKm ?? 0), 0),
+    [drivingLegs]
+  )
+  const legsLoading =
+    sortedStops.length >= 2 && drivingLegs.length > 0 && drivingLegs.every((l) => l === null)
 
   // ── Modal state ─────────────────────────────────────────────────────────
   const [showFlightModal, setShowFlightModal] = useState(false)
   const [showCarRentalModal, setShowCarRentalModal] = useState(false)
+  const [showFuelModal, setShowFuelModal] = useState(false)
 
   // ── Rader ────────────────────────────────────────────────────────────────
   const hotelRows = useMemo(() =>
@@ -550,6 +818,18 @@ export default function KostnaderPage() {
           rental={rental}
           onSave={saveRental}
           onClose={() => setShowCarRentalModal(false)}
+        />
+      )}
+      {showFuelModal && (
+        <FuelCalculatorModal
+          totalKm={totalKm}
+          legsLoading={legsLoading}
+          currentNotes={getNotes('gas')}
+          onSave={(amount, remaining, notes) => {
+            saveItem('gas', { amount, remaining_amount: remaining, notes })
+            setShowFuelModal(false)
+          }}
+          onClose={() => setShowFuelModal(false)}
         />
       )}
 
@@ -795,16 +1075,22 @@ export default function KostnaderPage() {
                     </div>
                   </div>
 
-                  {/* Bensin */}
+                  {/* Bensin – klikk åpner FuelCalculatorModal */}
                   <div
                     className={`grid ${rightGrid} items-center hover:bg-slate-800/40 transition-colors`}
                   >
-                    <div className="px-2 py-2 flex items-center gap-1.5">
-                      <Fuel className="w-3 h-3 text-amber-400" />
-                      <span className="text-xs text-slate-200">Bensin (est.)</span>
-                    </div>
+                    <button
+                      onClick={() => setShowFuelModal(true)}
+                      className="px-2 py-2 flex items-center gap-1.5 text-left group"
+                      title="Beregn bensinkostnad automatisk"
+                    >
+                      <Fuel className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                      <span className="text-xs text-slate-200">Bensin</span>
+                      <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-colors ml-auto" />
+                    </button>
                     <div className="px-1.5 py-1.5">
                       <CostInput
+                        key={`gas-${totalGas}`}
                         defaultValue={totalGas || null}
                         onSave={(v) => saveItem('gas', { amount: v })}
                       />
