@@ -18,6 +18,7 @@ import {
   ActivityTypeIcon,
 } from '@/lib/activityTypes'
 import ActivityLocationSearch from '@/components/map/ActivityLocationSearch'
+import NoteModal from '@/components/planning/NoteModal'
 
 interface StopDetailPanelProps {
   stop: Stop
@@ -177,28 +178,8 @@ export default function StopDetailPanel({
     setShowAddPossible(false)
   }
 
-  // Inline edit state – notes
-  const [editingNoteId, setEditingNoteId]   = useState<string | null>(null)
-  const [editNoteTitle, setEditNoteTitle]   = useState('')
-  const [editNoteContent, setEditNoteContent] = useState('')
-  const [editNoteDate, setEditNoteDate]     = useState('')
-
-  function startEditNote(note: Note) {
-    setEditingNoteId(note.id)
-    setEditNoteTitle(note.title ?? '')
-    setEditNoteContent(note.content)
-    setEditNoteDate(note.note_date ?? '')
-  }
-
-  function saveEditNote() {
-    if (!editingNoteId || !editNoteContent.trim()) return
-    onUpdateNote(editingNoteId, {
-      title: editNoteTitle.trim() || null,
-      content: editNoteContent.trim(),
-      note_date: editNoteDate || null,
-    })
-    setEditingNoteId(null)
-  }
+  // Modal state – notes
+  const [editingNote, setEditingNote] = useState<Note | null>(null)
 
   function startEditDining(d: Dining) {
     setEditingDiningId(d.id)
@@ -1088,90 +1069,32 @@ export default function StopDetailPanel({
                 <span className="text-slate-600 normal-case font-normal">({stopNotes.length})</span>
               </h3>
               <div className="space-y-1">
-                {stopNotes.map((note) => {
-                  const isEditing = editingNoteId === note.id
-                  if (isEditing) {
-                    return (
-                      <div key={note.id} className="bg-slate-800/80 rounded-lg border border-amber-600/40 p-2.5 space-y-1.5">
-                        <input
-                          value={editNoteTitle}
-                          onChange={(e) => setEditNoteTitle(e.target.value)}
-                          placeholder="Tittel (valgfritt)"
-                          className="w-full h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-amber-500 transition-colors"
-                        />
-                        <textarea
-                          value={editNoteContent}
-                          onChange={(e) => setEditNoteContent(e.target.value)}
-                          placeholder="Notatinnhold"
-                          autoFocus
-                          rows={4}
-                          className="w-full text-xs bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-500 outline-none focus:border-amber-500 transition-colors resize-none leading-relaxed"
-                        />
-                        {stopDates.length > 0 && (
-                          <div>
-                            <p className="text-[10px] text-slate-500 mb-1">Dato</p>
-                            <div className="flex flex-wrap gap-1">
-                              {stopDates.map((sd) => (
-                                <button key={sd} type="button" onClick={() => setEditNoteDate(editNoteDate === sd ? '' : sd)}
-                                  className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
-                                    sd === editNoteDate ? 'bg-amber-700 border-amber-600 text-white' : 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200'
-                                  }`}>
-                                  {new Date(sd + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        <div className="flex gap-1.5">
-                          <button onClick={saveEditNote} disabled={!editNoteContent.trim()}
-                            className="flex-1 h-7 rounded bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-medium flex items-center justify-center gap-1 transition-colors">
-                            <Check className="w-3 h-3" /> Lagre
-                          </button>
-                          <button onClick={() => setEditingNoteId(null)}
-                            className="px-3 h-7 rounded border border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
-                            Avbryt
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm('Slett dette notatet?')) {
-                                onDeleteNote(note.id)
-                                setEditingNoteId(null)
-                              }
-                            }}
-                            className="px-2 h-7 rounded border border-slate-600 text-slate-500 hover:text-red-400 hover:border-red-800 hover:bg-red-950/30 transition-colors">
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  }
-                  return (
-                    <button key={note.id} type="button" onClick={() => startEditNote(note)}
-                      className="w-full text-left px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 hover:border-amber-700/50 hover:bg-slate-800 transition-colors group">
-                      <div className="flex items-start gap-1.5 min-w-0">
-                        <FileText className="w-3 h-3 text-slate-500 group-hover:text-amber-500 flex-shrink-0 mt-0.5 transition-colors" />
-                        <div className="flex-1 min-w-0">
-                          {note.title && (
-                            <p className="text-xs font-medium text-slate-200 truncate mb-0.5">
-                              {note.title}
-                            </p>
-                          )}
-                          <p className="text-[11px] text-slate-400 leading-relaxed whitespace-pre-wrap break-words line-clamp-3">
-                            {note.content}
+                {stopNotes.map((note) => (
+                  <button key={note.id} type="button" onClick={() => setEditingNote(note)}
+                    className="w-full text-left px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 hover:border-amber-700/50 hover:bg-slate-800 transition-colors group">
+                    <div className="flex items-start gap-1.5 min-w-0">
+                      <FileText className="w-3 h-3 text-slate-500 group-hover:text-amber-500 flex-shrink-0 mt-0.5 transition-colors" />
+                      <div className="flex-1 min-w-0">
+                        {note.title && (
+                          <p className="text-xs font-medium text-slate-200 truncate mb-0.5">
+                            {note.title}
                           </p>
-                          {note.note_date && (
-                            <p className="text-[10px] text-slate-600 mt-1">
-                              {new Date(note.note_date + 'T12:00:00').toLocaleDateString('nb-NO', {
-                                weekday: 'short', day: 'numeric', month: 'short',
-                              })}
-                            </p>
-                          )}
-                        </div>
-                        <Pencil className="w-3 h-3 text-slate-600 group-hover:text-amber-500 flex-shrink-0 mt-0.5 transition-colors" />
+                        )}
+                        <p className="text-[11px] text-slate-400 leading-relaxed whitespace-pre-wrap break-words line-clamp-3">
+                          {note.content}
+                        </p>
+                        {note.note_date && (
+                          <p className="text-[10px] text-slate-600 mt-1">
+                            {new Date(note.note_date + 'T12:00:00').toLocaleDateString('nb-NO', {
+                              weekday: 'short', day: 'numeric', month: 'short',
+                            })}
+                          </p>
+                        )}
                       </div>
-                    </button>
-                  )
-                })}
+                      <Pencil className="w-3 h-3 text-slate-600 group-hover:text-amber-500 flex-shrink-0 mt-0.5 transition-colors" />
+                    </div>
+                  </button>
+                ))}
               </div>
             </section>
           )}
@@ -1203,6 +1126,28 @@ export default function StopDetailPanel({
           confirmLabel="Oppdater kartplassering"
           onConfirm={(lat, lng) => { onUpdateStop({ lat, lng }); setEditingStopLocation(false) }}
           onClose={() => setEditingStopLocation(false)}
+        />
+      )}
+
+      {/* Note modal */}
+      {editingNote && (
+        <NoteModal
+          mode="edit"
+          note={editingNote}
+          stops={[stop]}
+          onSave={(data) => {
+            onUpdateNote(editingNote.id, {
+              title: data.title,
+              content: data.content,
+              note_date: data.note_date,
+            })
+            setEditingNote(null)
+          }}
+          onDelete={() => {
+            onDeleteNote(editingNote.id)
+            setEditingNote(null)
+          }}
+          onClose={() => setEditingNote(null)}
         />
       )}
     </>
