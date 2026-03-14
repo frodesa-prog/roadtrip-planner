@@ -13,8 +13,14 @@ import {
   Plane, Car, Fuel, BedDouble, Ticket,
   ChevronDown, Loader2, Receipt, ExternalLink,
   PlaneTakeoff, PlaneLanding, X, ChevronRight,
-  Link as LinkIcon,
+  Link as LinkIcon, Clock,
 } from 'lucide-react'
+import {
+  getOffset,
+  calcFlightMinutes,
+  calcStopoverMinutes,
+  formatDuration,
+} from '@/data/airports'
 
 // ── Formattering ─────────────────────────────────────────────────────────────
 function fmt(n: number): string {
@@ -169,11 +175,34 @@ function FlightInfoModal({
     if (!f) return (
       <p className="text-slate-500 text-xs text-center py-6">Ingen flyinformasjon registrert</p>
     )
+
+    const fromOffset  = getOffset(f.leg1_from)
+    const viaOffset   = getOffset(f.leg1_to)
+    const finalOffset = getOffset(f.leg2_to)
+
+    const leg1Min = calcFlightMinutes(f.leg1_departure, fromOffset, f.leg1_arrival, viaOffset)
+    const leg2Min = f.has_stopover
+      ? calcFlightMinutes(f.leg2_departure, viaOffset, f.leg2_arrival, finalOffset)
+      : null
+    const stopoverMin = f.has_stopover
+      ? calcStopoverMinutes(f.leg1_arrival, f.leg2_departure)
+      : null
+
     return (
       <div className="space-y-3">
         {/* Etappe 1 */}
         <div className="bg-slate-800/60 rounded-lg p-3 space-y-2">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Etappe 1</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+              {f.has_stopover ? 'Etappe 1' : 'Flyvning'}
+            </p>
+            {leg1Min !== null && (
+              <span className="flex items-center gap-1 text-[10px] text-sky-400 font-semibold">
+                <Clock className="w-2.5 h-2.5" />
+                {formatDuration(leg1Min)}
+              </span>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
             <InfoField label="Fra" value={f.leg1_from} />
             <InfoField label="Avgang" value={f.leg1_departure} />
@@ -182,17 +211,35 @@ function FlightInfoModal({
             <InfoField label="Ankomst" value={f.leg1_arrival} />
           </div>
         </div>
+
         {/* Mellomlanding */}
         {f.has_stopover && (
           <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-3 space-y-2">
-            <p className="text-[10px] font-bold text-amber-500/70 uppercase tracking-wide">Mellomlanding</p>
-            <InfoField label="Tid på flyplass" value={f.stopover_duration} />
+            <p className="text-[10px] font-bold text-amber-500/70 uppercase tracking-wide">
+              Mellomlanding – {f.leg1_to ?? ''}
+            </p>
+            <InfoField
+              label="Tid på flyplass"
+              value={
+                f.stopover_duration ||
+                (stopoverMin !== null ? formatDuration(stopoverMin) : null)
+              }
+            />
           </div>
         )}
+
         {/* Etappe 2 */}
         {f.has_stopover && (
           <div className="bg-slate-800/60 rounded-lg p-3 space-y-2">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Etappe 2</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Etappe 2</p>
+              {leg2Min !== null && (
+                <span className="flex items-center gap-1 text-[10px] text-sky-400 font-semibold">
+                  <Clock className="w-2.5 h-2.5" />
+                  {formatDuration(leg2Min)}
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
               <InfoField label="Flightnr." value={f.leg2_flight_nr} />
               <InfoField label="Avgang" value={f.leg2_departure} />

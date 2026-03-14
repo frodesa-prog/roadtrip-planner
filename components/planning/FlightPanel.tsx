@@ -1,9 +1,18 @@
 'use client'
 
-import { useState } from 'react'
-import { Plane, ChevronDown, ArrowLeftRight, PlaneLanding, PlaneTakeoff } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { Plane, ChevronDown, PlaneLanding, PlaneTakeoff, Clock } from 'lucide-react'
 import { Flight } from '@/types'
 import { useFlights } from '@/hooks/useFlights'
+import {
+  Airport,
+  filterAirports,
+  getOffset,
+  calcFlightMinutes,
+  calcStopoverMinutes,
+  formatDuration,
+} from '@/data/airports'
 
 // ── Hjelpere ────────────────────────────────────────────────────────────────
 
@@ -12,41 +21,6 @@ function Label({ children }: { children: React.ReactNode }) {
     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
       {children}
     </p>
-  )
-}
-
-interface TxtProps {
-  defaultValue?: string | null
-  placeholder?: string
-  onSave: (v: string) => void
-}
-function Txt({ defaultValue, placeholder, onSave }: TxtProps) {
-  return (
-    <input
-      type="text"
-      defaultValue={defaultValue ?? ''}
-      placeholder={placeholder}
-      onBlur={(e) => onSave(e.target.value.trim())}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-      }}
-      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
-    />
-  )
-}
-
-interface TimeProps {
-  defaultValue?: string | null
-  onSave: (v: string) => void
-}
-function Time({ defaultValue, onSave }: TimeProps) {
-  return (
-    <input
-      type="time"
-      defaultValue={defaultValue ?? ''}
-      onBlur={(e) => onSave(e.target.value)}
-      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
-    />
   )
 }
 
@@ -62,6 +36,147 @@ function Divider({ label }: { label: string }) {
   )
 }
 
+/** Viser beregnet flytid eller ventetid som et lite merke. */
+function DurationBadge({ minutes, label }: { minutes: number; label: string }) {
+  return (
+    <div className="flex items-center justify-center gap-1 py-0.5 text-[10px] text-sky-500/80">
+      <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+      <span>{label}: {formatDuration(minutes)}</span>
+    </div>
+  )
+}
+
+// ── Flyplass-autocomplete ─────────────────────────────────────────────────────
+
+interface AirportInputProps {
+  defaultValue?: string | null
+  placeholder?: string
+  onSave: (v: string) => void
+}
+
+function AirportInput({ defaultValue, placeholder, onSave }: AirportInputProps) {
+  const [value, setValue] = useState(defaultValue ?? '')
+  const [results, setResults] = useState<Airport[]>([])
+  const [open, setOpen] = useState(false)
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 200 })
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
+
+  function updatePos() {
+    if (!inputRef.current) return
+    const r = inputRef.current.getBoundingClientRect()
+    setDropPos({ top: r.bottom + 2, left: r.left, width: r.width })
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const q = e.target.value
+    setValue(q)
+    const matches = filterAirports(q)
+    setResults(matches)
+    if (matches.length > 0) { setOpen(true); updatePos() }
+    else setOpen(false)
+  }
+
+  function handleSelect(airport: Airport) {
+    const formatted = `${airport.code} – ${airport.city}`
+    setValue(formatted)
+    setResults([])
+    setOpen(false)
+    onSave(formatted)
+  }
+
+  function handleBlur() {
+    // Gir dropdown-klikk tid til å registrere seg (onMouseDown) før blur avslutter
+    setTimeout(() => setOpen(false), 150)
+    onSave(value.trim())
+  }
+
+  const dropdown = open && results.length > 0 && mounted
+    ? createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: dropPos.top,
+            left: dropPos.left,
+            width: Math.max(dropPos.width, 260),
+            zIndex: 9999,
+          }}
+          className="bg-slate-800 border border-slate-600 rounded-lg shadow-2xl overflow-hidden"
+        >
+          {results.map((a) => (
+            <button
+              key={a.code}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(a) }}
+              className="w-full text-left px-3 py-1.5 hover:bg-slate-700 transition-colors flex items-center gap-2.5 border-b border-slate-700/40 last:border-0"
+            >
+              <span className="font-mono text-xs font-bold text-sky-400 w-9 flex-shrink-0">
+                {a.code}
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs text-slate-200 truncate">{a.city}</p>
+                <p className="text-[10px] text-slate-500 truncate">{a.name}</p>
+              </div>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )
+    : null
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={handleChange}
+        onFocus={() => {
+          if (results.length > 0) { setOpen(true); updatePos() }
+        }}
+        onBlur={handleBlur}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { setOpen(false); inputRef.current?.blur() }
+          if (e.key === 'Enter') inputRef.current?.blur()
+        }}
+        placeholder={placeholder}
+        autoComplete="off"
+        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+      />
+      {dropdown}
+    </>
+  )
+}
+
+// ── Vanlig tekstfelt ──────────────────────────────────────────────────────────
+
+function Txt({
+  defaultValue, placeholder, onSave,
+}: { defaultValue?: string | null; placeholder?: string; onSave: (v: string) => void }) {
+  return (
+    <input
+      type="text"
+      defaultValue={defaultValue ?? ''}
+      placeholder={placeholder}
+      onBlur={(e) => onSave(e.target.value.trim())}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+    />
+  )
+}
+
+function Time({ defaultValue, onSave }: { defaultValue?: string | null; onSave: (v: string) => void }) {
+  return (
+    <input
+      type="time"
+      defaultValue={defaultValue ?? ''}
+      onBlur={(e) => onSave(e.target.value)}
+      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
+    />
+  )
+}
+
 // ── Flyskjema for én retning ─────────────────────────────────────────────────
 
 interface FlightFormProps {
@@ -72,21 +187,63 @@ interface FlightFormProps {
 function FlightForm({ flight, onSave }: FlightFormProps) {
   const stopover = flight?.has_stopover ?? false
 
+  // Offsets for tidssoneberegning
+  const fromOffset  = getOffset(flight?.leg1_from)
+  const viaOffset   = getOffset(flight?.leg1_to)   // mellomstasjon ELLER endelig (direktefly)
+  const finalOffset = getOffset(flight?.leg2_to)
+
+  // Beregnet flytid
+  const leg1Min = calcFlightMinutes(
+    flight?.leg1_departure, fromOffset,
+    flight?.leg1_arrival,   viaOffset,
+  )
+  const leg2Min = stopover
+    ? calcFlightMinutes(
+        flight?.leg2_departure, viaOffset,
+        flight?.leg2_arrival,   finalOffset,
+      )
+    : null
+
+  // Beregnet ventetid på mellomlandingsflyplass (automatisk)
+  const stopoverMin = stopover
+    ? calcStopoverMinutes(flight?.leg1_arrival, flight?.leg2_departure)
+    : null
+
+  /** Lagre ankomsttid etappe 1 og auto-beregn ventetid */
+  function saveLeg1Arrival(v: string) {
+    const updates: Partial<Omit<Flight, 'id' | 'trip_id' | 'direction'>> = { leg1_arrival: v }
+    if (stopover && flight?.leg2_departure) {
+      const mins = calcStopoverMinutes(v, flight.leg2_departure)
+      if (mins !== null) updates.stopover_duration = formatDuration(mins)
+    }
+    onSave(updates)
+  }
+
+  /** Lagre avgangstid etappe 2 og auto-beregn ventetid */
+  function saveLeg2Departure(v: string) {
+    const updates: Partial<Omit<Flight, 'id' | 'trip_id' | 'direction'>> = { leg2_departure: v }
+    if (stopover && flight?.leg1_arrival) {
+      const mins = calcStopoverMinutes(flight.leg1_arrival, v)
+      if (mins !== null) updates.stopover_duration = formatDuration(mins)
+    }
+    onSave(updates)
+  }
+
   return (
     <div className="px-4 pt-2 pb-4 space-y-2.5">
 
       {/* Fra */}
       <div>
         <Label>Fra (flyplass / by)</Label>
-        <Txt
+        <AirportInput
           key={`from-${flight?.id}`}
           defaultValue={flight?.leg1_from}
-          placeholder="Oslo Lufthavn (OSL)"
+          placeholder="OSL – Oslo"
           onSave={(v) => onSave({ leg1_from: v })}
         />
       </div>
 
-      {/* Avgang + Flightnr. */}
+      {/* Avgang + Flightnr. – etappe 1 */}
       <div className="grid grid-cols-2 gap-2">
         <div>
           <Label>Avgang</Label>
@@ -122,55 +279,73 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
 
       {!stopover ? (
         /* ── Direktefly: ankomst + destinasjon ── */
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label>Ankomst</Label>
-            <Time
-              key={`arr-d-${flight?.id}`}
-              defaultValue={flight?.leg1_arrival}
-              onSave={(v) => onSave({ leg1_arrival: v })}
-            />
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>Ankomst</Label>
+              <Time
+                key={`arr-d-${flight?.id}`}
+                defaultValue={flight?.leg1_arrival}
+                onSave={(v) => onSave({ leg1_arrival: v })}
+              />
+            </div>
+            <div>
+              <Label>Destinasjon</Label>
+              <AirportInput
+                key={`to-d-${flight?.id}`}
+                defaultValue={flight?.leg1_to}
+                placeholder="JFK – New York"
+                onSave={(v) => onSave({ leg1_to: v })}
+              />
+            </div>
           </div>
-          <div>
-            <Label>Destinasjon</Label>
-            <Txt
-              key={`to-d-${flight?.id}`}
-              defaultValue={flight?.leg1_to}
-              placeholder="JFK, New York"
-              onSave={(v) => onSave({ leg1_to: v })}
-            />
-          </div>
-        </div>
+          {/* Flytid – direktefly */}
+          {leg1Min !== null && (
+            <DurationBadge minutes={leg1Min} label="Flytid" />
+          )}
+        </>
       ) : (
         <>
-          {/* ── Ankomst mellomlanding ── */}
+          {/* ── Ankomst mellomlanding + mellomstasjon ── */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label>Ankomst</Label>
               <Time
                 key={`arr1-s-${flight?.id}`}
                 defaultValue={flight?.leg1_arrival}
-                onSave={(v) => onSave({ leg1_arrival: v })}
+                onSave={saveLeg1Arrival}
               />
             </div>
             <div>
               <Label>Mellomstasjon</Label>
-              <Txt
+              <AirportInput
                 key={`stop-${flight?.id}`}
                 defaultValue={flight?.leg1_to}
-                placeholder="AMS, Amsterdam"
+                placeholder="AMS – Amsterdam"
                 onSave={(v) => onSave({ leg1_to: v })}
               />
             </div>
           </div>
 
-          {/* Tid på flyplass */}
+          {/* Flytid etappe 1 */}
+          {leg1Min !== null && (
+            <DurationBadge minutes={leg1Min} label="Flytid etappe 1" />
+          )}
+
+          {/* Tid på flyplass (automatisk beregnet, kan overstyres) */}
           <div>
-            <Label>Tid på flyplass</Label>
+            <div className="flex items-center justify-between mb-1">
+              <Label>Tid på flyplass</Label>
+              {stopoverMin !== null && (
+                <span className="text-[9px] text-sky-500/70 font-medium">
+                  beregnet: {formatDuration(stopoverMin)}
+                </span>
+              )}
+            </div>
             <Txt
               key={`dur-${flight?.id}`}
               defaultValue={flight?.stopover_duration}
-              placeholder="1t 30min"
+              placeholder={stopoverMin !== null ? formatDuration(stopoverMin) : '1t 30min'}
               onSave={(v) => onSave({ stopover_duration: v })}
             />
           </div>
@@ -184,7 +359,7 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
               <Time
                 key={`dep2-${flight?.id}`}
                 defaultValue={flight?.leg2_departure}
-                onSave={(v) => onSave({ leg2_departure: v })}
+                onSave={saveLeg2Departure}
               />
             </div>
             <div>
@@ -198,7 +373,7 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
             </div>
           </div>
 
-          {/* Ankomst endelig destinasjon */}
+          {/* Ankomst + endelig destinasjon */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label>Ankomst</Label>
@@ -210,28 +385,35 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
             </div>
             <div>
               <Label>Endelig destinasjon</Label>
-              <Txt
+              <AirportInput
                 key={`to2-${flight?.id}`}
                 defaultValue={flight?.leg2_to}
-                placeholder="JFK, New York"
+                placeholder="JFK – New York"
                 onSave={(v) => onSave({ leg2_to: v })}
               />
             </div>
           </div>
+
+          {/* Flytid etappe 2 */}
+          {leg2Min !== null && (
+            <DurationBadge minutes={leg2Min} label="Flytid etappe 2" />
+          )}
         </>
       )}
     </div>
   )
 }
 
-// ── FlightSummaryLine: kort oppsummering i kollapset tilstand ────────────────
+// ── FlightSummaryLine ─────────────────────────────────────────────────────────
 
-function FlightSummary({ outbound, returnFlight }: { outbound: Flight | null; returnFlight: Flight | null }) {
+function FlightSummary({
+  outbound, returnFlight,
+}: { outbound: Flight | null; returnFlight: Flight | null }) {
   const parts: string[] = []
-  if (outbound?.leg1_from) parts.push(outbound.leg1_from.split(' ')[0])
+  if (outbound?.leg1_from) parts.push(outbound.leg1_from.split(/[\s–]/)[0])
   if (outbound?.leg1_to || outbound?.leg2_to) {
     const dest = outbound.has_stopover ? outbound.leg2_to : outbound.leg1_to
-    if (dest) parts.push(dest.split(',')[0])
+    if (dest) parts.push(dest.split(/[\s–]/)[0])
   }
   if (parts.length === 0) return null
   return (
@@ -273,13 +455,13 @@ export default function FlightPanel({ tripId }: FlightPanelProps) {
 
       {/* ── Utvidet innhold ── */}
       {open && (
-        <div className="max-h-[480px] overflow-y-auto border-t border-slate-800/60">
+        <div className="border-t border-slate-800/60">
           {/* Tab-rad */}
           <div className="flex gap-0 border-b border-slate-800 bg-slate-900/50">
             {(
               [
                 { dir: 'outbound', label: 'Utreise', icon: PlaneTakeoff },
-                { dir: 'return', label: 'Hjemreise', icon: PlaneLanding },
+                { dir: 'return',   label: 'Hjemreise', icon: PlaneLanding },
               ] as const
             ).map(({ dir, label, icon: Icon }) => (
               <button
@@ -297,9 +479,9 @@ export default function FlightPanel({ tripId }: FlightPanelProps) {
             ))}
           </div>
 
-          {/* Skjema – remount ved tab-skifte og mellomlanding-toggle */}
+          {/* Skjema – remount ved tab-skifte, mellomlanding-toggle og auto-beregnet ventetid */}
           <FlightForm
-            key={`${tab}-${activeFlight?.has_stopover ?? false}`}
+            key={`${tab}-${activeFlight?.has_stopover ?? false}-${activeFlight?.stopover_duration ?? ''}`}
             flight={activeFlight}
             onSave={(updates) => saveFlight(tab, updates)}
           />
