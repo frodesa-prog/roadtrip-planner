@@ -91,7 +91,11 @@ export default function PlanSidebar({
     <div className="w-[340px] min-w-[300px] h-full bg-slate-900 border-r border-slate-800 flex flex-col">
       <TripManager
         trips={trips} currentTrip={currentTrip} loading={tripsLoading}
-        onSelectTrip={onSelectTrip} onCreateTrip={onCreateTrip} onDeleteTrip={onDeleteTrip}
+        onSelectTrip={onSelectTrip} onCreateTrip={onCreateTrip}
+        onDeleteTrip={(id) => {
+          const name = trips.find((t) => t.id === id)?.name ?? 'denne turen'
+          if (window.confirm(`Slett "${name}"? Dette kan ikke angres.`)) onDeleteTrip(id)
+        }}
       />
 
       {/* Fly */}

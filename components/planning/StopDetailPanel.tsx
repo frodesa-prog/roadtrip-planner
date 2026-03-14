@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   X, Calendar, Moon, Hotel, ExternalLink,
-  Ticket, Plus, Trash2, MapPin, Car
+  Ticket, Plus, Trash2, MapPin, Car, Pencil, Check,
 } from 'lucide-react'
 import { Stop, Hotel as HotelType, Activity } from '@/types'
 import { AddActivityData, UpdateActivityData } from '@/hooks/useActivities'
@@ -35,7 +35,8 @@ interface StopDetailPanelProps {
 function getStopDates(stop: Stop): string[] {
   if (!stop.arrival_date) return []
   const dates: string[] = []
-  for (let n = 0; n < Math.max(1, stop.nights); n++) {
+  // Include arrival through last night + departure day (n <= nights)
+  for (let n = 0; n <= stop.nights; n++) {
     const d = new Date(stop.arrival_date + 'T12:00:00')
     d.setDate(d.getDate() + n)
     dates.push(d.toISOString().split('T')[0])
@@ -67,6 +68,38 @@ export default function StopDetailPanel({
 
   const [typePickerForId, setTypePickerForId]     = useState<string | null>(null)
   const [pinningActivityId, setPinningActivityId] = useState<string | null>(null)
+
+  // Inline edit state
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
+  const [editActName, setEditActName]   = useState('')
+  const [editActUrl, setEditActUrl]     = useState('')
+  const [editActCost, setEditActCost]   = useState('')
+  const [editActDate, setEditActDate]   = useState('')
+  const [editActTime, setEditActTime]   = useState('')
+
+  function startEdit(act: Activity) {
+    setEditingActivityId(act.id)
+    setEditActName(act.name)
+    setEditActUrl(act.url ?? '')
+    setEditActCost(act.cost != null ? String(act.cost) : '')
+    setEditActDate(act.activity_date ?? '')
+    setEditActTime(act.activity_time ?? '')
+    setTypePickerForId(null)
+  }
+
+  function saveEdit() {
+    if (!editingActivityId || !editActName.trim()) return
+    onUpdateActivity(editingActivityId, {
+      name: editActName.trim(),
+      url: editActUrl.trim() || null,
+      cost: editActCost ? Number(editActCost) : null,
+      activity_date: editActDate || null,
+      activity_time: editActTime || null,
+    })
+    setEditingActivityId(null)
+  }
+
+  function cancelEdit() { setEditingActivityId(null) }
 
   const stopDates = getStopDates(stop)
   const prevHotelId = useRef<string | null>(null)
@@ -254,6 +287,56 @@ export default function StopDetailPanel({
               <div className="space-y-1 mb-2">
                 {activities.map((act) => {
                   const isPinned = !!(act.map_lat && act.map_lng)
+                  const isEditing = editingActivityId === act.id
+
+                  if (isEditing) {
+                    return (
+                      <div key={act.id} className="bg-slate-800/80 rounded-lg border border-blue-600/40 p-2.5 space-y-1.5">
+                        <input
+                          value={editActName} onChange={(e) => setEditActName(e.target.value)}
+                          placeholder="Aktivitetsnavn"
+                          autoFocus
+                          className="w-full h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-blue-500 transition-colors" />
+                        <div className="flex gap-1.5">
+                          <input value={editActUrl} onChange={(e) => setEditActUrl(e.target.value)}
+                            placeholder="https://..."
+                            className="flex-1 h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-blue-500 transition-colors" />
+                          <input type="number" min={0} value={editActCost} onChange={(e) => setEditActCost(e.target.value)}
+                            placeholder="Pris"
+                            className="w-20 h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-blue-500 transition-colors" />
+                          <span className="text-xs text-slate-500 self-center">kr</span>
+                        </div>
+                        <div className="flex gap-1.5 items-center">
+                          <input type="time" value={editActTime} onChange={(e) => setEditActTime(e.target.value)}
+                            className="w-28 h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 outline-none focus:border-blue-500 transition-colors" />
+                          <span className="text-[10px] text-slate-500">Klokkeslett</span>
+                        </div>
+                        {stopDates.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {stopDates.map((d) => (
+                              <button key={d} type="button" onClick={() => setEditActDate(d)}
+                                className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                  d === editActDate ? 'bg-blue-700 border-blue-600 text-white' : 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                                }`}>
+                                {new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-1.5">
+                          <button onClick={saveEdit} disabled={!editActName.trim()}
+                            className="flex-1 h-7 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium flex items-center justify-center gap-1 transition-colors">
+                            <Check className="w-3 h-3" /> Lagre
+                          </button>
+                          <button onClick={cancelEdit}
+                            className="px-3 h-7 rounded border border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
+                            Avbryt
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  }
+
                   return (
                     <div key={act.id}
                       className="flex items-center gap-2 px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 group relative">
@@ -318,6 +401,13 @@ export default function StopDetailPanel({
                         </a>
                       )}
 
+                      {/* Edit button */}
+                      <button onClick={() => startEdit(act)}
+                        title="Rediger aktivitet"
+                        className="text-slate-500 hover:text-blue-400 flex-shrink-0 transition-colors">
+                        <Pencil className="w-3 h-3" />
+                      </button>
+
                       {/* Map pin button */}
                       <button
                         onClick={() => setPinningActivityId(act.id)}
@@ -331,7 +421,12 @@ export default function StopDetailPanel({
                       </button>
 
                       {/* Delete */}
-                      <button onClick={() => onRemoveActivity(act.id)}
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Slett aktiviteten "${act.name}"?`)) {
+                            onRemoveActivity(act.id)
+                          }
+                        }}
                         className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>

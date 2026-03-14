@@ -7,7 +7,7 @@ import {
   MapMouseEvent,
   useMap,
 } from '@vis.gl/react-google-maps'
-import { Activity, Stop } from '@/types'
+import { Activity, Hotel, Stop } from '@/types'
 import RoutePolyline from './RoutePolyline'
 import StopMarker from './StopMarker'
 import AddStopPopup from './AddStopPopup'
@@ -36,6 +36,7 @@ interface PlanningMapProps {
   mapCenter?: { lat: number; lng: number } | null
   activityRoute?: ActivityRoute | null
   onActivityRouteInfo?: (info: RouteInfo) => void
+  hotels?: Hotel[]
 }
 
 interface PendingStop {
@@ -80,6 +81,7 @@ export default function PlanningMap({
   mapCenter,
   activityRoute,
   onActivityRouteInfo,
+  hotels = [],
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
 
@@ -142,6 +144,7 @@ export default function PlanningMap({
               index={index}
               isSelected={stop.id === selectedStopId}
               onClick={() => onSelectStop(stop.id)}
+              hotelName={hotels.find((h) => h.stop_id === stop.id)?.name || undefined}
             />
           ))}
 

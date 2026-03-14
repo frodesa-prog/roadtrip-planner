@@ -10,9 +10,10 @@ interface StopMarkerProps {
   isSelected: boolean
   onClick: () => void
   isPending?: boolean
+  hotelName?: string
 }
 
-export default function StopMarker({ stop, index, isSelected, onClick, isPending }: StopMarkerProps) {
+export default function StopMarker({ stop, index, isSelected, onClick, isPending, hotelName }: StopMarkerProps) {
   const map = useMap()
   const markerRef = useRef<google.maps.Marker | null>(null)
 
@@ -39,7 +40,7 @@ export default function StopMarker({ stop, index, isSelected, onClick, isPending
         scaledSize: new google.maps.Size(36, 44),
         anchor: new google.maps.Point(18, 44),
       },
-      title: isPending ? 'Nytt stopp...' : `${index + 1}. ${stop.city}`,
+      title: isPending ? 'Nytt stopp...' : `${index + 1}. ${stop.city}${hotelName ? ` — ${hotelName}` : ''}`,
       zIndex: isSelected ? 100 : index + 1,
     })
 
@@ -50,7 +51,7 @@ export default function StopMarker({ stop, index, isSelected, onClick, isPending
       marker.setMap(null)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, stop.lat, stop.lng, isSelected, index, isPending, stop.city])
+  }, [map, stop.lat, stop.lng, isSelected, index, isPending, stop.city, hotelName])
 
   return null
 }

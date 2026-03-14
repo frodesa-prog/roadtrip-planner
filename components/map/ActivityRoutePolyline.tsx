@@ -67,6 +67,10 @@ export default function ActivityRoutePolyline({
       }
     }
 
+    function metersToKm(m: number) {
+      return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`
+    }
+
     // Driving route (also draws the polyline)
     function fetchDriving(dest: string | google.maps.LatLng) {
       service.route(
@@ -75,7 +79,7 @@ export default function ActivityRoutePolyline({
           if (status === 'OK' && result) {
             renderer.setDirections(result)
             const leg = result.routes[0]?.legs[0]
-            drivingDistance = leg?.distance?.text ?? ''
+            drivingDistance = leg?.distance?.value != null ? metersToKm(leg.distance.value) : ''
             drivingTime = leg?.duration?.text ?? ''
             tryEmitRouteInfo()
           } else if (toAddress) {

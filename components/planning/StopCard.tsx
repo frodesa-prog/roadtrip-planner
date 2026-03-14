@@ -69,9 +69,13 @@ export default function StopCard({
             <span className="text-xs text-slate-500">
               {stop.nights} {stop.nights === 1 ? 'natt' : 'netter'}
             </span>
-            {hotelBooked && (
+            {hotel?.name ? (
+              <span className={`text-xs truncate max-w-[130px] ${hotelBooked ? 'text-green-400' : 'text-slate-400'}`}>
+                {hotelBooked ? '✓ ' : ''}{hotel.name}
+              </span>
+            ) : hotelBooked ? (
               <span className="text-xs text-green-400">✓ Hotell</span>
-            )}
+            ) : null}
             {activities.length > 0 && (
               <span className="text-xs text-purple-400">
                 {activities.length} aktivitet{activities.length !== 1 ? 'er' : ''}
@@ -97,7 +101,9 @@ export default function StopCard({
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={onRemove}
+            onClick={() => {
+              if (window.confirm(`Fjerne ${stop.city} fra turen?`)) onRemove()
+            }}
             className="p-1 rounded hover:bg-red-900/30 text-slate-600 hover:text-red-400"
           >
             <Trash2 className="w-3.5 h-3.5" />
