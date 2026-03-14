@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Plus, Trash2, FileText } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useNotes } from '@/hooks/useNotes'
+import { useStops } from '@/hooks/useStops'
 import TripManager from '@/components/planning/TripManager'
-import { Note } from '@/types'
+import { Note, Stop } from '@/types'
 
 export default function NotesPage() {
   const {
@@ -15,6 +16,7 @@ export default function NotesPage() {
   const { notes, addNote, updateNote, deleteNote } = useNotes(
     currentTrip?.id ?? null
   )
+  const { stops } = useStops(currentTrip?.id ?? null)
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
 
   // Auto-select first note when notes load (and nothing is selected)
@@ -98,7 +100,7 @@ export default function NotesPage() {
                   {note.title || 'Uten tittel'}
                 </p>
                 <p className="text-[11px] text-slate-500 truncate mt-0.5 leading-relaxed">
-                  {note.content || '…'}
+                  {note.content.split('\n')[0] || '…'}
                 </p>
               </button>
             ))
@@ -121,6 +123,7 @@ export default function NotesPage() {
             note={selectedNote}
             onUpdate={updateNote}
             onDelete={handleDeleteNote}
+            stops={stops}
           />
         )}
       </div>
@@ -128,23 +131,53 @@ export default function NotesPage() {
   )
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getStopDateRange(stop: Stop): string[] {
+  if (!stop.arrival_date) return []
+  const dates: string[] = []
+  const base = new Date(stop.arrival_date + 'T12:00:00')
+  for (let i = 0; i < stop.nights; i++) {
+    const d = new Date(base)
+    d.setDate(d.getDate() + i)
+    dates.push(d.toISOString().slice(0, 10))
+  }
+  return dates
+}
+
+function formatShortDate(iso: string): string {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', {
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
 // ─── Note Editor ─────────────────────────────────────────────────────────────
+
+type NoteUpdates = Partial<Pick<Note, 'title' | 'content' | 'stop_id' | 'note_date'>>
 
 function NoteEditor({
   note,
   onUpdate,
   onDelete,
+  stops,
 }: {
   note: Note
-  onUpdate: (id: string, updates: Partial<Pick<Note, 'title' | 'content'>>) => void
+  onUpdate: (id: string, updates: NoteUpdates) => void
   onDelete: (id: string) => void
+  stops: Stop[]
 }) {
   const [title, setTitle] = useState(note.title ?? '')
   const [content, setContent] = useState(note.content)
+  const [stopId, setStopId] = useState<string | null>(note.stop_id)
+  const [noteDate, setNoteDate] = useState<string | null>(note.note_date)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const selectedStop = stops.find((s) => s.id === stopId) ?? null
+  const stopDates = selectedStop ? getStopDateRange(selectedStop) : []
+
   const scheduleSave = useCallback(
-    (updates: Partial<Pick<Note, 'title' | 'content'>>) => {
+    (updates: NoteUpdates) => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
       saveTimer.current = setTimeout(() => {
         onUpdate(note.id, updates)
@@ -163,6 +196,21 @@ function NoteEditor({
     scheduleSave({ title: title.trim() || null, content: val })
   }
 
+  function handleStopChange(newStopId: string | null) {
+    setStopId(newStopId)
+    setNoteDate(null)
+    // Save immediately (no debounce) so DB is in sync
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    onUpdate(note.id, { stop_id: newStopId, note_date: null })
+  }
+
+  function handleDateToggle(date: string) {
+    const newDate = noteDate === date ? null : date
+    setNoteDate(newDate)
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    onUpdate(note.id, { note_date: newDate })
+  }
+
   const updatedLabel = new Date(note.updated_at).toLocaleDateString('nb-NO', {
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -170,7 +218,8 @@ function NoteEditor({
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
-      {/* Header */}
+
+      {/* Title row */}
       <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-800 flex-shrink-0">
         <input
           value={title}
@@ -187,11 +236,59 @@ function NoteEditor({
         </button>
       </div>
 
+      {/* City + date linking */}
+      <div className="px-6 py-3 border-b border-slate-800 flex-shrink-0 space-y-2">
+        {/* City selector */}
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-slate-500 w-12 flex-shrink-0">By</span>
+          <select
+            value={stopId ?? ''}
+            onChange={(e) => handleStopChange(e.target.value || null)}
+            className="flex-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5 outline-none focus:border-blue-500 transition-colors cursor-pointer"
+          >
+            <option value="">— Ingen by —</option>
+            {stops.map((s) => (
+              <option key={s.id} value={s.id}>{s.city}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Date picker — only shown when a stop with dates is selected */}
+        {stopId && stopDates.length > 0 && (
+          <div className="flex items-start gap-3">
+            <span className="text-[11px] text-slate-500 w-12 flex-shrink-0 pt-0.5">Dato</span>
+            <div className="flex flex-wrap gap-1">
+              {stopDates.map((date) => (
+                <button
+                  key={date}
+                  onClick={() => handleDateToggle(date)}
+                  className={[
+                    'px-2 py-0.5 rounded text-[11px] transition-colors',
+                    noteDate === date
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600',
+                  ].join(' ')}
+                >
+                  {formatShortDate(date)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {stopId && stopDates.length === 0 && (
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-slate-500 w-12 flex-shrink-0">Dato</span>
+            <span className="text-[11px] text-slate-600 italic">Stopp har ingen dato satt</span>
+          </div>
+        )}
+      </div>
+
       {/* Content area */}
       <textarea
         value={content}
         onChange={(e) => handleContentChange(e.target.value)}
-        placeholder="Skriv notater her…&#10;&#10;Bruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen."
+        placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.'}
         className="flex-1 bg-transparent text-slate-300 text-sm px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed"
       />
 
