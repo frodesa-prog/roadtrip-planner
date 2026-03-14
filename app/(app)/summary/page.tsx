@@ -1,16 +1,17 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Car, CalendarDays, Hotel as HotelIcon, Ticket, ExternalLink, PlaneTakeoff, PlaneLanding, X, Clock } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, Ticket, ExternalLink, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
 import { useActivities } from '@/hooks/useActivities'
 import { useDrivingInfo, LegInfo } from '@/hooks/useDrivingInfo'
 import { useFlights } from '@/hooks/useFlights'
+import { useNotes } from '@/hooks/useNotes'
 import TripManager from '@/components/planning/TripManager'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
-import { Stop, Activity, Flight } from '@/types'
+import { Stop, Activity, Flight, Note } from '@/types'
 import { getOffset, calcFlightMinutes, calcStopoverMinutes, formatDuration } from '@/data/airports'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -65,9 +66,14 @@ export default function SummaryPage() {
   const { activities, addActivity, removeActivity } = useActivities(stopIds)
   const drivingLegs = useDrivingInfo(stops)
   const { outbound, returnFlight } = useFlights(currentTrip?.id ?? null)
+  const { notes, addNote, updateNote, deleteNote } = useNotes(currentTrip?.id ?? null)
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [flightModal, setFlightModal] = useState<Flight | null>(null)
+  type NoteModalState =
+    | { mode: 'new'; stopId: string | null; initialDate: string | null }
+    | { mode: 'edit'; note: Note }
+  const [noteModal, setNoteModal] = useState<NoteModalState | null>(null)
 
   // ── Derived data ────────────────────────────────────────────────────────────
 
@@ -138,6 +144,22 @@ export default function SummaryPage() {
     return map
   }, [outbound, returnFlight])
 
+  // Map: ISO date → notes on that day (stop notes only; unattached shown in sidebar)
+  const notesByDate = useMemo(() => {
+    const map: Record<string, Note[]> = {}
+    notes.filter((n) => n.stop_id).forEach((note) => {
+      const date = note.note_date
+        ?? stops.find((s) => s.id === note.stop_id)?.arrival_date
+        ?? null
+      if (!date) return
+      if (!map[date]) map[date] = []
+      map[date].push(note)
+    })
+    return map
+  }, [notes, stops])
+
+  const unattachedNotes = useMemo(() => notes.filter((n) => !n.stop_id), [notes])
+
   // Selected stop (from clicked date)
   const selectedStop = selectedDate ? (stopsByDate[selectedDate] ?? null) : null
   const selectedStopLeg = selectedStop && selectedStop.arrival_date
@@ -171,7 +193,7 @@ export default function SummaryPage() {
         />
 
         {currentTrip && !stopsLoading && stops.filter((s) => s.arrival_date).length > 0 && (
-          <div className="flex-1 overflow-y-auto py-3">
+          <div className="flex-1 overflow-y-auto py-3 flex flex-col">
             <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide px-4 mb-2">
               Stoppesteder
             </p>
@@ -186,7 +208,7 @@ export default function SummaryPage() {
                 return (
                   <div
                     key={stop.id}
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded border-l-2 ${pal.border} bg-transparent`}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded border-l-2 ${pal.border} bg-transparent group/stop`}
                   >
                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pal.dot}`} />
                     <div className="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
@@ -208,9 +230,45 @@ export default function SummaryPage() {
                         {dateLabel}{stop.nights > 0 && ` · ${stop.nights}n`}
                       </span>
                     </div>
+                    <button
+                      onClick={() => setNoteModal({ mode: 'new', stopId: stop.id, initialDate: stop.arrival_date })}
+                      title="Legg til notat"
+                      className="opacity-0 group-hover/stop:opacity-100 transition-opacity flex-shrink-0 p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-amber-400"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
                   </div>
                 )
               })}
+            </div>
+
+            {/* Turnotater (unattached) */}
+            <div className="mt-3 pt-2 border-t border-slate-800 px-2">
+              <div className="flex items-center justify-between px-2 mb-1">
+                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">Turnotater</p>
+                <button
+                  onClick={() => setNoteModal({ mode: 'new', stopId: null, initialDate: null })}
+                  title="Nytt turnotat"
+                  className="p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-amber-400 transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+              {unattachedNotes.length === 0 && (
+                <p className="text-[10px] text-slate-600 px-2 italic">Ingen turnotater ennå</p>
+              )}
+              {unattachedNotes.map((note) => (
+                <button
+                  key={note.id}
+                  onClick={() => setNoteModal({ mode: 'edit', note })}
+                  className="w-full flex items-start gap-1.5 px-2 py-1.5 rounded hover:bg-slate-800/60 text-left transition-colors"
+                >
+                  <FileText className="w-3 h-3 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-xs text-slate-300 truncate leading-snug">
+                    {note.title || note.content.slice(0, 28) || 'Tomt notat'}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -285,6 +343,8 @@ export default function SummaryPage() {
                           hasConfirmedHotel={stop ? confirmedHotelStopIds.has(stop.id) : false}
                           flight={flightsByDate[dateStr] ?? null}
                           onFlightClick={setFlightModal}
+                          notesOnDay={notesByDate[dateStr] ?? []}
+                          onNoteClick={(note) => setNoteModal({ mode: 'edit', note })}
                           onClick={stop ? () => setSelectedDate(isSelected ? null : dateStr) : undefined}
                         />
                       )
@@ -299,6 +359,39 @@ export default function SummaryPage() {
         {/* Flight modal */}
         {flightModal && (
           <FlightModal flight={flightModal} onClose={() => setFlightModal(null)} />
+        )}
+
+        {/* Note modal */}
+        {noteModal && (
+          <NoteModal
+            mode={noteModal.mode}
+            note={noteModal.mode === 'edit' ? noteModal.note : undefined}
+            stopId={noteModal.mode === 'new' ? noteModal.stopId : undefined}
+            initialDate={noteModal.mode === 'new' ? noteModal.initialDate : undefined}
+            stops={stops}
+            onSave={async (data) => {
+              if (noteModal.mode === 'new') {
+                await addNote({
+                  title: data.title,
+                  content: data.content,
+                  stop_id: noteModal.stopId,
+                  note_date: data.note_date,
+                })
+              } else {
+                await updateNote(noteModal.note.id, {
+                  title: data.title,
+                  content: data.content,
+                  note_date: data.note_date,
+                })
+              }
+              setNoteModal(null)
+            }}
+            onDelete={noteModal.mode === 'edit'
+              ? async () => { await deleteNote(noteModal.note.id); setNoteModal(null) }
+              : undefined
+            }
+            onClose={() => setNoteModal(null)}
+          />
         )}
 
         {/* Detail panel */}
@@ -339,6 +432,8 @@ function DayCell({
   hasConfirmedHotel,
   flight,
   onFlightClick,
+  notesOnDay,
+  onNoteClick,
   onClick,
 }: {
   date: Date
@@ -351,6 +446,8 @@ function DayCell({
   hasConfirmedHotel: boolean
   flight: Flight | null
   onFlightClick: (f: Flight) => void
+  notesOnDay: Note[]
+  onNoteClick: (note: Note) => void
   onClick?: () => void
 }) {
   const isFirstOfMonth = date.getDate() === 1
@@ -446,6 +543,18 @@ function DayCell({
               <span className="text-[8px] text-purple-300">{a.activity_time}</span>
             )}
           </div>
+        ))}
+
+        {/* Note icons */}
+        {notesOnDay.map((note) => (
+          <button
+            key={note.id}
+            onClick={(e) => { e.stopPropagation(); onNoteClick(note) }}
+            title={note.title || 'Notat'}
+            className="flex-shrink-0 hover:opacity-70 transition-opacity"
+          >
+            <FileText className="w-3 h-3 text-amber-400" />
+          </button>
         ))}
       </div>
     </div>
@@ -585,6 +694,142 @@ function FlightModal({ flight, onClose }: { flight: Flight; onClose: () => void 
               </div>
             </>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Note Modal ──────────────────────────────────────────────────────────────
+
+function getStopDateRange(stop: Stop): string[] {
+  if (!stop.arrival_date) return []
+  const dates: string[] = []
+  for (let n = 0; n < Math.max(1, stop.nights); n++) {
+    const d = new Date(stop.arrival_date + 'T12:00:00')
+    d.setDate(d.getDate() + n)
+    dates.push(d.toISOString().split('T')[0])
+  }
+  return dates
+}
+
+function NoteModal({
+  mode, note, stopId, initialDate, stops, onSave, onDelete, onClose,
+}: {
+  mode: 'new' | 'edit'
+  note?: Note
+  stopId?: string | null
+  initialDate?: string | null
+  stops: Stop[]
+  onSave: (data: { title: string | null; content: string; note_date: string | null }) => void
+  onDelete?: () => void
+  onClose: () => void
+}) {
+  const [title, setTitle]     = useState(note?.title ?? '')
+  const [content, setContent] = useState(note?.content ?? '')
+  const [noteDate, setNoteDate] = useState<string | null>(
+    note?.note_date ?? initialDate ?? null
+  )
+
+  const effectiveStopId = note?.stop_id ?? stopId ?? null
+  const stop = effectiveStopId ? stops.find((s) => s.id === effectiveStopId) ?? null : null
+  const stopDates = stop ? getStopDateRange(stop) : []
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-amber-400" />
+            <span className="text-sm font-semibold text-slate-100">
+              {mode === 'new' ? 'Nytt notat' : 'Rediger notat'}
+            </span>
+            {stop && <span className="text-xs text-slate-400">— {stop.city}</span>}
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-3">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Tittel (valgfritt)"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-colors"
+          />
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Skriv notat her…"
+            rows={5}
+            autoFocus
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-colors resize-none"
+          />
+
+          {/* Date picker – only for stop-linked notes */}
+          {stopDates.length > 0 && (
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Knytt til dato</p>
+              <div className="flex flex-wrap gap-1">
+                {stopDates.map((d) => {
+                  const label = new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', {
+                    weekday: 'short', day: 'numeric', month: 'short',
+                  })
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setNoteDate(d === noteDate ? null : d)}
+                      className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                        d === noteDate
+                          ? 'bg-amber-700 border-amber-600 text-white'
+                          : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+              {!noteDate && (
+                <p className="text-[10px] text-slate-600 mt-1">Vises på første dag i {stop?.city}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 pb-4 flex gap-2">
+          <button
+            onClick={() => onSave({ title: title.trim() || null, content, note_date: noteDate })}
+            disabled={!content.trim()}
+            className="flex-1 h-8 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-semibold transition-colors"
+          >
+            Lagre
+          </button>
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="px-3 h-8 rounded-lg border border-red-800/60 text-red-400 hover:bg-red-900/30 text-xs transition-colors"
+            >
+              Slett
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="px-3 h-8 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 text-xs transition-colors"
+          >
+            Avbryt
+          </button>
         </div>
       </div>
     </div>

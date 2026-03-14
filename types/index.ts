@@ -72,6 +72,8 @@ export interface BudgetItem {
 export interface Note {
   id: string
   trip_id: string
+  stop_id: string | null    // koblet til stopp (null = generelt turnotat)
+  note_date: string | null  // ISO dato notatet vises på (null = første dag i stopp)
   title: string | null
   content: string
   created_at: string
