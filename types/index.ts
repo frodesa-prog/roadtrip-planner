@@ -35,6 +35,7 @@ export interface Hotel {
   cost: number | null
   remaining_amount: number | null
   confirmation_number: string | null
+  parking_cost_per_night: number | null
 }
 
 export interface Activity {

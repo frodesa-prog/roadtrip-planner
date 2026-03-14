@@ -31,7 +31,7 @@ interface StopDetailPanelProps {
   selectedDate: string
   stopIndex?: number
   onUpdateStop: (updates: Partial<Pick<Stop, 'nights' | 'arrival_date' | 'lat' | 'lng'>>) => void
-  onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'address' | 'url' | 'status' | 'cost'>>) => void
+  onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'address' | 'url' | 'status' | 'cost' | 'parking_cost_per_night'>>) => void
   onAddActivity: (data: AddActivityData) => void
   onRemoveActivity: (id: string) => void
   onUpdateActivity: (id: string, updates: UpdateActivityData) => void
@@ -67,11 +67,12 @@ export default function StopDetailPanel({
   onUpdateNote, onDeleteNote,
   onClose,
 }: StopDetailPanelProps) {
-  const [hotelName, setHotelName]       = useState(hotel?.name ?? '')
-  const [hotelAddress, setHotelAddress] = useState(hotel?.address ?? '')
-  const [hotelUrl, setHotelUrl]         = useState(hotel?.url ?? '')
-  const [hotelCost, setHotelCost]       = useState(hotel?.cost != null ? String(hotel.cost) : '')
-  const [hotelBooked, setHotelBooked]   = useState(hotel?.status === 'confirmed')
+  const [hotelName, setHotelName]               = useState(hotel?.name ?? '')
+  const [hotelAddress, setHotelAddress]         = useState(hotel?.address ?? '')
+  const [hotelUrl, setHotelUrl]                 = useState(hotel?.url ?? '')
+  const [hotelCost, setHotelCost]               = useState(hotel?.cost != null ? String(hotel.cost) : '')
+  const [hotelParkingCost, setHotelParkingCost] = useState(hotel?.parking_cost_per_night != null ? String(hotel.parking_cost_per_night) : '')
+  const [hotelBooked, setHotelBooked]           = useState(hotel?.status === 'confirmed')
   // Compact view when hotel has a name; open edit form when no hotel yet
   const [editingHotel, setEditingHotel] = useState(!(hotel?.name))
   const [nights, setNights]             = useState(stop.nights)
@@ -244,6 +245,7 @@ export default function StopDetailPanel({
         setHotelAddress(hotel.address ?? '')
         setHotelUrl(hotel.url ?? '')
         setHotelCost(hotel.cost != null ? String(hotel.cost) : '')
+        setHotelParkingCost(hotel.parking_cost_per_night != null ? String(hotel.parking_cost_per_night) : '')
         setHotelBooked(hotel.status === 'confirmed')
         setEditingHotel(!hotel.name)
         prevHotelId.current = hotel.id
@@ -254,6 +256,7 @@ export default function StopDetailPanel({
       setHotelAddress('')
       setHotelUrl('')
       setHotelCost('')
+      setHotelParkingCost('')
       setHotelBooked(false)
       setEditingHotel(true)
       prevHotelId.current = null
@@ -277,6 +280,7 @@ export default function StopDetailPanel({
       address: hotelAddress.trim() || null,
       url: hotelUrl.trim() || null,
       cost: hotelCost ? Number(hotelCost) : null,
+      parking_cost_per_night: hotelParkingCost ? Number(hotelParkingCost) : null,
       status: hotelBooked ? 'confirmed' : 'not_booked',
     })
     setEditingHotel(false)
@@ -287,6 +291,7 @@ export default function StopDetailPanel({
     setHotelAddress(hotel?.address ?? '')
     setHotelUrl(hotel?.url ?? '')
     setHotelCost(hotel?.cost != null ? String(hotel.cost) : '')
+    setHotelParkingCost(hotel?.parking_cost_per_night != null ? String(hotel.parking_cost_per_night) : '')
     setHotelBooked(hotel?.status === 'confirmed')
     setEditingHotel(!hotel?.name)
   }
@@ -453,6 +458,12 @@ export default function StopDetailPanel({
                 <div className="flex items-center gap-1.5">
                   <Input type="number" min={0} value={hotelCost} onChange={(e) => setHotelCost(e.target.value)}
                     placeholder="Pris"
+                    className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
+                  <span className="text-xs text-slate-500 flex-shrink-0">kr</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Input type="number" min={0} value={hotelParkingCost} onChange={(e) => setHotelParkingCost(e.target.value)}
+                    placeholder="Pris parkering pr. natt"
                     className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
                   <span className="text-xs text-slate-500 flex-shrink-0">kr</span>
                 </div>
