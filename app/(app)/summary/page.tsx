@@ -163,38 +163,37 @@ export default function SummaryPage() {
             <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide px-4 mb-2">
               Stoppesteder
             </p>
-            <div className="space-y-1 px-2">
+            <div className="px-2">
               {stops.filter((s) => s.arrival_date).map((stop) => {
                 const pal = PALETTES[stopPaletteIndex[stop.id] ?? 0]
                 const hotel = hotels.find((h) => h.stop_id === stop.id)
                 const hotelUrl = hotel?.url ?? null
+                const dateLabel = new Date(stop.arrival_date! + 'T12:00:00').toLocaleDateString('nb-NO', {
+                  day: 'numeric', month: 'short',
+                })
                 return (
                   <div
                     key={stop.id}
-                    className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border ${pal.bg} ${pal.border}`}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded border-l-2 ${pal.border} bg-transparent`}
                   >
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-[3px] ${pal.dot}`} />
-                    <div className="flex-1 min-w-0">
+                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pal.dot}`} />
+                    <div className="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
                       {hotelUrl ? (
                         <a
                           href={hotelUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`text-xs font-semibold truncate flex items-center gap-1 group ${pal.text}`}
+                          className={`text-xs font-semibold truncate flex-shrink-0 max-w-[50%] hover:underline ${pal.text}`}
                         >
-                          <span className="truncate">{stop.city}</span>
-                          <ExternalLink className="w-2.5 h-2.5 flex-shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
+                          {stop.city}
                         </a>
                       ) : (
-                        <span className={`text-xs font-semibold truncate block ${pal.text}`}>
+                        <span className={`text-xs font-semibold truncate flex-shrink-0 max-w-[50%] ${pal.text}`}>
                           {stop.city}
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-500">
-                        {new Date(stop.arrival_date! + 'T12:00:00').toLocaleDateString('nb-NO', {
-                          day: 'numeric', month: 'short',
-                        })}
-                        {stop.nights > 0 && ` · ${stop.nights} netter`}
+                      <span className="text-[10px] text-slate-500 truncate whitespace-nowrap">
+                        {dateLabel}{stop.nights > 0 && ` · ${stop.nights}n`}
                       </span>
                     </div>
                   </div>
