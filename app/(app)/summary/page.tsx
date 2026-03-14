@@ -16,6 +16,7 @@ import { useNotes } from '@/hooks/useNotes'
 import TripManager from '@/components/planning/TripManager'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import NoteModal from '@/components/planning/NoteModal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { Stop, Activity, Flight, Note, Dining } from '@/types'
 import { UpdateDiningData } from '@/hooks/useDining'
 import { getOffset, calcFlightMinutes, calcStopoverMinutes, formatDuration } from '@/data/airports'
@@ -1044,6 +1045,7 @@ function DiningModal({
   const [url, setUrl]   = useState(dining.url ?? '')
   const [date, setDate] = useState(dining.booking_date ?? '')
   const [time, setTime] = useState(dining.booking_time ?? '')
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const stopDates = stop ? getStopDateRange(stop) : []
 
@@ -1058,6 +1060,7 @@ function DiningModal({
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={onClose}
@@ -1156,7 +1159,7 @@ function DiningModal({
             Lagre
           </button>
           <button
-            onClick={() => { if (window.confirm(`Slett spisestedet "${dining.name}"?`)) onDelete() }}
+            onClick={() => setShowConfirm(true)}
             className="px-3 h-8 rounded-lg border border-red-800/60 text-red-400 hover:bg-red-900/30 text-xs transition-colors">
             Slett
           </button>
@@ -1167,6 +1170,15 @@ function DiningModal({
         </div>
       </div>
     </div>
+
+    {showConfirm && (
+      <ConfirmDialog
+        message={`Slett spisestedet "${dining.name}"?`}
+        onConfirm={() => { setShowConfirm(false); onDelete() }}
+        onCancel={() => setShowConfirm(false)}
+      />
+    )}
+    </>
   )
 }
 

@@ -19,6 +19,7 @@ import {
 } from '@/lib/activityTypes'
 import ActivityLocationSearch from '@/components/map/ActivityLocationSearch'
 import NoteModal from '@/components/planning/NoteModal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface StopDetailPanelProps {
   stop: Stop
@@ -89,6 +90,9 @@ export default function StopDetailPanel({
   const [typePickerForId, setTypePickerForId]       = useState<string | null>(null)
   const [pinningActivityId, setPinningActivityId]   = useState<string | null>(null)
   const [editingStopLocation, setEditingStopLocation] = useState(false)
+
+  // Confirm-dialog state
+  const [confirm, setConfirm] = useState<{ message: string; action: () => void } | null>(null)
 
   // Inline edit state – activities
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
@@ -645,11 +649,10 @@ export default function StopDetailPanel({
 
                       {/* Delete */}
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Slett aktiviteten "${act.name}"?`)) {
-                            onRemoveActivity(act.id)
-                          }
-                        }}
+                        onClick={() => setConfirm({
+                          message: `Slett aktiviteten "${act.name}"?`,
+                          action: () => onRemoveActivity(act.id),
+                        })}
                         className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -843,11 +846,10 @@ export default function StopDetailPanel({
                       </button>
 
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Slett spisestedet "${d.name}"?`)) {
-                            onRemoveDining(d.id)
-                          }
-                        }}
+                        onClick={() => setConfirm({
+                          message: `Slett spisestedet "${d.name}"?`,
+                          action: () => onRemoveDining(d.id),
+                        })}
                         className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -992,11 +994,10 @@ export default function StopDetailPanel({
                         <Pencil className="w-3 h-3" />
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Slett "${a.description}"?`)) {
-                            onRemovePossibleActivity(a.id)
-                          }
-                        }}
+                        onClick={() => setConfirm({
+                          message: `Slett "${a.description}"?`,
+                          action: () => onRemovePossibleActivity(a.id),
+                        })}
                         className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors mt-0.5">
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -1145,6 +1146,15 @@ export default function StopDetailPanel({
             setEditingNote(null)
           }}
           onClose={() => setEditingNote(null)}
+        />
+      )}
+
+      {/* Confirm-dialog */}
+      {confirm && (
+        <ConfirmDialog
+          message={confirm.message}
+          onConfirm={() => { confirm.action(); setConfirm(null) }}
+          onCancel={() => setConfirm(null)}
         />
       )}
     </>

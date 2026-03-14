@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { MapPin, LogOut, Loader2, Car } from 'lucide-react'
 import { Stop, Trip, Hotel, Activity } from '@/types'
 import StopCard from './StopCard'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FlightPanel from './FlightPanel'
 import TripManager from './TripManager'
 import { createClient } from '@/lib/supabase/client'
@@ -38,6 +39,7 @@ export default function PlanSidebar({
   onSelectTrip, onCreateTrip, onDeleteTrip,
 }: PlanSidebarProps) {
   const [departureTimes, setDepartureTimes] = useState<Record<string, string>>({})
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
   const router = useRouter()
   const drivingLegs = useDrivingInfo(stops)
 
@@ -94,7 +96,7 @@ export default function PlanSidebar({
         onSelectTrip={onSelectTrip} onCreateTrip={onCreateTrip}
         onDeleteTrip={(id) => {
           const name = trips.find((t) => t.id === id)?.name ?? 'denne turen'
-          if (window.confirm(`Slett "${name}"? Dette kan ikke angres.`)) onDeleteTrip(id)
+          setConfirmDelete({ id, name })
         }}
       />
 
@@ -200,6 +202,14 @@ export default function PlanSidebar({
           <LogOut className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`Slett turen "${confirmDelete.name}"? Dette kan ikke angres.`}
+          onConfirm={() => { onDeleteTrip(confirmDelete.id); setConfirmDelete(null) }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   )
 }
