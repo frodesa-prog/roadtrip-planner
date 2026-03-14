@@ -15,7 +15,7 @@ function getStopDateRange(stop: Stop): string[] {
   if (!stop.arrival_date) return []
   const dates: string[] = []
   const base = new Date(stop.arrival_date + 'T12:00:00')
-  for (let i = 0; i < stop.nights; i++) {
+  for (let i = 0; i <= stop.nights; i++) {
     const d = new Date(base)
     d.setDate(d.getDate() + i)
     dates.push(d.toISOString().slice(0, 10))
