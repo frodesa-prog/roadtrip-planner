@@ -32,7 +32,7 @@ export default function PlanPage() {
   const { activities, addActivity, removeActivity, updateActivity } = useActivities(stopIds)
   const { dining, addDining, removeDining, updateDining } = useDining(stopIds)
   const { possibleActivities, addPossibleActivity, removePossibleActivity, updatePossibleActivity } = usePossibleActivities(stopIds)
-  const { notes } = useNotes(currentTrip?.id ?? null)
+  const { notes, updateNote, deleteNote } = useNotes(currentTrip?.id ?? null)
   const drivingLegs = useDrivingInfo(stops)
 
   // Selected stop + its driving leg
@@ -94,6 +94,8 @@ export default function PlanPage() {
             onRemovePossibleActivity={removePossibleActivity}
             onUpdatePossibleActivity={updatePossibleActivity}
             stopNotes={notes.filter((n) => n.stop_id === selectedStop.id)}
+            onUpdateNote={updateNote}
+            onDeleteNote={deleteNote}
             onClose={() => setSelectedStopId(null)}
           />
         </div>
