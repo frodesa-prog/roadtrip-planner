@@ -133,9 +133,9 @@ function RemainingCell({
 }
 
 // ── Mini-komponentar ──────────────────────────────────────────────────────────
-function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
+function Th({ children, right, center }: { children: React.ReactNode; right?: boolean; center?: boolean }) {
   return (
-    <div className={`text-[10px] font-bold text-slate-500 uppercase tracking-wide px-2 py-1.5 ${right ? 'text-right' : ''}`}>
+    <div className={`text-[10px] font-bold text-slate-500 uppercase tracking-wide px-2 py-1.5 ${right ? 'text-right' : center ? 'text-center' : ''}`}>
       {children}
     </div>
   )
@@ -861,10 +861,10 @@ export default function KostnaderPage() {
                   Faste bredder for de to siste slik at beløpene alltid er på
                   samme plass uavhengig av gjenstår-innhold.
                 */}
-                <div className="grid grid-cols-[minmax(60px,auto)_1fr_3.5rem_5.5rem_3.5rem_4.5rem] border-b border-slate-800 bg-slate-800/50">
+                <div className="grid grid-cols-[7rem_1fr_3.5rem_5.5rem_3.5rem_4.5rem] border-b border-slate-800 bg-slate-800/50">
                   <Th>By</Th>
                   <Th>Hotell</Th>
-                  <Th right>NETTER</Th>
+                  <Th center>NETTER</Th>
                   <Th right>Kostnad</Th>
                   <Th right>Snitt</Th>
                   <Th right>Gjenstår</Th>
@@ -881,7 +881,7 @@ export default function KostnaderPage() {
                     return (
                       <div
                         key={hotel.id}
-                        className="grid grid-cols-[minmax(60px,auto)_1fr_3.5rem_5.5rem_3.5rem_4.5rem] items-center hover:bg-slate-800/40 transition-colors"
+                        className="grid grid-cols-[7rem_1fr_3.5rem_5.5rem_3.5rem_4.5rem] items-center hover:bg-slate-800/40 transition-colors"
                       >
                         {/* By */}
                         <div className="px-2 py-2 text-[11px] text-slate-400 truncate">
@@ -909,7 +909,7 @@ export default function KostnaderPage() {
                         </div>
 
                         {/* Netter */}
-                        <div className="px-1 py-2 text-[11px] text-slate-500 text-right">
+                        <div className="px-1 py-2 text-[11px] text-slate-500 text-center">
                           {stop.nights}
                         </div>
 
