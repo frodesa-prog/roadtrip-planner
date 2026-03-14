@@ -15,6 +15,7 @@ export const ACTIVITY_TYPE_PRESETS: ActivityTypeConfig[] = [
   { value: 'hiking',      label: 'Hiking',      emoji: '🥾', color: '#22c55e', isSoulCycle: false },
   { value: 'sightseeing', label: 'Sightseeing', emoji: '📸', color: '#3b82f6', isSoulCycle: false },
   { value: 'shopping',    label: 'Shopping',    emoji: '🛍️', color: '#ec4899', isSoulCycle: false },
+  { value: 'mat',         label: 'Mat',         emoji: '🍴', color: '#ea580c', isSoulCycle: false },
 ]
 
 const FALLBACK: ActivityTypeConfig = {

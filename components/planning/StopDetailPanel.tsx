@@ -136,14 +136,17 @@ export default function StopDetailPanel({
   const [showAddPossible, setShowAddPossible]         = useState(false)
   const [newPossibleDesc, setNewPossibleDesc]         = useState('')
   const [newPossibleUrl, setNewPossibleUrl]           = useState('')
+  const [newPossibleCategory, setNewPossibleCategory] = useState<string | null>(null)
   const [editingPossibleId, setEditingPossibleId]     = useState<string | null>(null)
   const [editPossibleDesc, setEditPossibleDesc]       = useState('')
   const [editPossibleUrl, setEditPossibleUrl]         = useState('')
+  const [editPossibleCategory, setEditPossibleCategory] = useState<string | null>(null)
 
   function startEditPossible(a: PossibleActivity) {
     setEditingPossibleId(a.id)
     setEditPossibleDesc(a.description)
     setEditPossibleUrl(a.url ?? '')
+    setEditPossibleCategory(a.category ?? null)
   }
 
   function saveEditPossible() {
@@ -151,6 +154,7 @@ export default function StopDetailPanel({
     onUpdatePossibleActivity(editingPossibleId, {
       description: editPossibleDesc.trim(),
       url: editPossibleUrl.trim() || null,
+      category: editPossibleCategory,
     })
     setEditingPossibleId(null)
   }
@@ -161,9 +165,11 @@ export default function StopDetailPanel({
     onAddPossibleActivity({
       description: newPossibleDesc.trim(),
       url: newPossibleUrl.trim() || undefined,
+      category: newPossibleCategory ?? undefined,
     })
     setNewPossibleDesc('')
     setNewPossibleUrl('')
+    setNewPossibleCategory(null)
     setShowAddPossible(false)
   }
 
@@ -923,6 +929,23 @@ export default function StopDetailPanel({
                           placeholder="https://..."
                           className="w-full h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-teal-500 transition-colors"
                         />
+                        <div>
+                          <p className="text-[10px] text-slate-500 mb-1">Kategori</p>
+                          <div className="flex flex-wrap gap-1">
+                            {ACTIVITY_TYPE_PRESETS.map((p) => (
+                              <button key={p.value} type="button"
+                                onClick={() => setEditPossibleCategory(editPossibleCategory === p.value ? null : p.value)}
+                                className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                  editPossibleCategory === p.value
+                                    ? 'bg-teal-700 border-teal-600 text-white'
+                                    : 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                                }`}>
+                                <ActivityTypeIcon type={p.value} size={11} />
+                                <span>{p.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                         <div className="flex gap-1.5">
                           <button onClick={saveEditPossible} disabled={!editPossibleDesc.trim()}
                             className="flex-1 h-7 rounded bg-teal-700 hover:bg-teal-600 disabled:opacity-40 text-white text-xs font-medium flex items-center justify-center gap-1 transition-colors">
@@ -939,10 +962,19 @@ export default function StopDetailPanel({
                   return (
                     <div key={a.id}
                       className="flex items-start gap-2 px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 group">
-                      <Lightbulb className="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" />
-                      <span className="flex-1 text-xs text-slate-200 leading-relaxed break-words min-w-0">
-                        {a.description}
+                      <span className="flex-shrink-0 mt-0.5" style={{ lineHeight: 1 }}>
+                        <ActivityTypeIcon type={a.category} size={14} />
                       </span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs text-slate-200 leading-relaxed break-words block">
+                          {a.description}
+                        </span>
+                        {a.category && (
+                          <span className="text-[10px] text-slate-500">
+                            {getActivityTypeConfig(a.category).label}
+                          </span>
+                        )}
+                      </div>
                       {a.url && (
                         <a href={a.url} target="_blank" rel="noopener noreferrer"
                           title={a.url}
@@ -984,13 +1016,30 @@ export default function StopDetailPanel({
                   placeholder="https://..."
                   className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
                 />
+                <div>
+                  <p className="text-[10px] text-slate-500 mb-1">Kategori</p>
+                  <div className="flex flex-wrap gap-1">
+                    {ACTIVITY_TYPE_PRESETS.map((p) => (
+                      <button key={p.value} type="button"
+                        onClick={() => setNewPossibleCategory(newPossibleCategory === p.value ? null : p.value)}
+                        className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                          newPossibleCategory === p.value
+                            ? 'bg-teal-700 border-teal-600 text-white'
+                            : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                        }`}>
+                        <ActivityTypeIcon type={p.value} size={11} />
+                        <span>{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="flex gap-1.5">
                   <button type="submit" disabled={!newPossibleDesc.trim()}
                     className="flex-1 h-7 rounded-md bg-teal-700 hover:bg-teal-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
                     Legg til
                   </button>
                   <button type="button"
-                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl('') }}
+                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleCategory(null) }}
                     className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
                     Avbryt
                   </button>

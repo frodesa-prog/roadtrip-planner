@@ -68,6 +68,7 @@ export interface PossibleActivity {
   stop_id: string
   description: string
   url: string | null
+  category: string | null   // same values as Activity.activity_type
 }
 
 export interface Photo {
