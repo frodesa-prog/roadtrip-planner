@@ -18,6 +18,7 @@ import type { LegWaypoints } from '@/components/map/RoutePolyline'
 
 export default function PlanPage() {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
+  const [routeStates, setRouteStates] = useState<string[]>([])
 
   const {
     trips, currentTrip, loading: tripsLoading,
@@ -82,6 +83,7 @@ export default function PlanPage() {
         onCreateTrip={createTrip}
         onDeleteTrip={deleteTrip}
         routeLegs={routeLegs}
+        routeStates={routeStates}
       />
 
       {/* Detaljpanel – mellom sidebar og kart */}
@@ -127,6 +129,7 @@ export default function PlanPage() {
           routeLegs={routeLegs}
           routeLegsLoaded={routeLegsLoaded}
           onRouteLegsChange={handleRouteLegsChange}
+          onRouteStatesChange={setRouteStates}
         />
       </div>
     </div>

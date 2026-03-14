@@ -28,6 +28,7 @@ interface PlanSidebarProps {
   onCreateTrip: (name: string, year: number) => Promise<Trip | null>
   onDeleteTrip: (id: string) => void
   routeLegs?: RouteLeg[]
+  routeStates?: string[]
 }
 
 export default function PlanSidebar({
@@ -39,6 +40,7 @@ export default function PlanSidebar({
   onSelectStop, onRemoveStop, onReorderStops, onUpdateStop,
   onSelectTrip, onCreateTrip, onDeleteTrip,
   routeLegs,
+  routeStates,
 }: PlanSidebarProps) {
   const [departureTimes, setDepartureTimes] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
@@ -75,7 +77,11 @@ export default function PlanSidebar({
 
   const totalNights = stops.reduce((sum, s) => sum + s.nights, 0)
   const totalKm = drivingLegs.reduce((sum, l) => sum + (l?.distanceKm ?? 0), 0)
-  const statesVisited = new Set(stops.map((s) => s.state).filter(Boolean)).size
+  const statesVisited = (() => {
+    const all = new Set(stops.map((s) => s.state).filter(Boolean) as string[])
+    for (const s of (routeStates ?? [])) all.add(s)
+    return all.size
+  })()
 
   function moveStop(index: number, direction: 'up' | 'down') {
     const updated = [...stops]

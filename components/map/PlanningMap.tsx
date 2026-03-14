@@ -44,6 +44,7 @@ interface PlanningMapProps {
   routeLegs?: RouteLeg[]
   routeLegsLoaded?: boolean
   onRouteLegsChange?: (legs: LegWaypoints[]) => void
+  onRouteStatesChange?: (states: string[]) => void
 }
 
 interface PendingStop {
@@ -113,6 +114,7 @@ export default function PlanningMap({
   routeLegs = [],
   routeLegsLoaded = true,
   onRouteLegsChange,
+  onRouteStatesChange,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
 
@@ -241,6 +243,7 @@ export default function PlanningMap({
               routeLegs={routeLegs}
               routeLegsLoaded={routeLegsLoaded}
               onLegsChange={onRouteLegsChange}
+              onRouteStatesChange={onRouteStatesChange}
             />
           )}
 

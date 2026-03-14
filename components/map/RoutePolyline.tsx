@@ -22,6 +22,42 @@ interface RoutePolylineProps {
   routeLegsLoaded?: boolean
   /** Sett for å aktivere dra-støtte; utelatt = kun visning */
   onLegsChange?: (legs: LegWaypoints[]) => void
+  /** Kalles med liste over stater ruten passerer gjennom (kortform, f.eks. "CA") */
+  onRouteStatesChange?: (states: string[]) => void
+}
+
+// ─── Geocode states along the route overview path ────────────────────────────
+
+async function geocodeRouteStates(
+  result: google.maps.DirectionsResult,
+  cb: (states: string[]) => void
+): Promise<void> {
+  const path = result.routes[0]?.overview_path
+  if (!path?.length) return
+
+  // Sample opptil 15 punkter jevnt fordelt langs ruten
+  const sampleCount = Math.min(15, path.length)
+  const step        = Math.max(1, Math.floor(path.length / sampleCount))
+  const sampled     = path.filter((_, i) => i % step === 0)
+
+  const geocoder = new google.maps.Geocoder()
+
+  const states = await Promise.all(
+    sampled.map((point) =>
+      geocoder
+        .geocode({ location: point })
+        .then(({ results }) => {
+          const comp = results[0]?.address_components.find((c) =>
+            c.types.includes('administrative_area_level_1')
+          )
+          return comp?.short_name ?? null
+        })
+        .catch(() => null)
+    )
+  )
+
+  const unique = [...new Set(states.filter((s): s is string => s !== null))]
+  cb(unique)
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -31,20 +67,24 @@ export default function RoutePolyline({
   routeLegs = [],
   routeLegsLoaded = true,
   onLegsChange,
+  onRouteStatesChange,
 }: RoutePolylineProps) {
   const map        = useMap()
   const routesLib  = useMapsLibrary('routes')
 
-  const polylineRef  = useRef<google.maps.Polyline | null>(null)
-  const rendererRef  = useRef<google.maps.DirectionsRenderer | null>(null)
-  const listenerRef  = useRef<google.maps.MapsEventListener | null>(null)
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const polylineRef    = useRef<google.maps.Polyline | null>(null)
+  const rendererRef    = useRef<google.maps.DirectionsRenderer | null>(null)
+  const listenerRef    = useRef<google.maps.MapsEventListener | null>(null)
+  const saveTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const statesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Refs so the effects don't need these in their dependency arrays
-  const routeLegsRef    = useRef(routeLegs)
-  routeLegsRef.current  = routeLegs
-  const onLegsChangeRef = useRef(onLegsChange)
-  onLegsChangeRef.current = onLegsChange
+  const routeLegsRef          = useRef(routeLegs)
+  routeLegsRef.current        = routeLegs
+  const onLegsChangeRef       = useRef(onLegsChange)
+  onLegsChangeRef.current     = onLegsChange
+  const onRouteStatesRef      = useRef(onRouteStatesChange)
+  onRouteStatesRef.current    = onRouteStatesChange
 
   // ── 1. Enkel fallback-polyline (vises umiddelbart) ───────────────────────
   useEffect(() => {
@@ -148,7 +188,12 @@ export default function RoutePolyline({
           ignoreNextChange = true   // setDirections utløser directions_changed synkront
           renderer.setDirections(result)
           // ignoreNextChange settes til false i lytteren
+
           polylineRef.current?.setMap(null)
+
+          // Geocode ruten umiddelbart ved første lasting
+          const cb = onRouteStatesRef.current
+          if (cb) geocodeRouteStates(result, cb)
         } else {
           console.warn('Directions API ikke tilgjengelig. Status:', status)
         }
@@ -158,33 +203,43 @@ export default function RoutePolyline({
     // ── Legg til drag-lytter (kun planleggingssiden) ──────────────────────
     if (draggable) {
       listenerRef.current = renderer.addListener('directions_changed', () => {
+        const res = renderer.getDirections()
+
         if (ignoreNextChange) {
           ignoreNextChange = false
           return
         }
 
-        const cb = onLegsChangeRef.current
-        if (!cb) return
-
-        const res = renderer.getDirections()
         if (!res?.routes?.[0]) return
 
         const route = res.routes[0]
 
-        // Ekstraher via_waypoints per etappe (én per par av stopp)
-        const newLegs: LegWaypoints[] = stops.slice(0, -1).map((fromStop, i) => {
-          const toStop    = stops[i + 1]
-          const leg       = route.legs[i]
-          const waypoints = (leg?.via_waypoints ?? []).map((wp: google.maps.LatLng) => ({
-            lat: wp.lat(),
-            lng: wp.lng(),
-          }))
-          return { fromStopId: fromStop.id, toStopId: toStop.id, waypoints }
-        })
+        // ── Lagre via-punkter (debounced 1,5 sek) ──
+        const legsCb = onLegsChangeRef.current
+        if (legsCb) {
+          const newLegs: LegWaypoints[] = stops.slice(0, -1).map((fromStop, i) => {
+            const toStop    = stops[i + 1]
+            const leg       = route.legs[i]
+            const waypoints = (leg?.via_waypoints ?? []).map((wp: google.maps.LatLng) => ({
+              lat: wp.lat(),
+              lng: wp.lng(),
+            }))
+            return { fromStopId: fromStop.id, toStopId: toStop.id, waypoints }
+          })
 
-        // Debounce lagringen: vent 1,5 sek etter at drag er ferdig
-        if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-        saveTimerRef.current = setTimeout(() => cb(newLegs), 1500)
+          if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+          saveTimerRef.current = setTimeout(() => legsCb(newLegs), 1500)
+        }
+
+        // ── Geocode nye stater (debounced 800 ms) ──
+        const statesCb = onRouteStatesRef.current
+        if (statesCb && res) {
+          if (statesTimerRef.current) clearTimeout(statesTimerRef.current)
+          statesTimerRef.current = setTimeout(
+            () => geocodeRouteStates(res, statesCb),
+            800
+          )
+        }
       })
     }
 
@@ -196,6 +251,10 @@ export default function RoutePolyline({
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current)
         saveTimerRef.current = null
+      }
+      if (statesTimerRef.current) {
+        clearTimeout(statesTimerRef.current)
+        statesTimerRef.current = null
       }
       renderer.setMap(null)
     }
