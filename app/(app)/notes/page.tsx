@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Loader2, Plus, Trash2, FileText } from 'lucide-react'
+import { Plus, Trash2, FileText } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useNotes } from '@/hooks/useNotes'
 import TripManager from '@/components/planning/TripManager'
@@ -12,7 +12,7 @@ export default function NotesPage() {
     trips, currentTrip, loading: tripsLoading,
     setCurrentTrip, createTrip, deleteTrip,
   } = useTrips()
-  const { notes, loading: notesLoading, addNote, updateNote, deleteNote } = useNotes(
+  const { notes, addNote, updateNote, deleteNote } = useNotes(
     currentTrip?.id ?? null
   )
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
@@ -30,7 +30,7 @@ export default function NotesPage() {
   }, [currentTrip?.id])
 
   async function handleAddNote() {
-    const note = await addNote()
+    const note = await addNote({ content: '', title: null, stop_id: null, note_date: null })
     if (note) setSelectedNoteId(note.id)
   }
 
@@ -70,11 +70,7 @@ export default function NotesPage() {
 
         {/* Note list */}
         <div className="flex-1 overflow-y-auto">
-          {notesLoading ? (
-            <div className="flex items-center justify-center h-24 gap-2 text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin" />
-            </div>
-          ) : !currentTrip ? (
+          {!currentTrip ? (
             <p className="px-4 py-6 text-xs text-slate-600 text-center">Velg en tur</p>
           ) : notes.length === 0 ? (
             <div className="px-4 py-8 text-center">
