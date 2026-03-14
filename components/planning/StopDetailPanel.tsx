@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   X, Calendar, Moon, Hotel, ExternalLink,
-  Ticket, Plus, Trash2, MapPin, Car, Pencil, Check, UtensilsCrossed, Clock,
+  Ticket, Plus, Trash2, MapPin, Car, Pencil, Check, UtensilsCrossed, Clock, Lightbulb,
 } from 'lucide-react'
-import { Stop, Hotel as HotelType, Activity, Dining } from '@/types'
+import { Stop, Hotel as HotelType, Activity, Dining, PossibleActivity } from '@/types'
 import { AddActivityData, UpdateActivityData } from '@/hooks/useActivities'
 import { AddDiningData, UpdateDiningData } from '@/hooks/useDining'
+import { AddPossibleActivityData, UpdatePossibleActivityData } from '@/hooks/usePossibleActivities'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { LegInfo } from '@/hooks/useDrivingInfo'
@@ -23,6 +24,7 @@ interface StopDetailPanelProps {
   hotel: HotelType | null
   activities: Activity[]
   dining: Dining[]
+  possibleActivities: PossibleActivity[]
   leg: LegInfo | null
   selectedDate: string
   stopIndex?: number
@@ -34,6 +36,9 @@ interface StopDetailPanelProps {
   onAddDining: (data: AddDiningData) => void
   onRemoveDining: (id: string) => void
   onUpdateDining: (id: string, updates: UpdateDiningData) => void
+  onAddPossibleActivity: (data: AddPossibleActivityData) => void
+  onRemovePossibleActivity: (id: string) => void
+  onUpdatePossibleActivity: (id: string, updates: UpdatePossibleActivityData) => void
   onClose: () => void
 }
 
@@ -50,9 +55,11 @@ function getStopDates(stop: Stop): string[] {
 }
 
 export default function StopDetailPanel({
-  stop, hotel, activities, dining, leg, selectedDate,
+  stop, hotel, activities, dining, possibleActivities, leg, selectedDate,
   onUpdateStop, onSaveHotel, onAddActivity, onRemoveActivity, onUpdateActivity,
-  onAddDining, onRemoveDining, onUpdateDining, onClose,
+  onAddDining, onRemoveDining, onUpdateDining,
+  onAddPossibleActivity, onRemovePossibleActivity, onUpdatePossibleActivity,
+  onClose,
 }: StopDetailPanelProps) {
   const [hotelName, setHotelName]       = useState(hotel?.name ?? '')
   const [hotelAddress, setHotelAddress] = useState(hotel?.address ?? '')
@@ -124,6 +131,41 @@ export default function StopDetailPanel({
   const [editDiningUrl, setEditDiningUrl]       = useState('')
   const [editDiningDate, setEditDiningDate]     = useState('')
   const [editDiningTime, setEditDiningTime]     = useState('')
+
+  // Possible activities state
+  const [showAddPossible, setShowAddPossible]         = useState(false)
+  const [newPossibleDesc, setNewPossibleDesc]         = useState('')
+  const [newPossibleUrl, setNewPossibleUrl]           = useState('')
+  const [editingPossibleId, setEditingPossibleId]     = useState<string | null>(null)
+  const [editPossibleDesc, setEditPossibleDesc]       = useState('')
+  const [editPossibleUrl, setEditPossibleUrl]         = useState('')
+
+  function startEditPossible(a: PossibleActivity) {
+    setEditingPossibleId(a.id)
+    setEditPossibleDesc(a.description)
+    setEditPossibleUrl(a.url ?? '')
+  }
+
+  function saveEditPossible() {
+    if (!editingPossibleId || !editPossibleDesc.trim()) return
+    onUpdatePossibleActivity(editingPossibleId, {
+      description: editPossibleDesc.trim(),
+      url: editPossibleUrl.trim() || null,
+    })
+    setEditingPossibleId(null)
+  }
+
+  function handleAddPossible(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newPossibleDesc.trim()) return
+    onAddPossibleActivity({
+      description: newPossibleDesc.trim(),
+      url: newPossibleUrl.trim() || undefined,
+    })
+    setNewPossibleDesc('')
+    setNewPossibleUrl('')
+    setShowAddPossible(false)
+  }
 
   function startEditDining(d: Dining) {
     setEditingDiningId(d.id)
@@ -846,6 +888,118 @@ export default function StopDetailPanel({
               <button onClick={() => setShowAddDining(true)}
                 className="w-full flex items-center justify-center gap-1.5 h-8 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-xs transition-colors">
                 <Plus className="w-3 h-3" /> Legg til spisested
+              </button>
+            )}
+          </section>
+
+          {/* ── Mulige aktiviteter ──────────────────────────────────────── */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                <Lightbulb className="w-3 h-3" /> Mulige aktiviteter
+                {possibleActivities.length > 0 && (
+                  <span className="text-slate-600 normal-case font-normal">({possibleActivities.length})</span>
+                )}
+              </h3>
+            </div>
+
+            {possibleActivities.length > 0 && (
+              <div className="space-y-1 mb-2">
+                {possibleActivities.map((a) => {
+                  const isEditing = editingPossibleId === a.id
+                  if (isEditing) {
+                    return (
+                      <div key={a.id} className="bg-slate-800/80 rounded-lg border border-teal-600/40 p-2.5 space-y-1.5">
+                        <input
+                          value={editPossibleDesc}
+                          onChange={(e) => setEditPossibleDesc(e.target.value)}
+                          placeholder="Beskrivelse"
+                          autoFocus
+                          className="w-full h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-teal-500 transition-colors"
+                        />
+                        <input
+                          value={editPossibleUrl}
+                          onChange={(e) => setEditPossibleUrl(e.target.value)}
+                          placeholder="https://..."
+                          className="w-full h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-teal-500 transition-colors"
+                        />
+                        <div className="flex gap-1.5">
+                          <button onClick={saveEditPossible} disabled={!editPossibleDesc.trim()}
+                            className="flex-1 h-7 rounded bg-teal-700 hover:bg-teal-600 disabled:opacity-40 text-white text-xs font-medium flex items-center justify-center gap-1 transition-colors">
+                            <Check className="w-3 h-3" /> Lagre
+                          </button>
+                          <button onClick={() => setEditingPossibleId(null)}
+                            className="px-3 h-7 rounded border border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
+                            Avbryt
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return (
+                    <div key={a.id}
+                      className="flex items-start gap-2 px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 group">
+                      <Lightbulb className="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" />
+                      <span className="flex-1 text-xs text-slate-200 leading-relaxed break-words min-w-0">
+                        {a.description}
+                      </span>
+                      {a.url && (
+                        <a href={a.url} target="_blank" rel="noopener noreferrer"
+                          title={a.url}
+                          className="text-slate-600 hover:text-teal-400 flex-shrink-0 transition-colors mt-0.5">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                      <button onClick={() => startEditPossible(a)} title="Rediger"
+                        className="text-slate-500 hover:text-teal-400 flex-shrink-0 transition-colors mt-0.5">
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Slett "${a.description}"?`)) {
+                            onRemovePossibleActivity(a.id)
+                          }
+                        }}
+                        className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors mt-0.5">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {showAddPossible ? (
+              <form onSubmit={handleAddPossible} className="space-y-1.5 bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/50">
+                <Input
+                  value={newPossibleDesc}
+                  onChange={(e) => setNewPossibleDesc(e.target.value)}
+                  placeholder="Beskrivelse av aktivitet"
+                  className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
+                  autoFocus
+                />
+                <Input
+                  value={newPossibleUrl}
+                  onChange={(e) => setNewPossibleUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
+                />
+                <div className="flex gap-1.5">
+                  <button type="submit" disabled={!newPossibleDesc.trim()}
+                    className="flex-1 h-7 rounded-md bg-teal-700 hover:bg-teal-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
+                    Legg til
+                  </button>
+                  <button type="button"
+                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl('') }}
+                    className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
+                    Avbryt
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button onClick={() => setShowAddPossible(true)}
+                className="w-full flex items-center justify-center gap-1.5 h-8 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-xs transition-colors">
+                <Plus className="w-3 h-3" /> Legg til mulig aktivitet
               </button>
             )}
           </section>

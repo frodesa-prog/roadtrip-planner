@@ -63,6 +63,13 @@ export interface Dining {
   map_lng: number | null
 }
 
+export interface PossibleActivity {
+  id: string
+  stop_id: string
+  description: string
+  url: string | null
+}
+
 export interface Photo {
   id: string
   trip_id: string

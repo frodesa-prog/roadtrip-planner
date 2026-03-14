@@ -8,6 +8,7 @@ import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
 import { useActivities, UpdateActivityData } from '@/hooks/useActivities'
 import { useDining } from '@/hooks/useDining'
+import { usePossibleActivities } from '@/hooks/usePossibleActivities'
 import { ActivityTypeIcon, getActivityTypeConfig, ACTIVITY_TYPE_PRESETS } from '@/lib/activityTypes'
 import { useDrivingInfo, LegInfo } from '@/hooks/useDrivingInfo'
 import { useFlights } from '@/hooks/useFlights'
@@ -74,6 +75,7 @@ export default function SummaryPage() {
   const { hotels, saveHotel } = useHotels(stopIds)
   const { activities, addActivity, removeActivity, updateActivity } = useActivities(stopIds)
   const { dining, addDining, removeDining, updateDining } = useDining(stopIds)
+  const { possibleActivities, addPossibleActivity, removePossibleActivity, updatePossibleActivity } = usePossibleActivities(stopIds)
   const drivingLegs = useDrivingInfo(stops)
   const { outbound, returnFlight } = useFlights(currentTrip?.id ?? null)
   const { notes, addNote, updateNote, deleteNote } = useNotes(currentTrip?.id ?? null)
@@ -494,6 +496,7 @@ export default function SummaryPage() {
               hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
               activities={activities.filter((a) => a.stop_id === selectedStop.id)}
               dining={dining.filter((d) => d.stop_id === selectedStop.id)}
+              possibleActivities={possibleActivities.filter((a) => a.stop_id === selectedStop.id)}
               leg={selectedStopLeg}
               selectedDate={selectedDate}
               stopIndex={selectedStopIndex}
@@ -505,6 +508,9 @@ export default function SummaryPage() {
               onAddDining={(data) => addDining(selectedStop.id, data)}
               onRemoveDining={removeDining}
               onUpdateDining={updateDining}
+              onAddPossibleActivity={(data) => addPossibleActivity(selectedStop.id, data)}
+              onRemovePossibleActivity={removePossibleActivity}
+              onUpdatePossibleActivity={updatePossibleActivity}
               onClose={() => setSelectedDate(null)}
             />
           </div>

@@ -9,6 +9,7 @@ import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
 import { useActivities } from '@/hooks/useActivities'
 import { useDining } from '@/hooks/useDining'
+import { usePossibleActivities } from '@/hooks/usePossibleActivities'
 import { useDrivingInfo } from '@/hooks/useDrivingInfo'
 import { Stop } from '@/types'
 
@@ -29,6 +30,7 @@ export default function PlanPage() {
   const { hotels, saveHotel } = useHotels(stopIds)
   const { activities, addActivity, removeActivity, updateActivity } = useActivities(stopIds)
   const { dining, addDining, removeDining, updateDining } = useDining(stopIds)
+  const { possibleActivities, addPossibleActivity, removePossibleActivity, updatePossibleActivity } = usePossibleActivities(stopIds)
   const drivingLegs = useDrivingInfo(stops)
 
   // Selected stop + its driving leg
@@ -75,6 +77,7 @@ export default function PlanPage() {
             hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
             activities={activities.filter((a) => a.stop_id === selectedStop.id)}
             dining={dining.filter((d) => d.stop_id === selectedStop.id)}
+            possibleActivities={possibleActivities.filter((a) => a.stop_id === selectedStop.id)}
             leg={selectedStopLeg}
             selectedDate={selectedDate}
             onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
@@ -85,6 +88,9 @@ export default function PlanPage() {
             onAddDining={(data) => addDining(selectedStop.id, data)}
             onRemoveDining={removeDining}
             onUpdateDining={updateDining}
+            onAddPossibleActivity={(data) => addPossibleActivity(selectedStop.id, data)}
+            onRemovePossibleActivity={removePossibleActivity}
+            onUpdatePossibleActivity={updatePossibleActivity}
             onClose={() => setSelectedStopId(null)}
           />
         </div>
