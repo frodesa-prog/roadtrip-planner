@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   X, Calendar, Moon, Hotel, ExternalLink,
-  Ticket, Plus, Trash2, MapPin, Car, Pencil, Check, UtensilsCrossed, Clock, Lightbulb,
+  Ticket, Plus, Trash2, MapPin, Car, Pencil, Check, UtensilsCrossed, Clock, Lightbulb, FileText,
 } from 'lucide-react'
-import { Stop, Hotel as HotelType, Activity, Dining, PossibleActivity } from '@/types'
+import { Stop, Hotel as HotelType, Activity, Dining, PossibleActivity, Note } from '@/types'
 import { AddActivityData, UpdateActivityData } from '@/hooks/useActivities'
 import { AddDiningData, UpdateDiningData } from '@/hooks/useDining'
 import { AddPossibleActivityData, UpdatePossibleActivityData } from '@/hooks/usePossibleActivities'
@@ -39,6 +39,7 @@ interface StopDetailPanelProps {
   onAddPossibleActivity: (data: AddPossibleActivityData) => void
   onRemovePossibleActivity: (id: string) => void
   onUpdatePossibleActivity: (id: string, updates: UpdatePossibleActivityData) => void
+  stopNotes: Note[]
   onClose: () => void
 }
 
@@ -55,7 +56,7 @@ function getStopDates(stop: Stop): string[] {
 }
 
 export default function StopDetailPanel({
-  stop, hotel, activities, dining, possibleActivities, leg, selectedDate,
+  stop, hotel, activities, dining, possibleActivities, stopNotes, leg, selectedDate,
   onUpdateStop, onSaveHotel, onAddActivity, onRemoveActivity, onUpdateActivity,
   onAddDining, onRemoveDining, onUpdateDining,
   onAddPossibleActivity, onRemovePossibleActivity, onUpdatePossibleActivity,
@@ -1052,6 +1053,43 @@ export default function StopDetailPanel({
               </button>
             )}
           </section>
+
+          {/* ── Notater ─────────────────────────────────────────────────── */}
+          {stopNotes.length > 0 && (
+            <section>
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1 mb-2">
+                <FileText className="w-3 h-3" /> Notater
+                <span className="text-slate-600 normal-case font-normal">({stopNotes.length})</span>
+              </h3>
+              <div className="space-y-1">
+                {stopNotes.map((note) => (
+                  <div key={note.id}
+                    className="px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50">
+                    <div className="flex items-start gap-1.5 min-w-0">
+                      <FileText className="w-3 h-3 text-slate-500 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        {note.title && (
+                          <p className="text-xs font-medium text-slate-200 truncate mb-0.5">
+                            {note.title}
+                          </p>
+                        )}
+                        <p className="text-[11px] text-slate-400 leading-relaxed whitespace-pre-wrap break-words">
+                          {note.content}
+                        </p>
+                        {note.note_date && (
+                          <p className="text-[10px] text-slate-600 mt-1">
+                            {new Date(note.note_date + 'T12:00:00').toLocaleDateString('nb-NO', {
+                              weekday: 'short', day: 'numeric', month: 'short',
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </div>
 

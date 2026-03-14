@@ -511,6 +511,7 @@ export default function SummaryPage() {
               onAddPossibleActivity={(data) => addPossibleActivity(selectedStop.id, data)}
               onRemovePossibleActivity={removePossibleActivity}
               onUpdatePossibleActivity={updatePossibleActivity}
+              stopNotes={notes.filter((n) => n.stop_id === selectedStop.id)}
               onClose={() => setSelectedDate(null)}
             />
           </div>

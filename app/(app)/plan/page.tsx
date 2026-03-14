@@ -10,6 +10,7 @@ import { useHotels } from '@/hooks/useHotels'
 import { useActivities } from '@/hooks/useActivities'
 import { useDining } from '@/hooks/useDining'
 import { usePossibleActivities } from '@/hooks/usePossibleActivities'
+import { useNotes } from '@/hooks/useNotes'
 import { useDrivingInfo } from '@/hooks/useDrivingInfo'
 import { Stop } from '@/types'
 
@@ -31,6 +32,7 @@ export default function PlanPage() {
   const { activities, addActivity, removeActivity, updateActivity } = useActivities(stopIds)
   const { dining, addDining, removeDining, updateDining } = useDining(stopIds)
   const { possibleActivities, addPossibleActivity, removePossibleActivity, updatePossibleActivity } = usePossibleActivities(stopIds)
+  const { notes } = useNotes(currentTrip?.id ?? null)
   const drivingLegs = useDrivingInfo(stops)
 
   // Selected stop + its driving leg
@@ -91,6 +93,7 @@ export default function PlanPage() {
             onAddPossibleActivity={(data) => addPossibleActivity(selectedStop.id, data)}
             onRemovePossibleActivity={removePossibleActivity}
             onUpdatePossibleActivity={updatePossibleActivity}
+            stopNotes={notes.filter((n) => n.stop_id === selectedStop.id)}
             onClose={() => setSelectedStopId(null)}
           />
         </div>
