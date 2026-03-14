@@ -124,6 +124,7 @@ export default function PlanningMap({
           onClick={handleMapClick}
           className="w-full h-full"
           gestureHandling="greedy"
+          zoomControl={true}
           mapTypeControl={true}
           streetViewControl={false}
           fullscreenControl={false}
