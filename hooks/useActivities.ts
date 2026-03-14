@@ -6,12 +6,14 @@ import { Activity } from '@/types'
 import { toast } from 'sonner'
 
 export type AddActivityData = Pick<Activity, 'name'> &
-  Partial<Pick<Activity, 'url' | 'cost' | 'activity_date' | 'activity_time' | 'activity_type'>>
+  Partial<Pick<Activity, 'url' | 'cost' | 'activity_date' | 'activity_time' | 'activity_type' |
+    'stadium' | 'section' | 'seat_row' | 'seat'>>
 
 export type UpdateActivityData = Partial<Pick<
   Activity,
   'name' | 'url' | 'cost' | 'activity_date' | 'activity_time' |
-  'remaining_amount' | 'activity_type' | 'map_lat' | 'map_lng'
+  'remaining_amount' | 'activity_type' | 'map_lat' | 'map_lng' |
+  'stadium' | 'section' | 'seat_row' | 'seat'
 >>
 
 export function useActivities(stopIds: string[]) {
@@ -51,6 +53,10 @@ export function useActivities(stopIds: string[]) {
         activity_type: data.activity_type ?? null,
         map_lat: null,
         map_lng: null,
+        stadium:  data.stadium  ?? null,
+        section:  data.section  ?? null,
+        seat_row: data.seat_row ?? null,
+        seat:     data.seat     ?? null,
       }
       setActivities((prev) => [...prev, newActivity])
       const { error } = await supabase.from('activities').insert(newActivity)

@@ -50,6 +50,11 @@ export interface Activity {
   activity_type: string | null    // e.g. 'baseball' | 'trening' | 'hiking' | 'sightseeing' | 'shopping' | custom
   map_lat: number | null          // pinned location latitude
   map_lng: number | null          // pinned location longitude
+  // Baseball-spesifikke felt
+  stadium:  string | null
+  section:  string | null         // felt / seksjon
+  seat_row: string | null         // rad
+  seat:     string | null         // sete
 }
 
 export interface Dining {

@@ -78,14 +78,18 @@ export default function StopDetailPanel({
   const [arrivalDate, setArrivalDate]   = useState(stop.arrival_date ?? '')
 
   const [showAddActivity, setShowAddActivity] = useState(false)
-  const [newActName, setNewActName]     = useState('')
-  const [newActUrl, setNewActUrl]       = useState('')
-  const [newActCost, setNewActCost]     = useState('')
-  const [newActDate, setNewActDate]     = useState(selectedDate)
-  const [newActTime, setNewActTime]     = useState('')
-  const [newActType, setNewActType]     = useState<string | null>(null)
-  const [customTypeInput, setCustomTypeInput] = useState('')
-  const [showCustomType, setShowCustomType]   = useState(false)
+  const [newActName, setNewActName]         = useState('')
+  const [newActUrl, setNewActUrl]           = useState('')
+  const [newActCost, setNewActCost]         = useState('')
+  const [newActDate, setNewActDate]         = useState(selectedDate)
+  const [newActTime, setNewActTime]         = useState('')
+  const [newActType, setNewActType]         = useState<string | null>(null)
+  const [customTypeInput, setCustomTypeInput]   = useState('')
+  const [showCustomType, setShowCustomType]     = useState(false)
+  const [newActStadium, setNewActStadium]   = useState('')
+  const [newActSection, setNewActSection]   = useState('')
+  const [newActRow, setNewActRow]           = useState('')
+  const [newActSeat, setNewActSeat]         = useState('')
 
   const [typePickerForId, setTypePickerForId]       = useState<string | null>(null)
   const [pinningActivityId, setPinningActivityId]   = useState<string | null>(null)
@@ -96,11 +100,15 @@ export default function StopDetailPanel({
 
   // Inline edit state – activities
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
-  const [editActName, setEditActName]   = useState('')
-  const [editActUrl, setEditActUrl]     = useState('')
-  const [editActCost, setEditActCost]   = useState('')
-  const [editActDate, setEditActDate]   = useState('')
-  const [editActTime, setEditActTime]   = useState('')
+  const [editActName, setEditActName]       = useState('')
+  const [editActUrl, setEditActUrl]         = useState('')
+  const [editActCost, setEditActCost]       = useState('')
+  const [editActDate, setEditActDate]       = useState('')
+  const [editActTime, setEditActTime]       = useState('')
+  const [editActStadium, setEditActStadium] = useState('')
+  const [editActSection, setEditActSection] = useState('')
+  const [editActRow, setEditActRow]         = useState('')
+  const [editActSeat, setEditActSeat]       = useState('')
 
   function startEdit(act: Activity) {
     setEditingActivityId(act.id)
@@ -109,6 +117,10 @@ export default function StopDetailPanel({
     setEditActCost(act.cost != null ? String(act.cost) : '')
     setEditActDate(act.activity_date ?? '')
     setEditActTime(act.activity_time ?? '')
+    setEditActStadium(act.stadium ?? '')
+    setEditActSection(act.section ?? '')
+    setEditActRow(act.seat_row ?? '')
+    setEditActSeat(act.seat ?? '')
     setTypePickerForId(null)
   }
 
@@ -120,6 +132,10 @@ export default function StopDetailPanel({
       cost: editActCost ? Number(editActCost) : null,
       activity_date: editActDate || null,
       activity_time: editActTime || null,
+      stadium:  editActStadium.trim() || null,
+      section:  editActSection.trim() || null,
+      seat_row: editActRow.trim()     || null,
+      seat:     editActSeat.trim()    || null,
     })
     setEditingActivityId(null)
   }
@@ -285,10 +301,15 @@ export default function StopDetailPanel({
       activity_date: newActDate || undefined,
       activity_time: newActTime.trim() || undefined,
       activity_type: newActType || undefined,
+      stadium:  newActStadium.trim()  || undefined,
+      section:  newActSection.trim()  || undefined,
+      seat_row: newActRow.trim()      || undefined,
+      seat:     newActSeat.trim()     || undefined,
     })
     setNewActName(''); setNewActUrl(''); setNewActCost('')
     setNewActDate(selectedDate); setNewActTime('')
     setNewActType(null); setCustomTypeInput(''); setShowCustomType(false); setShowAddActivity(false)
+    setNewActStadium(''); setNewActSection(''); setNewActRow(''); setNewActSeat('')
   }
 
   function handleCancelAddActivity() {
@@ -296,6 +317,7 @@ export default function StopDetailPanel({
     setNewActName(''); setNewActUrl(''); setNewActCost('')
     setNewActDate(selectedDate); setNewActTime('')
     setNewActType(null); setCustomTypeInput(''); setShowCustomType(false)
+    setNewActStadium(''); setNewActSection(''); setNewActRow(''); setNewActSeat('')
   }
 
   const pinningDining = pinningDiningId
@@ -561,6 +583,27 @@ export default function StopDetailPanel({
                             ))}
                           </div>
                         )}
+                        {/* Baseball-felt i redigeringsform */}
+                        {act.activity_type === 'baseball' && (
+                          <div className="space-y-1.5 pt-0.5">
+                            <p className="text-[10px] text-orange-400/80">⚾ Baseballdetaljer</p>
+                            <input value={editActStadium} onChange={(e) => setEditActStadium(e.target.value)}
+                              placeholder="Stadion"
+                              className="w-full h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-orange-500 transition-colors" />
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <input value={editActSection} onChange={(e) => setEditActSection(e.target.value)}
+                                placeholder="Felt"
+                                className="h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-orange-500 transition-colors" />
+                              <input value={editActRow} onChange={(e) => setEditActRow(e.target.value)}
+                                placeholder="Rad"
+                                className="h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-orange-500 transition-colors" />
+                              <input value={editActSeat} onChange={(e) => setEditActSeat(e.target.value)}
+                                placeholder="Sete"
+                                className="h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-orange-500 transition-colors" />
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex gap-1.5">
                           <button onClick={saveEdit} disabled={!editActName.trim()}
                             className="flex-1 h-7 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium flex items-center justify-center gap-1 transition-colors">
@@ -616,7 +659,7 @@ export default function StopDetailPanel({
                         )}
                       </div>
 
-                      {/* Name + date */}
+                      {/* Name + date + baseball info */}
                       <div className="flex-1 min-w-0">
                         <span className="block text-xs text-slate-200 truncate">{act.name}</span>
                         {(act.activity_date || act.activity_time) && (
@@ -625,6 +668,16 @@ export default function StopDetailPanel({
                               weekday: 'short', day: 'numeric', month: 'short',
                             })}
                             {act.activity_time && ` · ${act.activity_time}`}
+                          </span>
+                        )}
+                        {act.activity_type === 'baseball' && (act.stadium || act.section || act.seat_row || act.seat) && (
+                          <span className="text-[10px] text-orange-400/70 truncate block">
+                            {[
+                              act.stadium,
+                              act.section  && `Felt ${act.section}`,
+                              act.seat_row && `Rad ${act.seat_row}`,
+                              act.seat     && `Sete ${act.seat}`,
+                            ].filter(Boolean).join(' · ')}
                           </span>
                         )}
                       </div>
@@ -733,6 +786,27 @@ export default function StopDetailPanel({
                           {new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
                         </button>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Baseball-felt */}
+                {newActType === 'baseball' && (
+                  <div className="space-y-1.5 pt-0.5">
+                    <p className="text-[10px] text-orange-400/80">⚾ Baseballdetaljer</p>
+                    <input value={newActStadium} onChange={(e) => setNewActStadium(e.target.value)}
+                      placeholder="Stadion"
+                      className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-orange-500 transition-colors" />
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <input value={newActSection} onChange={(e) => setNewActSection(e.target.value)}
+                        placeholder="Felt"
+                        className="h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-orange-500 transition-colors" />
+                      <input value={newActRow} onChange={(e) => setNewActRow(e.target.value)}
+                        placeholder="Rad"
+                        className="h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-orange-500 transition-colors" />
+                      <input value={newActSeat} onChange={(e) => setNewActSeat(e.target.value)}
+                        placeholder="Sete"
+                        className="h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-orange-500 transition-colors" />
                     </div>
                   </div>
                 )}
