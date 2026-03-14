@@ -201,6 +201,7 @@ export default function StopDetailPanel({
       address: hotelAddress.trim() || null,
       url: hotelUrl.trim() || null,
       cost: hotelCost ? Number(hotelCost) : null,
+      status: hotelBooked ? 'confirmed' : 'not_booked',
     })
     setEditingHotel(false)
   }
@@ -365,7 +366,7 @@ export default function StopDetailPanel({
                     className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
                   <span className="text-xs text-slate-500 flex-shrink-0">kr</span>
                 </div>
-                <button onClick={handleBookedToggle} className="flex items-center">
+                <button onClick={() => setHotelBooked(!hotelBooked)} className="flex items-center">
                   <Badge variant={hotelBooked ? 'default' : 'secondary'}
                     className={`text-xs cursor-pointer ${
                       hotelBooked
