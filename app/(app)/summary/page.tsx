@@ -63,7 +63,7 @@ export default function SummaryPage() {
   const { stops, loading: stopsLoading, updateStop } = useStops(currentTrip?.id ?? null)
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
   const { hotels, saveHotel } = useHotels(stopIds)
-  const { activities, addActivity, removeActivity } = useActivities(stopIds)
+  const { activities, addActivity, removeActivity, updateActivity } = useActivities(stopIds)
   const drivingLegs = useDrivingInfo(stops)
   const { outbound, returnFlight } = useFlights(currentTrip?.id ?? null)
   const { notes, addNote, updateNote, deleteNote } = useNotes(currentTrip?.id ?? null)
@@ -417,6 +417,7 @@ export default function SummaryPage() {
               onSaveHotel={(updates) => saveHotel(selectedStop.id, updates)}
               onAddActivity={(data) => addActivity(selectedStop.id, data)}
               onRemoveActivity={removeActivity}
+              onUpdateActivity={updateActivity}
               onClose={() => setSelectedDate(null)}
             />
           </div>

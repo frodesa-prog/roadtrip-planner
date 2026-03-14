@@ -45,8 +45,11 @@ export interface Activity {
   cost: number | null
   remaining_amount: number | null
   notes: string | null
-  activity_date: string | null   // ISO date – which day the activity takes place
-  activity_time: string | null   // HH:MM – what time the activity starts
+  activity_date: string | null    // ISO date – which day the activity takes place
+  activity_time: string | null    // HH:MM – what time the activity starts
+  activity_type: string | null    // e.g. 'baseball' | 'trening' | 'hiking' | 'sightseeing' | 'shopping' | custom
+  map_lat: number | null          // pinned location latitude
+  map_lng: number | null          // pinned location longitude
 }
 
 export interface Photo {

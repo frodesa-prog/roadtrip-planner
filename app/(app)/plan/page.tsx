@@ -26,7 +26,7 @@ export default function PlanPage() {
 
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
   const { hotels, saveHotel } = useHotels(stopIds)
-  const { activities, addActivity, removeActivity } = useActivities(stopIds)
+  const { activities, addActivity, removeActivity, updateActivity } = useActivities(stopIds)
   const drivingLegs = useDrivingInfo(stops)
 
   // Selected stop + its driving leg
@@ -78,6 +78,7 @@ export default function PlanPage() {
             onSaveHotel={(updates) => saveHotel(selectedStop.id, updates)}
             onAddActivity={(data) => addActivity(selectedStop.id, data)}
             onRemoveActivity={removeActivity}
+            onUpdateActivity={updateActivity}
             onClose={() => setSelectedStopId(null)}
           />
         </div>
@@ -91,6 +92,7 @@ export default function PlanPage() {
           onAddStop={handleAddStop}
           onSelectStop={handleSelectStop}
           disabled={!currentTrip}
+          activities={activities}
         />
       </div>
     </div>

@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks } from 'lucide-react'
 
 const links = [
   { href: '/plan', label: 'Planlegg', icon: Map },
   { href: '/summary', label: 'Oppsummering', icon: CalendarDays },
+  { href: '/aktiviteter', label: 'Aktiviteter', icon: ListChecks },
   { href: '/kostnader', label: 'Kostnader', icon: Receipt },
   { href: '/notes', label: 'Notater', icon: FileText },
 ]

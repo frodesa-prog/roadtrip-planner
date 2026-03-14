@@ -6,7 +6,13 @@ import { Activity } from '@/types'
 import { toast } from 'sonner'
 
 export type AddActivityData = Pick<Activity, 'name'> &
-  Partial<Pick<Activity, 'url' | 'cost' | 'activity_date' | 'activity_time'>>
+  Partial<Pick<Activity, 'url' | 'cost' | 'activity_date' | 'activity_time' | 'activity_type'>>
+
+export type UpdateActivityData = Partial<Pick<
+  Activity,
+  'name' | 'url' | 'cost' | 'activity_date' | 'activity_time' |
+  'remaining_amount' | 'activity_type' | 'map_lat' | 'map_lng'
+>>
 
 export function useActivities(stopIds: string[]) {
   const [activities, setActivities] = useState<Activity[]>([])
@@ -42,6 +48,9 @@ export function useActivities(stopIds: string[]) {
         notes: null,
         activity_date: data.activity_date ?? null,
         activity_time: data.activity_time ?? null,
+        activity_type: data.activity_type ?? null,
+        map_lat: null,
+        map_lng: null,
       }
       setActivities((prev) => [...prev, newActivity])
       const { error } = await supabase.from('activities').insert(newActivity)
@@ -67,7 +76,7 @@ export function useActivities(stopIds: string[]) {
   )
 
   const updateActivity = useCallback(
-    async (id: string, updates: Partial<Pick<Activity, 'name' | 'url' | 'cost' | 'activity_date' | 'activity_time' | 'remaining_amount'>>) => {
+    async (id: string, updates: UpdateActivityData) => {
       setActivities((prev) =>
         prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
       )

@@ -1,16 +1,18 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   APIProvider,
   Map,
   MapMouseEvent,
+  useMap,
 } from '@vis.gl/react-google-maps'
-import { Stop } from '@/types'
+import { Activity, Stop } from '@/types'
 import RoutePolyline from './RoutePolyline'
 import StopMarker from './StopMarker'
 import AddStopPopup from './AddStopPopup'
 import MapSearchBox from './MapSearchBox'
+import ActivityMarker from './ActivityMarker'
 
 interface PlanningMapProps {
   stops: Stop[]
@@ -18,6 +20,11 @@ interface PlanningMapProps {
   onAddStop: (stop: Stop) => void
   onSelectStop: (id: string) => void
   disabled?: boolean
+  readOnly?: boolean
+  activities?: Activity[]
+  selectedActivityId?: string | null
+  onSelectActivity?: (id: string) => void
+  mapCenter?: { lat: number; lng: number } | null
 }
 
 interface PendingStop {
@@ -30,23 +37,46 @@ interface PendingStop {
 
 const USA_CENTER = { lat: 39.5, lng: -98.35 }
 
+// ─── Pans map programmatically when center prop changes ──────────────────────
+
+function MapController({ center }: { center: { lat: number; lng: number } | null | undefined }) {
+  const map = useMap()
+  const prevRef = useRef<{ lat: number; lng: number } | null>(null)
+
+  useEffect(() => {
+    if (!map || !center) return
+    if (prevRef.current?.lat === center.lat && prevRef.current?.lng === center.lng) return
+    map.panTo(center)
+    prevRef.current = center
+  }, [map, center])
+
+  return null
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function PlanningMap({
   stops,
   selectedStopId,
   onAddStop,
   onSelectStop,
   disabled = false,
+  readOnly = false,
+  activities = [],
+  selectedActivityId = null,
+  onSelectActivity,
+  mapCenter,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
 
   // Klikk direkte på kartet
   const handleMapClick = useCallback((e: MapMouseEvent) => {
-    if (disabled || !e.detail.latLng) return
+    if (disabled || readOnly || !e.detail.latLng) return
     setPendingStop({
       lat: e.detail.latLng.lat,
       lng: e.detail.latLng.lng,
     })
-  }, [disabled])
+  }, [disabled, readOnly])
 
   // Valgt sted fra søkeboks
   const handleSearchSelect = useCallback(
@@ -75,6 +105,8 @@ export default function PlanningMap({
     setPendingStop(null)
   }
 
+  const pinnedActivities = activities.filter((a) => a.map_lat != null && a.map_lng != null)
+
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="relative w-full h-full">
@@ -89,6 +121,9 @@ export default function PlanningMap({
           streetViewControl={false}
           fullscreenControl={false}
         >
+          {/* Programmatic panning */}
+          <MapController center={mapCenter} />
+
           {/* Stoppesteder */}
           {stops.map((stop, index) => (
             <StopMarker
@@ -97,6 +132,16 @@ export default function PlanningMap({
               index={index}
               isSelected={stop.id === selectedStopId}
               onClick={() => onSelectStop(stop.id)}
+            />
+          ))}
+
+          {/* Aktivitetsmarkører */}
+          {pinnedActivities.map((activity) => (
+            <ActivityMarker
+              key={activity.id}
+              activity={activity}
+              isSelected={activity.id === selectedActivityId}
+              onClick={onSelectActivity ? () => onSelectActivity(activity.id) : undefined}
             />
           ))}
 
@@ -127,11 +172,11 @@ export default function PlanningMap({
           {stops.length >= 2 && <RoutePolyline stops={stops} />}
 
           {/* Søkeboks – inne i Map for å få tilgang til useMap() */}
-          <MapSearchBox onPlaceSelect={handleSearchSelect} />
+          {!readOnly && <MapSearchBox onPlaceSelect={handleSearchSelect} />}
         </Map>
 
         {/* Popup for å bekrefte nytt stopp */}
-        {pendingStop && (
+        {pendingStop && !readOnly && (
           <AddStopPopup
             lat={pendingStop.lat}
             lng={pendingStop.lng}
@@ -144,11 +189,12 @@ export default function PlanningMap({
         )}
 
         {/* Instruksjon */}
-        {stops.length === 0 && !pendingStop && !disabled && (
+        {stops.length === 0 && !pendingStop && !disabled && !readOnly && (
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg text-sm text-slate-600 pointer-events-none whitespace-nowrap">
             🔍 Søk etter en by eller klikk på kartet for å starte
           </div>
         )}
+
         {disabled && (
           <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
             <div className="bg-white rounded-xl px-6 py-4 shadow-lg text-center">
