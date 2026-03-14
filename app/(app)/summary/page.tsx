@@ -404,51 +404,49 @@ function DayCell({
       {/* Spacer pushes icons to bottom */}
       <div className="flex-1" />
 
-      {/* Icons row at bottom */}
-      <div className="flex flex-col gap-0.5 pt-0.5">
-        {/* Flight icon – always show if flight on this date */}
+      {/* Icons row at bottom – horizontal */}
+      <div className="flex flex-row flex-wrap items-center gap-x-1 gap-y-0.5 pt-0.5">
+        {/* Flight icon */}
         {flight && (
           <button
             onClick={(e) => { e.stopPropagation(); onFlightClick(flight) }}
-            className="flex items-center gap-0.5 group/fly hover:opacity-80 transition-opacity w-fit"
+            className="flex items-center gap-0.5 hover:opacity-80 transition-opacity flex-shrink-0"
             title={flight.direction === 'outbound' ? 'Utreise – vis flyinfo' : 'Hjemreise – vis flyinfo'}
           >
             {flight.direction === 'outbound'
-              ? <PlaneTakeoff className="w-3 h-3 text-sky-400 flex-shrink-0" />
-              : <PlaneLanding className="w-3 h-3 text-sky-400 flex-shrink-0" />
+              ? <PlaneTakeoff className="w-3 h-3 text-sky-400" />
+              : <PlaneLanding className="w-3 h-3 text-sky-400" />
             }
             {flight.leg1_departure && (
-              <span className="text-[8px] text-sky-400/70 truncate">{flight.leg1_departure}</span>
+              <span className="text-[8px] text-sky-400/70">{flight.leg1_departure}</span>
             )}
           </button>
         )}
 
-        {/* Hotel + activity icons */}
-        {hasAnyIcons && (
-          <>
-            {hasConfirmedHotel && (
-              <div className="flex items-center gap-0.5">
-                <HotelIcon className="w-3 h-3 text-green-400 flex-shrink-0" />
-              </div>
-            )}
-            {baseballActivities.map((a) => (
-              <div key={a.id} className="flex items-center gap-0.5">
-                <span className="text-[11px] leading-none flex-shrink-0">⚾</span>
-                {a.activity_time && (
-                  <span className="text-[8px] text-slate-400 truncate">{a.activity_time}</span>
-                )}
-              </div>
-            ))}
-            {otherActivities.map((a) => (
-              <div key={a.id} className="flex items-center gap-0.5">
-                <Ticket className="w-3 h-3 text-purple-400 flex-shrink-0" />
-                {a.activity_time && (
-                  <span className="text-[8px] text-purple-300 truncate">{a.activity_time}</span>
-                )}
-              </div>
-            ))}
-          </>
+        {/* Hotel icon */}
+        {hasConfirmedHotel && (
+          <HotelIcon className="w-3 h-3 text-green-400 flex-shrink-0" />
         )}
+
+        {/* Baseball activities */}
+        {baseballActivities.map((a) => (
+          <div key={a.id} className="flex items-center gap-0.5 flex-shrink-0">
+            <span className="text-[11px] leading-none">⚾</span>
+            {a.activity_time && (
+              <span className="text-[8px] text-slate-400">{a.activity_time}</span>
+            )}
+          </div>
+        ))}
+
+        {/* Other activities */}
+        {otherActivities.map((a) => (
+          <div key={a.id} className="flex items-center gap-0.5 flex-shrink-0">
+            <Ticket className="w-3 h-3 text-purple-400" />
+            {a.activity_time && (
+              <span className="text-[8px] text-purple-300">{a.activity_time}</span>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   )
