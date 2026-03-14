@@ -1,12 +1,36 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { Plus, Trash2, FileText } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { Plus, Trash2, FileText, ImageIcon, Loader2, X } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useNotes } from '@/hooks/useNotes'
 import { useStops } from '@/hooks/useStops'
+import { useNoteImages } from '@/hooks/useNoteImages'
 import TripManager from '@/components/planning/TripManager'
 import { Note, Stop } from '@/types'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getStopDateRange(stop: Stop): string[] {
+  if (!stop.arrival_date) return []
+  const dates: string[] = []
+  const base = new Date(stop.arrival_date + 'T12:00:00')
+  for (let i = 0; i < stop.nights; i++) {
+    const d = new Date(base)
+    d.setDate(d.getDate() + i)
+    dates.push(d.toISOString().slice(0, 10))
+  }
+  return dates
+}
+
+function formatShortDate(iso: string): string {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', {
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NotesPage() {
   const {
@@ -19,12 +43,36 @@ export default function NotesPage() {
   const { stops } = useStops(currentTrip?.id ?? null)
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
 
+  // Stop order map for sorting
+  const stopOrderMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    stops.forEach((s) => { map[s.id] = s.order })
+    return map
+  }, [stops])
+
+  // Stop name map for sidebar display
+  const stopNameMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    stops.forEach((s) => { map[s.id] = s.city })
+    return map
+  }, [stops])
+
+  // Sort notes: by stop order (attached first), then created_at; unattached last
+  const sortedNotes = useMemo(() => {
+    return [...notes].sort((a, b) => {
+      const orderA = a.stop_id != null ? (stopOrderMap[a.stop_id] ?? 998) : 999
+      const orderB = b.stop_id != null ? (stopOrderMap[b.stop_id] ?? 998) : 999
+      if (orderA !== orderB) return orderA - orderB
+      return a.created_at.localeCompare(b.created_at)
+    })
+  }, [notes, stopOrderMap])
+
   // Auto-select first note when notes load (and nothing is selected)
   useEffect(() => {
-    if (notes.length > 0 && !selectedNoteId) {
-      setSelectedNoteId(notes[0].id)
+    if (sortedNotes.length > 0 && !selectedNoteId) {
+      setSelectedNoteId(sortedNotes[0].id)
     }
-  }, [notes, selectedNoteId])
+  }, [sortedNotes, selectedNoteId])
 
   // Clear selected note when trip changes
   useEffect(() => {
@@ -39,7 +87,7 @@ export default function NotesPage() {
   async function handleDeleteNote(id: string) {
     await deleteNote(id)
     if (selectedNoteId === id) {
-      const remaining = notes.filter((n) => n.id !== id)
+      const remaining = sortedNotes.filter((n) => n.id !== id)
       setSelectedNoteId(remaining.length > 0 ? remaining[0].id : null)
     }
   }
@@ -74,7 +122,7 @@ export default function NotesPage() {
         <div className="flex-1 overflow-y-auto">
           {!currentTrip ? (
             <p className="px-4 py-6 text-xs text-slate-600 text-center">Velg en tur</p>
-          ) : notes.length === 0 ? (
+          ) : sortedNotes.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <p className="text-xs text-slate-600">Ingen notater ennå</p>
               <button
@@ -85,24 +133,44 @@ export default function NotesPage() {
               </button>
             </div>
           ) : (
-            notes.map((note) => (
-              <button
+            sortedNotes.map((note) => (
+              <div
                 key={note.id}
-                onClick={() => setSelectedNoteId(note.id)}
                 className={[
-                  'w-full text-left px-4 py-3 border-b border-slate-800/50 transition-colors',
+                  'flex items-stretch border-b border-slate-800/50 group/note',
                   note.id === selectedNoteId
                     ? 'bg-slate-800 border-l-2 border-l-blue-500'
-                    : 'hover:bg-slate-800/50',
+                    : 'hover:bg-slate-800/40',
                 ].join(' ')}
               >
-                <p className="text-xs font-medium text-slate-200 truncate">
-                  {note.title || 'Uten tittel'}
-                </p>
-                <p className="text-[11px] text-slate-500 truncate mt-0.5 leading-relaxed">
-                  {note.content.split('\n')[0] || '…'}
-                </p>
-              </button>
+                {/* Main click area */}
+                <button
+                  onClick={() => setSelectedNoteId(note.id)}
+                  className="flex-1 min-w-0 text-left px-4 py-3 transition-colors"
+                >
+                  <p className="text-xs font-medium text-slate-200 truncate">
+                    {note.title || 'Uten tittel'}
+                  </p>
+                  {/* City + date info (no content preview) */}
+                  {note.stop_id ? (
+                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                      {stopNameMap[note.stop_id] ?? ''}
+                      {note.note_date ? ` · ${formatShortDate(note.note_date)}` : ''}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-slate-600 truncate mt-0.5 italic">Turnotat</p>
+                  )}
+                </button>
+
+                {/* Delete button (visible on hover) */}
+                <button
+                  onClick={() => handleDeleteNote(note.id)}
+                  className="opacity-0 group-hover/note:opacity-100 transition-opacity px-2 text-slate-600 hover:text-red-400 flex-shrink-0"
+                  title="Slett notat"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -131,27 +199,6 @@ export default function NotesPage() {
   )
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getStopDateRange(stop: Stop): string[] {
-  if (!stop.arrival_date) return []
-  const dates: string[] = []
-  const base = new Date(stop.arrival_date + 'T12:00:00')
-  for (let i = 0; i < stop.nights; i++) {
-    const d = new Date(base)
-    d.setDate(d.getDate() + i)
-    dates.push(d.toISOString().slice(0, 10))
-  }
-  return dates
-}
-
-function formatShortDate(iso: string): string {
-  return new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', {
-    day: 'numeric',
-    month: 'short',
-  })
-}
-
 // ─── Note Editor ─────────────────────────────────────────────────────────────
 
 type NoteUpdates = Partial<Pick<Note, 'title' | 'content' | 'stop_id' | 'note_date'>>
@@ -172,6 +219,9 @@ function NoteEditor({
   const [stopId, setStopId] = useState<string | null>(note.stop_id)
   const [noteDate, setNoteDate] = useState<string | null>(note.note_date)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const { images, isUploading, uploadImage, removeImage } = useNoteImages(note.id)
 
   const selectedStop = stops.find((s) => s.id === stopId) ?? null
   const stopDates = selectedStop ? getStopDateRange(selectedStop) : []
@@ -199,7 +249,6 @@ function NoteEditor({
   function handleStopChange(newStopId: string | null) {
     setStopId(newStopId)
     setNoteDate(null)
-    // Save immediately (no debounce) so DB is in sync
     if (saveTimer.current) clearTimeout(saveTimer.current)
     onUpdate(note.id, { stop_id: newStopId, note_date: null })
   }
@@ -209,6 +258,29 @@ function NoteEditor({
     setNoteDate(newDate)
     if (saveTimer.current) clearTimeout(saveTimer.current)
     onUpdate(note.id, { note_date: newDate })
+  }
+
+  // Handle image paste (Cmd+V with image in clipboard)
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = Array.from(e.clipboardData.items)
+    const imageItem = items.find((item) => item.type.startsWith('image/'))
+    if (imageItem) {
+      e.preventDefault()
+      const file = imageItem.getAsFile()
+      if (file) {
+        const namedFile = new File([file], `paste-${Date.now()}.png`, { type: file.type })
+        uploadImage(namedFile)
+      }
+    }
+    // Non-image paste falls through to textarea natively
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) {
+      uploadImage(file)
+      e.target.value = '' // allow re-uploading the same file
+    }
   }
 
   const updatedLabel = new Date(note.updated_at).toLocaleDateString('nb-NO', {
@@ -244,16 +316,16 @@ function NoteEditor({
           <select
             value={stopId ?? ''}
             onChange={(e) => handleStopChange(e.target.value || null)}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5 outline-none focus:border-blue-500 transition-colors cursor-pointer"
+            className="w-36 bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5 outline-none focus:border-blue-500 transition-colors cursor-pointer"
           >
-            <option value="">— Ingen by —</option>
+            <option value="">— Ingen —</option>
             {stops.map((s) => (
               <option key={s.id} value={s.id}>{s.city}</option>
             ))}
           </select>
         </div>
 
-        {/* Date picker — only shown when a stop with dates is selected */}
+        {/* Date picker — shown when stop with dates is selected */}
         {stopId && stopDates.length > 0 && (
           <div className="flex items-start gap-3">
             <span className="text-[11px] text-slate-500 w-12 flex-shrink-0 pt-0.5">Dato</span>
@@ -284,17 +356,58 @@ function NoteEditor({
         )}
       </div>
 
-      {/* Content area */}
-      <textarea
-        value={content}
-        onChange={(e) => handleContentChange(e.target.value)}
-        placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.'}
-        className="flex-1 bg-transparent text-slate-300 text-sm px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed"
-      />
+      {/* Textarea + image gallery */}
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <textarea
+          value={content}
+          onChange={(e) => handleContentChange(e.target.value)}
+          onPaste={handlePaste}
+          placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
+          className="flex-1 bg-transparent text-slate-300 text-sm px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
+        />
+
+        {/* Image gallery (shown when images exist) */}
+        {images.length > 0 && (
+          <div className="border-t border-slate-800 px-4 py-3 grid grid-cols-3 gap-2 max-h-52 overflow-y-auto flex-shrink-0">
+            {images.map((img) => (
+              <div key={img.id} className="relative group/img aspect-square">
+                <img
+                  src={img.publicUrl}
+                  alt=""
+                  className="w-full h-full object-cover rounded-md"
+                />
+                <button
+                  onClick={() => removeImage(img.id, img.storage_path)}
+                  className="absolute top-0.5 right-0.5 bg-black/70 rounded-full p-0.5 opacity-0 group-hover/img:opacity-100 transition-opacity"
+                  title="Slett bilde"
+                >
+                  <X className="w-2.5 h-2.5 text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Footer */}
-      <div className="px-6 py-2 border-t border-slate-800 flex-shrink-0">
+      <div className="px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
         <p className="text-[11px] text-slate-600">Sist oppdatert {updatedLabel}</p>
+        <label
+          title="Last opp bilde (eller lim inn med ⌘V)"
+          className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          {isUploading
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <ImageIcon className="w-4 h-4" />
+          }
+        </label>
       </div>
     </div>
   )

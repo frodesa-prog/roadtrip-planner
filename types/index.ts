@@ -101,6 +101,14 @@ export interface Flight {
   leg2_arrival: string | null     // HH:MM
 }
 
+export interface NoteImage {
+  id: string
+  note_id: string
+  storage_path: string
+  created_at: string
+  publicUrl: string  // beregnet fra Supabase Storage, lagres ikke i DB
+}
+
 export interface CarRental {
   id: string
   trip_id: string

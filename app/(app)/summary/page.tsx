@@ -121,6 +121,13 @@ export default function SummaryPage() {
     [hotels]
   )
 
+  // Map: stop id → hotel URL for confirmed hotels (null if no URL registered)
+  const confirmedHotelUrls = useMemo(() => {
+    const map: Record<string, string | null> = {}
+    hotels.filter((h) => h.status === 'confirmed').forEach((h) => { map[h.stop_id] = h.url ?? null })
+    return map
+  }, [hotels])
+
   // Map: ISO date → activities scheduled on that day
   const activitiesByDate = useMemo(() => {
     const map: Record<string, Activity[]> = {}
@@ -341,6 +348,7 @@ export default function SummaryPage() {
                           isSelected={isSelected}
                           activitiesOnDay={activitiesByDate[dateStr] ?? []}
                           hasConfirmedHotel={stop ? confirmedHotelStopIds.has(stop.id) : false}
+                          confirmedHotelUrl={stop ? (confirmedHotelUrls[stop.id] ?? null) : null}
                           flight={flightsByDate[dateStr] ?? null}
                           onFlightClick={setFlightModal}
                           notesOnDay={notesByDate[dateStr] ?? []}
@@ -374,13 +382,14 @@ export default function SummaryPage() {
                 await addNote({
                   title: data.title,
                   content: data.content,
-                  stop_id: noteModal.stopId,
+                  stop_id: data.stop_id,
                   note_date: data.note_date,
                 })
               } else {
                 await updateNote(noteModal.note.id, {
                   title: data.title,
                   content: data.content,
+                  stop_id: data.stop_id,
                   note_date: data.note_date,
                 })
               }
@@ -430,6 +439,7 @@ function DayCell({
   isSelected,
   activitiesOnDay,
   hasConfirmedHotel,
+  confirmedHotelUrl,
   flight,
   onFlightClick,
   notesOnDay,
@@ -444,6 +454,7 @@ function DayCell({
   isSelected: boolean
   activitiesOnDay: Activity[]
   hasConfirmedHotel: boolean
+  confirmedHotelUrl: string | null
   flight: Flight | null
   onFlightClick: (f: Flight) => void
   notesOnDay: Note[]
@@ -520,9 +531,23 @@ function DayCell({
           </button>
         )}
 
-        {/* Hotel icon */}
+        {/* Hotel icon – link if URL is registered */}
         {hasConfirmedHotel && (
-          <HotelIcon className="w-3 h-3 text-green-400 flex-shrink-0" />
+          confirmedHotelUrl
+            ? (
+              <a
+                href={confirmedHotelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="Åpne hotell"
+                className="flex-shrink-0 hover:opacity-75 transition-opacity"
+              >
+                <HotelIcon className="w-3 h-3 text-green-400" />
+              </a>
+            ) : (
+              <HotelIcon className="w-3 h-3 text-green-400 flex-shrink-0" />
+            )
         )}
 
         {/* Baseball activities */}
@@ -721,19 +746,31 @@ function NoteModal({
   stopId?: string | null
   initialDate?: string | null
   stops: Stop[]
-  onSave: (data: { title: string | null; content: string; note_date: string | null }) => void
+  onSave: (data: { title: string | null; content: string; stop_id: string | null; note_date: string | null }) => void
   onDelete?: () => void
   onClose: () => void
 }) {
   const [title, setTitle]     = useState(note?.title ?? '')
   const [content, setContent] = useState(note?.content ?? '')
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(
+    note?.stop_id ?? stopId ?? null
+  )
   const [noteDate, setNoteDate] = useState<string | null>(
     note?.note_date ?? initialDate ?? null
   )
 
-  const effectiveStopId = note?.stop_id ?? stopId ?? null
-  const stop = effectiveStopId ? stops.find((s) => s.id === effectiveStopId) ?? null : null
+  const stop = selectedStopId ? stops.find((s) => s.id === selectedStopId) ?? null : null
   const stopDates = stop ? getStopDateRange(stop) : []
+
+  function handleStopChange(newStopId: string | null) {
+    setSelectedStopId(newStopId)
+    // Reset date if it no longer belongs to the new stop
+    if (noteDate) {
+      const newStop = newStopId ? stops.find((s) => s.id === newStopId) : null
+      const newDates = newStop ? getStopDateRange(newStop) : []
+      if (!newDates.includes(noteDate)) setNoteDate(null)
+    }
+  }
 
   return (
     <div
@@ -751,7 +788,6 @@ function NoteModal({
             <span className="text-sm font-semibold text-slate-100">
               {mode === 'new' ? 'Nytt notat' : 'Rediger notat'}
             </span>
-            {stop && <span className="text-xs text-slate-400">— {stop.city}</span>}
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors">
             <X className="w-4 h-4" />
@@ -775,10 +811,25 @@ function NoteModal({
             className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-colors resize-none"
           />
 
-          {/* Date picker – only for stop-linked notes */}
+          {/* City selector */}
+          <div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">By</p>
+            <select
+              value={selectedStopId ?? ''}
+              onChange={(e) => handleStopChange(e.target.value || null)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-amber-500/60 transition-colors cursor-pointer"
+            >
+              <option value="">— Ingen by (turnotat) —</option>
+              {stops.map((s) => (
+                <option key={s.id} value={s.id}>{s.city}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date picker – only shown when a stop with dates is selected */}
           {stopDates.length > 0 && (
             <div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Knytt til dato</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Dato</p>
               <div className="flex flex-wrap gap-1">
                 {stopDates.map((d) => {
                   const label = new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', {
@@ -810,7 +861,7 @@ function NoteModal({
         {/* Footer */}
         <div className="px-5 pb-4 flex gap-2">
           <button
-            onClick={() => onSave({ title: title.trim() || null, content, note_date: noteDate })}
+            onClick={() => onSave({ title: title.trim() || null, content, stop_id: selectedStopId, note_date: noteDate })}
             disabled={!content.trim()}
             className="flex-1 h-8 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-semibold transition-colors"
           >
