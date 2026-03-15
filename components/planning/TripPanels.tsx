@@ -176,18 +176,26 @@ function FlightForm({ flight, onSave }: {
     ? calcFlightMinutes(flight?.leg2_departure, viaOffset, flight?.leg2_arrival, finalOffset)
     : null
   const stopoverMin = stopover ? calcStopoverMinutes(flight?.leg1_arrival, flight?.leg2_departure) : null
+  const totalMin = stopover && leg1Min !== null && stopoverMin !== null && leg2Min !== null
+    ? leg1Min + stopoverMin + leg2Min
+    : null
 
   function saveLeg1Arrival(v: string)   { onSave({ leg1_arrival: v }) }
   function saveLeg2Departure(v: string) { onSave({ leg2_departure: v }) }
 
   return (
     <div className="px-4 pt-2 pb-4 space-y-2.5">
-      <div><Label>Dato</Label><DateInput key={`date-${flight?.id}`} defaultValue={flight?.flight_date} onSave={(v) => onSave({ flight_date: v })} /></div>
-      <div><Label>Fra (flyplass / by)</Label><AirportInput key={`from-${flight?.id}`} defaultValue={flight?.leg1_from} placeholder="OSL – Oslo" onSave={(v) => onSave({ leg1_from: v })} /></div>
 
+      {/* Dato | Avgang */}
       <div className="grid grid-cols-2 gap-2">
+        <div><Label>Dato</Label><DateInput key={`date-${flight?.id}`} defaultValue={flight?.flight_date} onSave={(v) => onSave({ flight_date: v })} /></div>
         <div><Label>Avgang</Label><TimeInput key={`dep1-${flight?.id}`} defaultValue={flight?.leg1_departure} onSave={(v) => onSave({ leg1_departure: v })} /></div>
+      </div>
+
+      {/* Flightnr. | Fra (flyplass) */}
+      <div className="grid grid-cols-2 gap-2">
         <div><Label>Flightnr.</Label><Txt key={`fn1-${flight?.id}`} defaultValue={flight?.leg1_flight_nr} placeholder="DY 7081" onSave={(v) => onSave({ leg1_flight_nr: v })} /></div>
+        <div><Label>Fra (flyplass / by)</Label><AirportInput key={`from-${flight?.id}`} defaultValue={flight?.leg1_from} placeholder="OSL – Oslo" onSave={(v) => onSave({ leg1_from: v })} /></div>
       </div>
 
       <label className="flex items-center gap-2 py-0.5 cursor-pointer select-none group">
@@ -221,6 +229,15 @@ function FlightForm({ flight, onSave }: {
             <div><Label>Endelig destinasjon</Label><AirportInput key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg2_to: v })} /></div>
           </div>
           {leg2Min !== null && <DurationBadge minutes={leg2Min} label="Flytid etappe 2" />}
+          {/* Total reisetid */}
+          {totalMin !== null && (
+            <div className="pt-1 border-t border-slate-700/50">
+              <div className="flex items-center justify-center gap-1 py-0.5 text-[10px] font-semibold text-emerald-500/80">
+                <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                <span>Total reisetid: {formatDuration(totalMin)}</span>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
