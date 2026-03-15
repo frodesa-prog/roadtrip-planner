@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronDown, Check } from 'lucide-react'
 import {
   APIProvider,
   Map,
@@ -59,66 +60,136 @@ const USA_CENTER = { lat: 39.5, lng: -98.35 }
 
 // ─── Custom map controls (zoom + map type) ────────────────────────────────────
 
+type BaseMapType = 'roadmap' | 'terrain' | 'satellite'
+
+const MAP_TYPES: { id: BaseMapType; label: string }[] = [
+  { id: 'roadmap',   label: 'Kart' },
+  { id: 'terrain',   label: 'Terreng' },
+  { id: 'satellite', label: 'Satellitt' },
+]
+
 function MapControls() {
   const map = useMap()
-  const [mapType, setMapType] = useState<'hybrid' | 'roadmap'>('hybrid')
+  // 'satellite' base + showLabels=true → Google 'hybrid'; showLabels=false → 'satellite'
+  const [baseType, setBaseType] = useState<BaseMapType>('satellite')
+  const [showLabels, setShowLabels] = useState(true)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  function zoomIn() {
+  // Resolve actual Google Maps map type ID
+  const actualTypeId = baseType === 'satellite'
+    ? (showLabels ? 'hybrid' : 'satellite')
+    : baseType
+
+  // Sync map type whenever it changes
+  useEffect(() => {
     if (!map) return
-    map.setZoom((map.getZoom() ?? 4) + 1)
-  }
-  function zoomOut() {
-    if (!map) return
-    map.setZoom((map.getZoom() ?? 4) - 1)
-  }
-  function switchType(type: 'hybrid' | 'roadmap') {
-    if (!map) return
-    setMapType(type)
-    map.setMapTypeId(type)
-  }
+    map.setMapTypeId(actualTypeId)
+  }, [map, actualTypeId])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    if (dropdownOpen) document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [dropdownOpen])
+
+  function zoomIn()  { if (map) map.setZoom((map.getZoom() ?? 4) + 1) }
+  function zoomOut() { if (map) map.setZoom((map.getZoom() ?? 4) - 1) }
+
+  const currentLabel = MAP_TYPES.find((t) => t.id === baseType)?.label ?? 'Kart'
+
+  // Shared panel style
+  const panel = 'bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-lg shadow-lg'
 
   return (
-    <div className="absolute bottom-6 right-2.5 flex flex-col gap-1.5 z-10 pointer-events-auto">
-      {/* Map type toggle */}
-      <div className="flex overflow-hidden rounded-lg border border-slate-700 shadow-lg backdrop-blur-sm">
+    <>
+      {/* ── Top-left: Map type selector ─────────────────────────────────── */}
+      <div ref={containerRef} className="absolute top-2.5 left-2.5 z-10 pointer-events-auto">
+
+        {/* Trigger button */}
         <button
-          onClick={() => switchType('roadmap')}
-          className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
-            mapType === 'roadmap'
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-900/95 text-slate-300 hover:bg-slate-800'
-          }`}
+          onClick={() => setDropdownOpen((v) => !v)}
+          className={`${panel} flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-slate-200 hover:bg-slate-800 transition-colors`}
         >
-          Kart
+          {currentLabel}
+          <ChevronDown
+            className={`w-3 h-3 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
+          />
         </button>
-        <button
-          onClick={() => switchType('hybrid')}
-          className={`px-2.5 py-1 text-[11px] font-medium transition-colors border-l border-slate-700 ${
-            mapType === 'hybrid'
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-900/95 text-slate-300 hover:bg-slate-800'
-          }`}
-        >
-          Satellitt
-        </button>
+
+        {/* Dropdown */}
+        {dropdownOpen && (
+          <div className={`${panel} absolute top-full left-0 mt-1 min-w-[152px] overflow-hidden`}>
+
+            {/* Map type options */}
+            {MAP_TYPES.map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => { setBaseType(id); setDropdownOpen(false) }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-left transition-colors ${
+                  baseType === id
+                    ? 'bg-blue-600/25 text-blue-300'
+                    : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                {/* Radio indicator */}
+                <span
+                  className={`w-3 h-3 rounded-full border flex-shrink-0 flex items-center justify-center ${
+                    baseType === id ? 'border-blue-400 bg-blue-500' : 'border-slate-600 bg-transparent'
+                  }`}
+                >
+                  {baseType === id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </span>
+                {label}
+              </button>
+            ))}
+
+            {/* Divider */}
+            <div className="border-t border-slate-700/60 mx-0" />
+
+            {/* Labels toggle */}
+            <button
+              onClick={() => setShowLabels((v) => !v)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+            >
+              {/* Checkbox indicator */}
+              <span
+                className={`w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center ${
+                  showLabels ? 'border-blue-400 bg-blue-500' : 'border-slate-600 bg-transparent'
+                }`}
+              >
+                {showLabels && <Check className="w-2 h-2 text-white" strokeWidth={3} />}
+              </span>
+              Etiketter
+              {baseType !== 'satellite' && (
+                <span className="text-[9px] text-slate-600 ml-auto">kun satellitt</span>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Zoom controls */}
-      <div className="flex flex-col overflow-hidden rounded-lg border border-slate-700 shadow-lg backdrop-blur-sm">
+      {/* ── Bottom-right: Zoom controls ─────────────────────────────────── */}
+      <div className={`${panel} absolute bottom-6 right-2.5 z-10 pointer-events-auto flex flex-col overflow-hidden`}>
         <button
           onClick={zoomIn}
-          className="bg-slate-900/95 hover:bg-slate-800 text-slate-200 text-base font-semibold w-full py-0.5 transition-colors border-b border-slate-700 leading-tight"
+          className="bg-slate-900/95 hover:bg-slate-800 text-slate-200 text-base font-semibold px-3.5 py-0.5 transition-colors border-b border-slate-700 leading-tight"
         >
           +
         </button>
         <button
           onClick={zoomOut}
-          className="bg-slate-900/95 hover:bg-slate-800 text-slate-200 text-base font-semibold w-full py-0.5 transition-colors leading-tight"
+          className="bg-slate-900/95 hover:bg-slate-800 text-slate-200 text-base font-semibold px-3.5 py-0.5 transition-colors leading-tight"
         >
           −
         </button>
       </div>
-    </div>
+    </>
   )
 }
 
