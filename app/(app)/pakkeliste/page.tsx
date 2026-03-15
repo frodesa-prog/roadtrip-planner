@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Trash2, Check, Package } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Plus, Trash2, Check, Package, ChevronUp, ChevronDown, Pencil } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useTripPackingList } from '@/hooks/useTripPackingList'
 import { useTravelers } from '@/hooks/useTravelers'
@@ -22,7 +22,8 @@ export default function PakkelistePage() {
     trips, currentTrip, loading: tripsLoading, userId,
     setCurrentTrip, createTrip, deleteTrip,
   } = useTrips()
-  const { items, loading, addItem, togglePacked, deleteItem } = useTripPackingList(currentTrip?.id ?? null)
+  const { items, loading, addItem, updateItem, togglePacked, moveItem, deleteItem } =
+    useTripPackingList(currentTrip?.id ?? null)
   const { travelers } = useTravelers(currentTrip?.id ?? null)
 
   return (
@@ -54,7 +55,7 @@ export default function PakkelistePage() {
               <div className="flex-1 overflow-x-auto overflow-y-hidden">
                 <div
                   className="flex gap-4 p-6 h-full"
-                  style={{ minWidth: `${(travelers.length + 1) * 290}px` }}
+                  style={{ minWidth: `${(travelers.length + 1) * 300}px` }}
                 >
                   {/* Felles-kolonne */}
                   <PackingColumn
@@ -62,7 +63,9 @@ export default function PakkelistePage() {
                     items={items.filter((i) => i.traveler_id === null)}
                     travelerId={null}
                     onAdd={addItem}
+                    onUpdate={updateItem}
                     onToggle={togglePacked}
+                    onMove={moveItem}
                     onDelete={deleteItem}
                   />
 
@@ -74,7 +77,9 @@ export default function PakkelistePage() {
                       items={items.filter((i) => i.traveler_id === traveler.id)}
                       travelerId={traveler.id}
                       onAdd={addItem}
+                      onUpdate={updateItem}
                       onToggle={togglePacked}
+                      onMove={moveItem}
                       onDelete={deleteItem}
                     />
                   ))}
@@ -88,26 +93,32 @@ export default function PakkelistePage() {
   )
 }
 
+// ─── Column ───────────────────────────────────────────────────────────────────
+
 function PackingColumn({
   title,
   items,
   travelerId,
   onAdd,
+  onUpdate,
   onToggle,
+  onMove,
   onDelete,
 }: {
   title: string
   items: TripPackingItem[]
   travelerId: string | null
   onAdd: (item: string, category: PackingCategory, travelerId: string | null) => Promise<void>
+  onUpdate: (id: string, newText: string) => Promise<void>
   onToggle: (id: string, packed: boolean) => void
-  onDelete: (id: string) => void
+  onMove: (id: string, direction: 'up' | 'down') => Promise<void>
+  onDelete: (id: string) => Promise<void>
 }) {
   const [newItem, setNewItem] = useState('')
   const [category, setCategory] = useState<PackingCategory>('other')
 
-  const unpacked = items.filter((i) => !i.packed)
-  const packed = items.filter((i) => i.packed)
+  const unpacked = items.filter((i) => !i.packed).sort((a, b) => a.sort_order - b.sort_order)
+  const packed = items.filter((i) => i.packed).sort((a, b) => a.sort_order - b.sort_order)
 
   async function handleAdd() {
     if (!newItem.trim()) return
@@ -115,37 +126,56 @@ function PackingColumn({
     setNewItem('')
   }
 
+  // Group unpacked items by category (only show categories that have items)
+  const grouped = CATEGORIES
+    .map((cat) => ({
+      ...cat,
+      items: unpacked.filter((i) => i.category === cat.value),
+    }))
+    .filter((g) => g.items.length > 0)
+
   return (
-    <div className="w-[270px] flex-shrink-0 bg-slate-900 rounded-xl border border-slate-800 flex flex-col overflow-hidden h-full">
+    <div className="w-[285px] flex-shrink-0 bg-slate-900 rounded-xl border border-slate-800 flex flex-col overflow-hidden h-full">
       {/* Column header */}
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
         <h2 className="text-sm font-semibold text-slate-200">{title}</h2>
-        <span className="text-xs text-slate-500">
-          {unpacked.length} igjen
-        </span>
+        <span className="text-xs text-slate-500">{unpacked.length} igjen</span>
       </div>
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {/* Unpacked items */}
-        <div className="p-2 space-y-0.5">
-          {unpacked.map((item) => (
-            <PackingItem
-              key={item.id}
-              item={item}
-              onToggle={onToggle}
-              onDelete={onDelete}
-            />
-          ))}
 
-          {unpacked.length === 0 && packed.length === 0 && (
-            <p className="text-xs text-slate-600 text-center py-4">Ingen elementer ennå</p>
-          )}
-        </div>
+        {/* Grouped unpacked items */}
+        {grouped.length === 0 && packed.length === 0 && (
+          <p className="text-xs text-slate-600 text-center py-6">Ingen elementer ennå</p>
+        )}
+
+        {grouped.map((group) => (
+          <div key={group.value} className="px-2 pt-3">
+            {/* Category header */}
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide px-1 mb-1">
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item, idx) => (
+                <PackingItem
+                  key={item.id}
+                  item={item}
+                  isFirst={idx === 0}
+                  isLast={idx === group.items.length - 1}
+                  onToggle={onToggle}
+                  onUpdate={onUpdate}
+                  onMove={onMove}
+                  onDelete={onDelete}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
 
         {/* Packed section */}
         {packed.length > 0 && (
-          <div className="border-t border-slate-800 mx-2 pt-2 pb-2">
+          <div className="border-t border-slate-800 mx-2 mt-3 pt-2 pb-2">
             <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide px-1 mb-1 flex items-center gap-1">
               <Check className="w-3 h-3" /> Pakket ({packed.length})
             </p>
@@ -154,13 +184,19 @@ function PackingColumn({
                 <PackingItem
                   key={item.id}
                   item={item}
+                  isFirst={false}
+                  isLast={false}
                   onToggle={onToggle}
+                  onUpdate={onUpdate}
+                  onMove={onMove}
                   onDelete={onDelete}
                 />
               ))}
             </div>
           </div>
         )}
+
+        <div className="h-2" />
       </div>
 
       {/* Add item input */}
@@ -196,45 +232,164 @@ function PackingColumn({
   )
 }
 
+// ─── Item ─────────────────────────────────────────────────────────────────────
+
 function PackingItem({
   item,
+  isFirst,
+  isLast,
   onToggle,
+  onUpdate,
+  onMove,
   onDelete,
 }: {
   item: TripPackingItem
+  isFirst: boolean
+  isLast: boolean
   onToggle: (id: string, packed: boolean) => void
-  onDelete: (id: string) => void
+  onUpdate: (id: string, newText: string) => Promise<void>
+  onMove: (id: string, direction: 'up' | 'down') => Promise<void>
+  onDelete: (id: string) => Promise<void>
 }) {
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState(item.item)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus()
+  }, [editing])
+
+  function handleEditStart() {
+    setEditText(item.item)
+    setEditing(true)
+  }
+
+  async function handleEditSave() {
+    setEditing(false)
+    if (editText.trim() && editText.trim() !== item.item) {
+      await onUpdate(item.id, editText.trim())
+    }
+  }
+
+  function handleEditKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') handleEditSave()
+    if (e.key === 'Escape') { setEditing(false); setEditText(item.item) }
+  }
+
   return (
-    <div className="group/item flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-800/50 transition-colors">
-      <button
-        onClick={() => onToggle(item.id, !item.packed)}
-        className="flex-shrink-0"
-        title={item.packed ? 'Marker som upakket' : 'Marker som pakket'}
-      >
-        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-          item.packed
-            ? 'bg-green-600 border-green-600'
-            : 'border-slate-600 hover:border-blue-400'
-        }`}>
-          {item.packed && <Check className="w-2.5 h-2.5 text-white" />}
+    <div className="group/item">
+      {/* Confirm delete bar */}
+      {confirmDelete && (
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-red-950/40 border border-red-800/40 mb-0.5">
+          <span className="flex-1 text-xs text-red-300">Slette «{item.item}»?</span>
+          <button
+            onClick={() => setConfirmDelete(false)}
+            className="text-[11px] text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            Avbryt
+          </button>
+          <button
+            onClick={() => { setConfirmDelete(false); onDelete(item.id) }}
+            className="text-[11px] font-semibold text-red-400 hover:text-red-300 transition-colors"
+          >
+            Slett
+          </button>
         </div>
-      </button>
-      <span className={`flex-1 text-xs truncate ${
-        item.packed ? 'text-slate-600 line-through' : 'text-slate-300'
-      }`}>
-        {item.item}
-      </span>
-      <button
-        onClick={() => onDelete(item.id)}
-        className="opacity-0 group-hover/item:opacity-100 flex-shrink-0 text-slate-600 hover:text-red-400 transition-all"
-        title="Slett"
-      >
-        <Trash2 className="w-3 h-3" />
-      </button>
+      )}
+
+      {!confirmDelete && (
+        <div className="flex items-center gap-1 px-1 py-1 rounded-md hover:bg-slate-800/50 transition-colors">
+          {/* Checkbox */}
+          <button
+            onClick={() => onToggle(item.id, !item.packed)}
+            className="flex-shrink-0"
+            title={item.packed ? 'Marker som upakket' : 'Marker som pakket'}
+          >
+            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+              item.packed
+                ? 'bg-green-600 border-green-600'
+                : 'border-slate-600 hover:border-blue-400'
+            }`}>
+              {item.packed && <Check className="w-2.5 h-2.5 text-white" />}
+            </div>
+          </button>
+
+          {/* Text / edit input */}
+          {editing ? (
+            <input
+              ref={inputRef}
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              onBlur={handleEditSave}
+              onKeyDown={handleEditKeyDown}
+              className="flex-1 bg-slate-700 border border-blue-500 rounded px-1.5 py-0.5 text-xs text-slate-200 outline-none"
+            />
+          ) : (
+            <span
+              className={`flex-1 text-xs truncate cursor-pointer ${
+                item.packed ? 'text-slate-600 line-through' : 'text-slate-300'
+              }`}
+              onDoubleClick={handleEditStart}
+              title="Dobbeltklikk for å redigere"
+            >
+              {item.item}
+            </span>
+          )}
+
+          {/* Action buttons (visible on hover) */}
+          {!item.packed && !editing && (
+            <div className="flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity flex-shrink-0">
+              <button
+                onClick={handleEditStart}
+                className="p-0.5 text-slate-600 hover:text-blue-400 transition-colors"
+                title="Rediger"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => onMove(item.id, 'up')}
+                disabled={isFirst}
+                className="p-0.5 text-slate-600 hover:text-slate-300 disabled:opacity-20 transition-colors"
+                title="Flytt opp"
+              >
+                <ChevronUp className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => onMove(item.id, 'down')}
+                disabled={isLast}
+                className="p-0.5 text-slate-600 hover:text-slate-300 disabled:opacity-20 transition-colors"
+                title="Flytt ned"
+              >
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="p-0.5 text-slate-600 hover:text-red-400 transition-colors"
+                title="Slett"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          {/* Delete for packed items */}
+          {item.packed && !editing && (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="p-0.5 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover/item:opacity-100 flex-shrink-0"
+              title="Slett"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
 
 function EmptyState() {
   return (
