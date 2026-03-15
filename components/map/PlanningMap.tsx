@@ -57,6 +57,71 @@ interface PendingStop {
 
 const USA_CENTER = { lat: 39.5, lng: -98.35 }
 
+// ─── Custom map controls (zoom + map type) ────────────────────────────────────
+
+function MapControls() {
+  const map = useMap()
+  const [mapType, setMapType] = useState<'hybrid' | 'roadmap'>('hybrid')
+
+  function zoomIn() {
+    if (!map) return
+    map.setZoom((map.getZoom() ?? 4) + 1)
+  }
+  function zoomOut() {
+    if (!map) return
+    map.setZoom((map.getZoom() ?? 4) - 1)
+  }
+  function switchType(type: 'hybrid' | 'roadmap') {
+    if (!map) return
+    setMapType(type)
+    map.setMapTypeId(type)
+  }
+
+  return (
+    <div className="absolute bottom-6 right-2.5 flex flex-col gap-1.5 z-10 pointer-events-auto">
+      {/* Map type toggle */}
+      <div className="flex overflow-hidden rounded-lg border border-slate-700 shadow-lg backdrop-blur-sm">
+        <button
+          onClick={() => switchType('roadmap')}
+          className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${
+            mapType === 'roadmap'
+              ? 'bg-blue-600 text-white'
+              : 'bg-slate-900/95 text-slate-300 hover:bg-slate-800'
+          }`}
+        >
+          Kart
+        </button>
+        <button
+          onClick={() => switchType('hybrid')}
+          className={`px-2.5 py-1 text-[11px] font-medium transition-colors border-l border-slate-700 ${
+            mapType === 'hybrid'
+              ? 'bg-blue-600 text-white'
+              : 'bg-slate-900/95 text-slate-300 hover:bg-slate-800'
+          }`}
+        >
+          Satellitt
+        </button>
+      </div>
+
+      {/* Zoom controls */}
+      <div className="flex flex-col overflow-hidden rounded-lg border border-slate-700 shadow-lg backdrop-blur-sm">
+        <button
+          onClick={zoomIn}
+          className="bg-slate-900/95 hover:bg-slate-800 text-slate-200 text-base font-semibold w-full py-0.5 transition-colors border-b border-slate-700 leading-tight"
+        >
+          +
+        </button>
+        <button
+          onClick={zoomOut}
+          className="bg-slate-900/95 hover:bg-slate-800 text-slate-200 text-base font-semibold w-full py-0.5 transition-colors leading-tight"
+        >
+          −
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Pans + zooms map; zooms back out to full route on deselect ──────────────
 
 function MapController({
@@ -161,8 +226,8 @@ export default function PlanningMap({
           onClick={handleMapClick}
           className="w-full h-full"
           gestureHandling="greedy"
-          zoomControl={true}
-          mapTypeControl={true}
+          zoomControl={false}
+          mapTypeControl={false}
           streetViewControl={false}
           fullscreenControl={false}
         >
@@ -250,6 +315,9 @@ export default function PlanningMap({
           {/* Søkeboks */}
           {!readOnly && <MapSearchBox onPlaceSelect={handleSearchSelect} />}
         </Map>
+
+        {/* Egendefinerte kartkontroller */}
+        <MapControls />
 
         {/* Popup for å bekrefte nytt stopp */}
         {pendingStop && !readOnly && (
