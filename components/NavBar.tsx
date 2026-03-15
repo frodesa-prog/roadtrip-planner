@@ -6,9 +6,9 @@ import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, 
 import { createClient } from '@/lib/supabase/client'
 
 const links = [
+  { href: '/plan', label: 'Planlegg', icon: Map },
   { href: '/todo', label: 'ToDo', icon: ClipboardList },
   { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
-  { href: '/plan', label: 'Planlegg', icon: Map },
   { href: '/summary', label: 'Oppsummering', icon: CalendarDays },
   { href: '/aktiviteter', label: 'Aktiviteter', icon: ListChecks },
   { href: '/kostnader', label: 'Kostnader', icon: Receipt },
