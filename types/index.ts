@@ -251,6 +251,27 @@ export interface TripShare {
   created_at: string
 }
 
+export interface TodoItem {
+  id: string
+  trip_id: string
+  description: string
+  link: string | null
+  responsible: string  // 'felles' eller traveler-id
+  completed: boolean
+  completed_at: string | null
+  created_at: string
+}
+
+export interface TripPackingItem {
+  id: string
+  trip_id: string
+  traveler_id: string | null  // null = felles
+  item: string
+  category: PackingCategory
+  packed: boolean
+  created_at: string
+}
+
 export type LogType = 'functional' | 'database'
 
 export interface ActivityLogEntry {

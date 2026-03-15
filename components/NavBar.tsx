@@ -2,10 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, LogOut, UserCircle } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, LogOut, UserCircle, ClipboardList, Package } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const links = [
+  { href: '/todo', label: 'ToDo', icon: ClipboardList },
+  { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
   { href: '/plan', label: 'Planlegg', icon: Map },
   { href: '/summary', label: 'Oppsummering', icon: CalendarDays },
   { href: '/aktiviteter', label: 'Aktiviteter', icon: ListChecks },
