@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, Check, Ruler, Images, X } from 'lucide-react'
+import { ChevronDown, Check, Ruler, Images, X, RotateCcw, RotateCw, Layers3 } from 'lucide-react'
 import {
   APIProvider,
   Map,
@@ -74,6 +74,7 @@ function MapControls() {
   const [baseType, setBaseType] = useState<BaseMapType>('satellite')
   const [showLabels, setShowLabels] = useState(true)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [tilted, setTilted] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Resolve actual Google Maps map type ID
@@ -87,6 +88,12 @@ function MapControls() {
     map.setMapTypeId(actualTypeId)
   }, [map, actualTypeId])
 
+  // Sync tilt whenever it changes
+  useEffect(() => {
+    if (!map) return
+    map.setTilt(tilted ? 45 : 0)
+  }, [map, tilted])
+
   // Close dropdown on outside click
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -98,8 +105,10 @@ function MapControls() {
     return () => document.removeEventListener('mousedown', onDown)
   }, [dropdownOpen])
 
-  function zoomIn()  { if (map) map.setZoom((map.getZoom() ?? 4) + 1) }
-  function zoomOut() { if (map) map.setZoom((map.getZoom() ?? 4) - 1) }
+  function zoomIn()    { if (map) map.setZoom((map.getZoom() ?? 4) + 1) }
+  function zoomOut()   { if (map) map.setZoom((map.getZoom() ?? 4) - 1) }
+  function rotateLeft()  { if (map) map.setHeading(((map.getHeading() ?? 0) - 45 + 360) % 360) }
+  function rotateRight() { if (map) map.setHeading(((map.getHeading() ?? 0) + 45) % 360) }
 
   const currentLabel = MAP_TYPES.find((t) => t.id === baseType)?.label ?? 'Kart'
 
@@ -174,19 +183,55 @@ function MapControls() {
         )}
       </div>
 
-      {/* ── Bottom-right: Zoom controls ─────────────────────────────────── */}
+      {/* ── Bottom-right: Zoom + Rotate + Tilt ──────────────────────────── */}
       <div className={`${panel} absolute bottom-6 right-2.5 z-10 pointer-events-auto flex flex-col overflow-hidden`}>
+
+        {/* Zoom */}
         <button
           onClick={zoomIn}
-          className="bg-slate-900/95 hover:bg-slate-800 text-slate-200 text-base font-semibold px-3.5 py-0.5 transition-colors border-b border-slate-700 leading-tight"
+          title="Zoom inn"
+          className="hover:bg-slate-800 text-slate-200 text-base font-semibold px-3.5 py-0.5 transition-colors border-b border-slate-700 leading-tight"
         >
           +
         </button>
         <button
           onClick={zoomOut}
-          className="bg-slate-900/95 hover:bg-slate-800 text-slate-200 text-base font-semibold px-3.5 py-0.5 transition-colors leading-tight"
+          title="Zoom ut"
+          className="hover:bg-slate-800 text-slate-200 text-base font-semibold px-3.5 py-0.5 transition-colors border-b border-slate-700 leading-tight"
         >
           −
+        </button>
+
+        {/* Rotate */}
+        <div className="flex border-b border-slate-700">
+          <button
+            onClick={rotateLeft}
+            title="Roter mot klokka"
+            className="flex-1 flex items-center justify-center py-1.5 hover:bg-slate-800 text-slate-200 transition-colors border-r border-slate-700"
+          >
+            <RotateCcw className="w-3 h-3" />
+          </button>
+          <button
+            onClick={rotateRight}
+            title="Roter med klokka"
+            className="flex-1 flex items-center justify-center py-1.5 hover:bg-slate-800 text-slate-200 transition-colors"
+          >
+            <RotateCw className="w-3 h-3" />
+          </button>
+        </div>
+
+        {/* Tilt / 3D */}
+        <button
+          onClick={() => setTilted((v) => !v)}
+          title="3D-visning"
+          className={`flex items-center justify-center gap-1 px-2.5 py-1.5 text-[10px] font-medium transition-colors ${
+            tilted
+              ? 'bg-blue-600/30 text-blue-300'
+              : 'text-slate-200 hover:bg-slate-800'
+          }`}
+        >
+          <Layers3 className="w-3 h-3 flex-shrink-0" />
+          3D
         </button>
       </div>
     </>
@@ -561,7 +606,7 @@ export default function PlanningMap({
         <Map
           defaultCenter={USA_CENTER}
           defaultZoom={4}
-          mapTypeId="hybrid"
+          defaultMapTypeId="hybrid"
           onClick={handleMapClick}
           className="w-full h-full"
           gestureHandling="greedy"
