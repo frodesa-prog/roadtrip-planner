@@ -78,6 +78,12 @@ export function useChatSessions(tripId: string | null) {
     setActiveSessionId(id)
   }, [])
 
+  // ── Start a new chat without persisting to DB yet ───────────────────────────
+  const startNewChat = useCallback(() => {
+    setActiveSessionId(null)
+    setMessages([])
+  }, [])
+
   // ── Add a message to a session ──────────────────────────────────────────────
   const addMessage = useCallback(
     async (
@@ -140,6 +146,7 @@ export function useChatSessions(tripId: string | null) {
     createSession,
     deleteSession,
     selectSession,
+    startNewChat,
     addMessage,
   }
 }
