@@ -81,42 +81,75 @@ type TabId = typeof tabs[number]['id']
 
 // ── Profil-tab ─────────────────────────────────────────────────────────────────
 
+const PROFILE_GENDERS = [
+  { value: 'mann',   label: 'Mann',   emoji: '👨' },
+  { value: 'kvinne', label: 'Kvinne', emoji: '👩' },
+  { value: 'annet',  label: 'Annet',  emoji: '🧑' },
+] as const
+
 function ProfilTab({ user }: { user: SupabaseUser | null }) {
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
   const [showPw, setShowPw] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [displayNameVal, setDisplayNameVal] = useState('')
-  const [nameSaving, setNameSaving] = useState(false)
-  const supabase = useMemo(() => createClient(), [])
-  const { profile, saveDisplayName } = useUserProfile()
+  const [pwSaving, setPwSaving] = useState(false)
 
-  // Sync display name input when profile loads
+  // Profile fields
+  const [displayNameVal, setDisplayNameVal] = useState('')
+  const [birthDateVal, setBirthDateVal] = useState('')
+  const [genderVal, setGenderVal] = useState<string>('')
+  const [profileSaving, setProfileSaving] = useState(false)
+
+  const supabase = useMemo(() => createClient(), [])
+  const { profile, saveProfile } = useUserProfile()
+
+  // Sync when profile loads
   useEffect(() => {
-    if (profile?.display_name != null) setDisplayNameVal(profile.display_name)
-  }, [profile?.display_name])
+    if (!profile) return
+    if (profile.display_name != null) setDisplayNameVal(profile.display_name)
+    if (profile.birth_date != null) setBirthDateVal(profile.birth_date)
+    if (profile.gender != null) setGenderVal(profile.gender)
+  }, [profile])
 
   async function handleChangePw() {
     if (newPw.length < 6) { toast.error('Passordet må være minst 6 tegn'); return }
     if (newPw !== confirmPw) { toast.error('Passordene stemmer ikke overens'); return }
-    setSaving(true)
+    setPwSaving(true)
     const { error } = await supabase.auth.updateUser({ password: newPw })
-    setSaving(false)
+    setPwSaving(false)
     if (error) { toast.error('Kunne ikke endre passord: ' + error.message); return }
     toast.success('Passord endret!')
     setNewPw(''); setConfirmPw('')
     logActivity({ log_type: 'functional', action: 'passord endret', entity_type: 'profil', entity_name: 'Passord' })
   }
 
-  async function handleSaveDisplayName() {
-    setNameSaving(true)
-    await saveDisplayName(displayNameVal.trim())
-    setNameSaving(false)
-    logActivity({ log_type: 'functional', action: 'lagret', entity_type: 'profil', entity_name: 'Visningsnavn' })
+  async function handleSaveProfile() {
+    setProfileSaving(true)
+    await saveProfile({
+      display_name: displayNameVal.trim() || null,
+      birth_date: birthDateVal || null,
+      gender: genderVal || null,
+    })
+    setProfileSaving(false)
+    toast.success('Profil lagret')
+    logActivity({ log_type: 'functional', action: 'lagret', entity_type: 'profil', entity_name: 'Profil' })
   }
+
+  // Compute age preview from birth date
+  const agePreview = (() => {
+    if (!birthDateVal) return null
+    const today = new Date()
+    const dob = new Date(birthDateVal)
+    let age = today.getFullYear() - dob.getFullYear()
+    if (
+      today.getMonth() < dob.getMonth() ||
+      (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())
+    ) age--
+    return age >= 0 ? age : null
+  })()
 
   return (
     <div className="max-w-md space-y-8">
+      {/* ── Kontoinformasjon ── */}
       <div>
         <h2 className="text-base font-semibold text-white mb-4">Kontoinformasjon</h2>
         <div className="space-y-3">
@@ -137,31 +170,75 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
         </div>
       </div>
 
-      {/* Display name */}
+      {/* ── Profilinformasjon (navn, fødselsdato, kjønn) ── */}
       <div>
-        <h2 className="text-base font-semibold text-white mb-1">Visningsnavn</h2>
-        <p className="text-xs text-slate-500 mb-3">
-          Brukes som ditt navn i turfølget når du oppretter en ny tur.
+        <h2 className="text-base font-semibold text-white mb-1">Profilinformasjon</h2>
+        <p className="text-xs text-slate-500 mb-4">
+          Brukes i turfølget og av reiseassistenten. Fødselsdato beregner alder automatisk.
         </p>
-        <div className="flex gap-2">
-          <input
-            value={displayNameVal}
-            onChange={(e) => setDisplayNameVal(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveDisplayName() }}
-            placeholder="Ditt navn (f.eks. «Ola»)"
-            className="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-blue-500"
-          />
+
+        <div className="space-y-4">
+          {/* Visningsnavn */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Visningsnavn</label>
+            <input
+              value={displayNameVal}
+              onChange={(e) => setDisplayNameVal(e.target.value)}
+              placeholder="Ditt navn (f.eks. «Ola»)"
+              className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {/* Fødselsdato */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+              Fødselsdato
+              {agePreview != null && (
+                <span className="ml-2 text-slate-500 font-normal">→ {agePreview} år</span>
+              )}
+            </label>
+            <input
+              type="date"
+              value={birthDateVal}
+              onChange={(e) => setBirthDateVal(e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
+              className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-blue-500 [color-scheme:dark]"
+            />
+          </div>
+
+          {/* Kjønn */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Kjønn</label>
+            <div className="flex gap-2">
+              {PROFILE_GENDERS.map((g) => (
+                <button
+                  key={g.value}
+                  onClick={() => setGenderVal(genderVal === g.value ? '' : g.value)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    genderVal === g.value
+                      ? 'bg-blue-600/20 border-blue-500 text-blue-200'
+                      : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <span>{g.emoji}</span>
+                  <span className="text-xs">{g.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button
-            onClick={handleSaveDisplayName}
-            disabled={nameSaving || !displayNameVal.trim()}
+            onClick={handleSaveProfile}
+            disabled={profileSaving}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium transition-colors"
           >
-            {nameSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            Lagre
+            {profileSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Lagre profil
           </button>
         </div>
       </div>
 
+      {/* ── Endre passord ── */}
       <div>
         <h2 className="text-base font-semibold text-white mb-4">Endre passord</h2>
         <div className="space-y-3">
@@ -186,10 +263,10 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
           />
           <button
             onClick={handleChangePw}
-            disabled={saving || !newPw || !confirmPw}
+            disabled={pwSaving || !newPw || !confirmPw}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium transition-colors"
           >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            {pwSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             Lagre nytt passord
           </button>
         </div>

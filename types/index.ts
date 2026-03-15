@@ -204,6 +204,8 @@ export interface UserProfile {
   user_id: string
   display_name: string | null
   email: string
+  birth_date: string | null   // ISO date 'YYYY-MM-DD'
+  gender: string | null        // 'mann' | 'kvinne' | 'annet'
   created_at: string
   updated_at: string
 }

@@ -7,6 +7,19 @@ import { toast } from 'sonner'
 
 type TravelerInput = Partial<Pick<Traveler, 'name' | 'age' | 'gender' | 'interests' | 'description' | 'linked_user_id'>>
 
+// Beregn alder fra fødselsdato
+function ageFromBirthDate(birthDate: string | null | undefined): number | null {
+  if (!birthDate) return null
+  const today = new Date()
+  const dob = new Date(birthDate)
+  let age = today.getFullYear() - dob.getFullYear()
+  if (
+    today.getMonth() < dob.getMonth() ||
+    (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())
+  ) age--
+  return age
+}
+
 export type LinkedTravelerResult = 'success' | 'not_found' | 'no_access' | 'error'
 
 export function useTravelers(tripId: string | null) {
@@ -61,10 +74,10 @@ export function useTravelers(tripId: string | null) {
       const { data: { user: me } } = await supabase.auth.getUser()
       if (!me) return 'error'
 
-      // Slå opp bruker i user_profiles
+      // Slå opp bruker i user_profiles (inkl. fødselsdato og kjønn)
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
-        .select('user_id, display_name, email')
+        .select('user_id, display_name, email, birth_date, gender')
         .eq('email', email.trim().toLowerCase())
         .maybeSingle()
 
@@ -72,11 +85,16 @@ export function useTravelers(tripId: string | null) {
 
       const foundProfile = profileData as UserProfile
 
+      const profileAge = ageFromBirthDate(foundProfile.birth_date)
+      const profileGender = foundProfile.gender ?? null
+
       // Sjekk at vi ikke legger til oss selv igjen
       if (foundProfile.user_id === me.id) {
         // Legg til uten preferanse-sjekk (alltid ok å legge til seg selv)
         await addTraveler({
           name: foundProfile.display_name || email.split('@')[0],
+          age: profileAge,
+          gender: profileGender,
           linked_user_id: foundProfile.user_id,
         })
         return 'success'
@@ -94,6 +112,8 @@ export function useTravelers(tripId: string | null) {
         // Ingen tilgang – legg til som vanlig reisedeltaker uten preferanser
         await addTraveler({
           name: foundProfile.display_name || email.split('@')[0],
+          age: profileAge,
+          gender: profileGender,
           linked_user_id: foundProfile.user_id,
         })
         return 'no_access'
@@ -117,6 +137,8 @@ export function useTravelers(tripId: string | null) {
 
       await addTraveler({
         name: foundProfile.display_name || email.split('@')[0],
+        age: profileAge,
+        gender: profileGender,
         interests: prefs?.interests ?? null,
         description: descParts.join('\n') || null,
         linked_user_id: foundProfile.user_id,
