@@ -610,8 +610,9 @@ function TodoCard({
 // ─── Road illustration ────────────────────────────────────────────────────────
 
 function RoadIllustration({ pct }: { pct: number }) {
-  // Car travels from 11% (past start sign) to 84% (before end sign)
-  const carLeft = 11 + (pct / 100) * 73
+  // Car starts at left edge (6%) and travels to just before the end sign (84%)
+  const carLeft = 6 + (pct / 100) * 78
+  const isComplete = pct === 100
 
   return (
     <div
@@ -642,36 +643,39 @@ function RoadIllustration({ pct }: { pct: number }) {
 
       {/* Start sign (left side) – shows % completed */}
       <div className="absolute left-4 bottom-[26px] flex flex-col items-center">
-        {/* Sign board */}
         <div className="bg-slate-700 border border-slate-500/70 rounded px-2 py-0.5 shadow-sm">
           <p className="text-[9px] text-slate-200 font-bold whitespace-nowrap leading-tight text-center">
             {pct}%
           </p>
         </div>
-        {/* Post */}
         <div className="w-px h-3.5 bg-slate-500/80" />
       </div>
 
       {/* End sign (right side) */}
       <div className="absolute right-5 bottom-[26px] flex flex-col items-center">
-        {/* Plane above sign */}
-        <span className="text-base leading-none mb-1">✈️</span>
-        {/* Sign board */}
+        {/* Only show static plane icon when NOT complete (complete state shows the moving plane) */}
+        {!isComplete && <span className="text-base leading-none mb-1">✈️</span>}
+        {isComplete && <span className="text-base leading-none mb-1 opacity-0">✈️</span>}
         <div className="bg-emerald-800/90 border border-emerald-600/60 rounded px-2 py-0.5 shadow-sm">
           <p className="text-[7px] text-emerald-200 font-bold whitespace-nowrap leading-tight text-center">
             Ready to<br />take-off!
           </p>
         </div>
-        {/* Post */}
         <div className="w-px h-3.5 bg-slate-500/80" />
       </div>
 
-      {/* Car on road – flipped so it drives rightward */}
+      {/* Vehicle – car while in progress, plane taking off at 100% */}
       <div
-        className="absolute text-base leading-none transition-all duration-700 ease-in-out select-none inline-block"
-        style={{ left: `${carLeft}%`, bottom: 5, transform: 'scaleX(-1)' }}
+        className="absolute leading-none select-none"
+        style={{
+          left: `${carLeft}%`,
+          bottom: isComplete ? 22 : 5,
+          fontSize: '1rem',
+          transform: isComplete ? 'rotate(-40deg)' : 'scaleX(-1)',
+          transition: 'left 0.7s ease-in-out, bottom 0.7s ease-in-out, transform 0.5s ease-in-out',
+        }}
       >
-        🚗
+        {isComplete ? '✈️' : '🚗'}
       </div>
     </div>
   )
