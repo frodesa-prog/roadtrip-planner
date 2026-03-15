@@ -53,10 +53,21 @@ export function useTripShares(tripId: string | null) {
 
       const { data, error } = shareRes
 
+      const tripName = (tripRes.data as { name: string } | null)?.name ?? 'turen'
+      const senderName = (profileRes.data as { display_name: string | null } | null)?.display_name
+        || user.email?.split('@')[0]
+        || 'En venn'
+
       if (error) {
         setShares((prev) => prev.filter((s) => s.id !== optimistic.id))
         if (error.code === '23505') {
-          toast.error('Denne e-postadressen har allerede tilgang til turen')
+          // Del allerede eksisterer – send e-posten på nytt likevel
+          fetch('/api/share-trip-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipientEmail: email, tripName, senderName, accessLevel }),
+          }).catch(() => { /* ignore email errors */ })
+          toast.success(`Invitasjon sendt på nytt til ${email}`)
         } else {
           toast.error('Kunne ikke dele turen')
         }
@@ -66,10 +77,6 @@ export function useTripShares(tripId: string | null) {
       setShares((prev) => prev.map((s) => (s.id === optimistic.id ? (data as TripShare) : s)))
 
       // Send e-post til mottaker (feiler stille om RESEND_API_KEY ikke er satt)
-      const tripName = (tripRes.data as { name: string } | null)?.name ?? 'turen'
-      const senderName = (profileRes.data as { display_name: string | null } | null)?.display_name
-        || user.email?.split('@')[0]
-        || 'En venn'
       fetch('/api/share-trip-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
