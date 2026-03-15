@@ -75,6 +75,7 @@ function MapControls() {
   const [showLabels, setShowLabels] = useState(true)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [tilted, setTilted] = useState(false)
+  const [heading, setHeading] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Resolve actual Google Maps map type ID
@@ -94,6 +95,12 @@ function MapControls() {
     map.setTilt(tilted ? 45 : 0)
   }, [map, tilted])
 
+  // Sync heading whenever it changes
+  useEffect(() => {
+    if (!map) return
+    map.setHeading(heading)
+  }, [map, heading])
+
   // Close dropdown on outside click
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -107,8 +114,8 @@ function MapControls() {
 
   function zoomIn()    { if (map) map.setZoom((map.getZoom() ?? 4) + 1) }
   function zoomOut()   { if (map) map.setZoom((map.getZoom() ?? 4) - 1) }
-  function rotateLeft()  { if (map) map.setHeading(((map.getHeading() ?? 0) - 45 + 360) % 360) }
-  function rotateRight() { if (map) map.setHeading(((map.getHeading() ?? 0) + 45) % 360) }
+  function rotateLeft()  { setHeading((h) => (h - 45 + 360) % 360) }
+  function rotateRight() { setHeading((h) => (h + 45) % 360) }
 
   const currentLabel = MAP_TYPES.find((t) => t.id === baseType)?.label ?? 'Kart'
 
@@ -613,6 +620,7 @@ export default function PlanningMap({
           mapTypeControl={false}
           streetViewControl={false}
           fullscreenControl={false}
+          rotateControl={false}
         >
           {/* Programmatic pan + zoom */}
           <MapController center={mapCenter} stops={stops} />
