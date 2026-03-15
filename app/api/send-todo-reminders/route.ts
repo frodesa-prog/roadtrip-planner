@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   // Bruk service role for å lese på tvers av brukere
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
 
   // Hent alle gjøremål med påminnelse i dag som ikke er fullført
   const { data: todos, error } = await supabase
