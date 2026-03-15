@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, Check } from 'lucide-react'
+import { ChevronDown, Check, Ruler, Images, X } from 'lucide-react'
 import {
   APIProvider,
   Map,
@@ -193,6 +193,269 @@ function MapControls() {
   )
 }
 
+// ─── Haversine helpers ────────────────────────────────────────────────────────
+
+function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) *
+      Math.cos((b.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h))
+}
+
+function sumKm(pts: { lat: number; lng: number }[]): number {
+  let total = 0
+  for (let i = 1; i < pts.length; i++) total += haversineKm(pts[i - 1], pts[i])
+  return total
+}
+
+function fmtKm(km: number): string {
+  return km >= 10 ? `${Math.round(km).toLocaleString('no-NO')} km` : `${km.toFixed(1)} km`
+}
+
+// ─── Map tools (measure distance + travel time + photos) ─────────────────────
+
+interface MapToolsProps {
+  onActiveChange: (active: boolean) => void
+}
+
+function MapTools({ onActiveChange }: MapToolsProps) {
+  const map = useMap()
+  const [measuring, setMeasuring] = useState(false)
+  const [points, setPoints] = useState<{ lat: number; lng: number }[]>([])
+  const [driveInfo, setDriveInfo] = useState<{ dist: string; time: string } | null>(null)
+  const [loadingDrive, setLoadingDrive] = useState(false)
+
+  const listenerRef = useRef<google.maps.MapsEventListener | null>(null)
+  const polylinesRef = useRef<google.maps.Polyline[]>([])
+  const markersRef = useRef<google.maps.Marker[]>([])
+
+  const panel = 'bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-lg shadow-lg'
+
+  // Notify parent whenever measure mode toggles
+  useEffect(() => {
+    onActiveChange(measuring)
+  }, [measuring, onActiveChange])
+
+  // Attach / detach click listener on the raw map
+  useEffect(() => {
+    if (!map) return
+
+    if (measuring) {
+      listenerRef.current = map.addListener(
+        'click',
+        (e: google.maps.MapMouseEvent) => {
+          if (!e.latLng) return
+          const pt = { lat: e.latLng.lat(), lng: e.latLng.lng() }
+
+          setPoints((prev) => {
+            const next = [...prev, pt]
+
+            // Draw marker
+            const marker = new google.maps.Marker({
+              position: pt,
+              map,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 5,
+                fillColor: '#3b82f6',
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 2,
+              },
+              zIndex: 99,
+            })
+            markersRef.current.push(marker)
+
+            // Draw segment polyline
+            if (next.length >= 2) {
+              const line = new google.maps.Polyline({
+                path: [next[next.length - 2], next[next.length - 1]],
+                geodesic: true,
+                strokeColor: '#3b82f6',
+                strokeOpacity: 0.85,
+                strokeWeight: 2,
+                map,
+              })
+              polylinesRef.current.push(line)
+            }
+
+            return next
+          })
+        },
+      )
+    } else {
+      listenerRef.current?.remove()
+      listenerRef.current = null
+    }
+
+    return () => {
+      listenerRef.current?.remove()
+      listenerRef.current = null
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, measuring])
+
+  // Fetch drive time when exactly 2 points are set
+  useEffect(() => {
+    if (points.length !== 2) {
+      setDriveInfo(null)
+      return
+    }
+    let cancelled = false
+    setLoadingDrive(true)
+
+    const origin = `${points[0].lat},${points[0].lng}`
+    const destination = `${points[1].lat},${points[1].lng}`
+
+    fetch(`/api/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return
+        if (data.durationText && data.distanceText) {
+          setDriveInfo({ dist: data.distanceText, time: data.durationText })
+        }
+      })
+      .catch(() => {/* ignore */})
+      .finally(() => { if (!cancelled) setLoadingDrive(false) })
+
+    return () => { cancelled = true }
+  }, [points])
+
+  function clearOverlays() {
+    polylinesRef.current.forEach((l) => l.setMap(null))
+    polylinesRef.current = []
+    markersRef.current.forEach((m) => m.setMap(null))
+    markersRef.current = []
+  }
+
+  function handleToggleMeasure() {
+    if (measuring) {
+      // Turn off → clear everything
+      clearOverlays()
+      setPoints([])
+      setDriveInfo(null)
+      setMeasuring(false)
+    } else {
+      setMeasuring(true)
+    }
+  }
+
+  function handleReset() {
+    clearOverlays()
+    setPoints([])
+    setDriveInfo(null)
+  }
+
+  function handleOpenPhotos() {
+    if (!map) return
+    const center = map.getCenter()
+    const zoom = map.getZoom() ?? 14
+    if (!center) return
+    const lat = center.lat().toFixed(6)
+    const lng = center.lng().toFixed(6)
+    window.open(
+      `https://www.google.com/maps/@${lat},${lng},${zoom}z/data=!3m1!1e3`,
+      '_blank',
+    )
+  }
+
+  const straightKm = points.length >= 2 ? sumKm(points) : null
+
+  return (
+    <div className="absolute top-2.5 right-2.5 z-10 pointer-events-auto flex flex-col items-end gap-1.5">
+
+      {/* Tool buttons */}
+      <div className={`${panel} flex flex-col overflow-hidden`}>
+
+        {/* Measure button */}
+        <button
+          onClick={handleToggleMeasure}
+          title="Mål avstand"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-colors border-b border-slate-700 ${
+            measuring
+              ? 'bg-blue-600/30 text-blue-300'
+              : 'text-slate-200 hover:bg-slate-800'
+          }`}
+        >
+          <Ruler className="w-3 h-3 flex-shrink-0" />
+          Mål avstand
+        </button>
+
+        {/* Photos button */}
+        <button
+          onClick={handleOpenPhotos}
+          title="Åpne bilder fra Google"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-slate-200 hover:bg-slate-800 transition-colors"
+        >
+          <Images className="w-3 h-3 flex-shrink-0" />
+          Bilder
+        </button>
+      </div>
+
+      {/* Info panel – shown when measuring and at least 1 point placed */}
+      {measuring && points.length > 0 && (
+        <div className={`${panel} p-2.5 min-w-[170px] text-[11px] text-slate-200`}>
+
+          {/* Header row */}
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <span className="font-semibold text-slate-100">
+              {points.length === 1 ? 'Klikk neste punkt' : `${points.length} punkt`}
+            </span>
+            <button
+              onClick={handleReset}
+              className="text-slate-500 hover:text-slate-300 transition-colors"
+              title="Nullstill"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+
+          {/* Straight-line distance */}
+          {straightKm !== null && (
+            <div className="flex items-center justify-between gap-3 text-slate-300">
+              <span>Luftlinje</span>
+              <span className="font-medium text-white">{fmtKm(straightKm)}</span>
+            </div>
+          )}
+
+          {/* Drive info (only for exactly 2 points) */}
+          {points.length === 2 && (
+            <div className="mt-1 pt-1.5 border-t border-slate-700/60 space-y-0.5">
+              {loadingDrive ? (
+                <span className="text-slate-500">Henter kjøretid…</span>
+              ) : driveInfo ? (
+                <>
+                  <div className="flex items-center justify-between gap-3 text-slate-300">
+                    <span>Kjøring</span>
+                    <span className="font-medium text-white">{driveInfo.dist}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-slate-300">
+                    <span>Reisetid</span>
+                    <span className="font-medium text-white">{driveInfo.time}</span>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          )}
+
+          {/* Hint */}
+          <p className="mt-1.5 text-[10px] text-slate-500">
+            {points.length < 2 ? 'Klikk i kartet for å legge til punkt' : 'Klikk for å legge til flere punkt'}
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Pans + zooms map; zooms back out to full route on deselect ──────────────
 
 function MapController({
@@ -253,9 +516,14 @@ export default function PlanningMap({
   onRouteStatesChange,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
+  const activeToolRef = useRef(false)
+
+  const handleToolActive = useCallback((active: boolean) => {
+    activeToolRef.current = active
+  }, [])
 
   const handleMapClick = useCallback((e: MapMouseEvent) => {
-    if (disabled || readOnly || !e.detail.latLng) return
+    if (disabled || readOnly || !e.detail.latLng || activeToolRef.current) return
     setPendingStop({ lat: e.detail.latLng.lat, lng: e.detail.latLng.lng })
   }, [disabled, readOnly])
 
@@ -389,6 +657,9 @@ export default function PlanningMap({
 
         {/* Egendefinerte kartkontroller */}
         <MapControls />
+
+        {/* Kartverktøy */}
+        <MapTools onActiveChange={handleToolActive} />
 
         {/* Popup for å bekrefte nytt stopp */}
         {pendingStop && !readOnly && (
