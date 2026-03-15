@@ -269,6 +269,7 @@ function sumKm(pts: { lat: number; lng: number }[]): number {
 }
 
 function fmtKm(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} m`
   return km >= 10 ? `${Math.round(km).toLocaleString('no-NO')} km` : `${km.toFixed(1)} km`
 }
 
