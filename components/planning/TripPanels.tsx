@@ -1,0 +1,703 @@
+'use client'
+
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import {
+  Plane, Users, ChevronDown, PlaneLanding, PlaneTakeoff, Clock,
+  Plus, Pencil, Trash2, Check, X,
+} from 'lucide-react'
+import { Flight, Traveler } from '@/types'
+import { useFlights } from '@/hooks/useFlights'
+import { useTravelers } from '@/hooks/useTravelers'
+import {
+  Airport, filterAirports, getOffset,
+  calcFlightMinutes, calcStopoverMinutes, formatDuration,
+} from '@/data/airports'
+
+// ── Flight form helpers ───────────────────────────────────────────────────────
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+      {children}
+    </p>
+  )
+}
+
+function Divider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <div className="flex-1 border-t border-slate-700/60" />
+      <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">{label}</span>
+      <div className="flex-1 border-t border-slate-700/60" />
+    </div>
+  )
+}
+
+function DurationBadge({ minutes, label }: { minutes: number; label: string }) {
+  return (
+    <div className="flex items-center justify-center gap-1 py-0.5 text-[10px] text-sky-500/80">
+      <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+      <span>{label}: {formatDuration(minutes)}</span>
+    </div>
+  )
+}
+
+function AirportInput({ defaultValue, placeholder, onSave }: {
+  defaultValue?: string | null
+  placeholder?: string
+  onSave: (v: string) => void
+}) {
+  const [value, setValue] = useState(defaultValue ?? '')
+  const [results, setResults] = useState<Airport[]>([])
+  const [open, setOpen] = useState(false)
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 200 })
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  function updatePos() {
+    if (!inputRef.current) return
+    const r = inputRef.current.getBoundingClientRect()
+    setDropPos({ top: r.bottom + 2, left: r.left, width: r.width })
+  }
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const q = e.target.value
+    setValue(q)
+    const matches = filterAirports(q)
+    setResults(matches)
+    if (matches.length > 0) { setOpen(true); updatePos() } else setOpen(false)
+  }
+  function handleSelect(airport: Airport) {
+    const formatted = `${airport.code} – ${airport.city}`
+    setValue(formatted); setResults([]); setOpen(false); onSave(formatted)
+  }
+  function handleBlur() {
+    setTimeout(() => setOpen(false), 150)
+    onSave(value.trim())
+  }
+
+  const dropdown = open && results.length > 0 && mounted
+    ? createPortal(
+        <div
+          style={{ position: 'fixed', top: dropPos.top, left: dropPos.left, width: Math.max(dropPos.width, 260), zIndex: 9999 }}
+          className="bg-slate-800 border border-slate-600 rounded-lg shadow-2xl overflow-hidden"
+        >
+          {results.map((a) => (
+            <button
+              key={a.code}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(a) }}
+              className="w-full text-left px-3 py-1.5 hover:bg-slate-700 transition-colors flex items-center gap-2.5 border-b border-slate-700/40 last:border-0"
+            >
+              <span className="font-mono text-xs font-bold text-sky-400 w-9 flex-shrink-0">{a.code}</span>
+              <div className="min-w-0">
+                <p className="text-xs text-slate-200 truncate">{a.city}</p>
+                <p className="text-[10px] text-slate-500 truncate">{a.name}</p>
+              </div>
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )
+    : null
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={handleChange}
+        onFocus={() => { if (results.length > 0) { setOpen(true); updatePos() } }}
+        onBlur={handleBlur}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { setOpen(false); inputRef.current?.blur() }
+          if (e.key === 'Enter') inputRef.current?.blur()
+        }}
+        placeholder={placeholder}
+        autoComplete="off"
+        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+      />
+      {dropdown}
+    </>
+  )
+}
+
+function Txt({ defaultValue, placeholder, onSave }: {
+  defaultValue?: string | null; placeholder?: string; onSave: (v: string) => void
+}) {
+  return (
+    <input
+      type="text"
+      defaultValue={defaultValue ?? ''}
+      placeholder={placeholder}
+      onBlur={(e) => onSave(e.target.value.trim())}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+    />
+  )
+}
+
+function TimeInput({ defaultValue, onSave }: { defaultValue?: string | null; onSave: (v: string) => void }) {
+  return (
+    <input
+      type="time"
+      defaultValue={defaultValue ?? ''}
+      onBlur={(e) => onSave(e.target.value)}
+      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
+    />
+  )
+}
+
+function DateInput({ defaultValue, onSave }: { defaultValue?: string | null; onSave: (v: string) => void }) {
+  return (
+    <input
+      type="date"
+      defaultValue={defaultValue ?? ''}
+      onBlur={(e) => onSave(e.target.value)}
+      onChange={(e) => onSave(e.target.value)}
+      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
+    />
+  )
+}
+
+function FlightForm({ flight, onSave }: {
+  flight: Flight | null
+  onSave: (updates: Partial<Omit<Flight, 'id' | 'trip_id' | 'direction'>>) => void
+}) {
+  const stopover = flight?.has_stopover ?? false
+  const fromOffset  = getOffset(flight?.leg1_from)
+  const viaOffset   = getOffset(flight?.leg1_to)
+  const finalOffset = getOffset(flight?.leg2_to)
+  const leg1Min = calcFlightMinutes(flight?.leg1_departure, fromOffset, flight?.leg1_arrival, viaOffset)
+  const leg2Min = stopover
+    ? calcFlightMinutes(flight?.leg2_departure, viaOffset, flight?.leg2_arrival, finalOffset)
+    : null
+  const stopoverMin = stopover ? calcStopoverMinutes(flight?.leg1_arrival, flight?.leg2_departure) : null
+
+  function saveLeg1Arrival(v: string)   { onSave({ leg1_arrival: v }) }
+  function saveLeg2Departure(v: string) { onSave({ leg2_departure: v }) }
+
+  return (
+    <div className="px-4 pt-2 pb-4 space-y-2.5">
+      <div><Label>Dato</Label><DateInput key={`date-${flight?.id}`} defaultValue={flight?.flight_date} onSave={(v) => onSave({ flight_date: v })} /></div>
+      <div><Label>Fra (flyplass / by)</Label><AirportInput key={`from-${flight?.id}`} defaultValue={flight?.leg1_from} placeholder="OSL – Oslo" onSave={(v) => onSave({ leg1_from: v })} /></div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div><Label>Avgang</Label><TimeInput key={`dep1-${flight?.id}`} defaultValue={flight?.leg1_departure} onSave={(v) => onSave({ leg1_departure: v })} /></div>
+        <div><Label>Flightnr.</Label><Txt key={`fn1-${flight?.id}`} defaultValue={flight?.leg1_flight_nr} placeholder="DY 7081" onSave={(v) => onSave({ leg1_flight_nr: v })} /></div>
+      </div>
+
+      <label className="flex items-center gap-2 py-0.5 cursor-pointer select-none group">
+        <input type="checkbox" checked={stopover} onChange={(e) => onSave({ has_stopover: e.target.checked })} className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer" />
+        <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Mellomlanding</span>
+      </label>
+
+      {!stopover ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>Ankomst</Label><TimeInput key={`arr-d-${flight?.id}`} defaultValue={flight?.leg1_arrival} onSave={saveLeg1Arrival} /></div>
+            <div><Label>Destinasjon</Label><AirportInput key={`to-d-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg1_to: v })} /></div>
+          </div>
+          {leg1Min !== null && <DurationBadge minutes={leg1Min} label="Flytid" />}
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>Ankomst</Label><TimeInput key={`arr1-s-${flight?.id}`} defaultValue={flight?.leg1_arrival} onSave={saveLeg1Arrival} /></div>
+            <div><Label>Mellomstasjon</Label><AirportInput key={`stop-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="AMS – Amsterdam" onSave={(v) => onSave({ leg1_to: v })} /></div>
+          </div>
+          {leg1Min !== null && <DurationBadge minutes={leg1Min} label="Flytid etappe 1" />}
+          {stopoverMin !== null && <DurationBadge minutes={stopoverMin} label="Ventetid på flyplass" />}
+          <Divider label="Neste etappe" />
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>Avgang</Label><TimeInput key={`dep2-${flight?.id}`} defaultValue={flight?.leg2_departure} onSave={saveLeg2Departure} /></div>
+            <div><Label>Flightnr.</Label><Txt key={`fn2-${flight?.id}`} defaultValue={flight?.leg2_flight_nr} placeholder="KL 0870" onSave={(v) => onSave({ leg2_flight_nr: v })} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label>Ankomst</Label><TimeInput key={`arr2-${flight?.id}`} defaultValue={flight?.leg2_arrival} onSave={(v) => onSave({ leg2_arrival: v })} /></div>
+            <div><Label>Endelig destinasjon</Label><AirportInput key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg2_to: v })} /></div>
+          </div>
+          {leg2Min !== null && <DurationBadge minutes={leg2Min} label="Flytid etappe 2" />}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Traveler helpers ──────────────────────────────────────────────────────────
+
+const INTERESTS = [
+  { label: 'Baseball',     emoji: '⚾' },
+  { label: 'Friluftsliv', emoji: '🥾' },
+  { label: 'Restauranter', emoji: '🍽' },
+  { label: 'Shopping',    emoji: '🛍' },
+  { label: 'Museer',      emoji: '🏛' },
+  { label: 'Musikk',      emoji: '🎵' },
+  { label: 'Parker',      emoji: '🎡' },
+  { label: 'Natur',       emoji: '🌲' },
+  { label: 'Fotografi',   emoji: '📸' },
+  { label: 'Strand',      emoji: '🏖' },
+  { label: 'Sport',       emoji: '🏅' },
+  { label: 'Kino',        emoji: '🎬' },
+]
+
+const GENDERS = [
+  { value: 'mann',   label: 'Mann' },
+  { value: 'kvinne', label: 'Kvinne' },
+  { value: 'annet',  label: 'Annet' },
+]
+
+function genderEmoji(gender: string | null) {
+  if (gender === 'mann') return '👨'
+  if (gender === 'kvinne') return '👩'
+  return '🧑'
+}
+
+function parseInterests(str: string | null): string[] {
+  if (!str) return []
+  return str.split(',').map((s) => s.trim()).filter(Boolean)
+}
+
+interface FormState {
+  name: string
+  age: string
+  gender: string
+  interests: string[]
+  description: string
+}
+
+function blankForm(): FormState {
+  return { name: '', age: '', gender: '', interests: [], description: '' }
+}
+
+function travelerToForm(t: Traveler): FormState {
+  return {
+    name: t.name,
+    age: t.age != null ? String(t.age) : '',
+    gender: t.gender ?? '',
+    interests: parseInterests(t.interests),
+    description: t.description ?? '',
+  }
+}
+
+function TravelerForm({
+  initial, onSave, onCancel, isSaving,
+}: {
+  initial: FormState
+  onSave: (form: FormState) => void
+  onCancel: () => void
+  isSaving: boolean
+}) {
+  const [form, setForm] = useState<FormState>(initial)
+
+  function toggleInterest(label: string) {
+    setForm((prev) => ({
+      ...prev,
+      interests: prev.interests.includes(label)
+        ? prev.interests.filter((i) => i !== label)
+        : [...prev.interests, label],
+    }))
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Name + Age */}
+      <div className="grid grid-cols-[1fr_4.5rem] gap-2">
+        <div className="space-y-1">
+          <label className="text-[10px] text-slate-500">Navn *</label>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            placeholder="Fornavn og etternavn"
+            className="w-full h-7 rounded-md bg-slate-800 border border-slate-700 px-2.5 text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-blue-500/60"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] text-slate-500">Alder</label>
+          <input
+            type="number"
+            min={0}
+            max={120}
+            value={form.age}
+            onChange={(e) => setForm((p) => ({ ...p, age: e.target.value }))}
+            placeholder="–"
+            className="w-full h-7 rounded-md bg-slate-800 border border-slate-700 px-2 text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-blue-500/60"
+          />
+        </div>
+      </div>
+
+      {/* Gender */}
+      <div className="space-y-1">
+        <label className="text-[10px] text-slate-500">Kjønn</label>
+        <div className="flex gap-1.5">
+          {GENDERS.map((g) => (
+            <button
+              key={g.value}
+              type="button"
+              onClick={() => setForm((p) => ({ ...p, gender: p.gender === g.value ? '' : g.value }))}
+              className={`flex-1 py-1 text-xs rounded-md border transition-colors ${
+                form.gender === g.value
+                  ? 'bg-blue-600/30 border-blue-500/60 text-blue-300'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Interests */}
+      <div className="space-y-1">
+        <label className="text-[10px] text-slate-500">Interesser</label>
+        <div className="flex flex-wrap gap-1">
+          {INTERESTS.map((i) => (
+            <button
+              key={i.label}
+              type="button"
+              onClick={() => toggleInterest(i.label)}
+              className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium border transition-colors ${
+                form.interests.includes(i.label)
+                  ? 'bg-blue-600/30 border-blue-500/60 text-blue-300'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
+              }`}
+            >
+              {i.emoji} {i.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Description */}
+      <div className="space-y-1">
+        <label className="text-[10px] text-slate-500">Beskrivelse</label>
+        <textarea
+          value={form.description}
+          onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+          placeholder="Litt om personen, preferanser…"
+          rows={2}
+          className="w-full rounded-md bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-blue-500/60 resize-none"
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2 justify-end">
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+        >
+          <X className="w-3 h-3" /> Avbryt
+        </button>
+        <button
+          onClick={() => onSave(form)}
+          disabled={!form.name.trim() || isSaving}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          <Check className="w-3 h-3" /> Lagre
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function TravelerCard({
+  traveler, onUpdate, onDelete,
+}: {
+  traveler: Traveler
+  onUpdate: (id: string, form: FormState) => Promise<void>
+  onDelete: (id: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const interests = useMemo(() => {
+    const parsed = parseInterests(traveler.interests)
+    return INTERESTS.filter((i) => parsed.includes(i.label))
+  }, [traveler.interests])
+
+  async function handleSave(form: FormState) {
+    setSaving(true)
+    await onUpdate(traveler.id, form)
+    setSaving(false)
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <div className="bg-slate-800/60 border border-blue-500/40 rounded-xl p-3">
+        <TravelerForm
+          initial={travelerToForm(traveler)}
+          onSave={handleSave}
+          onCancel={() => setEditing(false)}
+          isSaving={saving}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xl leading-none">{genderEmoji(traveler.gender)}</span>
+          <div>
+            <p className="text-xs font-semibold text-slate-100">{traveler.name}</p>
+            <p className="text-[10px] text-slate-500">
+              {[
+                traveler.age != null && `${traveler.age} år`,
+                GENDERS.find((g) => g.value === traveler.gender)?.label,
+              ].filter(Boolean).join(' · ')}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          <button
+            onClick={() => setEditing(true)}
+            className="p-1 rounded text-slate-600 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => onDelete(traveler.id)}
+            className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-slate-700 transition-colors"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+
+      {interests.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {interests.map((i) => (
+            <span
+              key={i.label}
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-700/60 text-slate-400 border border-slate-700"
+            >
+              {i.emoji} {i.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {traveler.description && (
+        <p className="text-[10px] text-slate-500 leading-relaxed italic mt-1.5">
+          &ldquo;{traveler.description}&rdquo;
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+interface TripPanelsProps {
+  tripId: string
+}
+
+export default function TripPanels({ tripId }: TripPanelsProps) {
+  const { outbound, returnFlight, saveFlight } = useFlights(tripId)
+  const { travelers, addTraveler, updateTraveler, deleteTraveler } = useTravelers(tripId)
+
+  const [openPanel, setOpenPanel] = useState<'flight' | 'crew' | null>(null)
+  const [flightTab, setFlightTab] = useState<'outbound' | 'return'>('outbound')
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addSaving, setAddSaving] = useState(false)
+
+  const activeFlight = flightTab === 'outbound' ? outbound : returnFlight
+
+  function togglePanel(panel: 'flight' | 'crew') {
+    setOpenPanel((p) => (p === panel ? null : panel))
+  }
+
+  // Short flight summary for collapsed header
+  const flightSummaryText = (() => {
+    const parts: string[] = []
+    if (outbound?.leg1_from) parts.push(outbound.leg1_from.split(/[\s–]/)[0])
+    const dest = outbound?.has_stopover ? outbound?.leg2_to : outbound?.leg1_to
+    if (dest) parts.push(dest.split(/[\s–]/)[0])
+    return parts.length > 0 ? parts.join('→') : null
+  })()
+
+  async function handleAddTraveler(form: FormState) {
+    setAddSaving(true)
+    await addTraveler({
+      name: form.name.trim(),
+      age: form.age ? Number(form.age) : null,
+      gender: form.gender || null,
+      interests: form.interests.length > 0 ? form.interests.join(',') : null,
+      description: form.description.trim() || null,
+    })
+    setAddSaving(false)
+    setShowAddForm(false)
+  }
+
+  async function handleUpdateTraveler(id: string, form: FormState) {
+    await updateTraveler(id, {
+      name: form.name.trim(),
+      age: form.age ? Number(form.age) : null,
+      gender: form.gender || null,
+      interests: form.interests.length > 0 ? form.interests.join(',') : null,
+      description: form.description.trim() || null,
+    })
+  }
+
+  return (
+    <div className="border-t border-slate-800">
+
+      {/* ── Header row: two buttons side by side ── */}
+      <div className="flex">
+
+        {/* Flight button */}
+        <button
+          onClick={() => togglePanel('flight')}
+          className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors border-r border-slate-800 min-w-0 ${
+            openPanel === 'flight'
+              ? 'text-slate-200 bg-slate-800/60'
+              : 'text-slate-300 hover:bg-slate-800/50'
+          }`}
+        >
+          <Plane className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+          <span className="text-xs truncate">Fly tur/retur</span>
+          {flightSummaryText && (
+            <span className="text-[10px] text-slate-500 ml-auto truncate max-w-[56px] flex-shrink-0">
+              {flightSummaryText}
+            </span>
+          )}
+          <ChevronDown
+            className={`w-3.5 h-3.5 text-slate-500 transition-transform flex-shrink-0 ${
+              openPanel === 'flight' ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+
+        {/* Turfølge button */}
+        <button
+          onClick={() => togglePanel('crew')}
+          className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors min-w-0 ${
+            openPanel === 'crew'
+              ? 'text-slate-200 bg-slate-800/60'
+              : 'text-slate-300 hover:bg-slate-800/50'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+          <span className="text-xs truncate">Turfølge</span>
+          {travelers.length > 0 && (
+            <span className="text-[10px] text-slate-500 ml-auto flex-shrink-0">
+              {travelers.length} pers.
+            </span>
+          )}
+          <ChevronDown
+            className={`w-3.5 h-3.5 text-slate-500 transition-transform flex-shrink-0 ${
+              openPanel === 'crew' ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* ── Flight expanded (full width) ── */}
+      {openPanel === 'flight' && (
+        <div className="border-t border-slate-800/60">
+          {/* Tabs: Utreise / Hjemreise */}
+          <div className="flex border-b border-slate-800 bg-slate-900/50">
+            {([
+              { dir: 'outbound', label: 'Utreise',   icon: PlaneTakeoff, flight: outbound },
+              { dir: 'return',   label: 'Hjemreise', icon: PlaneLanding, flight: returnFlight },
+            ] as const).map(({ dir, label, icon: Icon, flight }) => {
+              const dateStr = flight?.flight_date
+                ? new Date(flight.flight_date + 'T12:00:00').toLocaleDateString('nb-NO', {
+                    day: 'numeric', month: 'short',
+                  })
+                : null
+              return (
+                <button
+                  key={dir}
+                  onClick={() => setFlightTab(dir)}
+                  className={`flex-1 flex flex-col items-center px-3 py-2 text-xs font-semibold transition-colors ${
+                    flightTab === dir
+                      ? 'text-sky-400 border-b-2 border-sky-400 bg-slate-800/40'
+                      : 'text-slate-500 hover:text-slate-300 border-b-2 border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </div>
+                  {dateStr && (
+                    <span className={`text-[10px] mt-0.5 ${flightTab === dir ? 'text-sky-500/70' : 'text-slate-600'}`}>
+                      {dateStr}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          <FlightForm
+            key={`${flightTab}-${activeFlight?.has_stopover ?? false}`}
+            flight={activeFlight}
+            onSave={(updates) => saveFlight(flightTab, updates)}
+          />
+        </div>
+      )}
+
+      {/* ── Turfølge expanded (full width) ── */}
+      {openPanel === 'crew' && (
+        <div className="border-t border-slate-800/60">
+          {/* Sub-header */}
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+              {travelers.length === 0
+                ? 'Ingen registrert ennå'
+                : `${travelers.length} ${travelers.length === 1 ? 'person' : 'personer'} på tur`}
+            </span>
+            {!showAddForm && (
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+              >
+                <Plus className="w-3 h-3" /> Legg til
+              </button>
+            )}
+          </div>
+
+          {/* Add form */}
+          {showAddForm && (
+            <div className="mx-3 mb-3 bg-slate-800/60 border border-blue-500/40 rounded-xl p-3">
+              <p className="text-[10px] font-semibold text-slate-400 mb-2 uppercase tracking-wider">
+                Ny person
+              </p>
+              <TravelerForm
+                initial={blankForm()}
+                onSave={handleAddTraveler}
+                onCancel={() => setShowAddForm(false)}
+                isSaving={addSaving}
+              />
+            </div>
+          )}
+
+          {/* Traveler cards */}
+          <div className="px-3 pb-3 space-y-2">
+            {travelers.map((t) => (
+              <TravelerCard
+                key={t.id}
+                traveler={t}
+                onUpdate={handleUpdateTraveler}
+                onDelete={deleteTraveler}
+              />
+            ))}
+          </div>
+
+          {/* Empty state */}
+          {travelers.length === 0 && !showAddForm && (
+            <div className="px-4 pb-4 text-center">
+              <p className="text-3xl mb-2">👥</p>
+              <p className="text-xs text-slate-500">Legg til personene som skal være med på ferien.</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

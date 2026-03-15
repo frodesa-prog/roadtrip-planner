@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, Users, LogOut } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const links = [
@@ -10,7 +10,6 @@ const links = [
   { href: '/summary', label: 'Oppsummering', icon: CalendarDays },
   { href: '/aktiviteter', label: 'Aktiviteter', icon: ListChecks },
   { href: '/kostnader', label: 'Kostnader', icon: Receipt },
-  { href: '/turfølge', label: 'Turfølge', icon: Users },
   { href: '/beskrivelse', label: 'Beskrivelse', icon: BookOpen },
   { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
   { href: '/notes', label: 'Notater', icon: FileText },

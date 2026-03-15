@@ -6,7 +6,7 @@ import { Stop, Trip, Hotel, Activity, RouteLeg } from '@/types'
 import StopCard from './StopCard'
 import CalendarView from './CalendarView'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import FlightPanel from './FlightPanel'
+import TripPanels from './TripPanels'
 import TripManager from './TripManager'
 import { useDrivingInfo, addMinutes } from '@/hooks/useDrivingInfo'
 
@@ -105,8 +105,8 @@ export default function PlanSidebar({
         }}
       />
 
-      {/* Fly */}
-      {currentTrip && <FlightPanel tripId={currentTrip.id} />}
+      {/* Fly tur/retur + Turfølge */}
+      {currentTrip && <TripPanels tripId={currentTrip.id} />}
 
       {/* Stats + calendar toggle */}
       {currentTrip && (
