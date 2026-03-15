@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 interface StopContext {
   city: string
@@ -74,9 +74,9 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY
 
   if (!apiKey || apiKey === 'din-api-nøkkel-her') {
-    return new Response(
-      JSON.stringify({ error: 'ANTHROPIC_API_KEY er ikke konfigurert i .env.local' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    return NextResponse.json(
+      { error: 'ANTHROPIC_API_KEY er ikke konfigurert' },
+      { status: 500 },
     )
   }
 
@@ -84,47 +84,31 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json()
   } catch {
-    return new Response('Ugyldig forespørsel', { status: 400 })
+    return NextResponse.json({ error: 'Ugyldig forespørsel' }, { status: 400 })
   }
 
   const { messages, tripContext } = body
-  const client = new Anthropic({ apiKey })
-  const encoder = new TextEncoder()
 
-  const readable = new ReadableStream({
-    async start(controller) {
-      try {
-        const stream = client.messages.stream({
-          model: 'claude-3-5-haiku-20241022',
-          max_tokens: 2048,
-          system: buildSystemPrompt(tripContext),
-          messages: messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        })
+  try {
+    const client = new Anthropic({ apiKey })
 
-        for await (const event of stream) {
-          if (
-            event.type === 'content_block_delta' &&
-            event.delta.type === 'text_delta'
-          ) {
-            controller.enqueue(encoder.encode(event.delta.text))
-          }
-        }
+    const message = await client.messages.create({
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 2048,
+      system: buildSystemPrompt(tripContext),
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+    })
 
-        controller.close()
-      } catch (err) {
-        console.error('Streaming error:', err)
-        controller.error(err)
-      }
-    },
-  })
+    const block = message.content[0]
+    const text = block.type === 'text' ? block.text : ''
 
-  return new Response(readable, {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'no-cache',
-    },
-  })
+    return NextResponse.json({ text })
+  } catch (err) {
+    console.error('Anthropic API error:', err)
+    const message = err instanceof Error ? err.message : 'Ukjent feil'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

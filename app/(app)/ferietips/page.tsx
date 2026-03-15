@@ -54,11 +54,9 @@ function Suggestions({
 
 function MessageBubble({
   msg,
-  isStreaming,
   onSave,
 }: {
   msg: ChatMessage
-  isStreaming: boolean
   onSave: (msg: ChatMessage) => void
 }) {
   if (msg.role === 'user') {
@@ -80,35 +78,14 @@ function MessageBubble({
         </div>
         {/* Bubble */}
         <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm px-4 py-3 min-w-0">
-          {msg.content ? (
-            <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
-              {msg.content}
-              {isStreaming && (
-                <span className="inline-block w-0.5 h-4 bg-amber-400 ml-0.5 animate-pulse align-middle" />
-              )}
-            </p>
-          ) : (
-            /* Typing indicator */
-            <div className="flex items-center gap-1 py-0.5">
-              <div
-                className="w-2 h-2 rounded-full bg-amber-400/60 animate-bounce"
-                style={{ animationDelay: '0ms' }}
-              />
-              <div
-                className="w-2 h-2 rounded-full bg-amber-400/60 animate-bounce"
-                style={{ animationDelay: '150ms' }}
-              />
-              <div
-                className="w-2 h-2 rounded-full bg-amber-400/60 animate-bounce"
-                style={{ animationDelay: '300ms' }}
-              />
-            </div>
-          )}
+          <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+            {msg.content}
+          </p>
         </div>
       </div>
 
-      {/* Save button – only visible when done */}
-      {msg.content && !isStreaming && (
+      {/* Save button */}
+      {msg.content && (
         <div className="pl-8">
           <button
             onClick={() => onSave(msg)}
@@ -145,7 +122,6 @@ export default function FerietipsPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [streamingId, setStreamingId] = useState<string | null>(null)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -196,17 +172,10 @@ export default function FerietipsPage() {
       role: 'user',
       content: trimmed,
     }
-    const assistantId = crypto.randomUUID()
-    const assistantMsg: ChatMessage = {
-      id: assistantId,
-      role: 'assistant',
-      content: '',
-    }
 
-    setMessages((prev) => [...prev, userMsg, assistantMsg])
+    setMessages((prev) => [...prev, userMsg])
     setInput('')
     setIsLoading(true)
-    setStreamingId(assistantId)
 
     try {
       const res = await fetch('/api/ferietips', {
@@ -221,37 +190,29 @@ export default function FerietipsPage() {
         }),
       })
 
+      const data = await res.json()
+
       if (!res.ok) {
-        const err = await res.text()
-        throw new Error(err || 'Noe gikk galt')
+        throw new Error(data.error || 'Noe gikk galt')
       }
 
-      const reader = res.body!.getReader()
-      const decoder = new TextDecoder()
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId ? { ...m, content: m.content + chunk } : m,
-          ),
-        )
+      const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: data.text ?? '',
       }
+      setMessages((prev) => [...prev, assistantMsg])
     } catch (err) {
       const errorText =
-        err instanceof Error && err.message.includes('ANTHROPIC_API_KEY')
-          ? 'API-nøkkel mangler. Legg til ANTHROPIC_API_KEY i .env.local.'
-          : 'Beklager, noe gikk galt. Prøv igjen.'
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId ? { ...m, content: errorText } : m,
-        ),
-      )
+        err instanceof Error ? err.message : 'Beklager, noe gikk galt. Prøv igjen.'
+      const errorMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: errorText,
+      }
+      setMessages((prev) => [...prev, errorMsg])
     } finally {
       setIsLoading(false)
-      setStreamingId(null)
     }
   }
 
@@ -356,12 +317,29 @@ export default function FerietipsPage() {
         )}
 
         {/* Chat messages */}
+        {/* Typing indicator while waiting */}
+        {isLoading && (
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-start gap-2.5">
+              <div className="flex-shrink-0 mt-0.5 w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+                <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+              </div>
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm px-4 py-3">
+                <div className="flex items-center gap-1 py-0.5">
+                  <div className="w-2 h-2 rounded-full bg-amber-400/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 rounded-full bg-amber-400/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 rounded-full bg-amber-400/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="max-w-2xl mx-auto space-y-4">
           {messages.map((msg) => (
             <MessageBubble
               key={msg.id}
               msg={msg}
-              isStreaming={streamingId === msg.id}
               onSave={handleSave}
             />
           ))}
