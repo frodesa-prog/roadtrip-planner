@@ -511,10 +511,14 @@ export default function TripPanels({
   const [showAddForm, setShowAddForm] = useState(false)
   const [addSaving, setAddSaving] = useState(false)
 
-  // Local state for the group description textarea
+  // Local state for the group description
   const [descValue, setDescValue] = useState(groupDescription ?? '')
+  const [editingDesc, setEditingDesc] = useState(false)
   // Reset when a different trip is selected
-  useEffect(() => { setDescValue(groupDescription ?? '') }, [tripId]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setDescValue(groupDescription ?? '')
+    setEditingDesc(false)
+  }, [tripId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeFlight = flightTab === 'outbound' ? outbound : returnFlight
 
@@ -710,21 +714,48 @@ export default function TripPanels({
 
           {/* ── Group description ── */}
           <div className="mx-3 mb-3 mt-1 pt-3 border-t border-slate-800/80 space-y-1.5">
-            <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-              Generell beskrivelse av turfølget
-            </label>
-            <textarea
-              value={descValue}
-              onChange={(e) => setDescValue(e.target.value)}
-              onBlur={() => {
-                if (onUpdateGroupDescription && descValue !== (groupDescription ?? '')) {
-                  onUpdateGroupDescription(descValue)
-                }
-              }}
-              placeholder="F.eks. familie med barn, sportsglade tenåringer, ekteparet som liker god mat og kultur…"
-              rows={3}
-              className="w-full rounded-lg bg-slate-800/60 border border-slate-700 px-2.5 py-2 text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-blue-500/60 resize-none transition-colors"
-            />
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+                Generell beskrivelse
+              </p>
+              {!editingDesc && descValue && (
+                <button
+                  onClick={() => setEditingDesc(true)}
+                  title="Rediger beskrivelse"
+                  className="text-slate-600 hover:text-slate-400 transition-colors"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Edit mode OR empty → show textarea */}
+            {(editingDesc || !descValue) ? (
+              <textarea
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus={editingDesc}
+                value={descValue}
+                onChange={(e) => setDescValue(e.target.value)}
+                onBlur={() => {
+                  setEditingDesc(false)
+                  if (onUpdateGroupDescription && descValue !== (groupDescription ?? '')) {
+                    onUpdateGroupDescription(descValue)
+                  }
+                }}
+                placeholder="F.eks. familie med barn, sportsglade tenåringer, ekteparet som liker god mat og kultur…"
+                rows={3}
+                className="w-full rounded-lg bg-slate-800/60 border border-slate-700 px-2.5 py-2 text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-blue-500/60 resize-none transition-colors"
+              />
+            ) : (
+              /* View mode → read-only text, click to edit */
+              <button
+                onClick={() => setEditingDesc(true)}
+                className="w-full text-left text-xs text-slate-400 leading-relaxed hover:text-slate-300 transition-colors"
+              >
+                {descValue}
+              </button>
+            )}
+
             <p className="text-[10px] text-slate-600 leading-snug">
               💡 Brukes av Ferietips-chat for å gi mer relevante reiseforslag
             </p>
