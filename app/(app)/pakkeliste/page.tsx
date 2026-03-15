@@ -13,6 +13,7 @@ const CATEGORIES: { value: PackingCategory; label: string }[] = [
   { value: 'hygiene', label: 'Hygiene' },
   { value: 'electronics', label: 'Elektronikk' },
   { value: 'documents', label: 'Dokumenter' },
+  { value: 'handbaggage', label: 'Håndbagasje' },
   { value: 'other', label: 'Annet' },
 ]
 

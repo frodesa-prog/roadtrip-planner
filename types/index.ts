@@ -218,7 +218,7 @@ export interface PreferenceAccess {
   created_at: string
 }
 
-export type PackingCategory = 'documents' | 'electronics' | 'clothes' | 'hygiene' | 'other'
+export type PackingCategory = 'documents' | 'electronics' | 'clothes' | 'hygiene' | 'handbaggage' | 'other'
 
 export interface DefaultPackingItem {
   id: string
