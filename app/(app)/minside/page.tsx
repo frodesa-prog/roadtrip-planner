@@ -840,6 +840,7 @@ const PACKING_CATEGORIES: { value: PackingCategory; label: string; emoji: string
   { value: 'electronics', label: 'Elektronikk', emoji: '🔌' },
   { value: 'clothes',     label: 'Klær',        emoji: '👕' },
   { value: 'hygiene',     label: 'Hygiene',     emoji: '🪥' },
+  { value: 'handbaggage', label: 'Håndbagasje', emoji: '🎒' },
   { value: 'other',       label: 'Annet',       emoji: '📦' },
 ]
 
