@@ -164,8 +164,9 @@ export interface Traveler {
   name: string
   age: number | null
   gender: string | null          // 'mann' | 'kvinne' | 'annet'
-  interests: string | null       // kommaseparert liste
-  description: string | null
+  interests: string | null       // kommaseparert liste (vises som badges i UI)
+  description: string | null     // interests_extra – vises som fritekst i UI
+  ai_context: string | null      // mat/mobilitet/annet – sendes til AI, vises ikke i UI
   linked_user_id: string | null  // koblet til registrert bruker
   created_at: string
 }

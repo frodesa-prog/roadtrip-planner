@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Traveler, UserPreferences, UserProfile } from '@/types'
 import { toast } from 'sonner'
 
-type TravelerInput = Partial<Pick<Traveler, 'name' | 'age' | 'gender' | 'interests' | 'description' | 'linked_user_id'>>
+type TravelerInput = Partial<Pick<Traveler, 'name' | 'age' | 'gender' | 'interests' | 'description' | 'ai_context' | 'linked_user_id'>>
 
 // Beregn alder fra fødselsdato
 function ageFromBirthDate(birthDate: string | null | undefined): number | null {
@@ -18,6 +18,16 @@ function ageFromBirthDate(birthDate: string | null | undefined): number | null {
     (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())
   ) age--
   return age
+}
+
+// Bygg skjult AI-kontekst fra preferanser (vises ikke i UI)
+function buildAiContext(prefs: UserPreferences | null): string | null {
+  if (!prefs) return null
+  const parts: string[] = []
+  if (prefs.food_preferences) parts.push(`Mat: ${prefs.food_preferences}`)
+  if (prefs.mobility_notes) parts.push(`Mobilitet: ${prefs.mobility_notes}`)
+  if (prefs.other_info) parts.push(prefs.other_info)
+  return parts.length > 0 ? parts.join('\n') : null
 }
 
 export type LinkedTravelerResult = 'success' | 'not_found' | 'no_access' | 'error'
@@ -46,6 +56,7 @@ export function useTravelers(tripId: string | null) {
       gender: data.gender ?? null,
       interests: data.interests ?? null,
       description: data.description ?? null,
+      ai_context: data.ai_context ?? null,
       linked_user_id: data.linked_user_id ?? null,
       created_at: new Date().toISOString(),
     }
@@ -90,11 +101,21 @@ export function useTravelers(tripId: string | null) {
 
       // Sjekk at vi ikke legger til oss selv igjen
       if (foundProfile.user_id === me.id) {
-        // Legg til uten preferanse-sjekk (alltid ok å legge til seg selv)
+        // Hent egne preferanser
+        const { data: ownPrefData } = await supabase
+          .from('user_preferences')
+          .select('*')
+          .eq('user_id', me.id)
+          .maybeSingle()
+        const ownPrefs = ownPrefData as UserPreferences | null
+
         await addTraveler({
           name: foundProfile.display_name || email.split('@')[0],
           age: profileAge,
           gender: profileGender,
+          interests: ownPrefs?.interests ?? null,
+          description: ownPrefs?.interests_extra ?? null,
+          ai_context: buildAiContext(ownPrefs),
           linked_user_id: foundProfile.user_id,
         })
         return 'success'
@@ -109,7 +130,7 @@ export function useTravelers(tripId: string | null) {
         .maybeSingle()
 
       if (!accessData) {
-        // Ingen tilgang – legg til som vanlig reisedeltaker uten preferanser
+        // Ingen tilgang – legg til med navn/alder/kjønn, ingen preferanser
         await addTraveler({
           name: foundProfile.display_name || email.split('@')[0],
           age: profileAge,
@@ -119,7 +140,7 @@ export function useTravelers(tripId: string | null) {
         return 'no_access'
       }
 
-      // Tilgang gitt – hent preferanser og fyll ut skjema
+      // Tilgang gitt – hent preferanser og fyll ut deltaker
       const { data: prefData } = await supabase
         .from('user_preferences')
         .select('*')
@@ -128,19 +149,13 @@ export function useTravelers(tripId: string | null) {
 
       const prefs = prefData as UserPreferences | null
 
-      // Bygg beskrivelse fra preferanser
-      const descParts: string[] = []
-      if (prefs?.food_preferences) descParts.push(`Mat: ${prefs.food_preferences}`)
-      if (prefs?.mobility_notes) descParts.push(`Mobilitet: ${prefs.mobility_notes}`)
-      if (prefs?.other_info) descParts.push(prefs.other_info)
-      if (prefs?.interests_extra) descParts.push(prefs.interests_extra)
-
       await addTraveler({
         name: foundProfile.display_name || email.split('@')[0],
         age: profileAge,
         gender: profileGender,
         interests: prefs?.interests ?? null,
-        description: descParts.join('\n') || null,
+        description: prefs?.interests_extra ?? null,      // Vises i UI
+        ai_context: buildAiContext(prefs),                // Skjult AI-kontekst
         linked_user_id: foundProfile.user_id,
       })
 

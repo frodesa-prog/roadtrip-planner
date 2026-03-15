@@ -19,7 +19,16 @@ interface TravelerContext {
   age: number | null
   gender: string | null
   interests: string | null
-  description: string | null
+  description: string | null    // interests_extra – vises i UI
+  aiContext: string | null       // mat/mobilitet/annet – skjult AI-kontekst
+}
+
+interface UserPreferencesContext {
+  interests: string | null
+  interestsExtra: string | null
+  foodPreferences: string | null
+  mobilityNotes: string | null
+  otherInfo: string | null
 }
 
 interface TripContext {
@@ -28,6 +37,7 @@ interface TripContext {
   activities: ActivityContext[]
   travelers: TravelerContext[]
   groupDescription?: string | null
+  userPreferences?: UserPreferencesContext | null
 }
 
 interface ChatMessage {
@@ -76,9 +86,24 @@ function buildSystemPrompt(ctx: TripContext): string {
       if (t.gender) parts.push(t.gender)
       const info = parts.join(', ')
       const interests = t.interests ? ` | Interesser: ${t.interests}` : ''
-      const desc = t.description ? ` | "${t.description}"` : ''
-      lines.push(`- ${info}${interests}${desc}`)
+      const desc = t.description ? ` | ${t.description}` : ''
+      const hidden = t.aiContext ? ` | ${t.aiContext}` : ''
+      lines.push(`- ${info}${interests}${desc}${hidden}`)
     })
+  }
+
+  // Innlogget brukers egne preferanser
+  if (ctx.userPreferences) {
+    const p = ctx.userPreferences
+    const prefParts: string[] = []
+    if (p.interests) prefParts.push(`Interesser: ${p.interests}`)
+    if (p.interestsExtra) prefParts.push(p.interestsExtra)
+    if (p.foodPreferences) prefParts.push(`Mat: ${p.foodPreferences}`)
+    if (p.mobilityNotes) prefParts.push(`Mobilitet: ${p.mobilityNotes}`)
+    if (p.otherInfo) prefParts.push(p.otherInfo)
+    if (prefParts.length > 0) {
+      lines.push('', `Brukerens egne preferanser: ${prefParts.join(' | ')}`)
+    }
   }
 
   lines.push(

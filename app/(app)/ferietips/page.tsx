@@ -260,11 +260,13 @@ export default function FerietipsPage() {
         gender: t.gender,
         interests: t.interests,
         description: t.description,
+        aiContext: t.ai_context ?? null,
       })),
       groupDescription: currentTrip?.group_description ?? null,
       userPreferences: preferences
         ? {
             interests: preferences.interests,
+            interestsExtra: preferences.interests_extra ?? null,
             foodPreferences: preferences.food_preferences,
             mobilityNotes: preferences.mobility_notes,
             otherInfo: preferences.other_info,

@@ -51,21 +51,60 @@ export function useTrips() {
       logActivity({ log_type: 'database', action: 'INSERT', entity_type: 'trip', entity_name: name, trip_id: newTrip.id })
 
       // Auto-legg til tureier som første reisedeltaker
-      const { data: profileData } = await supabase
-        .from('user_profiles')
-        .select('display_name')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      const displayName =
-        (profileData as { display_name: string | null } | null)?.display_name ||
-        user.email?.split('@')[0] ||
-        'Meg'
+      const [profileRes, prefRes] = await Promise.all([
+        supabase
+          .from('user_profiles')
+          .select('display_name, birth_date, gender')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('user_preferences')
+          .select('interests, interests_extra, food_preferences, mobility_notes, other_info')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+      ])
 
-      // Prøv med linked_user_id; fall tilbake uten om kolonnen ikke finnes ennå
+      const prof = profileRes.data as {
+        display_name: string | null
+        birth_date: string | null
+        gender: string | null
+      } | null
+      const prefs = prefRes.data as {
+        interests: string | null
+        interests_extra: string | null
+        food_preferences: string | null
+        mobility_notes: string | null
+        other_info: string | null
+      } | null
+
+      const displayName = prof?.display_name || user.email?.split('@')[0] || 'Meg'
+
+      // Beregn alder
+      let age: number | null = null
+      if (prof?.birth_date) {
+        const today = new Date()
+        const dob = new Date(prof.birth_date)
+        age = today.getFullYear() - dob.getFullYear()
+        if (today.getMonth() < dob.getMonth() ||
+            (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())) age--
+      }
+
+      // Bygg skjult AI-kontekst
+      const aiParts: string[] = []
+      if (prefs?.food_preferences) aiParts.push(`Mat: ${prefs.food_preferences}`)
+      if (prefs?.mobility_notes) aiParts.push(`Mobilitet: ${prefs.mobility_notes}`)
+      if (prefs?.other_info) aiParts.push(prefs.other_info)
+
+      // Prøv med alle felt; fall tilbake til minste insert om kolonner mangler
       const { error: travelerErr } = await supabase.from('travelers').insert({
         trip_id: newTrip.id,
         name: displayName,
         linked_user_id: user.id,
+        age,
+        gender: prof?.gender ?? null,
+        interests: prefs?.interests ?? null,
+        description: prefs?.interests_extra ?? null,
+        ai_context: aiParts.length > 0 ? aiParts.join('\n') : null,
       })
       if (travelerErr) {
         await supabase.from('travelers').insert({
