@@ -20,7 +20,7 @@ export default function NavBar() {
       {/* Logo */}
       <span className="text-sm font-bold text-white mr-4 flex items-center gap-2 select-none">
         <span className="text-base">🗺️</span>
-        <span className="hidden sm:inline text-slate-200">Roadtrip</span>
+        <span className="hidden sm:inline text-slate-200">Ferieplanlegger</span>
       </span>
 
       {/* Nav links */}

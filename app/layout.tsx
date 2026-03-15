@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/sonner'
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
-  title: 'Roadtrip Planner',
+  title: 'Ferieplanlegger',
   description: 'Planlegg og arkiver dine roadtrips',
 }
 

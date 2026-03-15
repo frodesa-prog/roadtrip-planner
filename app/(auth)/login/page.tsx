@@ -52,7 +52,7 @@ export default function LoginPage() {
           <div className="inline-flex bg-blue-500/20 border border-blue-500/30 rounded-full p-4 mb-4">
             <MapPin className="w-10 h-10 text-blue-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Roadtrip Planner</h1>
+          <h1 className="text-2xl font-bold text-white">Ferieplanlegger</h1>
           <p className="text-blue-200/60 text-sm mt-1">Planlegg og arkiver dine eventyr</p>
         </div>
 
