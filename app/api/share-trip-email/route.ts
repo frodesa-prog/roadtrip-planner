@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Reiseplanlegger <onboarding@resend.dev>',
+      from: 'Reiseplanlegger <noreply@sirkussand.com>',
       to: recipientEmail,
       subject: `${senderName} har delt "${tripName}" med deg`,
       html,
