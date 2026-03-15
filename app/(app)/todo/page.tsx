@@ -38,6 +38,7 @@ export default function TodoPage() {
   const { travelers } = useTravelers(currentTrip?.id ?? null)
   const { stops } = useStops(currentTrip?.id ?? null)
   const [showReminderPanel, setShowReminderPanel] = useState(false)
+  const [showCriticalPanel, setShowCriticalPanel] = useState(false)
 
   // Departure date = earliest stop arrival_date
   const departureDate = useMemo(() => {
@@ -50,6 +51,7 @@ export default function TodoPage() {
   const completedItems = items.filter((i) => i.completed).length
   const activeItems = totalItems - completedItems
   const pct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0
+  const criticalItems = items.filter((i) => i.is_critical && !i.completed)
 
   // Upcoming reminders (uncompleted with reminder_date >= today)
   const today = new Date().toISOString().slice(0, 10)
@@ -73,7 +75,7 @@ export default function TodoPage() {
 
         {/* Stats */}
         {currentTrip && (
-          <div className="border-t border-slate-800 p-3 flex-shrink-0 space-y-3">
+          <div className="border-t border-slate-800 px-4 py-3 flex-shrink-0 space-y-3">
 
             {/* Countdown */}
             <div className="text-center py-1">
@@ -94,17 +96,28 @@ export default function TodoPage() {
             {/* Progress */}
             {totalItems > 0 && (
               <div>
-                <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                  <span>{completedItems} utført</span>
-                  <span>{activeItems} gjenstår</span>
+                {/* Car moving along the bar */}
+                <div className="relative h-4 mb-0.5 overflow-hidden">
+                  <span
+                    className="absolute text-sm leading-none transition-all duration-700 ease-in-out"
+                    style={{ left: `${Math.min(pct, 88)}%` }}
+                  >
+                    🚗
+                  </span>
                 </div>
+                {/* Progress bar */}
                 <div className="w-full bg-slate-800 rounded-full h-2">
                   <div
                     className="bg-blue-600 rounded-full h-2 transition-all duration-500"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <p className="text-center text-[11px] text-slate-600 mt-1">{pct}% fullført</p>
+                {/* Stats below bar */}
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="text-[11px] text-slate-500">{completedItems} utført</span>
+                  <span className="text-[11px] font-semibold text-slate-400">{pct}%</span>
+                  <span className="text-[11px] text-slate-500">{activeItems} gjenstår</span>
+                </div>
               </div>
             )}
 
@@ -149,6 +162,37 @@ export default function TodoPage() {
                 )}
               </div>
             )}
+
+            {/* Critical tasks */}
+            {criticalItems.length > 0 && (
+              <>
+                <button
+                  onClick={() => setShowCriticalPanel((v) => !v)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-red-950/30 border border-red-800/40 text-red-300 hover:bg-red-950/50"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Flag className="w-3.5 h-3.5" />
+                    {criticalItems.length} kritiske oppgaver
+                  </span>
+                  {showCriticalPanel
+                    ? <ChevronDown className="w-3.5 h-3.5" />
+                    : <ChevronRight className="w-3.5 h-3.5" />
+                  }
+                </button>
+                {showCriticalPanel && (
+                  <div className="space-y-1.5">
+                    {criticalItems.map((item) => (
+                      <div key={item.id} className="bg-slate-800/80 rounded-md px-2.5 py-2 border-l-2 border-red-600/60">
+                        <p className="text-[11px] text-slate-200 leading-snug">{item.description}</p>
+                        <p className="text-[10px] text-slate-600 mt-0.5">
+                          {item.responsible === 'felles' ? 'Felles ansvar' : travelerName(item.responsible)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
@@ -160,9 +204,12 @@ export default function TodoPage() {
         ) : (
           <>
             {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-800 flex-shrink-0">
-              <h1 className="text-lg font-semibold text-slate-100">Gjøremål</h1>
-              <p className="text-xs text-slate-500">{currentTrip.name}</p>
+            <div className="px-6 py-4 border-b border-slate-800 flex-shrink-0 flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <h1 className="text-lg font-semibold text-slate-100">Gjøremål</h1>
+                <p className="text-xs text-slate-500">{currentTrip.name}</p>
+              </div>
+              {totalItems > 0 && <RoadIllustration pct={pct} />}
             </div>
 
             {loading ? (
@@ -221,7 +268,7 @@ function TodoColumn({
   title: string
   responsible: string
   items: TodoItem[]
-  onAdd: (desc: string, link: string | null, responsible: string) => Promise<void>
+  onAdd: (desc: string, link: string | null, responsible: string, reminderDate?: string | null) => Promise<void>
   onUpdate: (id: string, desc: string, link: string | null) => Promise<void>
   onToggle: (id: string, completed: boolean) => void
   onMove: (id: string, dir: 'up' | 'down') => Promise<void>
@@ -233,6 +280,7 @@ function TodoColumn({
   const [showAddForm, setShowAddForm] = useState(false)
   const [newDesc, setNewDesc] = useState('')
   const [newLink, setNewLink] = useState('')
+  const [newReminder, setNewReminder] = useState('')
   const addInputRef = useRef<HTMLTextAreaElement>(null)
 
   const active = items.filter((i) => !i.completed).sort((a, b) => a.sort_order - b.sort_order)
@@ -244,9 +292,10 @@ function TodoColumn({
 
   async function handleAdd() {
     if (!newDesc.trim()) return
-    await onAdd(newDesc.trim(), newLink.trim() || null, responsible)
+    await onAdd(newDesc.trim(), newLink.trim() || null, responsible, newReminder || null)
     setNewDesc('')
     setNewLink('')
+    setNewReminder('')
     setShowAddForm(false)
   }
 
@@ -297,6 +346,16 @@ function TodoColumn({
                   onChange={(e) => setNewLink(e.target.value)}
                   placeholder="https://… (valgfri lenke)"
                   className="w-full bg-slate-700 border border-slate-600 rounded text-xs text-slate-300 placeholder:text-slate-500 pl-6 pr-2 py-1.5 outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
+              <div className="relative">
+                <Bell className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
+                <input
+                  type="date"
+                  value={newReminder}
+                  onChange={(e) => setNewReminder(e.target.value)}
+                  min={new Date().toISOString().slice(0, 10)}
+                  className="w-full bg-slate-700 border border-slate-600 rounded text-xs text-slate-300 pl-6 pr-2 py-1.5 outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
               <div className="flex gap-1.5 justify-end">
@@ -544,6 +603,64 @@ function TodoCard({
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Road illustration ────────────────────────────────────────────────────────
+
+function RoadIllustration({ pct }: { pct: number }) {
+  // Car travels from 3% to 63% of the illustration width (sign occupies the right ~28%)
+  const carLeft = 3 + (pct / 100) * 60
+
+  return (
+    <div
+      className="relative flex-1 max-w-[340px] overflow-hidden rounded-lg border border-slate-700/40"
+      style={{ height: 62 }}
+    >
+      {/* Sky gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-800 to-slate-900" />
+
+      {/* Stars */}
+      <div className="absolute top-2 left-8 w-1 h-1 rounded-full bg-slate-500/60" />
+      <div className="absolute top-5 left-24 w-0.5 h-0.5 rounded-full bg-slate-400/50" />
+      <div className="absolute top-1 left-40 w-0.5 h-0.5 rounded-full bg-slate-500/50" />
+      <div className="absolute top-4 left-60 w-1 h-1 rounded-full bg-slate-500/40" />
+      <div className="absolute top-2 left-80 w-0.5 h-0.5 rounded-full bg-slate-400/40" />
+
+      {/* Road surface */}
+      <div className="absolute bottom-0 left-0 right-0 h-[26px] bg-slate-700/80">
+        {/* Center dashes */}
+        <div className="absolute top-[40%] left-2 right-28 flex items-center gap-2.5">
+          {Array.from({ length: 14 }).map((_, i) => (
+            <div key={i} className="h-px w-5 bg-slate-500/50 flex-shrink-0" />
+          ))}
+        </div>
+        {/* Road edges */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-slate-600/60" />
+      </div>
+
+      {/* Sign post (right side) */}
+      <div className="absolute right-5 bottom-[26px] flex flex-col items-center">
+        {/* Plane above sign */}
+        <span className="text-base leading-none mb-1">✈️</span>
+        {/* Sign board */}
+        <div className="bg-emerald-800/90 border border-emerald-600/60 rounded px-2 py-0.5 shadow-sm">
+          <p className="text-[7px] text-emerald-200 font-bold whitespace-nowrap leading-tight text-center">
+            Ready to<br />take-off!
+          </p>
+        </div>
+        {/* Post */}
+        <div className="w-px h-3.5 bg-slate-500/80" />
+      </div>
+
+      {/* Car on road */}
+      <div
+        className="absolute text-base leading-none transition-all duration-700 ease-in-out select-none"
+        style={{ left: `${carLeft}%`, bottom: 5 }}
+      >
+        🚗
+      </div>
     </div>
   )
 }

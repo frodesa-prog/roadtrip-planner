@@ -25,7 +25,7 @@ export function useTodoItems(tripId: string | null) {
   }, [tripId, supabase])
 
   const addItem = useCallback(
-    async (description: string, link: string | null, responsible: string): Promise<void> => {
+    async (description: string, link: string | null, responsible: string, reminderDate?: string | null): Promise<void> => {
       if (!tripId) return
       const groupItems = items.filter((i) => i.responsible === responsible)
       const nextOrder = groupItems.length > 0
@@ -40,14 +40,14 @@ export function useTodoItems(tripId: string | null) {
         completed: false,
         completed_at: null,
         sort_order: nextOrder,
-        reminder_date: null,
+        reminder_date: reminderDate ?? null,
         is_critical: false,
         created_at: new Date().toISOString(),
       }
       setItems((prev) => [...prev, optimistic])
       const { data, error } = await supabase
         .from('todo_items')
-        .insert({ trip_id: tripId, description, link, responsible, sort_order: nextOrder })
+        .insert({ trip_id: tripId, description, link, responsible, sort_order: nextOrder, reminder_date: reminderDate ?? null })
         .select()
         .single()
       if (error) {
