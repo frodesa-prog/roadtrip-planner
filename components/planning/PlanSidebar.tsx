@@ -28,6 +28,7 @@ interface PlanSidebarProps {
   onDeleteTrip: (id: string) => void
   routeLegs?: RouteLeg[]
   routeStates?: string[]
+  onUpdateGroupDescription?: (desc: string) => void
 }
 
 export default function PlanSidebar({
@@ -40,6 +41,7 @@ export default function PlanSidebar({
   onSelectTrip, onCreateTrip, onDeleteTrip,
   routeLegs,
   routeStates,
+  onUpdateGroupDescription,
 }: PlanSidebarProps) {
   const [departureTimes, setDepartureTimes] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
@@ -106,7 +108,13 @@ export default function PlanSidebar({
       />
 
       {/* Fly tur/retur + Turfølge */}
-      {currentTrip && <TripPanels tripId={currentTrip.id} />}
+      {currentTrip && (
+        <TripPanels
+          tripId={currentTrip.id}
+          groupDescription={currentTrip.group_description}
+          onUpdateGroupDescription={onUpdateGroupDescription}
+        />
+      )}
 
       {/* Stats + calendar toggle */}
       {currentTrip && (

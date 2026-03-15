@@ -494,9 +494,15 @@ function TravelerCard({
 
 interface TripPanelsProps {
   tripId: string
+  groupDescription?: string | null
+  onUpdateGroupDescription?: (desc: string) => void
 }
 
-export default function TripPanels({ tripId }: TripPanelsProps) {
+export default function TripPanels({
+  tripId,
+  groupDescription,
+  onUpdateGroupDescription,
+}: TripPanelsProps) {
   const { outbound, returnFlight, saveFlight } = useFlights(tripId)
   const { travelers, addTraveler, updateTraveler, deleteTraveler } = useTravelers(tripId)
 
@@ -504,6 +510,11 @@ export default function TripPanels({ tripId }: TripPanelsProps) {
   const [flightTab, setFlightTab] = useState<'outbound' | 'return'>('outbound')
   const [showAddForm, setShowAddForm] = useState(false)
   const [addSaving, setAddSaving] = useState(false)
+
+  // Local state for the group description textarea
+  const [descValue, setDescValue] = useState(groupDescription ?? '')
+  // Reset when a different trip is selected
+  useEffect(() => { setDescValue(groupDescription ?? '') }, [tripId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeFlight = flightTab === 'outbound' ? outbound : returnFlight
 
@@ -691,11 +702,33 @@ export default function TripPanels({ tripId }: TripPanelsProps) {
 
           {/* Empty state */}
           {travelers.length === 0 && !showAddForm && (
-            <div className="px-4 pb-4 text-center">
+            <div className="px-4 pb-2 text-center">
               <p className="text-3xl mb-2">👥</p>
               <p className="text-xs text-slate-500">Legg til personene som skal være med på ferien.</p>
             </div>
           )}
+
+          {/* ── Group description ── */}
+          <div className="mx-3 mb-3 mt-1 pt-3 border-t border-slate-800/80 space-y-1.5">
+            <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+              Generell beskrivelse av turfølget
+            </label>
+            <textarea
+              value={descValue}
+              onChange={(e) => setDescValue(e.target.value)}
+              onBlur={() => {
+                if (onUpdateGroupDescription && descValue !== (groupDescription ?? '')) {
+                  onUpdateGroupDescription(descValue)
+                }
+              }}
+              placeholder="F.eks. familie med barn, sportsglade tenåringer, ekteparet som liker god mat og kultur…"
+              rows={3}
+              className="w-full rounded-lg bg-slate-800/60 border border-slate-700 px-2.5 py-2 text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-blue-500/60 resize-none transition-colors"
+            />
+            <p className="text-[10px] text-slate-600 leading-snug">
+              💡 Brukes av Ferietips-chat for å gi mer relevante reiseforslag
+            </p>
+          </div>
         </div>
       )}
     </div>

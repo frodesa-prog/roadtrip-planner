@@ -52,6 +52,16 @@ export function useTrips() {
     [supabase]
   )
 
+  const updateTrip = useCallback(
+    async (tripId: string, data: Partial<Pick<Trip, 'group_description'>>) => {
+      setTrips((prev) => prev.map((t) => (t.id === tripId ? { ...t, ...data } : t)))
+      setCurrentTrip((prev) => (prev?.id === tripId ? { ...prev, ...data } : prev))
+      const { error } = await supabase.from('trips').update(data).eq('id', tripId)
+      if (error) toast.error('Kunne ikke lagre endringen')
+    },
+    [supabase],
+  )
+
   const deleteTrip = useCallback(
     async (tripId: string) => {
       const { error } = await supabase.from('trips').delete().eq('id', tripId)
@@ -79,6 +89,7 @@ export function useTrips() {
     loading,
     setCurrentTrip,
     createTrip,
+    updateTrip,
     deleteTrip,
   }
 }

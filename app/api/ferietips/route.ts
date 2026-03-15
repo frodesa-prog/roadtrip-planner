@@ -27,6 +27,7 @@ interface TripContext {
   stops: StopContext[]
   activities: ActivityContext[]
   travelers: TravelerContext[]
+  groupDescription?: string | null
 }
 
 interface ChatMessage {
@@ -61,6 +62,10 @@ function buildSystemPrompt(ctx: TripContext): string {
       const type = a.activity_type ? ` (${a.activity_type})` : ''
       lines.push(`- ${a.name}${type} i ${a.stop_city}`)
     })
+  }
+
+  if (ctx.groupDescription) {
+    lines.push('', `Generelt om turfølget: ${ctx.groupDescription}`)
   }
 
   if (ctx.travelers && ctx.travelers.length > 0) {

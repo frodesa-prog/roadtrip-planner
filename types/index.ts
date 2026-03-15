@@ -9,6 +9,7 @@ export interface Trip {
   owner_id: string
   created_at: string
   updated_at: string
+  group_description: string | null  // generell beskrivelse av turfølget, brukes av Ferietips-chat
 }
 
 export interface Stop {

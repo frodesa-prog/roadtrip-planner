@@ -22,7 +22,7 @@ export default function PlanPage() {
 
   const {
     trips, currentTrip, loading: tripsLoading,
-    setCurrentTrip, createTrip, deleteTrip,
+    setCurrentTrip, createTrip, updateTrip, deleteTrip,
   } = useTrips()
 
   const {
@@ -84,6 +84,9 @@ export default function PlanPage() {
         onDeleteTrip={deleteTrip}
         routeLegs={routeLegs}
         routeStates={routeStates}
+        onUpdateGroupDescription={(desc) =>
+          currentTrip && updateTrip(currentTrip.id, { group_description: desc })
+        }
       />
 
       {/* Detaljpanel – mellom sidebar og kart */}

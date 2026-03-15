@@ -266,6 +266,7 @@ export default function FerietipsPage() {
         interests: t.interests,
         description: t.description,
       })),
+      groupDescription: currentTrip?.group_description ?? null,
     }
   }, [currentTrip, stops, activities, travelers])
 
