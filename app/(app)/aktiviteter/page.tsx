@@ -124,13 +124,31 @@ export default function AktiviteterPage() {
     selectedDiningHotel?.address,
   ])
 
-  // Map center: pan to selected activity or dining location
-  const mapCenter = useMemo(() => {
-    if (selectedDining?.map_lat && selectedDining?.map_lng)
-      return { lat: selectedDining.map_lat, lng: selectedDining.map_lng }
-    if (!selectedActivity?.map_lat || !selectedActivity?.map_lng) return null
-    return { lat: selectedActivity.map_lat, lng: selectedActivity.map_lng }
-  }, [selectedActivity?.map_lat, selectedActivity?.map_lng, selectedDining?.map_lat, selectedDining?.map_lng])
+  // Fit map to show both the activity/dining location and the associated stop
+  const mapFitPoints = useMemo<Array<{ lat: number; lng: number }> | null>(() => {
+    if (selectedDining?.map_lat && selectedDining?.map_lng) {
+      const pts: Array<{ lat: number; lng: number }> = [
+        { lat: selectedDining.map_lat, lng: selectedDining.map_lng },
+      ]
+      if (selectedDiningStop) pts.push({ lat: selectedDiningStop.lat, lng: selectedDiningStop.lng })
+      return pts
+    }
+    if (selectedActivity?.map_lat && selectedActivity?.map_lng) {
+      const pts: Array<{ lat: number; lng: number }> = [
+        { lat: selectedActivity.map_lat, lng: selectedActivity.map_lng },
+      ]
+      if (selectedStop) pts.push({ lat: selectedStop.lat, lng: selectedStop.lng })
+      return pts
+    }
+    return null
+  }, [
+    selectedActivity?.map_lat,
+    selectedActivity?.map_lng,
+    selectedDining?.map_lat,
+    selectedDining?.map_lng,
+    selectedStop,
+    selectedDiningStop,
+  ])
 
   // Route from activity to hotel/stop
   const activityRoute = useMemo(() => {
@@ -365,7 +383,7 @@ export default function AktiviteterPage() {
           dining={dining}
           selectedDiningId={selectedDiningId}
           onSelectDining={handleSelectDining}
-          mapCenter={mapCenter}
+          mapFitPoints={mapFitPoints}
           activityRoute={selectedDining ? diningRoute : activityRoute}
           onActivityRouteInfo={selectedDining ? setDiningRouteInfo : setRouteInfo}
           routeLegs={routeLegs}

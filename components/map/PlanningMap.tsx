@@ -39,6 +39,7 @@ interface PlanningMapProps {
   selectedDiningId?: string | null
   onSelectDining?: (id: string) => void
   mapCenter?: { lat: number; lng: number } | null
+  mapFitPoints?: Array<{ lat: number; lng: number }> | null
   activityRoute?: ActivityRoute | null
   onActivityRouteInfo?: (info: RouteInfo) => void
   hotels?: Hotel[]
@@ -514,12 +515,15 @@ function MapTools({ onActiveChange }: MapToolsProps) {
 function MapController({
   center,
   stops,
+  fitPoints,
 }: {
   center: { lat: number; lng: number } | null | undefined
   stops: Stop[]
+  fitPoints?: Array<{ lat: number; lng: number }> | null
 }) {
   const map = useMap()
   const prevCenterRef = useRef<typeof center>(undefined)
+  const prevFitPointsRef = useRef<typeof fitPoints>(undefined)
   const stopsRef = useRef(stops)
   stopsRef.current = stops
 
@@ -527,19 +531,38 @@ function MapController({
     if (!map) return
     const prev = prevCenterRef.current
     prevCenterRef.current = center
+    const prevFit = prevFitPointsRef.current
+    prevFitPointsRef.current = fitPoints
 
-    if (center) {
+    if (fitPoints && fitPoints.length >= 2) {
+      // Skip if points haven't changed
+      const same = prevFit &&
+        prevFit.length === fitPoints.length &&
+        fitPoints.every((p, i) => prevFit![i].lat === p.lat && prevFit![i].lng === p.lng)
+      if (!same) {
+        const bounds = new google.maps.LatLngBounds()
+        fitPoints.forEach((p) => bounds.extend(p))
+        map.fitBounds(bounds, 80)
+      }
+    } else if (fitPoints && fitPoints.length === 1) {
+      // Single point (no route yet) – just pan in
+      const [p] = fitPoints
+      if (prevFit?.[0]?.lat !== p.lat || prevFit?.[0]?.lng !== p.lng) {
+        map.panTo(p)
+        map.setZoom(15)
+      }
+    } else if (center) {
       if (prev?.lat === center.lat && prev?.lng === center.lng) return
       map.panTo(center)
       map.setZoom(18)
-    } else if (prev != null && stopsRef.current.length > 0) {
+    } else if ((prev != null || (prevFit && prevFit.length > 0)) && stopsRef.current.length > 0) {
       // Deselected – zoom out to show all stops
       const bounds = new google.maps.LatLngBounds()
       stopsRef.current.forEach((s) => bounds.extend({ lat: s.lat, lng: s.lng }))
       map.fitBounds(bounds, 80)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, center])
+  }, [map, center, fitPoints])
 
   return null
 }
@@ -560,6 +583,7 @@ export default function PlanningMap({
   selectedDiningId = null,
   onSelectDining,
   mapCenter,
+  mapFitPoints,
   activityRoute,
   onActivityRouteInfo,
   hotels = [],
@@ -624,7 +648,7 @@ export default function PlanningMap({
           rotateControl={false}
         >
           {/* Programmatic pan + zoom */}
-          <MapController center={mapCenter} stops={stops} />
+          <MapController center={mapCenter} stops={stops} fitPoints={mapFitPoints} />
 
           {/* Stoppesteder */}
           {stops.map((stop, index) => (
