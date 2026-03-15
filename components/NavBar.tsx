@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, Users } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, Users, LogOut } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 const links = [
   { href: '/plan', label: 'Planlegg', icon: Map },
@@ -17,6 +18,13 @@ const links = [
 
 export default function NavBar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   return (
     <nav className="h-11 flex-shrink-0 bg-slate-900 border-b border-slate-800 flex items-center px-4 gap-1">
@@ -44,6 +52,15 @@ export default function NavBar() {
           </Link>
         )
       })}
+
+      {/* Logout – far right */}
+      <button
+        onClick={handleLogout}
+        className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+        title="Logg ut"
+      >
+        <LogOut className="w-3.5 h-3.5" />
+      </button>
     </nav>
   )
 }

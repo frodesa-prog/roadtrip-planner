@@ -1,15 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MapPin, LogOut, Loader2, Car, CalendarDays, List } from 'lucide-react'
+import { MapPin, Loader2, Car, CalendarDays, List } from 'lucide-react'
 import { Stop, Trip, Hotel, Activity, RouteLeg } from '@/types'
 import StopCard from './StopCard'
 import CalendarView from './CalendarView'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import FlightPanel from './FlightPanel'
 import TripManager from './TripManager'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { useDrivingInfo, addMinutes } from '@/hooks/useDrivingInfo'
 
 interface PlanSidebarProps {
@@ -46,7 +44,6 @@ export default function PlanSidebar({
   const [departureTimes, setDepartureTimes] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
-  const router = useRouter()
   const drivingLegs = useDrivingInfo(stops, routeLegs)
 
   // ── Auto-cascade arrival dates ──────────────────────────────────────────────
@@ -93,16 +90,10 @@ export default function PlanSidebar({
     onReorderStops(updated.map((s, i) => ({ ...s, order: i })))
   }
 
-  async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
-
   return (
     <div
       className={`${
-        showCalendar ? 'w-[730px]' : 'w-[390px]'
+        showCalendar ? 'w-[730px]' : 'w-[420px]'
       } min-w-[300px] h-full bg-slate-900 border-r border-slate-800 flex flex-col transition-[width] duration-300 overflow-hidden`}
     >
       <TripManager
@@ -170,7 +161,7 @@ export default function PlanSidebar({
           onSelectStop={onSelectStop}
         />
       ) : (
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full">
           {!currentTrip ? (
             <div className="flex flex-col items-center justify-center h-48 text-center px-4">
               <p className="text-slate-500 text-sm">
@@ -236,15 +227,8 @@ export default function PlanSidebar({
       )}
 
       {/* Footer */}
-      <div className="px-5 py-2.5 bg-slate-800/30 border-t border-slate-800 flex items-center justify-between">
+      <div className="px-5 py-2.5 bg-slate-800/30 border-t border-slate-800">
         <p className="text-xs text-slate-600">Alle endringer lagres automatisk</p>
-        <button
-          onClick={handleLogout}
-          className="text-slate-600 hover:text-slate-400 transition-colors"
-          title="Logg ut"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-        </button>
       </div>
 
       {confirmDelete && (

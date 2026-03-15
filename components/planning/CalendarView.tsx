@@ -229,7 +229,7 @@ export default function CalendarView({
                             {hotelBooked ? '✓ ' : ''}{hotel.name}
                           </p>
                         ) : (
-                          <p className="text-[9px] text-red-400/50 leading-tight">Inget hotell</p>
+                          <p className="text-[9px] text-red-600/70 leading-tight">Mangler hotell</p>
                         )}
                         {stopActivities.length > 0 && (
                           <p className="text-[9px] text-purple-400 leading-tight">

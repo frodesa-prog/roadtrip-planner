@@ -63,30 +63,37 @@ export default function StopCard({
 
           {/* Stop info */}
           <div className="flex-1 min-w-0">
+            {/* City + state */}
             <p className="font-semibold text-slate-100 text-sm truncate">
               {stop.city}
               {stop.state && <span className="text-slate-500 font-normal">, {stop.state}</span>}
             </p>
-            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+
+            {/* Date · nights · hotel — all on one line */}
+            <div className="flex items-center gap-2 mt-0.5 min-w-0 overflow-hidden">
               {displayDate && (
-                <span className="text-xs text-slate-400">{displayDate}</span>
+                <span className="text-xs text-slate-400 flex-shrink-0">{displayDate}</span>
               )}
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-slate-500 flex-shrink-0">
                 {stop.nights} {stop.nights === 1 ? 'natt' : 'netter'}
               </span>
               {hotel?.name ? (
-                <span className={`text-xs truncate max-w-[130px] ${hotelBooked ? 'text-green-400' : 'text-slate-400'}`}>
+                <span className={`text-xs truncate min-w-0 ${hotelBooked ? 'text-green-400' : 'text-slate-400'}`}>
                   {hotelBooked ? '✓ ' : ''}{hotel.name}
                 </span>
               ) : hotelBooked ? (
-                <span className="text-xs text-green-400">✓ Hotell</span>
-              ) : null}
-              {activities.length > 0 && (
-                <span className="text-xs text-purple-400">
-                  {activities.length} aktivitet{activities.length !== 1 ? 'er' : ''}
-                </span>
+                <span className="text-xs text-green-400 flex-shrink-0">✓ Hotell</span>
+              ) : (
+                <span className="text-xs text-red-600 flex-shrink-0">Mangler hotell</span>
               )}
             </div>
+
+            {/* Activities — separate row */}
+            {activities.length > 0 && (
+              <p className="text-xs text-purple-400 mt-0.5">
+                {activities.length} aktivitet{activities.length !== 1 ? 'er' : ''}
+              </p>
+            )}
           </div>
 
           {/* Action buttons */}
