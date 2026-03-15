@@ -221,6 +221,14 @@ export default function FerietipsPage() {
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const autoCreatedRef = useRef(false)
+
+  // Auto-create a new session each time the page is opened
+  useEffect(() => {
+    if (!currentTrip?.id || autoCreatedRef.current) return
+    autoCreatedRef.current = true
+    createSession()
+  }, [currentTrip?.id, createSession])
 
   // Auto-scroll when messages or typing indicator changes
   useEffect(() => {
