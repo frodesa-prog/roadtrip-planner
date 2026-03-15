@@ -156,3 +156,14 @@ export interface CarRental {
   url: string | null              // Link til bestilling
   notes: string | null            // Tilleggsinfo
 }
+
+export interface Traveler {
+  id: string
+  trip_id: string
+  name: string
+  age: number | null
+  gender: string | null       // 'mann' | 'kvinne' | 'annet'
+  interests: string | null    // kommaseparert liste
+  description: string | null
+  created_at: string
+}

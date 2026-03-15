@@ -5,6 +5,7 @@ import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useActivities } from '@/hooks/useActivities'
 import { useNotes } from '@/hooks/useNotes'
+import { useTravelers } from '@/hooks/useTravelers'
 import { Lightbulb, Send, Loader2, BookmarkPlus, Check, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -118,6 +119,7 @@ export default function FerietipsPage() {
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
   const { activities } = useActivities(stopIds)
   const { addNote } = useNotes(currentTrip?.id ?? null)
+  const { travelers } = useTravelers(currentTrip?.id ?? null)
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -155,8 +157,15 @@ export default function FerietipsPage() {
         activity_type: a.activity_type,
         stop_city: stops.find((s) => s.id === a.stop_id)?.city ?? '',
       })),
+      travelers: travelers.map((t) => ({
+        name: t.name,
+        age: t.age,
+        gender: t.gender,
+        interests: t.interests,
+        description: t.description,
+      })),
     }
-  }, [currentTrip, stops, activities])
+  }, [currentTrip, stops, activities, travelers])
 
   const firstCity =
     [...stops].sort((a, b) => a.order - b.order)[0]?.city ?? 'første stopp'

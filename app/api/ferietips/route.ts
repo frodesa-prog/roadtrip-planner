@@ -14,10 +14,19 @@ interface ActivityContext {
   stop_city: string
 }
 
+interface TravelerContext {
+  name: string
+  age: number | null
+  gender: string | null
+  interests: string | null
+  description: string | null
+}
+
 interface TripContext {
   tripName: string
   stops: StopContext[]
   activities: ActivityContext[]
+  travelers: TravelerContext[]
 }
 
 interface ChatMessage {
@@ -51,6 +60,19 @@ function buildSystemPrompt(ctx: TripContext): string {
     ctx.activities.forEach((a) => {
       const type = a.activity_type ? ` (${a.activity_type})` : ''
       lines.push(`- ${a.name}${type} i ${a.stop_city}`)
+    })
+  }
+
+  if (ctx.travelers && ctx.travelers.length > 0) {
+    lines.push('', 'Turfølget (tilpass tipsene til disse personene):')
+    ctx.travelers.forEach((t) => {
+      const parts: string[] = [t.name]
+      if (t.age) parts.push(`${t.age} år`)
+      if (t.gender) parts.push(t.gender)
+      const info = parts.join(', ')
+      const interests = t.interests ? ` | Interesser: ${t.interests}` : ''
+      const desc = t.description ? ` | "${t.description}"` : ''
+      lines.push(`- ${info}${interests}${desc}`)
     })
   }
 
