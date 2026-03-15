@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
+  console.log('[share-trip-email] POST called')
   const resendApiKey = process.env.RESEND_API_KEY
   if (!resendApiKey) {
-    // No email provider configured – silently succeed so the share itself still works
+    console.log('[share-trip-email] No RESEND_API_KEY')
     return NextResponse.json({ sent: false, reason: 'no_api_key' })
   }
 
@@ -35,6 +36,8 @@ export async function POST(req: NextRequest) {
     </div>
   `
 
+  console.log('[share-trip-email] Sending to:', recipientEmail, 'from key:', resendApiKey.slice(0, 10) + '...')
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -49,10 +52,11 @@ export async function POST(req: NextRequest) {
     }),
   })
 
+  const responseText = await res.text()
+  console.log('[share-trip-email] Resend status:', res.status, 'body:', responseText)
+
   if (!res.ok) {
-    const err = await res.text()
-    console.error('Resend error:', err)
-    return NextResponse.json({ sent: false, reason: 'resend_error' })
+    return NextResponse.json({ sent: false, reason: 'resend_error', detail: responseText })
   }
 
   return NextResponse.json({ sent: true })
