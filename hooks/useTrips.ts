@@ -27,6 +27,22 @@ export function useTrips() {
       setTrips(data as Trip[])
       // Auto-velg nyeste tur om ingen er valgt
       setCurrentTrip((prev) => prev ?? (data[0] as Trip) ?? null)
+
+      // Oppdater status til 'accepted' for delte turer mottaker har sett
+      if (user) {
+        const sharedTripIds = (data as Trip[])
+          .filter((t) => t.owner_id !== user.id)
+          .map((t) => t.id)
+        if (sharedTripIds.length > 0) {
+          supabase
+            .from('trip_shares')
+            .update({ status: 'accepted' })
+            .eq('shared_with_email', user.email ?? '')
+            .eq('status', 'pending')
+            .in('trip_id', sharedTripIds)
+            .then(() => {})
+        }
+      }
     }
     setLoading(false)
   }, [supabase])
