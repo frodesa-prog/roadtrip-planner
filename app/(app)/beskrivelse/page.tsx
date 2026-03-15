@@ -6,9 +6,9 @@ import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
 import { useActivities } from '@/hooks/useActivities'
 import { useDining } from '@/hooks/useDining'
-import { useNotes } from '@/hooks/useNotes'
 import { useFlights } from '@/hooks/useFlights'
-import type { Activity, Dining, Note, Stop, Hotel, Flight } from '@/types'
+import { useDrivingInfo, LegInfo } from '@/hooks/useDrivingInfo'
+import type { Activity, Dining, Stop, Hotel, Flight } from '@/types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -77,17 +77,17 @@ function activityIcon(type: string | null): string {
 // ─── Stop colors (same palette as summary page) ───────────────────────────────
 
 const COLORS = [
-  { border: 'border-l-blue-500',   badge: 'bg-blue-500/20 text-blue-300',   label: 'text-blue-400' },
+  { border: 'border-l-blue-500',    badge: 'bg-blue-500/20 text-blue-300',    label: 'text-blue-400' },
   { border: 'border-l-emerald-500', badge: 'bg-emerald-500/20 text-emerald-300', label: 'text-emerald-400' },
-  { border: 'border-l-amber-500',  badge: 'bg-amber-500/20 text-amber-300', label: 'text-amber-400' },
-  { border: 'border-l-pink-500',   badge: 'bg-pink-500/20 text-pink-300',   label: 'text-pink-400' },
-  { border: 'border-l-violet-500', badge: 'bg-violet-500/20 text-violet-300', label: 'text-violet-400' },
-  { border: 'border-l-teal-500',   badge: 'bg-teal-500/20 text-teal-300',   label: 'text-teal-400' },
-  { border: 'border-l-orange-500', badge: 'bg-orange-500/20 text-orange-300', label: 'text-orange-400' },
-  { border: 'border-l-sky-500',    badge: 'bg-sky-500/20 text-sky-300',     label: 'text-sky-400' },
-  { border: 'border-l-lime-500',   badge: 'bg-lime-500/20 text-lime-300',   label: 'text-lime-400' },
-  { border: 'border-l-rose-500',   badge: 'bg-rose-500/20 text-rose-300',   label: 'text-rose-400' },
-  { border: 'border-l-purple-500', badge: 'bg-purple-500/20 text-purple-300', label: 'text-purple-400' },
+  { border: 'border-l-amber-500',   badge: 'bg-amber-500/20 text-amber-300',   label: 'text-amber-400' },
+  { border: 'border-l-pink-500',    badge: 'bg-pink-500/20 text-pink-300',    label: 'text-pink-400' },
+  { border: 'border-l-violet-500',  badge: 'bg-violet-500/20 text-violet-300', label: 'text-violet-400' },
+  { border: 'border-l-teal-500',    badge: 'bg-teal-500/20 text-teal-300',    label: 'text-teal-400' },
+  { border: 'border-l-orange-500',  badge: 'bg-orange-500/20 text-orange-300', label: 'text-orange-400' },
+  { border: 'border-l-sky-500',     badge: 'bg-sky-500/20 text-sky-300',      label: 'text-sky-400' },
+  { border: 'border-l-lime-500',    badge: 'bg-lime-500/20 text-lime-300',    label: 'text-lime-400' },
+  { border: 'border-l-rose-500',    badge: 'bg-rose-500/20 text-rose-300',    label: 'text-rose-400' },
+  { border: 'border-l-purple-500',  badge: 'bg-purple-500/20 text-purple-300', label: 'text-purple-400' },
 ]
 
 // ─── DayEntry type ────────────────────────────────────────────────────────────
@@ -99,7 +99,6 @@ interface DayEntry {
   hotel: Hotel | undefined
   activities: Activity[]
   dining: Dining[]
-  notes: Note[]
   isFirstDay: boolean
   isLastDay: boolean
   colorIdx: number
@@ -109,7 +108,7 @@ interface DayEntry {
 // ─── DayCard ──────────────────────────────────────────────────────────────────
 
 function DayCard({ entry }: { entry: DayEntry }) {
-  const { dayNumber, dateStr, stop, hotel, activities, dining, notes, isFirstDay, isLastDay, colorIdx, dayInStop } = entry
+  const { dayNumber, dateStr, stop, hotel, activities, dining, colorIdx, dayInStop } = entry
   const color = COLORS[colorIdx % COLORS.length]
 
   const sortedActivities = [...activities].sort((a, b) => {
@@ -127,7 +126,7 @@ function DayCard({ entry }: { entry: DayEntry }) {
   })
 
   const leadText = dayLeadText(dayInStop, stop.nights, stop.city, stop.state, hotel)
-  const hasContent = sortedActivities.length > 0 || sortedDining.length > 0 || notes.length > 0
+  const hasContent = sortedActivities.length > 0 || sortedDining.length > 0
 
   return (
     <div className={`bg-slate-900 border border-slate-800 border-l-4 ${color.border} rounded-xl overflow-hidden`}>
@@ -205,19 +204,9 @@ function DayCard({ entry }: { entry: DayEntry }) {
           </div>
         ))}
 
-        {/* Notes */}
-        {notes.map((n) => (
-          <div key={n.id} className="bg-slate-800/60 rounded-lg px-3 py-2 border border-slate-700/40">
-            {n.title && (
-              <p className="text-xs font-semibold text-slate-300 mb-1">{n.title}</p>
-            )}
-            <p className="text-xs text-slate-400 leading-relaxed whitespace-pre-wrap">{n.content}</p>
-          </div>
-        ))}
-
         {!hasContent && (
           <p className="text-xs text-slate-600 italic">
-            Ingen aktiviteter, restauranter eller notater planlagt denne dagen.
+            Ingen aktiviteter eller restauranter planlagt denne dagen.
           </p>
         )}
       </div>
@@ -287,11 +276,22 @@ function FlightCard({ flight, label }: { flight: Flight; label: string }) {
 
 // ─── Driving divider ──────────────────────────────────────────────────────────
 
-function DrivingDivider({ to }: { to: string }) {
+function DrivingDivider({ to, leg }: { to: string; leg: LegInfo | null }) {
   return (
-    <div className="flex items-center gap-3 py-1 px-1">
+    <div className="flex items-center gap-3 py-2 px-1">
       <div className="flex-1 border-t border-dashed border-slate-800" />
-      <span className="text-xs text-slate-600 flex-shrink-0">🚗 Kjører videre til {to}</span>
+      <div className="text-center space-y-0.5">
+        <p className="text-xs text-slate-500 flex-shrink-0">
+          🚗 Kjører videre til {to}
+        </p>
+        {leg ? (
+          <p className="text-xs text-slate-700">
+            {leg.distanceText} · {leg.durationText}
+          </p>
+        ) : (
+          <p className="text-xs text-slate-800">Henter kjøretid…</p>
+        )}
+      </div>
       <div className="flex-1 border-t border-dashed border-slate-800" />
     </div>
   )
@@ -306,16 +306,23 @@ export default function BeskrivelsePage() {
   const { hotels } = useHotels(stopIds)
   const { activities } = useActivities(stopIds)
   const { dining } = useDining(stopIds)
-  const { notes } = useNotes(currentTrip?.id ?? null)
   const { outbound, returnFlight } = useFlights(currentTrip?.id ?? null)
+
+  // Sorted stops used for both day-building and driving legs
+  const sortedStops = useMemo(
+    () => [...stops].sort((a, b) => a.order - b.order),
+    [stops],
+  )
+
+  // Driving legs: index i = leg from sortedStops[i] to sortedStops[i+1]
+  const drivingLegs = useDrivingInfo(sortedStops)
 
   // Build day-by-day entries
   const days = useMemo(() => {
-    const sorted = [...stops].sort((a, b) => a.order - b.order)
     const result: DayEntry[] = []
     let dayNumber = 1
 
-    sorted.forEach((stop, stopIdx) => {
+    sortedStops.forEach((stop, stopIdx) => {
       if (!stop.arrival_date) return
       const totalNights = Math.max(stop.nights, 1)
       const hotel = hotels.find((h) => h.stop_id === stop.id)
@@ -323,24 +330,17 @@ export default function BeskrivelsePage() {
       for (let i = 0; i < totalNights; i++) {
         const dateStr = addDays(stop.arrival_date, i)
 
-        // Activities: dated activities for this day, plus undated ones on arrival day
+        // Activities: dated for this day + undated on arrival day
         const dayActivities = activities.filter((a) => {
           if (a.stop_id !== stop.id) return false
           if (a.activity_date) return a.activity_date === dateStr
-          return i === 0 // undated → show on first day
+          return i === 0
         })
 
         // Dining for this day
         const dayDining = dining.filter(
-          (d) => d.stop_id === stop.id && d.booking_date === dateStr
+          (d) => d.stop_id === stop.id && d.booking_date === dateStr,
         )
-
-        // Notes: dated for this day, plus undated stop-notes on arrival day
-        const dayNotes = notes.filter((n) => {
-          if (n.stop_id !== stop.id) return false
-          if (n.note_date) return n.note_date === dateStr
-          return i === 0
-        })
 
         result.push({
           dayNumber: dayNumber++,
@@ -349,7 +349,6 @@ export default function BeskrivelsePage() {
           hotel,
           activities: dayActivities,
           dining: dayDining,
-          notes: dayNotes,
           isFirstDay: i === 0,
           isLastDay: i === totalNights - 1,
           colorIdx: stopIdx,
@@ -359,18 +358,17 @@ export default function BeskrivelsePage() {
     })
 
     return result
-  }, [stops, activities, dining, notes, hotels])
-
-  // General notes (no stop_id)
-  const generalNotes = useMemo(
-    () => notes.filter((n) => !n.stop_id),
-    [notes]
-  )
+  }, [sortedStops, activities, dining, hotels])
 
   const totalNights = stops.reduce((s, st) => s + (st.nights || 0), 0)
   const totalCities = new Set(stops.filter((s) => s.arrival_date).map((s) => s.city)).size
   const firstDate = days[0]?.dateStr ?? null
-  const lastDate = days[days.length - 1]?.dateStr ?? null
+
+  // End date = departure day of the last stop (arrival_date + nights)
+  const lastSortedStop = sortedStops.filter((s) => s.arrival_date).at(-1)
+  const lastDate = lastSortedStop
+    ? addDays(lastSortedStop.arrival_date!, lastSortedStop.nights)
+    : null
 
   if (!currentTrip) {
     return (
@@ -403,19 +401,6 @@ export default function BeskrivelsePage() {
           </p>
         </div>
 
-        {/* General trip notes */}
-        {generalNotes.length > 0 && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 space-y-2 mb-2">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Generelle notater</p>
-            {generalNotes.map((n) => (
-              <div key={n.id}>
-                {n.title && <p className="text-xs font-semibold text-slate-300">{n.title}</p>}
-                <p className="text-xs text-slate-400 leading-relaxed whitespace-pre-wrap">{n.content}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Outbound flight */}
         {outbound && <FlightCard flight={outbound} label="Utreise" />}
 
@@ -423,7 +408,10 @@ export default function BeskrivelsePage() {
         {days.map((entry, idx) => (
           <div key={`${entry.stop.id}-${entry.dateStr}`}>
             {idx > 0 && entry.isFirstDay && (
-              <DrivingDivider to={entry.stop.city} />
+              <DrivingDivider
+                to={entry.stop.city}
+                leg={drivingLegs[entry.colorIdx - 1] ?? null}
+              />
             )}
             <DayCard entry={entry} />
           </div>
