@@ -169,6 +169,10 @@ export interface Traveler {
   description: string | null     // interests_extra – vises som fritekst i UI
   ai_context: string | null      // mat/mobilitet/annet – sendes til AI, vises ikke i UI
   linked_user_id: string | null  // koblet til registrert bruker
+  cabin_bags: number | null       // antall håndbagasjer
+  cabin_bag_weight: number | null // maks vekt per håndbagasje (kg)
+  checked_bags: number | null     // antall innsjekket bagasje
+  checked_bag_weight: number | null // maks vekt per innsjekket kolli (kg)
   created_at: string
 }
 

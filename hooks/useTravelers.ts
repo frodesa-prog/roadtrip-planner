@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Traveler, UserPreferences, UserProfile } from '@/types'
 import { toast } from 'sonner'
 
-type TravelerInput = Partial<Pick<Traveler, 'name' | 'age' | 'gender' | 'interests' | 'description' | 'ai_context' | 'linked_user_id'>>
+type TravelerInput = Partial<Pick<Traveler, 'name' | 'age' | 'gender' | 'interests' | 'description' | 'ai_context' | 'linked_user_id' | 'cabin_bags' | 'cabin_bag_weight' | 'checked_bags' | 'checked_bag_weight'>>
 
 // Beregn alder fra fødselsdato
 function ageFromBirthDate(birthDate: string | null | undefined): number | null {
@@ -58,6 +58,10 @@ export function useTravelers(tripId: string | null) {
       description: data.description ?? null,
       ai_context: data.ai_context ?? null,
       linked_user_id: data.linked_user_id ?? null,
+      cabin_bags: data.cabin_bags ?? 1,
+      cabin_bag_weight: data.cabin_bag_weight ?? 8,
+      checked_bags: data.checked_bags ?? 1,
+      checked_bag_weight: data.checked_bag_weight ?? 23,
       created_at: new Date().toISOString(),
     }
     setTravelers((prev) => [...prev, optimistic])
