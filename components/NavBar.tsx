@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb } from 'lucide-react'
 
 const links = [
   { href: '/plan', label: 'Planlegg', icon: Map },
@@ -10,6 +10,7 @@ const links = [
   { href: '/aktiviteter', label: 'Aktiviteter', icon: ListChecks },
   { href: '/kostnader', label: 'Kostnader', icon: Receipt },
   { href: '/beskrivelse', label: 'Beskrivelse', icon: BookOpen },
+  { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
   { href: '/notes', label: 'Notater', icon: FileText },
 ]
 
