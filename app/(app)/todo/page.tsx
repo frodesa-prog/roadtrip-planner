@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import {
   Plus, Trash2, Link2, ChevronDown, ChevronRight, ClipboardList,
-  CheckSquare, Square, Pencil, ChevronUp, Bell, BellOff, X,
+  CheckSquare, Square, Pencil, ChevronUp, Bell, X, Flag,
 } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useTodoItems } from '@/hooks/useTodoItems'
@@ -33,7 +33,7 @@ export default function TodoPage() {
     trips, currentTrip, loading: tripsLoading, userId,
     setCurrentTrip, createTrip, deleteTrip,
   } = useTrips()
-  const { items, loading, addItem, updateItem, toggleItem, moveItem, setReminder, deleteItem } =
+  const { items, loading, addItem, updateItem, toggleItem, moveItem, setReminder, toggleCritical, deleteItem } =
     useTodoItems(currentTrip?.id ?? null)
   const { travelers } = useTravelers(currentTrip?.id ?? null)
   const { stops } = useStops(currentTrip?.id ?? null)
@@ -184,6 +184,7 @@ export default function TodoPage() {
                     onToggle={toggleItem}
                     onMove={moveItem}
                     onSetReminder={setReminder}
+                    onToggleCritical={toggleCritical}
                     onDelete={deleteItem}
                   />
                   {travelers.map((traveler) => (
@@ -197,6 +198,7 @@ export default function TodoPage() {
                       onToggle={toggleItem}
                       onMove={moveItem}
                       onSetReminder={setReminder}
+                      onToggleCritical={toggleCritical}
                       onDelete={deleteItem}
                     />
                   ))}
@@ -214,7 +216,7 @@ export default function TodoPage() {
 
 function TodoColumn({
   title, responsible, items,
-  onAdd, onUpdate, onToggle, onMove, onSetReminder, onDelete,
+  onAdd, onUpdate, onToggle, onMove, onSetReminder, onToggleCritical, onDelete,
 }: {
   title: string
   responsible: string
@@ -224,6 +226,7 @@ function TodoColumn({
   onToggle: (id: string, completed: boolean) => void
   onMove: (id: string, dir: 'up' | 'down') => Promise<void>
   onSetReminder: (id: string, date: string | null) => Promise<void>
+  onToggleCritical: (id: string, critical: boolean) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
   const [showCompleted, setShowCompleted] = useState(false)
@@ -271,6 +274,7 @@ function TodoColumn({
               onUpdate={onUpdate}
               onMove={onMove}
               onSetReminder={onSetReminder}
+              onToggleCritical={onToggleCritical}
               onDelete={onDelete}
             />
           ))}
@@ -343,6 +347,7 @@ function TodoColumn({
                       onUpdate={onUpdate}
                       onMove={onMove}
                       onSetReminder={onSetReminder}
+                      onToggleCritical={onToggleCritical}
                       onDelete={onDelete}
                     />
                   ))}
@@ -360,7 +365,7 @@ function TodoColumn({
 
 function TodoCard({
   item, isFirst, isLast,
-  onToggle, onUpdate, onMove, onSetReminder, onDelete,
+  onToggle, onUpdate, onMove, onSetReminder, onToggleCritical, onDelete,
 }: {
   item: TodoItem
   isFirst: boolean
@@ -369,6 +374,7 @@ function TodoCard({
   onUpdate: (id: string, desc: string, link: string | null) => Promise<void>
   onMove: (id: string, dir: 'up' | 'down') => Promise<void>
   onSetReminder: (id: string, date: string | null) => Promise<void>
+  onToggleCritical: (id: string, critical: boolean) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
   const [editing, setEditing] = useState(false)
@@ -400,14 +406,16 @@ function TodoCard({
     )
   }
 
+  const borderClass = item.completed
+    ? 'bg-slate-900/20 border-slate-800/40 opacity-60'
+    : editing
+      ? 'bg-slate-800 border-blue-600/50'
+      : item.is_critical
+        ? 'bg-slate-800/50 border-red-600/70 hover:border-red-500/80 shadow-[0_0_0_1px_rgba(220,38,38,0.15)]'
+        : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600/60'
+
   return (
-    <div className={`group/card rounded-lg border transition-colors ${
-      item.completed
-        ? 'bg-slate-900/20 border-slate-800/40 opacity-60'
-        : editing
-          ? 'bg-slate-800 border-blue-600/50'
-          : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600/60'
-    }`}>
+    <div className={`group/card rounded-lg border transition-colors ${borderClass}`}>
       {editing ? (
         /* ── Edit mode ── */
         <div className="p-2.5 space-y-2">
@@ -448,9 +456,14 @@ function TodoCard({
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <p className={`text-xs leading-snug ${item.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
-              {item.description}
-            </p>
+            <div className="flex items-start gap-1">
+              <p className={`flex-1 text-xs leading-snug ${item.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+                {item.description}
+              </p>
+              {item.is_critical && !item.completed && (
+                <Flag className="w-3 h-3 text-red-500 flex-shrink-0 mt-0.5" />
+              )}
+            </div>
             {item.link && (
               <a href={item.link} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1 mt-0.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
@@ -479,6 +492,13 @@ function TodoCard({
                 title={item.reminder_date ? 'Endre påminnelse' : 'Sett påminnelse'}
               >
                 <Bell className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => onToggleCritical(item.id, !item.is_critical)}
+                className={`p-0.5 transition-colors ${item.is_critical ? 'text-red-500 hover:text-red-400' : 'text-slate-600 hover:text-red-400'}`}
+                title={item.is_critical ? 'Fjern kritisk-markering' : 'Merk som kritisk'}
+              >
+                <Flag className="w-3 h-3" />
               </button>
               <button onClick={() => onMove(item.id, 'up')} disabled={isFirst} className="p-0.5 text-slate-600 hover:text-slate-300 disabled:opacity-20 transition-colors" title="Flytt opp">
                 <ChevronUp className="w-3 h-3" />

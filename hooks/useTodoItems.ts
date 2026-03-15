@@ -41,6 +41,7 @@ export function useTodoItems(tripId: string | null) {
         completed_at: null,
         sort_order: nextOrder,
         reminder_date: null,
+        is_critical: false,
         created_at: new Date().toISOString(),
       }
       setItems((prev) => [...prev, optimistic])
@@ -136,6 +137,20 @@ export function useTodoItems(tripId: string | null) {
     [supabase],
   )
 
+  const toggleCritical = useCallback(
+    async (id: string, critical: boolean): Promise<void> => {
+      setItems((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, is_critical: critical } : i)),
+      )
+      const { error } = await supabase
+        .from('todo_items')
+        .update({ is_critical: critical })
+        .eq('id', id)
+      if (error) toast.error('Kunne ikke oppdatere oppgave')
+    },
+    [supabase],
+  )
+
   const deleteItem = useCallback(
     async (id: string): Promise<void> => {
       setItems((prev) => prev.filter((i) => i.id !== id))
@@ -145,5 +160,5 @@ export function useTodoItems(tripId: string | null) {
     [supabase],
   )
 
-  return { items, loading, addItem, updateItem, toggleItem, moveItem, setReminder, deleteItem }
+  return { items, loading, addItem, updateItem, toggleItem, moveItem, setReminder, toggleCritical, deleteItem }
 }

@@ -261,6 +261,7 @@ export interface TodoItem {
   completed_at: string | null
   sort_order: number
   reminder_date: string | null  // ISO date (YYYY-MM-DD)
+  is_critical: boolean
   created_at: string
 }
 
