@@ -169,7 +169,7 @@ export default function PlanSidebar({
           onSelectStop={onSelectStop}
         />
       ) : (
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700/50 [&::-webkit-scrollbar-thumb]:rounded-full">
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
           {!currentTrip ? (
             <div className="flex flex-col items-center justify-center h-48 text-center px-4">
               <p className="text-slate-500 text-sm">
