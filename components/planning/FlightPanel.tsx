@@ -452,7 +452,7 @@ export default function FlightPanel({ tripId }: FlightPanelProps) {
         className="w-full px-4 py-3 flex items-center gap-2 text-sm font-medium text-slate-300 hover:bg-slate-800/50 transition-colors"
       >
         <Plane className="w-4 h-4 text-sky-400 flex-shrink-0" />
-        <span>Fly tur/retur</span>
+        <span>Flyinformasjon</span>
         <FlightSummary outbound={outbound} returnFlight={returnFlight} />
         <ChevronDown
           className={`w-4 h-4 text-slate-500 transition-transform flex-shrink-0 ${
