@@ -699,10 +699,10 @@ function ParkingModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden flex flex-col max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="w-4 h-4 bg-slate-500 rounded text-white flex items-center justify-center text-[9px] font-bold leading-none">P</span>
             <h3 className="text-sm font-bold text-white">Parkering per hotell</h3>
@@ -711,7 +711,7 @@ function ParkingModal({
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-4">
+        <div className="p-4 overflow-y-auto flex-1">
           {parkingRows.length === 0 ? (
             <p className="text-slate-500 text-xs text-center py-4">Ingen parkeringspriser registrert på hotellene</p>
           ) : (
@@ -743,7 +743,7 @@ function ParkingModal({
             </div>
           )}
         </div>
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 flex-shrink-0">
           <button onClick={onClose} className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold rounded-lg transition-colors">
             Lukk
           </button>
