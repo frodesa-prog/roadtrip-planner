@@ -1,6 +1,7 @@
 'use client'
 
 import { Stop, Hotel, Activity } from '@/types'
+import { LegInfo } from '@/hooks/useDrivingInfo'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,7 @@ interface CalendarViewProps {
   stops: Stop[]
   hotels: Hotel[]
   activities: Activity[]
+  drivingLegs: (LegInfo | null)[]
   selectedStopId: string | null
   onSelectStop: (id: string) => void
 }
@@ -67,6 +69,7 @@ export default function CalendarView({
   stops,
   hotels,
   activities,
+  drivingLegs,
   selectedStopId,
   onSelectStop,
 }: CalendarViewProps) {
@@ -173,6 +176,12 @@ export default function CalendarView({
                   const isSelected = cell.stop.id === selectedStopId
                   const hotelBooked = hotel?.status === 'confirmed'
 
+                  // Driving leg: drivingLegs[i] goes from stops[i] → stops[i+1]
+                  const globalIdx = stops.findIndex((s) => s.id === cell.stop!.id)
+                  const drivingLeg = cell.isArrival && globalIdx > 0
+                    ? (drivingLegs[globalIdx - 1] ?? null)
+                    : null
+
                   return (
                     <div
                       key={ci}
@@ -204,9 +213,11 @@ export default function CalendarView({
                         {cell.stop.city}
                       </p>
 
-                      {/* Arrival indicator */}
+                      {/* Arrival: show drive time if available, else plain arrival indicator */}
                       {cell.isArrival && (
-                        <p className="text-[9px] text-blue-400/80 leading-tight">↓ Ankomst</p>
+                        <p className="text-[9px] text-blue-400/80 leading-tight">
+                          {drivingLeg ? `🚗 ${drivingLeg.durationText}` : '↓ Ankomst'}
+                        </p>
                       )}
 
                       {/* Bottom: hotel + activities */}

@@ -102,7 +102,7 @@ export default function PlanSidebar({
   return (
     <div
       className={`${
-        showCalendar ? 'w-[700px]' : 'w-[340px]'
+        showCalendar ? 'w-[730px]' : 'w-[390px]'
       } min-w-[300px] h-full bg-slate-900 border-r border-slate-800 flex flex-col transition-[width] duration-300 overflow-hidden`}
     >
       <TripManager
@@ -119,8 +119,8 @@ export default function PlanSidebar({
 
       {/* Stats + calendar toggle */}
       {currentTrip && (
-        <div className="px-4 py-2.5 bg-slate-800/50 border-b border-slate-800 flex items-center justify-between gap-3">
-          <div className="flex gap-3 flex-wrap items-center">
+        <div className="px-4 py-2.5 bg-slate-800/50 border-b border-slate-800 flex items-center justify-between gap-2">
+          <div className="flex gap-2.5 items-center">
             <div className="flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-blue-400" />
               <span className="text-xs text-slate-400">
@@ -165,6 +165,7 @@ export default function PlanSidebar({
           stops={stops}
           hotels={hotels}
           activities={activities}
+          drivingLegs={drivingLegs}
           selectedStopId={selectedStopId}
           onSelectStop={onSelectStop}
         />
