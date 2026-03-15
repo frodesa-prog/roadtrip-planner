@@ -4,15 +4,17 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Plane, Users, ChevronDown, PlaneLanding, PlaneTakeoff, Clock,
-  Plus, Pencil, Trash2, Check, X,
+  Plus, Pencil, Trash2, Check, X, Link2, Loader2,
 } from 'lucide-react'
 import { Flight, Traveler } from '@/types'
 import { useFlights } from '@/hooks/useFlights'
 import { useTravelers } from '@/hooks/useTravelers'
+import type { LinkedTravelerResult } from '@/hooks/useTravelers'
 import {
   Airport, filterAirports, getOffset,
   calcFlightMinutes, calcStopoverMinutes, formatDuration,
 } from '@/data/airports'
+import { TRAVEL_INTERESTS, parseInterests } from '@/lib/travelInterests'
 
 // ── Flight form helpers ───────────────────────────────────────────────────────
 
@@ -227,20 +229,8 @@ function FlightForm({ flight, onSave }: {
 
 // ── Traveler helpers ──────────────────────────────────────────────────────────
 
-const INTERESTS = [
-  { label: 'Baseball',     emoji: '⚾' },
-  { label: 'Friluftsliv', emoji: '🥾' },
-  { label: 'Restauranter', emoji: '🍽' },
-  { label: 'Shopping',    emoji: '🛍' },
-  { label: 'Museer',      emoji: '🏛' },
-  { label: 'Musikk',      emoji: '🎵' },
-  { label: 'Parker',      emoji: '🎡' },
-  { label: 'Natur',       emoji: '🌲' },
-  { label: 'Fotografi',   emoji: '📸' },
-  { label: 'Strand',      emoji: '🏖' },
-  { label: 'Sport',       emoji: '🏅' },
-  { label: 'Kino',        emoji: '🎬' },
-]
+// Interessekategorier importert fra lib/travelInterests.ts
+const INTERESTS = TRAVEL_INTERESTS
 
 const GENDERS = [
   { value: 'mann',   label: 'Mann' },
@@ -252,11 +242,6 @@ function genderEmoji(gender: string | null) {
   if (gender === 'mann') return '👨'
   if (gender === 'kvinne') return '👩'
   return '🧑'
-}
-
-function parseInterests(str: string | null): string[] {
-  if (!str) return []
-  return str.split(',').map((s) => s.trim()).filter(Boolean)
 }
 
 interface FormState {
@@ -443,7 +428,14 @@ function TravelerCard({
         <div className="flex items-center gap-2">
           <span className="text-xl leading-none">{genderEmoji(traveler.gender)}</span>
           <div>
-            <p className="text-xs font-semibold text-slate-100">{traveler.name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-semibold text-slate-100">{traveler.name}</p>
+              {traveler.linked_user_id && (
+                <span title="Koblet til app-bruker" className="flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-blue-600/20 border border-blue-500/30">
+                  <Link2 className="w-2.5 h-2.5 text-blue-400" />
+                </span>
+              )}
+            </div>
             <p className="text-[10px] text-slate-500">
               {[
                 traveler.age != null && `${traveler.age} år`,
@@ -504,12 +496,16 @@ export default function TripPanels({
   onUpdateGroupDescription,
 }: TripPanelsProps) {
   const { outbound, returnFlight, saveFlight } = useFlights(tripId)
-  const { travelers, addTraveler, updateTraveler, deleteTraveler } = useTravelers(tripId)
+  const { travelers, addTraveler, addLinkedTraveler, updateTraveler, deleteTraveler } = useTravelers(tripId)
 
   const [openPanel, setOpenPanel] = useState<'flight' | 'crew' | null>(null)
   const [flightTab, setFlightTab] = useState<'outbound' | 'return'>('outbound')
   const [showAddForm, setShowAddForm] = useState(false)
   const [addSaving, setAddSaving] = useState(false)
+  const [showLinkedForm, setShowLinkedForm] = useState(false)
+  const [linkedEmail, setLinkedEmail] = useState('')
+  const [linkedSaving, setLinkedSaving] = useState(false)
+  const [linkedResult, setLinkedResult] = useState<LinkedTravelerResult | null>(null)
 
   // Local state for the group description
   const [descValue, setDescValue] = useState(groupDescription ?? '')
@@ -667,15 +663,78 @@ export default function TripPanels({
                 ? 'Ingen registrert ennå'
                 : `${travelers.length} ${travelers.length === 1 ? 'person' : 'personer'} på tur`}
             </span>
-            {!showAddForm && (
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] bg-blue-600 hover:bg-blue-500 text-white transition-colors"
-              >
-                <Plus className="w-3 h-3" /> Legg til
-              </button>
+            {!showAddForm && !showLinkedForm && (
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setShowLinkedForm(true)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
+                  title="Legg til registrert app-bruker"
+                >
+                  <Link2 className="w-3 h-3" /> App-bruker
+                </button>
+                <button
+                  onClick={() => setShowAddForm(true)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> Legg til
+                </button>
+              </div>
             )}
           </div>
+
+          {/* Add linked user form */}
+          {showLinkedForm && (
+            <div className="mx-3 mb-3 bg-slate-800/60 border border-blue-500/40 rounded-xl p-3 space-y-2">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Link2 className="w-3 h-3 text-blue-400" /> Legg til app-bruker
+              </p>
+              <p className="text-[10px] text-slate-500">
+                Skriv inn e-postadressen til en annen bruker av appen. Hvis de har gitt deg tilgang til sine preferanser hentes disse inn automatisk.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={linkedEmail}
+                  onChange={(e) => { setLinkedEmail(e.target.value); setLinkedResult(null) }}
+                  placeholder="bruker@eksempel.no"
+                  className="flex-1 h-7 rounded-md bg-slate-800 border border-slate-700 px-2.5 text-xs text-slate-100 placeholder:text-slate-600 outline-none focus:border-blue-500/60"
+                />
+                <button
+                  onClick={async () => {
+                    if (!linkedEmail.trim()) return
+                    setLinkedSaving(true)
+                    const result = await addLinkedTraveler(linkedEmail.trim())
+                    setLinkedResult(result)
+                    setLinkedSaving(false)
+                    if (result !== 'error' && result !== 'not_found') {
+                      setLinkedEmail('')
+                      setTimeout(() => { setShowLinkedForm(false); setLinkedResult(null) }, 1500)
+                    }
+                  }}
+                  disabled={linkedSaving || !linkedEmail.trim()}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white transition-colors"
+                >
+                  {linkedSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                  Legg til
+                </button>
+                <button
+                  onClick={() => { setShowLinkedForm(false); setLinkedEmail(''); setLinkedResult(null) }}
+                  className="flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+              {linkedResult === 'not_found' && (
+                <p className="text-[10px] text-red-400">Fant ingen bruker med denne e-postadressen</p>
+              )}
+              {linkedResult === 'no_access' && (
+                <p className="text-[10px] text-amber-400">Lagt til uten preferanser (brukeren har ikke gitt deg tilgang)</p>
+              )}
+              {linkedResult === 'success' && (
+                <p className="text-[10px] text-emerald-400">✓ Lagt til med preferanser!</p>
+              )}
+            </div>
+          )}
 
           {/* Add form */}
           {showAddForm && (

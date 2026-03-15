@@ -9,6 +9,9 @@ import { useUserDocuments } from '@/hooks/useUserDocuments'
 import { useTripShares } from '@/hooks/useTripShares'
 import { useActivityLog } from '@/hooks/useActivityLog'
 import { logActivity } from '@/hooks/useActivityLog'
+import { useUserProfile } from '@/hooks/useUserProfile'
+import { usePreferenceAccess } from '@/hooks/usePreferenceAccess'
+import { TRAVEL_INTERESTS, parseInterests, serializeInterests } from '@/lib/travelInterests'
 import { PackingCategory, DocumentType, ActivityLogEntry } from '@/types'
 import { toast } from 'sonner'
 import {
@@ -35,6 +38,8 @@ import {
   Globe,
   TrendingUp,
   Clock,
+  Link2,
+  UserCheck,
 } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -81,7 +86,15 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
   const [confirmPw, setConfirmPw] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [displayNameVal, setDisplayNameVal] = useState('')
+  const [nameSaving, setNameSaving] = useState(false)
   const supabase = useMemo(() => createClient(), [])
+  const { profile, saveDisplayName } = useUserProfile()
+
+  // Sync display name input when profile loads
+  useEffect(() => {
+    if (profile?.display_name != null) setDisplayNameVal(profile.display_name)
+  }, [profile?.display_name])
 
   async function handleChangePw() {
     if (newPw.length < 6) { toast.error('Passordet må være minst 6 tegn'); return }
@@ -93,6 +106,13 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
     toast.success('Passord endret!')
     setNewPw(''); setConfirmPw('')
     logActivity({ log_type: 'functional', action: 'passord endret', entity_type: 'profil', entity_name: 'Passord' })
+  }
+
+  async function handleSaveDisplayName() {
+    setNameSaving(true)
+    await saveDisplayName(displayNameVal.trim())
+    setNameSaving(false)
+    logActivity({ log_type: 'functional', action: 'lagret', entity_type: 'profil', entity_name: 'Visningsnavn' })
   }
 
   return (
@@ -114,6 +134,31 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
             <p className="text-xs text-slate-500 mb-0.5">Bruker-ID</p>
             <p className="text-xs text-slate-500 font-mono break-all">{user?.id ?? '—'}</p>
           </div>
+        </div>
+      </div>
+
+      {/* Display name */}
+      <div>
+        <h2 className="text-base font-semibold text-white mb-1">Visningsnavn</h2>
+        <p className="text-xs text-slate-500 mb-3">
+          Brukes som ditt navn i turfølget når du oppretter en ny tur.
+        </p>
+        <div className="flex gap-2">
+          <input
+            value={displayNameVal}
+            onChange={(e) => setDisplayNameVal(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveDisplayName() }}
+            placeholder="Ditt navn (f.eks. «Ola»)"
+            className="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-blue-500"
+          />
+          <button
+            onClick={handleSaveDisplayName}
+            disabled={nameSaving || !displayNameVal.trim()}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium transition-colors"
+          >
+            {nameSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Lagre
+          </button>
         </div>
       </div>
 
@@ -760,17 +805,26 @@ function PakkelisteTab() {
 
 function PreferanserTab() {
   const { preferences, loading, savePreferences } = useUserPreferences()
-  const [interests, setInterests] = useState('')
+  const { grants, loading: grantsLoading, grantAccess, revokeAccess } = usePreferenceAccess()
+
+  // Interests (checkbox array)
+  const [checkedInterests, setCheckedInterests] = useState<string[]>([])
+  const [interestsExtra, setInterestsExtra] = useState('')
   const [food, setFood] = useState('')
   const [mobility, setMobility] = useState('')
   const [other, setOther] = useState('')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout>>()
 
+  // Preference sharing
+  const [grantEmail, setGrantEmail] = useState('')
+  const [granting, setGranting] = useState(false)
+
   // Sync when loaded
   useEffect(() => {
     if (preferences) {
-      setInterests(preferences.interests ?? '')
+      setCheckedInterests(parseInterests(preferences.interests ?? null))
+      setInterestsExtra(preferences.interests_extra ?? '')
       setFood(preferences.food_preferences ?? '')
       setMobility(preferences.mobility_notes ?? '')
       setOther(preferences.other_info ?? '')
@@ -787,17 +841,33 @@ function PreferanserTab() {
     }, 800)
   }, [savePreferences])
 
+  function toggleInterest(label: string) {
+    const next = checkedInterests.includes(label)
+      ? checkedInterests.filter((i) => i !== label)
+      : [...checkedInterests, label]
+    setCheckedInterests(next)
+    debounceSave({ interests: serializeInterests(next) ?? '' })
+  }
+
+  async function handleGrant() {
+    if (!grantEmail.trim()) return
+    setGranting(true)
+    const ok = await grantAccess(grantEmail.trim())
+    if (ok) setGrantEmail('')
+    setGranting(false)
+  }
+
   if (loading) return <div className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 text-slate-600 animate-spin" /></div>
 
-  const fields: { label: string; desc: string; value: string; setter: (v: string) => void; key: keyof Parameters<typeof savePreferences>[0] }[] = [
-    { label: 'Interesser', desc: 'Mat, kultur, sport, natur, shopping osv.', value: interests, setter: setInterests, key: 'interests' },
+  const textFields: { label: string; desc: string; value: string; setter: (v: string) => void; key: keyof Parameters<typeof savePreferences>[0] }[] = [
     { label: 'Matpreferanser og allergier', desc: 'Vegetar, vegansk, glutenfri, allergier osv.', value: food, setter: setFood, key: 'food_preferences' },
     { label: 'Mobilitet og spesielle hensyn', desc: 'Rullestol, barnevogn, høyt tempo, slow travel osv.', value: mobility, setter: setMobility, key: 'mobility_notes' },
     { label: 'Annen informasjon til reiseassistenten', desc: 'Budsjettbevissthet, preferert reisestil, eller noe annet som er nyttig å vite', value: other, setter: setOther, key: 'other_info' },
   ]
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="max-w-xl space-y-8">
+      {/* ── Preferences ── */}
       <div>
         <h2 className="text-base font-semibold text-white mb-1">Personlige preferanser</h2>
         <p className="text-xs text-slate-500 leading-relaxed">
@@ -805,8 +875,46 @@ function PreferanserTab() {
         </p>
       </div>
 
+      {/* Interest checkboxes */}
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1">Interesser</label>
+        <p className="text-xs text-slate-600 mb-3">Huk av det som passer deg som reisende.</p>
+        <div className="grid grid-cols-3 gap-2">
+          {TRAVEL_INTERESTS.map(({ label, emoji }) => {
+            const checked = checkedInterests.includes(label)
+            return (
+              <button
+                key={label}
+                onClick={() => toggleInterest(label)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors text-left ${
+                  checked
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-200'
+                    : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-300'
+                }`}
+              >
+                <span className="text-base leading-none">{emoji}</span>
+                <span className="text-xs font-medium truncate">{label}</span>
+                {checked && <Check className="w-3 h-3 ml-auto flex-shrink-0 text-blue-400" />}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Extra free-text interests */}
+        <div className="mt-3">
+          <textarea
+            value={interestsExtra}
+            onChange={(e) => { setInterestsExtra(e.target.value); debounceSave({ interests_extra: e.target.value }) }}
+            rows={2}
+            placeholder="Andre interesser du vil legge til…"
+            className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-blue-500 resize-none"
+          />
+        </div>
+      </div>
+
+      {/* Other text fields */}
       <div className="space-y-4">
-        {fields.map((f) => (
+        {textFields.map((f) => (
           <div key={f.key}>
             <label className="block text-xs font-medium text-slate-400 mb-1">{f.label}</label>
             <p className="text-xs text-slate-600 mb-1.5">{f.desc}</p>
@@ -824,6 +932,65 @@ function PreferanserTab() {
       {lastSaved && (
         <p className="text-xs text-slate-600">Sist lagret: {fmtDate(lastSaved.toISOString())}</p>
       )}
+
+      {/* ── Preference sharing ── */}
+      <div className="border-t border-slate-800 pt-6 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-blue-400" />
+            Del preferanser med andre brukere
+          </h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Når du gir en bruker tilgang kan de legge deg til i turfølget sitt og få dine preferanser
+            automatisk lagt inn på reisedeltakeren. Du kan trekke tilgangen tilbake når som helst.
+          </p>
+        </div>
+
+        {/* Grant form */}
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={grantEmail}
+            onChange={(e) => setGrantEmail(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleGrant() }}
+            placeholder="E-postadresse til bruker"
+            className="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-blue-500"
+          />
+          <button
+            onClick={handleGrant}
+            disabled={granting || !grantEmail.trim()}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium transition-colors"
+          >
+            {granting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
+            Gi tilgang
+          </button>
+        </div>
+
+        {/* Existing grants */}
+        {grantsLoading ? (
+          <Loader2 className="w-4 h-4 text-slate-600 animate-spin" />
+        ) : grants.length === 0 ? (
+          <p className="text-xs text-slate-600">Ingen brukere har tilgang til preferansene dine ennå.</p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-slate-500">Brukere med tilgang:</p>
+            {grants.map((g) => (
+              <div key={g.id} className="flex items-center gap-3 bg-slate-800/40 border border-slate-700 rounded-lg px-3 py-2">
+                <UserCheck className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                <p className="flex-1 text-sm text-slate-200 truncate">{g.granted_to_email}</p>
+                <p className="text-xs text-slate-600 flex-shrink-0">{fmtDateShort(g.created_at)}</p>
+                <button
+                  onClick={() => revokeAccess(g.id)}
+                  className="text-slate-600 hover:text-red-400 transition-colors flex-shrink-0"
+                  title="Fjern tilgang"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -163,9 +163,10 @@ export interface Traveler {
   trip_id: string
   name: string
   age: number | null
-  gender: string | null       // 'mann' | 'kvinne' | 'annet'
-  interests: string | null    // kommaseparert liste
+  gender: string | null          // 'mann' | 'kvinne' | 'annet'
+  interests: string | null       // kommaseparert liste
   description: string | null
+  linked_user_id: string | null  // koblet til registrert bruker
   created_at: string
 }
 
@@ -190,12 +191,28 @@ export interface ChatDbMessage {
 export interface UserPreferences {
   id: string
   user_id: string
-  interests: string | null
+  interests: string | null        // kommaseparert liste med kategorier
+  interests_extra: string | null  // fritekst-tillegg
   food_preferences: string | null
   mobility_notes: string | null
   other_info: string | null
   created_at: string
   updated_at: string
+}
+
+export interface UserProfile {
+  user_id: string
+  display_name: string | null
+  email: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PreferenceAccess {
+  id: string
+  user_id: string
+  granted_to_email: string
+  created_at: string
 }
 
 export type PackingCategory = 'documents' | 'electronics' | 'clothes' | 'hygiene' | 'other'

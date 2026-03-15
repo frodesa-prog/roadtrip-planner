@@ -30,7 +30,7 @@ export function useUserPreferences() {
   }, [supabase])
 
   const savePreferences = useCallback(
-    async (updates: Partial<Pick<UserPreferences, 'interests' | 'food_preferences' | 'mobility_notes' | 'other_info'>>) => {
+    async (updates: Partial<Pick<UserPreferences, 'interests' | 'interests_extra' | 'food_preferences' | 'mobility_notes' | 'other_info'>>) => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
@@ -39,7 +39,7 @@ export function useUserPreferences() {
 
       // Optimistic
       setPreferences((prev) =>
-        prev ? { ...prev, ...updates, updated_at: now } : { id: '', user_id: user.id, interests: null, food_preferences: null, mobility_notes: null, other_info: null, created_at: now, updated_at: now, ...updates }
+        prev ? { ...prev, ...updates, updated_at: now } : { id: '', user_id: user.id, interests: null, interests_extra: null, food_preferences: null, mobility_notes: null, other_info: null, created_at: now, updated_at: now, ...updates }
       )
 
       const { data, error } = await supabase

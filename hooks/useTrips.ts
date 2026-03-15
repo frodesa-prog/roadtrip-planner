@@ -49,6 +49,23 @@ export function useTrips() {
       setCurrentTrip(newTrip)
       toast.success(`"${name}" er opprettet! 🗺️`)
       logActivity({ log_type: 'database', action: 'INSERT', entity_type: 'trip', entity_name: name, trip_id: newTrip.id })
+
+      // Auto-legg til tureier som første reisedeltaker
+      const { data: profileData } = await supabase
+        .from('user_profiles')
+        .select('display_name')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      const displayName =
+        (profileData as { display_name: string | null } | null)?.display_name ||
+        user.email?.split('@')[0] ||
+        'Meg'
+      await supabase.from('travelers').insert({
+        trip_id: newTrip.id,
+        name: displayName,
+        linked_user_id: user.id,
+      })
+
       return newTrip
     },
     [supabase]
