@@ -99,8 +99,8 @@ export default function TodoPage() {
                 {/* Car moving along the bar */}
                 <div className="relative h-4 mb-0.5 overflow-hidden">
                   <span
-                    className="absolute text-sm leading-none transition-all duration-700 ease-in-out"
-                    style={{ left: `${Math.min(pct, 88)}%` }}
+                    className="absolute text-sm leading-none transition-all duration-700 ease-in-out inline-block"
+                    style={{ left: `${Math.min(pct, 88)}%`, transform: 'scaleX(-1)' }}
                   >
                     🚗
                   </span>
@@ -610,37 +610,49 @@ function TodoCard({
 // ─── Road illustration ────────────────────────────────────────────────────────
 
 function RoadIllustration({ pct }: { pct: number }) {
-  // Car travels from 3% to 63% of the illustration width (sign occupies the right ~28%)
-  const carLeft = 3 + (pct / 100) * 60
+  // Car travels from 11% (past start sign) to 84% (before end sign)
+  const carLeft = 11 + (pct / 100) * 73
 
   return (
     <div
-      className="relative flex-1 max-w-[340px] overflow-hidden rounded-lg border border-slate-700/40"
+      className="relative flex-1 overflow-hidden rounded-lg border border-slate-700/40"
       style={{ height: 62 }}
     >
       {/* Sky gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-slate-800 to-slate-900" />
 
       {/* Stars */}
-      <div className="absolute top-2 left-8 w-1 h-1 rounded-full bg-slate-500/60" />
-      <div className="absolute top-5 left-24 w-0.5 h-0.5 rounded-full bg-slate-400/50" />
-      <div className="absolute top-1 left-40 w-0.5 h-0.5 rounded-full bg-slate-500/50" />
-      <div className="absolute top-4 left-60 w-1 h-1 rounded-full bg-slate-500/40" />
-      <div className="absolute top-2 left-80 w-0.5 h-0.5 rounded-full bg-slate-400/40" />
+      <div className="absolute top-2 left-[10%] w-1 h-1 rounded-full bg-slate-500/60" />
+      <div className="absolute top-5 left-[25%] w-0.5 h-0.5 rounded-full bg-slate-400/50" />
+      <div className="absolute top-1 left-[42%] w-0.5 h-0.5 rounded-full bg-slate-500/50" />
+      <div className="absolute top-4 left-[60%] w-1 h-1 rounded-full bg-slate-500/40" />
+      <div className="absolute top-2 left-[76%] w-0.5 h-0.5 rounded-full bg-slate-400/40" />
 
       {/* Road surface */}
       <div className="absolute bottom-0 left-0 right-0 h-[26px] bg-slate-700/80">
-        {/* Center dashes */}
-        <div className="absolute top-[40%] left-2 right-28 flex items-center gap-2.5">
-          {Array.from({ length: 14 }).map((_, i) => (
-            <div key={i} className="h-px w-5 bg-slate-500/50 flex-shrink-0" />
+        {/* Center dashes – overflow-hidden clips the extras */}
+        <div className="absolute top-[40%] left-16 right-28 flex items-center gap-3 overflow-hidden">
+          {Array.from({ length: 40 }).map((_, i) => (
+            <div key={i} className="h-px w-6 bg-slate-500/50 flex-shrink-0" />
           ))}
         </div>
-        {/* Road edges */}
+        {/* Road top edge */}
         <div className="absolute top-0 left-0 right-0 h-px bg-slate-600/60" />
       </div>
 
-      {/* Sign post (right side) */}
+      {/* Start sign (left side) – shows % completed */}
+      <div className="absolute left-4 bottom-[26px] flex flex-col items-center">
+        {/* Sign board */}
+        <div className="bg-slate-700 border border-slate-500/70 rounded px-2 py-0.5 shadow-sm">
+          <p className="text-[9px] text-slate-200 font-bold whitespace-nowrap leading-tight text-center">
+            {pct}%
+          </p>
+        </div>
+        {/* Post */}
+        <div className="w-px h-3.5 bg-slate-500/80" />
+      </div>
+
+      {/* End sign (right side) */}
       <div className="absolute right-5 bottom-[26px] flex flex-col items-center">
         {/* Plane above sign */}
         <span className="text-base leading-none mb-1">✈️</span>
@@ -654,10 +666,10 @@ function RoadIllustration({ pct }: { pct: number }) {
         <div className="w-px h-3.5 bg-slate-500/80" />
       </div>
 
-      {/* Car on road */}
+      {/* Car on road – flipped so it drives rightward */}
       <div
-        className="absolute text-base leading-none transition-all duration-700 ease-in-out select-none"
-        style={{ left: `${carLeft}%`, bottom: 5 }}
+        className="absolute text-base leading-none transition-all duration-700 ease-in-out select-none inline-block"
+        style={{ left: `${carLeft}%`, bottom: 5, transform: 'scaleX(-1)' }}
       >
         🚗
       </div>
