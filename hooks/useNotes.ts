@@ -17,6 +17,7 @@ export function useNotes(tripId: string | null) {
       .from('notes')
       .select('*')
       .eq('trip_id', tripId)
+      .is('archived_at', null)
       .order('created_at')
       .then(({ data }) => { if (data) setNotes(data as Note[]) })
   }, [tripId, supabase])
@@ -27,6 +28,7 @@ export function useNotes(tripId: string | null) {
       id: crypto.randomUUID(),
       trip_id: tripId,
       ...data,
+      archived_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -54,11 +56,56 @@ export function useNotes(tripId: string | null) {
     if (error) toast.error('Kunne ikke oppdatere notat')
   }, [supabase])
 
+  const archiveNote = useCallback(async (id: string) => {
+    setNotes((prev) => prev.filter((n) => n.id !== id))
+    const { error } = await supabase
+      .from('notes')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) toast.error('Kunne ikke arkivere notat')
+  }, [supabase])
+
+  // Kept for backwards compat / permanent deletion from archive
   const deleteNote = useCallback(async (id: string) => {
     setNotes((prev) => prev.filter((n) => n.id !== id))
     const { error } = await supabase.from('notes').delete().eq('id', id)
     if (error) toast.error('Kunne ikke slette notat')
   }, [supabase])
 
-  return { notes, addNote, updateNote, deleteNote }
+  return { notes, addNote, updateNote, archiveNote, deleteNote }
+}
+
+// ─── Archived notes (for the archive page) ───────────────────────────────────
+
+export function useArchivedNotes(tripId: string | null) {
+  const [archivedNotes, setArchivedNotes] = useState<Note[]>([])
+  const supabase = useMemo(() => createClient(), [])
+
+  useEffect(() => {
+    if (!tripId) { setArchivedNotes([]); return }
+    supabase
+      .from('notes')
+      .select('*')
+      .eq('trip_id', tripId)
+      .not('archived_at', 'is', null)
+      .order('archived_at', { ascending: false })
+      .then(({ data }) => { if (data) setArchivedNotes(data as Note[]) })
+  }, [tripId, supabase])
+
+  const deleteNotePermanently = useCallback(async (id: string) => {
+    setArchivedNotes((prev) => prev.filter((n) => n.id !== id))
+    const { error } = await supabase.from('notes').delete().eq('id', id)
+    if (error) toast.error('Kunne ikke slette notat')
+  }, [supabase])
+
+  const restoreNote = useCallback(async (id: string) => {
+    setArchivedNotes((prev) => prev.filter((n) => n.id !== id))
+    const { error } = await supabase
+      .from('notes')
+      .update({ archived_at: null })
+      .eq('id', id)
+    if (error) toast.error('Kunne ikke gjenopprette notat')
+  }, [supabase])
+
+  return { archivedNotes, deleteNotePermanently, restoreNote }
 }

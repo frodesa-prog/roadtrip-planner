@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Plus, Trash2, FileText, ImageIcon, Loader2, X } from 'lucide-react'
+import { Plus, Trash2, FileText, ImageIcon, Loader2, X, Archive, RotateCcw } from 'lucide-react'
+import Link from 'next/link'
 import { useTrips } from '@/hooks/useTrips'
 import { useNotes } from '@/hooks/useNotes'
 import { useStops } from '@/hooks/useStops'
@@ -37,11 +38,13 @@ export default function NotesPage() {
     trips, currentTrip, loading: tripsLoading, userId,
     setCurrentTrip, createTrip, deleteTrip,
   } = useTrips()
-  const { notes, addNote, updateNote, deleteNote } = useNotes(
+  const { notes, addNote, updateNote, archiveNote } = useNotes(
     currentTrip?.id ?? null
   )
   const { stops } = useStops(currentTrip?.id ?? null)
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+  const [showDraft, setShowDraft] = useState(false)
+  const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null)
 
   // Stop order map for sorting
   const stopOrderMap = useMemo(() => {
@@ -67,35 +70,94 @@ export default function NotesPage() {
     })
   }, [notes, stopOrderMap])
 
-  // Auto-select first note when notes load (and nothing is selected)
-  useEffect(() => {
-    if (sortedNotes.length > 0 && !selectedNoteId) {
-      setSelectedNoteId(sortedNotes[0].id)
-    }
-  }, [sortedNotes, selectedNoteId])
-
-  // Clear selected note when trip changes
+  // Auto-show draft when entering page with a trip (or when trip changes)
   useEffect(() => {
     setSelectedNoteId(null)
-  }, [currentTrip?.id])
+    setConfirmArchiveId(null)
+    setShowDraft(!!currentTrip)
+  }, [currentTrip?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleAddNote() {
-    const note = await addNote({ content: '', title: null, stop_id: null, note_date: null })
-    if (note) setSelectedNoteId(note.id)
+  // --- Draft handlers ---
+
+  async function handleDraftSave(title: string, content: string) {
+    const note = await addNote({
+      content,
+      title: title.trim() || null,
+      stop_id: null,
+      note_date: null,
+    })
+    if (note) {
+      setShowDraft(false)
+      setSelectedNoteId(note.id)
+    }
   }
 
-  async function handleDeleteNote(id: string) {
-    await deleteNote(id)
+  function handleDraftDiscard() {
+    setShowDraft(false)
+    if (sortedNotes.length > 0) setSelectedNoteId(sortedNotes[0].id)
+  }
+
+  // Select an existing note (hides draft without saving)
+  function handleSelectNote(id: string) {
+    setShowDraft(false)
+    setSelectedNoteId(id)
+  }
+
+  // "+" button: if draft already visible, focus it; otherwise show new draft
+  function handleAddNote() {
+    setShowDraft(true)
+    setSelectedNoteId(null)
+  }
+
+  async function handleArchiveNote(id: string) {
+    await archiveNote(id)
     if (selectedNoteId === id) {
       const remaining = sortedNotes.filter((n) => n.id !== id)
       setSelectedNoteId(remaining.length > 0 ? remaining[0].id : null)
     }
   }
 
-  const selectedNote = notes.find((n) => n.id === selectedNoteId) ?? null
+  const selectedNote = showDraft
+    ? null
+    : (notes.find((n) => n.id === selectedNoteId) ?? null)
 
   return (
     <div className="flex h-full overflow-hidden bg-slate-950">
+
+      {/* ── Confirmation modal ──────────────────────────────────────────── */}
+      {confirmArchiveId && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          onClick={() => setConfirmArchiveId(null)}
+        >
+          <div
+            className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-sm font-semibold text-slate-100 mb-1.5">Flytt til arkiv?</h2>
+            <p className="text-xs text-slate-400 mb-5">
+              Notatet flyttes til arkivet. Du kan finne det igjen der og slette det permanent.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmArchiveId(null)}
+                className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={() => {
+                  handleArchiveNote(confirmArchiveId)
+                  setConfirmArchiveId(null)
+                }}
+                className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
+              >
+                Flytt til arkiv
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Left sidebar ────────────────────────────────────────────────── */}
       <div className="w-[240px] min-w-[200px] h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0">
@@ -122,64 +184,85 @@ export default function NotesPage() {
         <div className="flex-1 overflow-y-auto">
           {!currentTrip ? (
             <p className="px-4 py-6 text-xs text-slate-600 text-center">Velg en tur</p>
-          ) : sortedNotes.length === 0 ? (
-            <div className="px-4 py-8 text-center">
-              <p className="text-xs text-slate-600">Ingen notater ennå</p>
-              <button
-                onClick={handleAddNote}
-                className="mt-3 text-xs text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                + Opprett notat
-              </button>
-            </div>
           ) : (
-            sortedNotes.map((note) => (
-              <div
-                key={note.id}
-                className={[
-                  'flex items-stretch border-b border-slate-800/50 group/note',
-                  note.id === selectedNoteId
-                    ? 'bg-slate-800 border-l-2 border-l-blue-500'
-                    : 'hover:bg-slate-800/40',
-                ].join(' ')}
-              >
-                {/* Main click area */}
-                <button
-                  onClick={() => setSelectedNoteId(note.id)}
-                  className="flex-1 min-w-0 text-left px-4 py-3 transition-colors"
-                >
-                  <p className="text-xs font-medium text-slate-200 truncate">
-                    {note.title || 'Uten tittel'}
-                  </p>
-                  {/* City + date info (no content preview) */}
-                  {note.stop_id ? (
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                      {stopNameMap[note.stop_id] ?? ''}
-                      {note.note_date ? ` · ${formatShortDate(note.note_date)}` : ''}
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-slate-600 truncate mt-0.5 italic">Turnotat</p>
-                  )}
-                </button>
+            <>
+              {/* Draft indicator in list */}
+              {showDraft && (
+                <div className="flex items-stretch border-b border-slate-800/50 bg-slate-800 border-l-2 border-l-blue-500">
+                  <div className="flex-1 min-w-0 px-4 py-3">
+                    <p className="text-xs font-medium text-slate-400 italic">Nytt notat…</p>
+                    <p className="text-[11px] text-slate-600 mt-0.5">Ikke lagret ennå</p>
+                  </div>
+                </div>
+              )}
 
-                {/* Delete button (visible on hover) */}
-                <button
-                  onClick={() => handleDeleteNote(note.id)}
-                  className="opacity-0 group-hover/note:opacity-100 transition-opacity px-2 text-slate-600 hover:text-red-400 flex-shrink-0"
-                  title="Slett notat"
+              {sortedNotes.length === 0 && !showDraft && (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-xs text-slate-600">Ingen notater ennå</p>
+                </div>
+              )}
+
+              {sortedNotes.map((note) => (
+                <div
+                  key={note.id}
+                  className={[
+                    'flex items-stretch border-b border-slate-800/50 group/note',
+                    !showDraft && note.id === selectedNoteId
+                      ? 'bg-slate-800 border-l-2 border-l-blue-500'
+                      : 'hover:bg-slate-800/40',
+                  ].join(' ')}
                 >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            ))
+                  <button
+                    onClick={() => handleSelectNote(note.id)}
+                    className="flex-1 min-w-0 text-left px-4 py-3 transition-colors"
+                  >
+                    <p className="text-xs font-medium text-slate-200 truncate">
+                      {note.title || 'Uten tittel'}
+                    </p>
+                    {note.stop_id ? (
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        {stopNameMap[note.stop_id] ?? ''}
+                        {note.note_date ? ` · ${formatShortDate(note.note_date)}` : ''}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-600 truncate mt-0.5 italic">Turnotat</p>
+                    )}
+                  </button>
+
+                  {/* Delete → moves to archive with confirmation */}
+                  <button
+                    onClick={() => setConfirmArchiveId(note.id)}
+                    className="opacity-0 group-hover/note:opacity-100 transition-opacity px-2 text-slate-600 hover:text-red-400 flex-shrink-0"
+                    title="Flytt til arkiv"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </>
           )}
         </div>
+
+        {/* Archive link at bottom */}
+        {currentTrip && (
+          <div className="border-t border-slate-800 p-3 flex-shrink-0">
+            <Link
+              href="/notes/archive"
+              className="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-colors"
+            >
+              <Archive className="w-3.5 h-3.5" />
+              Arkiv
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* ── Editor area ─────────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
         {!currentTrip ? (
           <EmptyState message="Velg en tur til venstre for å se notater" />
+        ) : showDraft ? (
+          <DraftEditor onSave={handleDraftSave} onDiscard={handleDraftDiscard} />
         ) : !selectedNote ? (
           <EmptyState
             message="Velg et notat eller opprett et nytt"
@@ -190,10 +273,85 @@ export default function NotesPage() {
             key={selectedNote.id}
             note={selectedNote}
             onUpdate={updateNote}
-            onDelete={handleDeleteNote}
+            onRequestDelete={(id) => setConfirmArchiveId(id)}
             stops={stops}
           />
         )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Draft Editor (new note, not yet saved to DB) ─────────────────────────────
+
+function DraftEditor({
+  onSave,
+  onDiscard,
+}: {
+  onSave: (title: string, content: string) => Promise<void>
+  onDiscard: () => void
+}) {
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const titleRef = useRef<HTMLInputElement>(null)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const savedRef = useRef(false)
+
+  useEffect(() => { titleRef.current?.focus() }, [])
+
+  function scheduleAutoSave(t: string, c: string) {
+    if (savedRef.current) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    if (!t.trim() && !c.trim()) return
+    saveTimerRef.current = setTimeout(() => {
+      if (!savedRef.current) {
+        savedRef.current = true
+        onSave(t, c)
+      }
+    }, 700)
+  }
+
+  function handleTitleChange(val: string) {
+    setTitle(val)
+    scheduleAutoSave(val, content)
+  }
+
+  function handleContentChange(val: string) {
+    setContent(val)
+    scheduleAutoSave(title, val)
+  }
+
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Title row */}
+      <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-800 flex-shrink-0">
+        <input
+          ref={titleRef}
+          value={title}
+          onChange={(e) => handleTitleChange(e.target.value)}
+          placeholder="Tittel"
+          className="flex-1 bg-transparent text-lg font-semibold text-slate-100 placeholder:text-slate-600 outline-none"
+        />
+        <button
+          onClick={onDiscard}
+          className="p-1.5 rounded-md text-slate-600 hover:text-slate-400 hover:bg-slate-800 transition-colors flex-shrink-0"
+          title="Forkast"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Content */}
+      <textarea
+        value={content}
+        onChange={(e) => handleContentChange(e.target.value)}
+        placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
+        className="flex-1 bg-transparent text-slate-300 text-sm px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
+      />
+
+      {/* Footer hint */}
+      <div className="px-6 py-2 border-t border-slate-800 flex-shrink-0">
+        <p className="text-[11px] text-slate-600 italic">Lagres automatisk når du begynner å skrive</p>
       </div>
     </div>
   )
@@ -206,12 +364,12 @@ type NoteUpdates = Partial<Pick<Note, 'title' | 'content' | 'stop_id' | 'note_da
 function NoteEditor({
   note,
   onUpdate,
-  onDelete,
+  onRequestDelete,
   stops,
 }: {
   note: Note
   onUpdate: (id: string, updates: NoteUpdates) => void
-  onDelete: (id: string) => void
+  onRequestDelete: (id: string) => void
   stops: Stop[]
 }) {
   const [title, setTitle] = useState(note.title ?? '')
@@ -260,7 +418,6 @@ function NoteEditor({
     onUpdate(note.id, { note_date: newDate })
   }
 
-  // Handle image paste (Cmd+V with image in clipboard)
   function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
     const items = Array.from(e.clipboardData.items)
     const imageItem = items.find((item) => item.type.startsWith('image/'))
@@ -272,14 +429,13 @@ function NoteEditor({
         uploadImage(namedFile)
       }
     }
-    // Non-image paste falls through to textarea natively
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file) {
       uploadImage(file)
-      e.target.value = '' // allow re-uploading the same file
+      e.target.value = ''
     }
   }
 
@@ -300,9 +456,9 @@ function NoteEditor({
           className="flex-1 bg-transparent text-lg font-semibold text-slate-100 placeholder:text-slate-600 outline-none"
         />
         <button
-          onClick={() => onDelete(note.id)}
+          onClick={() => onRequestDelete(note.id)}
           className="p-1.5 rounded-md text-slate-600 hover:text-red-400 hover:bg-slate-800 transition-colors flex-shrink-0"
-          title="Slett notat"
+          title="Flytt til arkiv"
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -310,7 +466,6 @@ function NoteEditor({
 
       {/* City + date linking */}
       <div className="px-6 py-3 border-b border-slate-800 flex-shrink-0 space-y-2">
-        {/* City selector */}
         <div className="flex items-center gap-3">
           <span className="text-[11px] text-slate-500 w-12 flex-shrink-0">By</span>
           <select
@@ -325,7 +480,6 @@ function NoteEditor({
           </select>
         </div>
 
-        {/* Date picker — shown when stop with dates is selected */}
         {stopId && stopDates.length > 0 && (
           <div className="flex items-start gap-3">
             <span className="text-[11px] text-slate-500 w-12 flex-shrink-0 pt-0.5">Dato</span>
@@ -366,16 +520,11 @@ function NoteEditor({
           className="flex-1 bg-transparent text-slate-300 text-sm px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
         />
 
-        {/* Image gallery (shown when images exist) */}
         {images.length > 0 && (
           <div className="border-t border-slate-800 px-4 py-3 grid grid-cols-3 gap-2 max-h-52 overflow-y-auto flex-shrink-0">
             {images.map((img) => (
               <div key={img.id} className="relative group/img aspect-square">
-                <img
-                  src={img.publicUrl}
-                  alt=""
-                  className="w-full h-full object-cover rounded-md"
-                />
+                <img src={img.publicUrl} alt="" className="w-full h-full object-cover rounded-md" />
                 <button
                   onClick={() => removeImage(img.id, img.storage_path)}
                   className="absolute top-0.5 right-0.5 bg-black/70 rounded-full p-0.5 opacity-0 group-hover/img:opacity-100 transition-opacity"
