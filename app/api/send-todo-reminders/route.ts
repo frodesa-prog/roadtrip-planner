@@ -32,11 +32,12 @@ export async function GET(req: NextRequest) {
     .eq('completed', false)
 
   if (error) {
-    return NextResponse.json({ debug: 'DB error', error, today }, { status: 500 })
+    console.error('DB error:', error)
+    return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
   if (!todos || todos.length === 0) {
-    return NextResponse.json({ sent: 0, debug: 'no todos found', today })
+    return NextResponse.json({ sent: 0 })
   }
 
   let sentCount = 0
