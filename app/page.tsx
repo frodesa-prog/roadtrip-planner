@@ -16,7 +16,7 @@ export default function HomePage() {
         {/* Tittel */}
         <div className="space-y-3">
           <h1 className="text-5xl font-bold text-white tracking-tight">
-            Roadtrip Planner
+            Ferieplanlegger
           </h1>
           <p className="text-blue-200/70 text-lg max-w-md mx-auto">
             Planlegg neste eventyr. Arkiver minner fra reiser dere aldri glemmer.
@@ -28,7 +28,7 @@ export default function HomePage() {
           <Link href="/plan">
             <Button size="lg" className="bg-blue-500 hover:bg-blue-600 text-white gap-2 w-full sm:w-auto">
               <MapPin className="w-4 h-4" />
-              Planlegg ny tur
+              Planlegg dine turer
               <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
