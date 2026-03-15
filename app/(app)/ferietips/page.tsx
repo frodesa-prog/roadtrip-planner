@@ -7,6 +7,7 @@ import { useActivities } from '@/hooks/useActivities'
 import { useNotes } from '@/hooks/useNotes'
 import { useTravelers } from '@/hooks/useTravelers'
 import { useChatSessions } from '@/hooks/useChatSessions'
+import { useUserPreferences } from '@/hooks/useUserPreferences'
 import { ChatDbMessage, ChatSession } from '@/types'
 import {
   Lightbulb,
@@ -203,6 +204,7 @@ export default function FerietipsPage() {
   const { activities } = useActivities(stopIds)
   const { addNote } = useNotes(currentTrip?.id ?? null)
   const { travelers } = useTravelers(currentTrip?.id ?? null)
+  const { preferences } = useUserPreferences()
 
   const {
     sessions,
@@ -260,8 +262,16 @@ export default function FerietipsPage() {
         description: t.description,
       })),
       groupDescription: currentTrip?.group_description ?? null,
+      userPreferences: preferences
+        ? {
+            interests: preferences.interests,
+            foodPreferences: preferences.food_preferences,
+            mobilityNotes: preferences.mobility_notes,
+            otherInfo: preferences.other_info,
+          }
+        : null,
     }
-  }, [currentTrip, stops, activities, travelers])
+  }, [currentTrip, stops, activities, travelers, preferences])
 
   const firstCity =
     [...stops].sort((a, b) => a.order - b.order)[0]?.city ?? 'første stopp'

@@ -184,3 +184,63 @@ export interface ChatDbMessage {
   content: string
   created_at: string
 }
+
+// ── Min Side ───────────────────────────────────────────────────────────────────
+
+export interface UserPreferences {
+  id: string
+  user_id: string
+  interests: string | null
+  food_preferences: string | null
+  mobility_notes: string | null
+  other_info: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type PackingCategory = 'documents' | 'electronics' | 'clothes' | 'hygiene' | 'other'
+
+export interface DefaultPackingItem {
+  id: string
+  user_id: string
+  item: string
+  category: PackingCategory
+  created_at: string
+}
+
+export type DocumentType = 'passport' | 'drivers_license' | 'insurance' | 'esta' | 'other'
+
+export interface UserDocument {
+  id: string
+  user_id: string
+  name: string
+  document_type: DocumentType
+  storage_path: string
+  file_type: string | null
+  created_at: string
+  publicUrl?: string  // beregnet fra Supabase Storage
+}
+
+export interface TripShare {
+  id: string
+  trip_id: string
+  owner_id: string
+  shared_with_email: string
+  access_level: 'read' | 'write'
+  status: 'pending' | 'accepted' | 'declined'
+  created_at: string
+}
+
+export type LogType = 'functional' | 'database'
+
+export interface ActivityLogEntry {
+  id: string
+  user_id: string
+  trip_id: string | null
+  log_type: LogType
+  action: string
+  entity_type: string | null
+  entity_name: string | null
+  details: Record<string, unknown> | null
+  created_at: string
+}

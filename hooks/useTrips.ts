@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Trip } from '@/types'
 import { toast } from 'sonner'
+import { logActivity } from '@/hooks/useActivityLog'
 
 export function useTrips() {
   const [trips, setTrips] = useState<Trip[]>([])
@@ -47,6 +48,7 @@ export function useTrips() {
       setTrips((prev) => [newTrip, ...prev])
       setCurrentTrip(newTrip)
       toast.success(`"${name}" er opprettet! 🗺️`)
+      logActivity({ log_type: 'database', action: 'INSERT', entity_type: 'trip', entity_name: name, trip_id: newTrip.id })
       return newTrip
     },
     [supabase]
@@ -69,14 +71,16 @@ export function useTrips() {
         toast.error('Kunne ikke slette tur')
         return
       }
+      const deletedTrip = trips.find((t) => t.id === tripId)
       setTrips((prev) => prev.filter((t) => t.id !== tripId))
       setCurrentTrip((prev) => {
         if (prev?.id === tripId) return null
         return prev
       })
       toast.success('Tur slettet')
+      logActivity({ log_type: 'database', action: 'DELETE', entity_type: 'trip', entity_name: deletedTrip?.name, trip_id: tripId })
     },
-    [supabase]
+    [supabase, trips]
   )
 
   useEffect(() => {

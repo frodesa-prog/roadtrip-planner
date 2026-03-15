@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Stop } from '@/types'
 import { toast } from 'sonner'
+import { logActivity } from '@/hooks/useActivityLog'
 
 export function useStops(tripId: string | null) {
   const [stops, setStops] = useState<Stop[]>([])
@@ -48,6 +49,8 @@ export function useStops(tripId: string | null) {
       if (error) {
         setStops((prev) => prev.filter((s) => s.id !== stop.id))
         toast.error('Kunne ikke lagre stoppested')
+      } else {
+        logActivity({ log_type: 'database', action: 'INSERT', entity_type: 'stop', entity_name: stop.city, trip_id: stop.trip_id })
       }
     },
     [supabase]
@@ -56,12 +59,15 @@ export function useStops(tripId: string | null) {
   const removeStop = useCallback(
     async (id: string) => {
       const snapshot = stops
+      const removing = stops.find((s) => s.id === id)
       setStops((prev) => prev.filter((s) => s.id !== id))
 
       const { error } = await supabase.from('stops').delete().eq('id', id)
       if (error) {
         setStops(snapshot)
         toast.error('Kunne ikke slette stoppested')
+      } else if (removing) {
+        logActivity({ log_type: 'database', action: 'DELETE', entity_type: 'stop', entity_name: removing.city, trip_id: removing.trip_id })
       }
     },
     [stops, supabase]

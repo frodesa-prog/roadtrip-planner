@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, LogOut } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, LogOut, UserCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const links = [
@@ -52,14 +52,28 @@ export default function NavBar() {
         )
       })}
 
-      {/* Logout – far right */}
-      <button
-        onClick={handleLogout}
-        className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-        title="Logg ut"
-      >
-        <LogOut className="w-3.5 h-3.5" />
-      </button>
+      {/* Min Side + Logout – far right */}
+      <div className="ml-auto flex items-center gap-1">
+        <Link
+          href="/minside"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            pathname === '/minside'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+          }`}
+          title="Min Side"
+        >
+          <UserCircle className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Min side</span>
+        </Link>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+          title="Logg ut"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </nav>
   )
 }
