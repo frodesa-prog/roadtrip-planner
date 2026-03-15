@@ -10,15 +10,18 @@ export function useTrips() {
   const [trips, setTrips] = useState<Trip[]>([])
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
 
   const supabase = useMemo(() => createClient(), [])
 
   const loadTrips = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('trips')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const [{ data: { user } }, { data, error }] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase.from('trips').select('*').order('created_at', { ascending: false }),
+    ])
+
+    if (user) setUserId(user.id)
 
     if (!error && data) {
       setTrips(data as Trip[])
@@ -155,6 +158,7 @@ export function useTrips() {
     trips,
     currentTrip,
     loading,
+    userId,
     setCurrentTrip,
     createTrip,
     updateTrip,

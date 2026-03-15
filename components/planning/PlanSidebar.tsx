@@ -14,6 +14,7 @@ interface PlanSidebarProps {
   trips: Trip[]
   currentTrip: Trip | null
   tripsLoading: boolean
+  userId?: string | null
   stops: Stop[]
   stopsLoading: boolean
   selectedStopId: string | null
@@ -32,7 +33,7 @@ interface PlanSidebarProps {
 }
 
 export default function PlanSidebar({
-  trips, currentTrip, tripsLoading,
+  trips, currentTrip, tripsLoading, userId,
   stops, stopsLoading,
   selectedStopId,
   hotels,
@@ -99,7 +100,7 @@ export default function PlanSidebar({
       } min-w-[300px] h-full bg-slate-900 border-r border-slate-800 flex flex-col transition-[width] duration-300 overflow-hidden`}
     >
       <TripManager
-        trips={trips} currentTrip={currentTrip} loading={tripsLoading}
+        trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
         onSelectTrip={onSelectTrip} onCreateTrip={onCreateTrip}
         onDeleteTrip={(id) => {
           const name = trips.find((t) => t.id === id)?.name ?? 'denne turen'

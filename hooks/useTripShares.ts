@@ -41,11 +41,17 @@ export function useTripShares(tripId: string | null) {
       }
       setShares((prev) => [optimistic, ...prev])
 
-      const { data, error } = await supabase
-        .from('trip_shares')
-        .insert({ trip_id: tripId, owner_id: user.id, shared_with_email: email, access_level: accessLevel })
-        .select()
-        .single()
+      const [shareRes, tripRes, profileRes] = await Promise.all([
+        supabase
+          .from('trip_shares')
+          .insert({ trip_id: tripId, owner_id: user.id, shared_with_email: email, access_level: accessLevel })
+          .select()
+          .single(),
+        supabase.from('trips').select('name').eq('id', tripId).single(),
+        supabase.from('user_profiles').select('display_name').eq('user_id', user.id).maybeSingle(),
+      ])
+
+      const { data, error } = shareRes
 
       if (error) {
         setShares((prev) => prev.filter((s) => s.id !== optimistic.id))
@@ -58,6 +64,18 @@ export function useTripShares(tripId: string | null) {
       }
 
       setShares((prev) => prev.map((s) => (s.id === optimistic.id ? (data as TripShare) : s)))
+
+      // Send e-post til mottaker (feiler stille om RESEND_API_KEY ikke er satt)
+      const tripName = (tripRes.data as { name: string } | null)?.name ?? 'turen'
+      const senderName = (profileRes.data as { display_name: string | null } | null)?.display_name
+        || user.email?.split('@')[0]
+        || 'En venn'
+      fetch('/api/share-trip-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientEmail: email, tripName, senderName, accessLevel }),
+      }).catch(() => { /* ignore email errors */ })
+
       toast.success(`Invitasjon sendt til ${email}`)
       return true
     },

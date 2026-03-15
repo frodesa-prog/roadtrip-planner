@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   ChevronDown, Plus, Check, Route,
-  Loader2, Trash2, X
+  Loader2, Trash2, X, Share2,
 } from 'lucide-react'
 import { Trip } from '@/types'
 import { Input } from '@/components/ui/input'
@@ -13,6 +13,7 @@ interface TripManagerProps {
   trips: Trip[]
   currentTrip: Trip | null
   loading: boolean
+  userId?: string | null
   onSelectTrip: (trip: Trip) => void
   onCreateTrip: (name: string, year: number) => Promise<Trip | null>
   onDeleteTrip: (id: string) => void
@@ -22,6 +23,7 @@ export default function TripManager({
   trips,
   currentTrip,
   loading,
+  userId,
   onSelectTrip,
   onCreateTrip,
   onDeleteTrip,
@@ -87,33 +89,45 @@ export default function TripManager({
         <div className="absolute top-full left-0 right-0 z-50 bg-slate-900 border border-slate-700 shadow-2xl shadow-black/50 rounded-b-xl overflow-hidden">
           {trips.length > 0 && (
             <div className="max-h-48 overflow-y-auto">
-              {trips.map((trip) => (
-                <div key={trip.id} className="flex items-center group">
-                  <button
-                    onClick={() => { onSelectTrip(trip); setOpen(false) }}
-                    className={`flex-1 flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                      currentTrip?.id === trip.id
-                        ? 'bg-blue-900/40'
-                        : 'hover:bg-slate-800'
-                    }`}
-                  >
-                    {currentTrip?.id === trip.id && (
-                      <Check className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+              {trips.map((trip) => {
+                const isShared = userId != null && trip.owner_id !== userId
+                return (
+                  <div key={trip.id} className="flex items-center group">
+                    <button
+                      onClick={() => { onSelectTrip(trip); setOpen(false) }}
+                      className={`flex-1 flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                        currentTrip?.id === trip.id
+                          ? 'bg-blue-900/40'
+                          : 'hover:bg-slate-800'
+                      }`}
+                    >
+                      {currentTrip?.id === trip.id && (
+                        <Check className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                      )}
+                      <div className={currentTrip?.id === trip.id ? '' : 'ml-5'}>
+                        <p className="text-sm font-medium text-slate-100 flex items-center gap-1.5">
+                          {trip.name}
+                          {isShared && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-900/60 text-blue-300 border border-blue-700/50">
+                              <Share2 className="w-2.5 h-2.5" /> Delt
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-slate-500">{trip.year}</p>
+                      </div>
+                    </button>
+                    {!isShared && (
+                      <button
+                        onClick={() => onDeleteTrip(trip.id)}
+                        className="px-3 py-3 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                        title="Slett tur"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     )}
-                    <div className={currentTrip?.id === trip.id ? '' : 'ml-5'}>
-                      <p className="text-sm font-medium text-slate-100">{trip.name}</p>
-                      <p className="text-xs text-slate-500">{trip.year}</p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => onDeleteTrip(trip.id)}
-                    className="px-3 py-3 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                    title="Slett tur"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
           )}
 

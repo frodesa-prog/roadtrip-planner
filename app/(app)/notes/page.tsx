@@ -34,7 +34,7 @@ function formatShortDate(iso: string): string {
 
 export default function NotesPage() {
   const {
-    trips, currentTrip, loading: tripsLoading,
+    trips, currentTrip, loading: tripsLoading, userId,
     setCurrentTrip, createTrip, deleteTrip,
   } = useTrips()
   const { notes, addNote, updateNote, deleteNote } = useNotes(
@@ -100,7 +100,7 @@ export default function NotesPage() {
       {/* ── Left sidebar ────────────────────────────────────────────────── */}
       <div className="w-[240px] min-w-[200px] h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0">
         <TripManager
-          trips={trips} currentTrip={currentTrip} loading={tripsLoading}
+          trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
           onSelectTrip={setCurrentTrip} onCreateTrip={createTrip} onDeleteTrip={deleteTrip}
         />
 

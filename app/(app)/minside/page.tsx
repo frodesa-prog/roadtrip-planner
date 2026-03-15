@@ -278,16 +278,47 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
 // ── Del ferie-tab ──────────────────────────────────────────────────────────────
 
 function DelFerieTab() {
-  const { trips } = useTrips()
+  const { trips, userId } = useTrips()
+  // Only own trips can be shared out
+  const ownTrips = trips.filter((t) => t.owner_id === userId)
   const [selectedTripId, setSelectedTripId] = useState<string>('')
   const [email, setEmail] = useState('')
   const [accessLevel, setAccessLevel] = useState<'read' | 'write'>('read')
   const [sending, setSending] = useState(false)
   const { shares, loading, shareTrip, removeShare } = useTripShares(selectedTripId || null)
 
+  // Incoming shares – turer andre har delt med meg
+  const [incomingShares, setIncomingShares] = useState<Array<{
+    id: string; trip_id: string; shared_with_email: string; access_level: string; status: string; created_at: string;
+    trips: { name: string; year: number } | null
+  }>>([])
+  const supabase = useMemo(() => createClient(), [])
+
   useEffect(() => {
-    if (trips.length > 0 && !selectedTripId) setSelectedTripId(trips[0].id)
-  }, [trips, selectedTripId])
+    supabase
+      .from('trip_shares')
+      .select('id, trip_id, shared_with_email, access_level, status, created_at, trips(name, year)')
+      .then(({ data }) => {
+        if (!data) return
+        // Filter to only incoming (not owned by me) – owner_id not in response, so compare trip owner
+        // Actually after RLS fix: query returns rows where shared_with_email = auth.email()
+        // But existing "Own trip shares" policy also returns rows where owner_id = auth.uid()
+        // We distinguish: if the row's trip is not in ownTrips, it's incoming
+        const ownTripIds = new Set(ownTrips.map((t) => t.id))
+        type RawShare = { id: string; trip_id: string; shared_with_email: string; access_level: string; status: string; created_at: string; trips: { name: string; year: number }[] | null }
+        const raw = data as unknown as RawShare[]
+        setIncomingShares(
+          raw
+            .filter((s) => !ownTripIds.has(s.trip_id))
+            .map((s) => ({ ...s, trips: Array.isArray(s.trips) ? (s.trips[0] ?? null) : s.trips }))
+        )
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, ownTrips.length])
+
+  useEffect(() => {
+    if (ownTrips.length > 0 && !selectedTripId) setSelectedTripId(ownTrips[0].id)
+  }, [ownTrips, selectedTripId])
 
   async function handleShare() {
     if (!email.trim() || !selectedTripId) return
@@ -312,7 +343,7 @@ function DelFerieTab() {
               onChange={(e) => setSelectedTripId(e.target.value)}
               className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-blue-500 appearance-none pr-10"
             >
-              {trips.map((t) => (
+              {ownTrips.map((t) => (
                 <option key={t.id} value={t.id}>{t.name} ({t.year})</option>
               ))}
             </select>
@@ -386,6 +417,33 @@ function DelFerieTab() {
           )}
         </div>
       )}
+
+      {/* Incoming shares – turer delt med meg */}
+      <div>
+        <h3 className="text-sm font-medium text-slate-400 mb-3">Delt med meg</h3>
+        {incomingShares.length === 0 ? (
+          <p className="text-xs text-slate-600">Ingen har delt en tur med deg ennå</p>
+        ) : (
+          <div className="space-y-2">
+            {incomingShares.map((s) => (
+              <div key={s.id} className="flex items-center gap-3 bg-slate-800/40 border border-slate-700 rounded-lg px-3 py-2">
+                <Share2 className="w-4 h-4 text-blue-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-200 font-medium">
+                    {s.trips?.name ?? 'Ukjent tur'}{s.trips?.year ? ` (${s.trips.year})` : ''}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {s.access_level === 'read' ? 'Lesetilgang' : 'Full tilgang'} ·{' '}
+                    <span className={s.status === 'accepted' ? 'text-emerald-400' : s.status === 'declined' ? 'text-red-400' : 'text-amber-400'}>
+                      {s.status === 'accepted' ? 'Aktiv' : s.status === 'declined' ? 'Avslått' : 'Invitasjon mottatt'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

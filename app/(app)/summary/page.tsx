@@ -72,7 +72,7 @@ const PALETTES = [
 
 export default function SummaryPage() {
   const router = useRouter()
-  const { trips, currentTrip, loading: tripsLoading, setCurrentTrip, createTrip, deleteTrip } = useTrips()
+  const { trips, currentTrip, loading: tripsLoading, userId, setCurrentTrip, createTrip, deleteTrip } = useTrips()
   const { stops, loading: stopsLoading, updateStop } = useStops(currentTrip?.id ?? null)
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
   const { hotels, saveHotel } = useHotels(stopIds)
@@ -254,7 +254,7 @@ export default function SummaryPage() {
       {/* ── Left sidebar ────────────────────────────────────────────────── */}
       <div className="w-[240px] min-w-[200px] h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0">
         <TripManager
-          trips={trips} currentTrip={currentTrip} loading={tripsLoading}
+          trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
           onSelectTrip={setCurrentTrip} onCreateTrip={createTrip} onDeleteTrip={deleteTrip}
         />
 

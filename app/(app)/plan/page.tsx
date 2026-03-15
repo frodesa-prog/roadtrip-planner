@@ -21,7 +21,7 @@ export default function PlanPage() {
   const [routeStates, setRouteStates] = useState<string[]>([])
 
   const {
-    trips, currentTrip, loading: tripsLoading,
+    trips, currentTrip, loading: tripsLoading, userId,
     setCurrentTrip, createTrip, updateTrip, deleteTrip,
   } = useTrips()
 
@@ -70,6 +70,7 @@ export default function PlanPage() {
         trips={trips}
         currentTrip={currentTrip}
         tripsLoading={tripsLoading}
+        userId={userId}
         stops={stops}
         stopsLoading={stopsLoading}
         selectedStopId={selectedStopId}
