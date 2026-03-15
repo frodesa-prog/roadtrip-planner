@@ -60,11 +60,19 @@ export function useTrips() {
         (profileData as { display_name: string | null } | null)?.display_name ||
         user.email?.split('@')[0] ||
         'Meg'
-      await supabase.from('travelers').insert({
+
+      // Prøv med linked_user_id; fall tilbake uten om kolonnen ikke finnes ennå
+      const { error: travelerErr } = await supabase.from('travelers').insert({
         trip_id: newTrip.id,
         name: displayName,
         linked_user_id: user.id,
       })
+      if (travelerErr) {
+        await supabase.from('travelers').insert({
+          trip_id: newTrip.id,
+          name: displayName,
+        })
+      }
 
       return newTrip
     },
