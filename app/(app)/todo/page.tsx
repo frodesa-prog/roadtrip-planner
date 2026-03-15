@@ -501,47 +501,46 @@ function TodoCard({
         </div>
       ) : (
         /* ── View mode ── */
-        <div className="flex items-start gap-2 px-2.5 py-2">
-          {/* Checkbox */}
-          <button
-            onClick={() => onToggle(item.id, !item.completed)}
-            className="flex-shrink-0 mt-0.5"
-          >
-            {item.completed
-              ? <CheckSquare className="w-4 h-4 text-blue-500" />
-              : <Square className="w-4 h-4 text-slate-500 hover:text-blue-400" />
-            }
-          </button>
+        <div className="px-2.5 pt-2 pb-1.5">
+          {/* Top row: checkbox + full-width text */}
+          <div className="flex items-start gap-2">
+            <button
+              onClick={() => onToggle(item.id, !item.completed)}
+              className="flex-shrink-0 mt-0.5"
+            >
+              {item.completed
+                ? <CheckSquare className="w-4 h-4 text-blue-500" />
+                : <Square className="w-4 h-4 text-slate-500 hover:text-blue-400" />
+              }
+            </button>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start gap-1">
-              <p className={`flex-1 text-xs leading-snug ${item.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+            <div className="flex-1 min-w-0">
+              <p className={`text-xs leading-snug ${item.completed ? 'line-through text-slate-500' : 'text-slate-200'}`}>
                 {item.description}
+                {item.is_critical && !item.completed && (
+                  <Flag className="w-3 h-3 text-red-500 inline-block ml-1 -mt-px align-middle" />
+                )}
               </p>
-              {item.is_critical && !item.completed && (
-                <Flag className="w-3 h-3 text-red-500 flex-shrink-0 mt-0.5" />
+              {item.link && (
+                <a href={item.link} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 mt-0.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  <Link2 className="w-2.5 h-2.5 flex-shrink-0" />
+                  <span className="truncate">{item.link.replace(/^https?:\/\//, '')}</span>
+                </a>
+              )}
+              {item.reminder_date && (
+                <p className="flex items-center gap-1 mt-0.5 text-[10px] text-amber-400">
+                  <Bell className="w-2.5 h-2.5" />
+                  {fmtDate(item.reminder_date)}
+                </p>
               )}
             </div>
-            {item.link && (
-              <a href={item.link} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 mt-0.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                <Link2 className="w-2.5 h-2.5 flex-shrink-0" />
-                <span className="truncate">{item.link.replace(/^https?:\/\//, '')}</span>
-              </a>
-            )}
-            {item.reminder_date && (
-              <p className="flex items-center gap-1 mt-0.5 text-[10px] text-amber-400">
-                <Bell className="w-2.5 h-2.5" />
-                {fmtDate(item.reminder_date)}
-              </p>
-            )}
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons – below text, aligned with text (offset by checkbox width) */}
           {!item.completed && (
-            <div className="flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity flex-shrink-0">
+            <div className="flex items-center gap-0.5 mt-1 pl-6 opacity-0 group-hover/card:opacity-100 transition-opacity">
               <button onClick={() => setEditing(true)} className="p-0.5 text-slate-600 hover:text-blue-400 transition-colors" title="Rediger">
                 <Pencil className="w-3 h-3" />
               </button>
@@ -571,9 +570,11 @@ function TodoCard({
             </div>
           )}
           {item.completed && (
-            <button onClick={() => setConfirmDelete(true)} className="p-0.5 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover/card:opacity-100 flex-shrink-0">
-              <Trash2 className="w-3 h-3" />
-            </button>
+            <div className="flex justify-end mt-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity">
+              <button onClick={() => setConfirmDelete(true)} className="p-0.5 text-slate-600 hover:text-red-400 transition-colors">
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
           )}
         </div>
       )}
