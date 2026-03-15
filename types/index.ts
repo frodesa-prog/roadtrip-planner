@@ -259,6 +259,8 @@ export interface TodoItem {
   responsible: string  // 'felles' eller traveler-id
   completed: boolean
   completed_at: string | null
+  sort_order: number
+  reminder_date: string | null  // ISO date (YYYY-MM-DD)
   created_at: string
 }
 
