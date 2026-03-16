@@ -599,14 +599,12 @@ function BaggageRow({
   className?: string
 }) {
   return (
-    <div className={`mb-1.5 ${className}`}>
-      <p className={`text-[10px] mb-0.5 ${editing ? 'text-slate-500' : 'text-slate-600'}`}>{label}</p>
-      <div className="flex items-center gap-1.5">
-        <BaggageInput value={bags} onChange={onBags} placeholder="1" step={1} min={0} editing={editing} />
-        <span className={`text-[10px] ${editing ? 'text-slate-600' : 'text-slate-700'}`}>kolli</span>
-        <BaggageInput value={bagWeight} onChange={onWeight} placeholder="—" step={0.5} min={0} editing={editing} />
-        <span className={`text-[10px] ${editing ? 'text-slate-600' : 'text-slate-700'}`}>kg</span>
-      </div>
+    <div className={`flex items-center gap-1.5 mb-1 ${className}`}>
+      <span className={`text-[10px] w-[68px] flex-shrink-0 ${editing ? 'text-slate-500' : 'text-slate-600'}`}>{label}</span>
+      <BaggageInput value={bags} onChange={onBags} placeholder="1" step={1} min={0} editing={editing} />
+      <span className={`text-[10px] ${editing ? 'text-slate-600' : 'text-slate-700'}`}>kolli</span>
+      <BaggageInput value={bagWeight} onChange={onWeight} placeholder="—" step={0.5} min={0} editing={editing} />
+      <span className={`text-[10px] ${editing ? 'text-slate-600' : 'text-slate-700'}`}>kg</span>
     </div>
   )
 }
@@ -628,7 +626,7 @@ function BaggageInput({
 }) {
   if (!editing) {
     return (
-      <span className="w-10 text-[11px] text-slate-600 text-center tabular-nums">
+      <span className="w-8 text-[11px] text-slate-600 text-center tabular-nums border border-slate-800 rounded px-1 py-0.5">
         {value != null ? value : <span className="text-slate-700">—</span>}
       </span>
     )
@@ -642,7 +640,7 @@ function BaggageInput({
       placeholder={placeholder}
       step={step}
       min={min}
-      className="w-10 bg-slate-800 border border-slate-700 rounded text-[11px] text-slate-300 text-center px-1 py-0.5 outline-none focus:border-blue-500 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      className="w-8 bg-slate-800 border border-slate-700 rounded text-[11px] text-slate-300 text-center px-1 py-0.5 outline-none focus:border-blue-500 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
     />
   )
 }
