@@ -31,46 +31,211 @@ function formatShortDate(iso: string): string {
   })
 }
 
-// ─── Native Camera Capture ──────────────────────────────────────────────────
+// ─── Camera (getUserMedia, DOM-basert) ──────────────────────────────────────
 //
-// Bruker <input type="file" capture="environment"> i stedet for getUserMedia.
-// Dette trigger macOS Continuity Camera via det native filvelger-systemet,
-// som er pålitelig også på deployede HTTPS-sider (getUserMedia + Continuity
-// Camera feiler med "capture failure" på ikke-localhost).
-//
+// Bruker getUserMedia med { video: true } som standard (FaceTime/innebygd kamera).
+// IKKE facingMode: 'environment' – det trigger Continuity Camera som feiler
+// med "capture failure" på deployede HTTPS-sider.
+// Brukeren kan manuelt bytte til Continuity Camera via dropdown.
 
-/** Åpner native kamera via skjult file input med capture="environment".
- *  Returnerer File eller null ved avbryt. */
-function openNativeCamera(): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.capture = 'environment'
-    input.style.display = 'none'
-    document.body.appendChild(input)
+let _cameraModal: HTMLDivElement | null = null
+let _cameraVideo: HTMLVideoElement | null = null
+let _cameraStream: MediaStream | null = null
+let _resolveCapture: ((file: File | null) => void) | null = null
 
-    input.onchange = () => {
-      const file = input.files?.[0] ?? null
-      document.body.removeChild(input)
-      resolve(file)
+function ensureCameraModal(): { modal: HTMLDivElement; video: HTMLVideoElement } {
+  if (_cameraModal && _cameraVideo) return { modal: _cameraModal, video: _cameraVideo }
+
+  const modal = document.createElement('div')
+  modal.id = 'camera-modal'
+  modal.style.cssText =
+    'position:fixed;inset:0;z-index:9999;background:#000;display:none;flex-direction:column;'
+
+  // Header med lukk + kameravelger
+  const header = document.createElement('div')
+  header.style.cssText =
+    'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;flex-shrink:0;background:rgba(0,0,0,0.6);'
+
+  const closeBtn = document.createElement('button')
+  closeBtn.textContent = '✕'
+  closeBtn.style.cssText = 'background:none;border:none;color:#fff;font-size:20px;padding:8px;cursor:pointer;'
+  closeBtn.onclick = () => closeCameraModal(null)
+
+  const cameraSelect = document.createElement('select')
+  cameraSelect.id = 'cam-select'
+  cameraSelect.style.cssText =
+    'background:rgba(0,0,0,0.4);color:#fff;font-size:12px;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:4px 8px;max-width:220px;outline:none;'
+  cameraSelect.innerHTML = '<option value="">Laster...</option>'
+  cameraSelect.onchange = () => {
+    if (cameraSelect.value) switchToCamera(cameraSelect.value)
+  }
+
+  const spacer = document.createElement('div')
+  spacer.style.width = '36px'
+  header.append(closeBtn, cameraSelect, spacer)
+
+  // Video
+  const videoWrap = document.createElement('div')
+  videoWrap.style.cssText = 'flex:1;position:relative;overflow:hidden;'
+
+  const video = document.createElement('video')
+  video.autoplay = true
+  video.playsInline = true
+  video.muted = true
+  video.style.cssText = 'width:100%;height:100%;object-fit:cover;'
+
+  const spinner = document.createElement('div')
+  spinner.id = 'cam-spinner'
+  spinner.style.cssText =
+    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);'
+  spinner.innerHTML =
+    '<div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:cam-spin 1s linear infinite;"></div>'
+
+  if (!document.getElementById('cam-spin-style')) {
+    const s = document.createElement('style')
+    s.id = 'cam-spin-style'
+    s.textContent = '@keyframes cam-spin{to{transform:rotate(360deg)}}'
+    document.head.appendChild(s)
+  }
+  videoWrap.append(video, spinner)
+
+  // Shutter
+  const footer = document.createElement('div')
+  footer.style.cssText =
+    'display:flex;align-items:center;justify-content:center;padding:32px 0;flex-shrink:0;background:rgba(0,0,0,0.6);'
+
+  const shutter = document.createElement('button')
+  shutter.id = 'cam-shutter'
+  shutter.disabled = true
+  shutter.style.cssText =
+    'width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid #94a3b8;cursor:pointer;opacity:0.4;transition:opacity 0.2s;'
+  shutter.onclick = () => takeSnapshot()
+  footer.appendChild(shutter)
+
+  modal.append(header, videoWrap, footer)
+  document.body.appendChild(modal)
+
+  _cameraModal = modal
+  _cameraVideo = video
+  return { modal, video }
+}
+
+function closeCameraModal(file: File | null) {
+  if (_cameraStream) {
+    _cameraStream.getTracks().forEach((t) => t.stop())
+    _cameraStream = null
+  }
+  if (_cameraModal) _cameraModal.style.display = 'none'
+  if (_cameraVideo) _cameraVideo.srcObject = null
+  if (_resolveCapture) {
+    _resolveCapture(file)
+    _resolveCapture = null
+  }
+}
+
+function takeSnapshot() {
+  if (!_cameraVideo || !_cameraVideo.videoWidth) return
+  const c = document.createElement('canvas')
+  c.width = _cameraVideo.videoWidth
+  c.height = _cameraVideo.videoHeight
+  c.getContext('2d')?.drawImage(_cameraVideo, 0, 0)
+  c.toBlob((blob) => {
+    if (blob) closeCameraModal(new File([blob], `kamera-${Date.now()}.jpg`, { type: 'image/jpeg' }))
+  }, 'image/jpeg', 0.9)
+}
+
+async function startStream(deviceId?: string) {
+  if (!_cameraVideo) return
+
+  // Stopp gammel stream
+  if (_cameraStream) {
+    _cameraStream.getTracks().forEach((t) => t.stop())
+    _cameraStream = null
+  }
+
+  // VIKTIG: Bruker { video: true } som standard (FaceTime-kamera).
+  // facingMode: 'environment' velger Continuity Camera som feiler på deploy.
+  // Brukeren kan bytte kamera manuelt via dropdown.
+  const constraints: MediaStreamConstraints = {
+    video: deviceId ? { deviceId: { exact: deviceId } } : true,
+    audio: false,
+  }
+
+  try {
+    _cameraStream = await navigator.mediaDevices.getUserMedia(constraints)
+  } catch {
+    // Siste fallback
+    _cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+  }
+
+  _cameraVideo.srcObject = _cameraStream
+  await _cameraVideo.play()
+}
+
+async function switchToCamera(deviceId: string) {
+  const spinner = document.getElementById('cam-spinner')
+  const shutter = document.getElementById('cam-shutter') as HTMLButtonElement | null
+  if (spinner) spinner.style.display = 'flex'
+  if (shutter) { shutter.disabled = true; shutter.style.opacity = '0.4' }
+
+  try {
+    await startStream(deviceId)
+  } catch (err) {
+    console.error('[Camera] Switch failed:', err)
+  }
+}
+
+async function populateCameras() {
+  const sel = document.getElementById('cam-select') as HTMLSelectElement | null
+  if (!sel) return
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const cams = devices.filter((d) => d.kind === 'videoinput')
+    sel.innerHTML = ''
+    cams.forEach((cam, i) => {
+      const opt = document.createElement('option')
+      opt.value = cam.deviceId
+      opt.textContent = cam.label || `Kamera ${i + 1}`
+      sel.appendChild(opt)
+    })
+    // Sett dropdown til aktivt kamera
+    if (_cameraStream) {
+      const activeId = _cameraStream.getVideoTracks()[0]?.getSettings()?.deviceId
+      if (activeId) sel.value = activeId
     }
+  } catch { /* ignorer */ }
+}
 
-    // Bruker lukket filvelger uten å velge noe
-    // Focus-event fyres når filvelgeren lukkes
-    const handleFocus = () => {
-      // Liten forsinkelse for å la onchange fyre først hvis bruker valgte fil
-      setTimeout(() => {
-        if (document.body.contains(input)) {
-          document.body.removeChild(input)
-          resolve(null)
-        }
-      }, 500)
-      window.removeEventListener('focus', handleFocus)
-    }
-    window.addEventListener('focus', handleFocus)
+async function openCameraCapture(): Promise<File | null> {
+  const { modal, video } = ensureCameraModal()
 
-    input.click()
+  // Vis modal
+  modal.style.display = 'flex'
+  const spinner = document.getElementById('cam-spinner')
+  const shutter = document.getElementById('cam-shutter') as HTMLButtonElement | null
+  if (spinner) spinner.style.display = 'flex'
+  if (shutter) { shutter.disabled = true; shutter.style.opacity = '0.4' }
+
+  // Aktiver shutter når video er klar
+  function onReady() {
+    if (spinner) spinner.style.display = 'none'
+    if (shutter) { shutter.disabled = false; shutter.style.opacity = '1' }
+  }
+  video.onloadeddata = onReady
+  video.onplaying = onReady
+
+  // Start stream – { video: true } = FaceTime-kamera som standard
+  try {
+    await startStream()
+    populateCameras()
+  } catch (err) {
+    console.error('[Camera] Failed to start:', err)
+    closeCameraModal(null)
+    return null
+  }
+
+  return new Promise<File | null>((resolve) => {
+    _resolveCapture = resolve
   })
 }
 
@@ -403,7 +568,7 @@ function DraftEditor({
 
   // Native kamera via capture="environment" – pålitelig med Continuity Camera
   async function handleOpenCamera() {
-    const file = await openNativeCamera()
+    const file = await openCameraCapture()
     if (file) handleFileSelect(file)
   }
 
@@ -547,7 +712,7 @@ function NoteEditor({
 
   // Native kamera via capture="environment" – pålitelig med Continuity Camera
   async function handleOpenCamera() {
-    const file = await openNativeCamera()
+    const file = await openCameraCapture()
     if (file) uploadImage(file)
   }
 
