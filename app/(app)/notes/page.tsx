@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { flushSync } from 'react-dom'
-import { Plus, Trash2, FileText, ImageIcon, Loader2, X, Archive, ArrowLeft, Camera, SwitchCamera } from 'lucide-react'
+import { Plus, Trash2, FileText, ImageIcon, Loader2, X, Archive, ArrowLeft, Camera } from 'lucide-react'
 import Link from 'next/link'
 import { useTrips } from '@/hooks/useTrips'
 import { useNotes } from '@/hooks/useNotes'
@@ -29,6 +28,159 @@ function formatShortDate(iso: string): string {
   return new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', {
     day: 'numeric',
     month: 'short',
+  })
+}
+
+// ─── Pure DOM Camera (zero React) ────────────────────────────────────────────
+//
+// Kopiert 1:1 fra baseball-appens camera.js-mønster:
+//   - Modal-HTML opprettes én gang via document.createElement
+//   - Lever utenfor Reacts kontroll (ingen state, useEffect, eller re-rendering)
+//   - openCamera() viser modal → getUserMedia → srcObject → await play()
+//   - Returnerer Promise<File | null>
+//
+
+let _cameraModal: HTMLDivElement | null = null
+let _cameraVideo: HTMLVideoElement | null = null
+let _cameraStream: MediaStream | null = null
+let _resolveCapture: ((file: File | null) => void) | null = null
+
+function getCameraModal(): { modal: HTMLDivElement; video: HTMLVideoElement } {
+  if (_cameraModal && _cameraVideo) return { modal: _cameraModal, video: _cameraVideo }
+
+  // Opprett modal-container
+  const modal = document.createElement('div')
+  modal.id = 'camera-modal'
+  modal.style.cssText =
+    'position:fixed;inset:0;z-index:9999;background:#000;display:none;flex-direction:column;'
+
+  // Header
+  const header = document.createElement('div')
+  header.style.cssText =
+    'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;flex-shrink:0;background:rgba(0,0,0,0.6);'
+  const closeBtn = document.createElement('button')
+  closeBtn.textContent = '✕'
+  closeBtn.style.cssText =
+    'background:none;border:none;color:#fff;font-size:20px;padding:8px;cursor:pointer;'
+  closeBtn.onclick = () => closeCamera(null)
+  const title = document.createElement('span')
+  title.textContent = 'Ta bilde'
+  title.style.cssText = 'color:#fff;font-size:14px;font-weight:500;'
+  const spacer = document.createElement('div')
+  spacer.style.width = '36px'
+  header.appendChild(closeBtn)
+  header.appendChild(title)
+  header.appendChild(spacer)
+
+  // Video-container
+  const videoWrap = document.createElement('div')
+  videoWrap.style.cssText = 'flex:1;position:relative;overflow:hidden;'
+  const video = document.createElement('video')
+  video.autoplay = true
+  video.playsInline = true
+  video.muted = true
+  video.style.cssText = 'width:100%;height:100%;object-fit:cover;'
+  const spinner = document.createElement('div')
+  spinner.id = 'camera-spinner'
+  spinner.style.cssText =
+    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);'
+  spinner.innerHTML =
+    '<div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;"></div>'
+  // Legg til @keyframes spin om den ikke finnes
+  if (!document.getElementById('camera-spin-style')) {
+    const style = document.createElement('style')
+    style.id = 'camera-spin-style'
+    style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}'
+    document.head.appendChild(style)
+  }
+  videoWrap.appendChild(video)
+  videoWrap.appendChild(spinner)
+
+  // Shutter-knapp
+  const footer = document.createElement('div')
+  footer.style.cssText =
+    'display:flex;align-items:center;justify-content:center;padding:32px 0;flex-shrink:0;background:rgba(0,0,0,0.6);'
+  const shutter = document.createElement('button')
+  shutter.id = 'camera-shutter'
+  shutter.disabled = true
+  shutter.style.cssText =
+    'width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid #94a3b8;cursor:pointer;opacity:0.4;transition:opacity 0.2s;'
+  shutter.onclick = () => capturePhoto()
+  footer.appendChild(shutter)
+
+  modal.appendChild(header)
+  modal.appendChild(videoWrap)
+  modal.appendChild(footer)
+  document.body.appendChild(modal)
+
+  _cameraModal = modal
+  _cameraVideo = video
+  return { modal, video }
+}
+
+function closeCamera(file: File | null) {
+  // Stopp stream
+  if (_cameraStream) {
+    _cameraStream.getTracks().forEach((t) => t.stop())
+    _cameraStream = null
+  }
+  // Skjul modal
+  if (_cameraModal) _cameraModal.style.display = 'none'
+  if (_cameraVideo) _cameraVideo.srcObject = null
+  // Resolve promise
+  if (_resolveCapture) {
+    _resolveCapture(file)
+    _resolveCapture = null
+  }
+}
+
+function capturePhoto() {
+  if (!_cameraVideo || !_cameraVideo.videoWidth) return
+  const canvas = document.createElement('canvas')
+  canvas.width = _cameraVideo.videoWidth
+  canvas.height = _cameraVideo.videoHeight
+  canvas.getContext('2d')?.drawImage(_cameraVideo, 0, 0)
+  canvas.toBlob((blob) => {
+    if (blob) {
+      const file = new File([blob], `kamera-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      closeCamera(file)
+    }
+  }, 'image/jpeg', 0.9)
+}
+
+/** Åpner kamera-modal og returnerer bildefil (eller null ved avbryt).
+ *  Må kalles fra click-handler for å bevare user gesture-kontekst. */
+async function openCameraCapture(): Promise<File | null> {
+  const { modal, video } = getCameraModal()
+
+  // 1. Vis modal med spinner – SYNKRON DOM, akkurat som baseball-appen
+  modal.style.display = 'flex'
+  const spinner = document.getElementById('camera-spinner')
+  if (spinner) spinner.style.display = 'flex'
+  const shutter = document.getElementById('camera-shutter') as HTMLButtonElement | null
+  if (shutter) { shutter.disabled = true; shutter.style.opacity = '0.4' }
+
+  // 2. Hent stream – user gesture-kontekst er fortsatt aktiv
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+    _cameraStream = stream
+
+    // 3. Fest til video-element (allerede synlig!) og await play
+    video.srcObject = stream
+    await video.play()
+
+    // 4. Skjul spinner, aktiver shutter
+    if (spinner) spinner.style.display = 'none'
+    if (shutter) { shutter.disabled = false; shutter.style.opacity = '1' }
+  } catch (err) {
+    console.error('Camera error:', err)
+    closeCamera(null)
+    return null
+  }
+
+  // 5. Returner promise som resolves når bruker tar bilde eller lukker
+  return new Promise<File | null>((resolve) => {
+    _resolveCapture = resolve
   })
 }
 
@@ -322,188 +474,6 @@ export default function NotesPage() {
   )
 }
 
-// ─── Camera Modal ─────────────────────────────────────────────────────────────
-//
-// Speiler baseball-appens mønster eksakt:
-//   1. Modal gjøres SYNLIG først (via isOpen prop)
-//   2. Deretter hentes stream (getUserMedia) – video-elementet er allerede rendret
-//   3. srcObject settes og video.play() awaites – alt i SYNKRON rekkefølge
-//
-// isOpen:  styrer synlighet (vises med spinner mens vi venter på stream)
-// stream:  null mens vi venter, MediaStream når kamera er koblet til
-
-function CameraModal({
-  isOpen,
-  stream,
-  onCapture,
-  onClose,
-}: {
-  isOpen: boolean
-  stream: MediaStream | null
-  onCapture: (file: File) => void
-  onClose: () => void
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const activeStreamRef = useRef<MediaStream | null>(null)
-  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([])
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [ready, setReady] = useState(false)
-
-  // Når stream-prop endres – fest til video
-  useEffect(() => {
-    const video = videoRef.current
-    if (!stream || !video) {
-      if (!isOpen) {
-        setReady(false)
-        setError(null)
-        setCameras([])
-        setSelectedDeviceId(null)
-      }
-      return
-    }
-
-    // Stopp evt. forrige stream (men IKKE den nye)
-    if (activeStreamRef.current && activeStreamRef.current !== stream) {
-      activeStreamRef.current.getTracks().forEach((t) => t.stop())
-    }
-    activeStreamRef.current = stream
-    setError(null)
-
-    // srcObject kan allerede være satt av click-handleren via DOM,
-    // men sett igjen for sikkerhet (kamerabytte, hot-reload)
-    if (video.srcObject !== stream) {
-      video.srcObject = stream
-      video.play().catch(() => {})
-    }
-
-    // Marker klar når video faktisk spiller
-    const markReady = () => setReady(true)
-    if (video.readyState >= 2) {
-      setReady(true)
-    } else {
-      setReady(false)
-      video.addEventListener('canplay', markReady, { once: true })
-      video.addEventListener('playing', markReady, { once: true })
-    }
-
-    // Enumerer kameraer i bakgrunnen
-    navigator.mediaDevices.enumerateDevices().then((devices) => {
-      const videoDevices = devices.filter((d) => d.kind === 'videoinput')
-      setCameras(videoDevices)
-      const activeDeviceId =
-        (stream.getVideoTracks()[0]?.getSettings() as { deviceId?: string })?.deviceId
-        ?? videoDevices[0]?.deviceId ?? null
-      setSelectedDeviceId(activeDeviceId)
-    }).catch(() => {})
-
-    return () => {
-      activeStreamRef.current?.getTracks().forEach((t) => t.stop())
-      activeStreamRef.current = null
-    }
-  }, [stream, isOpen])
-
-  // Brukertriggert kamerabytte
-  async function switchToCamera(deviceId: string) {
-    setSelectedDeviceId(deviceId)
-    setReady(false)
-    try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: deviceId } }, audio: false,
-      })
-      activeStreamRef.current?.getTracks().forEach((t) => t.stop())
-      activeStreamRef.current = newStream
-      const video = videoRef.current
-      if (video) {
-        video.srcObject = newStream
-        await video.play()
-        setReady(true)
-      }
-    } catch {
-      setError('Kunne ikke bytte kamera. Prøv et annet.')
-    }
-  }
-
-  function flipCamera() {
-    if (cameras.length < 2) return
-    const idx = cameras.findIndex((c) => c.deviceId === selectedDeviceId)
-    switchToCamera(cameras[(idx + 1) % cameras.length].deviceId)
-  }
-
-  function capture() {
-    const video = videoRef.current
-    if (!video || !ready) return
-    const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d')?.drawImage(video, 0, 0)
-    canvas.toBlob((blob) => {
-      if (blob) {
-        const file = new File([blob], `kamera-${Date.now()}.jpg`, { type: 'image/jpeg' })
-        onCapture(file)
-        onClose()
-      }
-    }, 'image/jpeg', 0.9)
-  }
-
-  // Alltid i DOM, synlighet styrt av isOpen.
-  // Bruker visibility (ikke display:none) slik at video-elementet alltid er i render-treet.
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-black flex flex-col"
-      style={{
-        visibility: isOpen ? 'visible' : 'hidden',
-        pointerEvents: isOpen ? 'auto' : 'none',
-      }}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/60 backdrop-blur-sm">
-        <button onClick={onClose} className="p-2 rounded-full text-white hover:bg-white/10 transition-colors" title="Avbryt">
-          <X className="w-5 h-5" />
-        </button>
-        {cameras.length > 1 ? (
-          <select value={selectedDeviceId ?? ''} onChange={(e) => switchToCamera(e.target.value)}
-            className="bg-black/40 text-white text-xs rounded px-2 py-1 border border-white/20 max-w-[180px] truncate">
-            {cameras.map((c, i) => (
-              <option key={c.deviceId} value={c.deviceId}>{c.label || `Kamera ${i + 1}`}</option>
-            ))}
-          </select>
-        ) : (
-          <span className="text-white text-sm font-medium">Ta bilde</span>
-        )}
-        <button onClick={flipCamera} disabled={cameras.length < 2}
-          className="p-2 rounded-full text-white hover:bg-white/10 transition-colors disabled:opacity-30" title="Bytt kamera">
-          <SwitchCamera className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Video – alltid i DOM */}
-      <div className="flex-1 relative overflow-hidden">
-        <video ref={videoRef} id="camera-preview-video" autoPlay playsInline muted className="w-full h-full object-cover" />
-        {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 bg-black">
-            <Camera className="w-12 h-12 text-slate-600" />
-            <p className="text-slate-300 text-sm text-center">{error}</p>
-            <button onClick={onClose} className="px-4 py-2 rounded-lg bg-slate-700 text-slate-200 text-sm hover:bg-slate-600 transition-colors">Lukk</button>
-          </div>
-        )}
-        {!ready && !error && isOpen && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
-          </div>
-        )}
-      </div>
-
-      {/* Shutter */}
-      <div className="flex items-center justify-center py-8 flex-shrink-0 bg-black/60 backdrop-blur-sm">
-        <button onClick={capture} disabled={!ready}
-          className="rounded-full bg-white border-[5px] border-slate-400 hover:bg-slate-100 active:scale-95 transition-all disabled:opacity-40"
-          style={{ width: '72px', height: '72px' }} title="Ta bilde" />
-      </div>
-    </div>
-  )
-}
-
 // ─── Draft Editor (new note, not yet saved to DB) ─────────────────────────────
 
 function DraftEditor({
@@ -517,9 +487,6 @@ function DraftEditor({
 }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [cameraOpen, setCameraOpen] = useState(false)
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
-  const [cameraError, setCameraError] = useState<string | null>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -544,101 +511,45 @@ function DraftEditor({
     if (!savedRef.current) { savedRef.current = true; await onSave(title, content, file) }
   }
 
-  // Speiler baseball-appens openCamera() eksakt:
-  //   baseball: classList.add('open')       → SYNKRON DOM-oppdatering
-  //   react:    flushSync(setCameraOpen)    → SYNKRON React re-render
-  //   Deretter: getUserMedia → srcObject → await play()
+  // Ren DOM-kamera – ingen React state involvert
   async function handleOpenCamera() {
-    setCameraError(null)
-
-    // 1. Vis modal SYNKRONT – flushSync tvinger React til å rendre umiddelbart,
-    //    akkurat som classList.add('open') i baseball-appen.
-    //    Etter denne linjen er video-elementet GARANTERT synlig i DOM.
-    flushSync(() => setCameraOpen(true))
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError('Kamera er ikke tilgjengelig. Sjekk at siden bruker HTTPS.')
-      return
-    }
-
-    try {
-      // 2. Hent stream – user gesture-kontekst er bevart (ingen async yield ennå)
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-
-      // 3. Video-elementet er allerede synlig (flushSync garanterte det)
-      const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
-      if (video) {
-        video.srcObject = stream
-        await video.play()
-      }
-
-      // 4. Oppdater React state
-      setCameraStream(stream)
-    } catch (err: unknown) {
-      const name = err instanceof Error ? err.name : ''
-      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-        setCameraError('Kameratilgang er blokkert. Gi tillatelse i nettleserens adresselinje og prøv igjen.')
-      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-        setCameraError('Ingen kamera funnet. Koble til et kamera eller aktiver iPhone Continuity Camera.')
-      } else {
-        setCameraError('Kunne ikke starte kamera. Sjekk at ingen andre apper bruker det.')
-      }
-    }
-  }
-
-  function handleCloseCamera() {
-    // Stopp stream
-    cameraStream?.getTracks().forEach((t) => t.stop())
-    const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
-    if (video) video.srcObject = null
-    setCameraStream(null)
-    setCameraOpen(false)
-    setCameraError(null)
+    const file = await openCameraCapture()
+    if (file) handleFileSelect(file)
   }
 
   return (
-    <>
-      <CameraModal
-        isOpen={cameraOpen}
-        stream={cameraStream}
-        onCapture={(file) => handleFileSelect(file)}
-        onClose={handleCloseCamera}
-      />
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Title row */}
-        <div className="flex items-center gap-2 px-4 md:px-6 py-3 border-b border-slate-800 flex-shrink-0">
-          <button onClick={onBack} className="md:hidden p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0" title="Tilbake til listen">
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <input ref={titleRef} value={title} onChange={(e) => handleTitleChange(e.target.value)}
-            placeholder="Tittel" className="flex-1 bg-transparent text-lg font-semibold text-slate-100 placeholder:text-slate-600 outline-none" />
-          <button onClick={onDiscard} className="p-1.5 rounded-md text-slate-600 hover:text-slate-400 hover:bg-slate-800 transition-colors flex-shrink-0" title="Forkast">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Title row */}
+      <div className="flex items-center gap-2 px-4 md:px-6 py-3 border-b border-slate-800 flex-shrink-0">
+        <button onClick={onBack} className="md:hidden p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0" title="Tilbake til listen">
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <input ref={titleRef} value={title} onChange={(e) => handleTitleChange(e.target.value)}
+          placeholder="Tittel" className="flex-1 bg-transparent text-lg font-semibold text-slate-100 placeholder:text-slate-600 outline-none" />
+        <button onClick={onDiscard} className="p-1.5 rounded-md text-slate-600 hover:text-slate-400 hover:bg-slate-800 transition-colors flex-shrink-0" title="Forkast">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
-        <textarea value={content} onChange={(e) => handleContentChange(e.target.value)}
-          placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
-          className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0" />
+      <textarea value={content} onChange={(e) => handleContentChange(e.target.value)}
+        placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
+        className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0" />
 
-        <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
-          <p className="text-[11px] text-slate-600 italic">
-            {cameraError ? <span className="text-red-400">{cameraError}</span> : 'Lagres automatisk når du begynner å skrive'}
-          </p>
-          <div className="flex items-center gap-1">
-            <button onClick={handleOpenCamera} title="Ta bilde med kamera"
-              className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors">
-              <Camera className="w-4 h-4" />
-            </button>
-            <label title="Last opp bilde fra galleri" className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors">
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }} />
-              <ImageIcon className="w-4 h-4" />
-            </label>
-          </div>
+      <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
+        <p className="text-[11px] text-slate-600 italic">Lagres automatisk når du begynner å skrive</p>
+        <div className="flex items-center gap-1">
+          <button onClick={handleOpenCamera} title="Ta bilde med kamera"
+            className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors">
+            <Camera className="w-4 h-4" />
+          </button>
+          <label title="Last opp bilde fra galleri" className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors">
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }} />
+            <ImageIcon className="w-4 h-4" />
+          </label>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -667,8 +578,6 @@ function NoteEditor({
   const [content, setContent] = useState(note.content)
   const [stopId, setStopId] = useState<string | null>(note.stop_id)
   const [noteDate, setNoteDate] = useState<string | null>(note.note_date)
-  const [cameraOpen, setCameraOpen] = useState(false)
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -746,40 +655,13 @@ function NoteEditor({
     hour: '2-digit', minute: '2-digit',
   })
 
+  // Ren DOM-kamera – ingen React state involvert
   async function handleOpenCamera() {
-    // flushSync: vis modal SYNKRONT – video-element garantert synlig i DOM
-    flushSync(() => setCameraOpen(true))
-    if (!navigator.mediaDevices?.getUserMedia) return
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
-      if (video) {
-        video.srcObject = stream
-        await video.play()
-      }
-      setCameraStream(stream)
-    } catch {
-      // Feil håndteres av CameraModal
-    }
-  }
-
-  function handleCloseCamera() {
-    cameraStream?.getTracks().forEach((t) => t.stop())
-    const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
-    if (video) video.srcObject = null
-    setCameraStream(null)
-    setCameraOpen(false)
+    const file = await openCameraCapture()
+    if (file) uploadImage(file)
   }
 
   return (
-    <>
-      <CameraModal
-        isOpen={cameraOpen}
-        stream={cameraStream}
-        onCapture={(file) => uploadImage(file)}
-        onClose={handleCloseCamera}
-      />
     <div className="flex-1 flex flex-col h-full overflow-hidden">
 
       {/* Title row */}
@@ -913,7 +795,6 @@ function NoteEditor({
         </div>
       </div>
     </div>
-    </>
   )
 }
 
