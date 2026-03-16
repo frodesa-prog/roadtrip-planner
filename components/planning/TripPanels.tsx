@@ -262,7 +262,11 @@ function FlightForm({ flight, onSave }: {
             <div><Label>Ankomst</Label><TimeInput key={`arr2-${flight?.id}`} defaultValue={flight?.leg2_arrival} onSave={(v) => onSave({ leg2_arrival: v })} /></div>
             <div><Label>Endelig destinasjon</Label><AirportInput key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg2_to: v })} /></div>
           </div>
-          {leg2Min !== null && <DurationBadge minutes={leg2Min} label="Flytid etappe 2" />}
+          {leg2Min !== null && (
+            <div className="flex items-center">
+              <DurationBadge minutes={leg2Min} label="Flytid etappe 2" />
+            </div>
+          )}
           {/* Total reisetid */}
           {totalMin !== null && (
             <div className="pt-1 border-t border-slate-700/50">
