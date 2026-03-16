@@ -221,8 +221,8 @@ export default function AktiviteterPage() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* ─── Left panel ─────────────────────────────────────────────── */}
-      <div className="w-[300px] flex-shrink-0 bg-slate-950 border-r border-slate-800 flex flex-col overflow-hidden">
+      {/* ─── Left panel – full bredde på mobil, 300px på desktop ─────── */}
+      <div className="w-full md:w-[300px] flex-shrink-0 bg-slate-950 border-r border-slate-800 flex flex-col overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-800 flex-shrink-0">
           <h2 className="text-sm font-semibold text-slate-100">Aktiviteter</h2>
           <p className="text-xs text-slate-500 truncate mt-0.5">{currentTrip.name}</p>
@@ -369,8 +369,8 @@ export default function AktiviteterPage() {
         </div>
       </div>
 
-      {/* ─── Right: Map ──────────────────────────────────────────────── */}
-      <div className="flex-1 relative overflow-hidden">
+      {/* ─── Right: Map – skjules på mobil ───────────────────────────── */}
+      <div className="hidden md:block flex-1 relative overflow-hidden">
         <PlanningMap
           stops={stops}
           selectedStopId={null}

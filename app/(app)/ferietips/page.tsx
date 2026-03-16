@@ -18,6 +18,7 @@ import {
   Plus,
   Trash2,
   MessageSquare,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -221,6 +222,7 @@ export default function FerietipsPage() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [savedMessageIds, setSavedMessageIds] = useState<Set<string>>(new Set())
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -366,8 +368,22 @@ export default function FerietipsPage() {
 
   return (
     <div className="h-full flex bg-slate-950">
+      {/* ── Mobil overlay-backdrop ── */}
+      {mobileSidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/60"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="w-56 flex-shrink-0 border-r border-slate-800 flex flex-col">
+      <aside className={`
+        fixed top-11 bottom-16 left-0 z-50 w-[280px]
+        md:relative md:top-auto md:bottom-auto md:z-auto md:w-56 md:translate-x-0
+        flex-shrink-0 border-r border-slate-800 bg-slate-950 flex flex-col
+        transition-transform duration-200
+        ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         {/* New chat button */}
         <div className="p-3 border-b border-slate-800">
           <button
@@ -402,8 +418,16 @@ export default function FerietipsPage() {
       {/* ── Chat area ── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <div className="flex-shrink-0 border-b border-slate-800 px-5 py-3 flex items-center gap-3">
-          <div className="bg-amber-500/20 border border-amber-500/30 rounded-lg p-1.5">
+        <div className="flex-shrink-0 border-b border-slate-800 px-3 md:px-5 py-3 flex items-center gap-3">
+          {/* Mobil: samtaler-knapp */}
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 text-xs flex-shrink-0"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Samtaler</span>
+          </button>
+          <div className="bg-amber-500/20 border border-amber-500/30 rounded-lg p-1.5 flex-shrink-0">
             <Lightbulb className="w-4 h-4 text-amber-400" />
           </div>
           <div className="min-w-0">

@@ -88,6 +88,7 @@ export default function SummaryPage() {
   const [flightModal, setFlightModal] = useState<Flight | null>(null)
   const [activityModal, setActivityModal] = useState<Activity | null>(null)
   const [diningModal, setDiningModal] = useState<Dining | null>(null)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   type NoteModalState =
     | { mode: 'new'; stopId: string | null; initialDate: string | null }
     | { mode: 'edit'; note: Note }
@@ -251,8 +252,22 @@ export default function SummaryPage() {
   return (
     <div className="flex h-full overflow-hidden bg-slate-950">
 
+      {/* ── Mobil overlay-backdrop ── */}
+      {mobileSidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/60"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Left sidebar ────────────────────────────────────────────────── */}
-      <div className="w-[240px] min-w-[200px] h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0">
+      <div className={`
+        fixed top-11 bottom-16 left-0 z-50 w-[280px]
+        md:relative md:top-auto md:bottom-auto md:z-auto md:w-[240px] md:min-w-[200px] md:translate-x-0
+        h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0
+        transition-transform duration-200
+        ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         <TripManager
           trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
           onSelectTrip={setCurrentTrip} onCreateTrip={createTrip} onDeleteTrip={deleteTrip}
@@ -345,12 +360,35 @@ export default function SummaryPage() {
       </div>
 
       {/* ── Main area ───────────────────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden flex-col md:flex-row">
+
+        {/* Mobil: kompakt turselektor */}
+        <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-slate-800 flex-shrink-0">
+          <select
+            value={currentTrip?.id ?? ''}
+            onChange={(e) => {
+              const trip = trips.find((t) => t.id === e.target.value)
+              if (trip) setCurrentTrip(trip)
+            }}
+            className="flex-1 bg-slate-800 border border-slate-700 rounded-md text-xs text-slate-200 px-2 py-1.5 outline-none"
+          >
+            {trips.length === 0 && <option value="">Ingen turer</option>}
+            {trips.map((t) => (
+              <option key={t.id} value={t.id}>{t.name} · {t.year}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-xs"
+          >
+            <CalendarDays className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
         {/* Calendar */}
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-3 md:p-5">
           {!currentTrip ? (
-            <EmptyState message="Velg en tur til venstre for å se oppsummering" />
+            <EmptyState message="Velg en tur for å se oppsummering" />
           ) : stopsLoading ? (
             <div className="flex items-center justify-center h-full gap-2 text-slate-500">
               <Loader2 className="w-5 h-5 animate-spin" /><span>Laster…</span>
@@ -385,6 +423,10 @@ export default function SummaryPage() {
                   <span className="text-slate-400">Dager med rød ring mangler bekreftet hotell</span>
                 </div>
               )}
+
+              {/* Kalender – horisontal scroll på mobil */}
+              <div className="overflow-x-auto -mx-3 md:mx-0">
+                <div style={{ minWidth: '420px' }} className="px-3 md:px-0">
 
               {/* Day-of-week headers */}
               <div className="grid grid-cols-7 gap-1 mb-1">
@@ -430,6 +472,9 @@ export default function SummaryPage() {
                   </div>
                 ))}
               </div>
+
+              </div>{/* end minWidth wrapper */}
+              </div>{/* end overflow-x-auto */}
             </>
           )}
         </div>

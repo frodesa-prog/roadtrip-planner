@@ -929,7 +929,7 @@ export default function KostnaderPage() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto p-3">
-          <div className="grid grid-cols-2 gap-3 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
 
             {/* ══ VENSTRE: Hoteller ════════════════════════════════════════ */}
             <div className="min-w-0">
@@ -937,13 +937,13 @@ export default function KostnaderPage() {
                 icon={<BedDouble className="w-3.5 h-3.5 text-blue-400" />}
                 title="Hoteller"
               />
-              <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+              <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-x-auto">
                 {/*
                   Kolonner: By | Hotell | NETTER | Kostnad | Snitt | Gjenstår
                   Faste bredder for de to siste slik at beløpene alltid er på
                   samme plass uavhengig av gjenstår-innhold.
                 */}
-                <div className="grid grid-cols-[7rem_1fr_3.5rem_5.5rem_3.5rem_4.5rem] border-b border-slate-800 bg-slate-800/50">
+                <div className="grid grid-cols-[7rem_1fr_3.5rem_5.5rem_3.5rem_4.5rem] border-b border-slate-800 bg-slate-800/50" style={{minWidth:'480px'}}>
                   <Th>By</Th>
                   <Th>Hotell</Th>
                   <Th center>NETTER</Th>
