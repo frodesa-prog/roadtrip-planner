@@ -197,23 +197,26 @@ function capturePhoto() {
   }, 'image/jpeg', 0.9)
 }
 
-// Koble kamera med constraints (brukes av openCameraCapture og auto-reconnect)
-// Matcher baseball-appens startCamera() med HD-oppløsning + facingMode
+// Koble kamera – starter med enkle constraints først, prøver HD etterpå
+let _reconnectCount = 0
+const MAX_RECONNECTS = 2
+
 async function startCameraStream(video: HTMLVideoElement, deviceId?: string): Promise<MediaStream> {
-  const constraints: MediaStreamConstraints = {
+  // Start med enkle constraints – Continuity Camera takler dette bedre
+  // HD-constraints kan føre til umiddelbar capture failure
+  const simpleConstraints: MediaStreamConstraints = {
     video: deviceId
-      ? { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-      : { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      ? { deviceId: { exact: deviceId } }
+      : { facingMode: { ideal: 'environment' } },
     audio: false,
   }
-  console.log('[Camera] getUserMedia constraints:', JSON.stringify(constraints))
+  console.log('[Camera] getUserMedia (simple constraints):', JSON.stringify(simpleConstraints))
 
   let stream: MediaStream
   try {
-    stream = await navigator.mediaDevices.getUserMedia(constraints)
+    stream = await navigator.mediaDevices.getUserMedia(simpleConstraints)
   } catch {
-    // Fallback uten constraints (som baseball-appen)
-    console.log('[Camera] Constraints failed, falling back to { video: true }')
+    console.log('[Camera] Simple constraints failed, trying { video: true }')
     stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
   }
 
@@ -231,25 +234,23 @@ async function startCameraStream(video: HTMLVideoElement, deviceId?: string): Pr
 
   // Fest til video
   video.srcObject = stream
-  video.play().catch((err) => console.error('[Camera] play() error:', err))
+  await video.play()
 
-  // Auto-reconnect ved capture failure
+  // Begrens auto-reconnect til MAX_RECONNECTS forsøk (ikke uendelig loop)
   track?.addEventListener('ended', () => {
-    console.log('[Camera] ⚠ Track ended – capture failure. Auto-reconnecting...')
-    // Bare reconnect hvis modalen fortsatt er åpen
-    if (_cameraModal?.style.display === 'flex') {
-      const failedDeviceId = track.getSettings()?.deviceId
-      // Liten forsinkelse så Continuity Camera får tid til å resette
+    console.log(`[Camera] ⚠ Track ended – capture failure. Reconnect count: ${_reconnectCount}/${MAX_RECONNECTS}`)
+    if (_cameraModal?.style.display === 'flex' && _reconnectCount < MAX_RECONNECTS) {
+      _reconnectCount++
       setTimeout(() => {
         if (_cameraModal?.style.display === 'flex') {
-          startCameraStream(video, failedDeviceId).then(() => {
-            console.log('[Camera] ✓ Auto-reconnect successful')
+          startCameraStream(video, deviceId).then(() => {
+            console.log('[Camera] ✓ Reconnect successful')
             populateCameraList()
           }).catch((err) => {
-            console.error('[Camera] Auto-reconnect failed:', err)
+            console.error('[Camera] Reconnect failed:', err)
           })
         }
-      }, 1000)
+      }, 2000) // Lengre pause mellom forsøk
     }
   })
 
@@ -281,7 +282,8 @@ async function openCameraCapture(): Promise<File | null> {
   video.addEventListener('loadeddata', () => onVideoReady())
   video.addEventListener('playing', () => onVideoReady())
 
-  // 2. Start kamera med HD-constraints (matcher baseball-appen)
+  // 2. Start kamera med enkle constraints først
+  _reconnectCount = 0
   try {
     await startCameraStream(video)
     populateCameraList()
