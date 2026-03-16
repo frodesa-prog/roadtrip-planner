@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import {
   Plus, Trash2, Link2, ChevronDown, ChevronRight, ClipboardList,
-  CheckSquare, Square, Pencil, ChevronUp, Bell, X, Flag,
+  CheckSquare, Square, Pencil, ChevronUp, Bell, X, Flag, SlidersHorizontal,
 } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useTodoItems } from '@/hooks/useTodoItems'
@@ -39,6 +39,8 @@ export default function TodoPage() {
   const { stops } = useStops(currentTrip?.id ?? null)
   const [showReminderPanel, setShowReminderPanel] = useState(false)
   const [showCriticalPanel, setShowCriticalPanel] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [activeMobileCol, setActiveMobileCol] = useState(0)
 
   // Departure date = earliest stop arrival_date
   const departureDate = useMemo(() => {
@@ -63,11 +65,31 @@ export default function TodoPage() {
     return travelers.find((t) => t.id === id)?.name ?? 'Ukjent'
   }
 
+  // Kolonner for tab-bar på mobil
+  const mobileColumns = [
+    { id: 'felles', title: 'Felles' },
+    ...travelers.map((t) => ({ id: t.id, title: t.name })),
+  ]
+
   return (
     <div className="flex h-full overflow-hidden bg-slate-950">
 
+      {/* ── Mobil sidebar-overlay backdrop ───────────────────────────── */}
+      {mobileSidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/60"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Left sidebar ─────────────────────────────────────────────── */}
-      <div className="w-[240px] min-w-[200px] h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0">
+      <div className={`
+        fixed top-11 bottom-16 left-0 z-50 w-[280px]
+        md:relative md:top-auto md:bottom-auto md:z-auto md:w-[240px] md:min-w-[200px] md:translate-x-0
+        h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0
+        transition-transform duration-200
+        ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         <TripManager
           trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
           onSelectTrip={setCurrentTrip} onCreateTrip={createTrip} onDeleteTrip={deleteTrip}
@@ -199,12 +221,37 @@ export default function TodoPage() {
 
       {/* ── Main content ──────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
+
+        {/* Mobil: kompakt turselektor + stats-knapp */}
+        <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-slate-800 flex-shrink-0">
+          <select
+            value={currentTrip?.id ?? ''}
+            onChange={(e) => {
+              const trip = trips.find((t) => t.id === e.target.value)
+              if (trip) setCurrentTrip(trip)
+            }}
+            className="flex-1 bg-slate-800 border border-slate-700 rounded-md text-xs text-slate-200 px-2 py-1.5 outline-none"
+          >
+            {trips.length === 0 && <option value="">Ingen turer</option>}
+            {trips.map((t) => (
+              <option key={t.id} value={t.id}>{t.name} · {t.year}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-xs"
+            title="Statistikk"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
         {!currentTrip ? (
-          <EmptyState message="Velg en tur til venstre for å se gjøremål" />
+          <EmptyState message="Velg en tur for å se gjøremål" />
         ) : (
           <>
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-800 flex-shrink-0 flex items-center gap-4">
+            {/* Desktop header */}
+            <div className="hidden md:flex px-6 py-4 border-b border-slate-800 flex-shrink-0 items-center gap-4">
               <div className="flex-shrink-0">
                 <h1 className="text-lg font-semibold text-slate-100">Gjøremål</h1>
                 <p className="text-xs text-slate-500">{currentTrip.name}</p>
@@ -212,45 +259,88 @@ export default function TodoPage() {
               {totalItems > 0 && <RoadIllustration pct={pct} />}
             </div>
 
+            {/* Mobil: kolonnetabs */}
+            {!loading && (
+              <div className="md:hidden flex border-b border-slate-800 overflow-x-auto flex-shrink-0">
+                {mobileColumns.map((col, idx) => (
+                  <button
+                    key={col.id}
+                    onClick={() => setActiveMobileCol(idx)}
+                    className={`flex-shrink-0 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+                      activeMobileCol === idx
+                        ? 'border-blue-500 text-blue-400'
+                        : 'border-transparent text-slate-500'
+                    }`}
+                  >
+                    {col.title}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
                 <p className="text-slate-600 text-sm">Laster gjøremål…</p>
               </div>
             ) : (
-              <div className="flex-1 overflow-x-auto overflow-y-hidden">
-                <div
-                  className="flex gap-4 p-5 h-full"
-                  style={{ minWidth: `${(travelers.length + 1) * 285}px` }}
-                >
-                  <TodoColumn
-                    title="Felles ansvar"
-                    responsible="felles"
-                    items={items.filter((i) => i.responsible === 'felles')}
-                    onAdd={addItem}
-                    onUpdate={updateItem}
-                    onToggle={toggleItem}
-                    onMove={moveItem}
-                    onSetReminder={setReminder}
-                    onToggleCritical={toggleCritical}
-                    onDelete={deleteItem}
-                  />
-                  {travelers.map((traveler) => (
+              <>
+                {/* Mobil: én kolonne av gangen */}
+                <div className="md:hidden flex-1 overflow-hidden p-3">
+                  {activeMobileCol === 0 && (
                     <TodoColumn
-                      key={traveler.id}
-                      title={traveler.name}
-                      responsible={traveler.id}
-                      items={items.filter((i) => i.responsible === traveler.id)}
-                      onAdd={addItem}
-                      onUpdate={updateItem}
-                      onToggle={toggleItem}
-                      onMove={moveItem}
-                      onSetReminder={setReminder}
-                      onToggleCritical={toggleCritical}
-                      onDelete={deleteItem}
+                      title="Felles ansvar"
+                      responsible="felles"
+                      items={items.filter((i) => i.responsible === 'felles')}
+                      onAdd={addItem} onUpdate={updateItem} onToggle={toggleItem}
+                      onMove={moveItem} onSetReminder={setReminder}
+                      onToggleCritical={toggleCritical} onDelete={deleteItem}
+                      fullWidth
                     />
-                  ))}
+                  )}
+                  {travelers.map((traveler, idx) =>
+                    activeMobileCol === idx + 1 ? (
+                      <TodoColumn
+                        key={traveler.id}
+                        title={traveler.name}
+                        responsible={traveler.id}
+                        items={items.filter((i) => i.responsible === traveler.id)}
+                        onAdd={addItem} onUpdate={updateItem} onToggle={toggleItem}
+                        onMove={moveItem} onSetReminder={setReminder}
+                        onToggleCritical={toggleCritical} onDelete={deleteItem}
+                        fullWidth
+                      />
+                    ) : null
+                  )}
                 </div>
-              </div>
+
+                {/* Desktop: alle kolonner side om side */}
+                <div className="hidden md:block flex-1 overflow-x-auto overflow-y-hidden">
+                  <div
+                    className="flex gap-4 p-5 h-full"
+                    style={{ minWidth: `${(travelers.length + 1) * 285}px` }}
+                  >
+                    <TodoColumn
+                      title="Felles ansvar"
+                      responsible="felles"
+                      items={items.filter((i) => i.responsible === 'felles')}
+                      onAdd={addItem} onUpdate={updateItem} onToggle={toggleItem}
+                      onMove={moveItem} onSetReminder={setReminder}
+                      onToggleCritical={toggleCritical} onDelete={deleteItem}
+                    />
+                    {travelers.map((traveler) => (
+                      <TodoColumn
+                        key={traveler.id}
+                        title={traveler.name}
+                        responsible={traveler.id}
+                        items={items.filter((i) => i.responsible === traveler.id)}
+                        onAdd={addItem} onUpdate={updateItem} onToggle={toggleItem}
+                        onMove={moveItem} onSetReminder={setReminder}
+                        onToggleCritical={toggleCritical} onDelete={deleteItem}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </>
         )}
@@ -264,6 +354,7 @@ export default function TodoPage() {
 function TodoColumn({
   title, responsible, items,
   onAdd, onUpdate, onToggle, onMove, onSetReminder, onToggleCritical, onDelete,
+  fullWidth = false,
 }: {
   title: string
   responsible: string
@@ -275,6 +366,7 @@ function TodoColumn({
   onSetReminder: (id: string, date: string | null) => Promise<void>
   onToggleCritical: (id: string, critical: boolean) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  fullWidth?: boolean
 }) {
   const [showCompleted, setShowCompleted] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -300,7 +392,7 @@ function TodoColumn({
   }
 
   return (
-    <div className="w-[270px] flex-shrink-0 bg-slate-900 rounded-xl border border-slate-800 flex flex-col overflow-hidden h-full">
+    <div className={`${fullWidth ? 'w-full' : 'w-[270px]'} flex-shrink-0 bg-slate-900 rounded-xl border border-slate-800 flex flex-col overflow-hidden h-full`}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
         <h2 className="text-sm font-semibold text-slate-200">{title}</h2>

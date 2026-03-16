@@ -1215,9 +1215,9 @@ export default function MinSidePage() {
   }
 
   return (
-    <div className="h-full flex bg-slate-950">
-      {/* ── Sidebar ── */}
-      <aside className="w-52 flex-shrink-0 border-r border-slate-800 flex flex-col py-4">
+    <div className="h-full flex flex-col md:flex-row bg-slate-950">
+      {/* ── Desktop Sidebar ── */}
+      <aside className="hidden md:flex w-52 flex-shrink-0 border-r border-slate-800 flex-col py-4">
         <div className="px-4 mb-4">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
@@ -1248,8 +1248,26 @@ export default function MinSidePage() {
         </nav>
       </aside>
 
+      {/* ── Mobil tab-bar ── */}
+      <div className="md:hidden flex border-b border-slate-800 overflow-x-auto flex-shrink-0 bg-slate-950">
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={`flex-shrink-0 flex flex-col items-center gap-1 px-3 py-2.5 text-[10px] font-medium transition-colors border-b-2 ${
+              activeTab === id
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-slate-500'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            <span className="whitespace-nowrap">{label}</span>
+          </button>
+        ))}
+      </div>
+
       {/* ── Content area ── */}
-      <div className="flex-1 overflow-y-auto px-8 py-6 min-w-0">
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6 min-w-0">
         {renderContent()}
       </div>
     </div>

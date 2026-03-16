@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Trash2, Check, Package, ChevronUp, ChevronDown, Pencil, Luggage } from 'lucide-react'
+import { Plus, Trash2, Check, Package, ChevronUp, ChevronDown, Pencil, Luggage, SlidersHorizontal } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useTripPackingList } from '@/hooks/useTripPackingList'
 import { useTravelers } from '@/hooks/useTravelers'
@@ -26,10 +26,33 @@ export default function PakkelistePage() {
     useTripPackingList(currentTrip?.id ?? null)
   const { travelers, updateTraveler } = useTravelers(currentTrip?.id ?? null)
 
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [activeMobileCol, setActiveMobileCol] = useState(0)
+
+  const mobileColumns = [
+    { id: 'felles', title: 'Felles' },
+    ...travelers.map((t) => ({ id: t.id, title: t.name })),
+  ]
+
   return (
     <div className="flex h-full overflow-hidden bg-slate-950">
+
+      {/* ── Mobil sidebar-overlay backdrop ── */}
+      {mobileSidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/60"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Left sidebar ────────────────────────────────────────────────── */}
-      <div className="w-[240px] min-w-[200px] h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 overflow-y-auto">
+      <div className={`
+        fixed top-11 bottom-16 left-0 z-50 w-[280px]
+        md:relative md:top-auto md:bottom-auto md:z-auto md:w-[240px] md:min-w-[200px] md:translate-x-0
+        h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 overflow-y-auto
+        transition-transform duration-200
+        ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         <TripManager
           trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
           onSelectTrip={setCurrentTrip} onCreateTrip={createTrip} onDeleteTrip={deleteTrip}
@@ -41,53 +64,119 @@ export default function PakkelistePage() {
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
+
+        {/* Mobil: kompakt turselektor + bagasje-knapp */}
+        <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-slate-800 flex-shrink-0">
+          <select
+            value={currentTrip?.id ?? ''}
+            onChange={(e) => {
+              const trip = trips.find((t) => t.id === e.target.value)
+              if (trip) setCurrentTrip(trip)
+            }}
+            className="flex-1 bg-slate-800 border border-slate-700 rounded-md text-xs text-slate-200 px-2 py-1.5 outline-none"
+          >
+            {trips.length === 0 && <option value="">Ingen turer</option>}
+            {trips.map((t) => (
+              <option key={t.id} value={t.id}>{t.name} · {t.year}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-xs"
+            title="Bagasjeinfo"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
         {!currentTrip ? (
           <EmptyState />
         ) : (
           <>
-            <div className="px-6 py-4 border-b border-slate-800 flex-shrink-0">
+            {/* Desktop header */}
+            <div className="hidden md:block px-6 py-4 border-b border-slate-800 flex-shrink-0">
               <h1 className="text-lg font-semibold text-slate-100">Pakkeliste</h1>
               <p className="text-xs text-slate-500">{currentTrip.name}</p>
             </div>
+
+            {/* Mobil kolonnetabs */}
+            {!loading && (
+              <div className="md:hidden flex border-b border-slate-800 overflow-x-auto flex-shrink-0">
+                {mobileColumns.map((col, idx) => (
+                  <button
+                    key={col.id}
+                    onClick={() => setActiveMobileCol(idx)}
+                    className={`flex-shrink-0 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+                      activeMobileCol === idx
+                        ? 'border-blue-500 text-blue-400'
+                        : 'border-transparent text-slate-500'
+                    }`}
+                  >
+                    {col.title}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
                 <p className="text-slate-600 text-sm">Laster pakkeliste…</p>
               </div>
             ) : (
-              <div className="flex-1 overflow-x-auto overflow-y-hidden">
-                <div
-                  className="flex gap-4 p-6 h-full"
-                  style={{ minWidth: `${(travelers.length + 1) * 300}px` }}
-                >
-                  {/* Felles-kolonne */}
-                  <PackingColumn
-                    title="Felles"
-                    items={items.filter((i) => i.traveler_id === null)}
-                    travelerId={null}
-                    onAdd={addItem}
-                    onUpdate={updateItem}
-                    onToggle={togglePacked}
-                    onMove={moveItem}
-                    onDelete={deleteItem}
-                  />
-
-                  {/* Én kolonne per reisende */}
-                  {travelers.map((traveler) => (
+              <>
+                {/* Mobil: én kolonne av gangen */}
+                <div className="md:hidden flex-1 overflow-hidden p-3">
+                  {activeMobileCol === 0 && (
                     <PackingColumn
-                      key={traveler.id}
-                      title={traveler.name}
-                      items={items.filter((i) => i.traveler_id === traveler.id)}
-                      travelerId={traveler.id}
-                      onAdd={addItem}
-                      onUpdate={updateItem}
-                      onToggle={togglePacked}
-                      onMove={moveItem}
-                      onDelete={deleteItem}
+                      title="Felles"
+                      items={items.filter((i) => i.traveler_id === null)}
+                      travelerId={null}
+                      onAdd={addItem} onUpdate={updateItem}
+                      onToggle={togglePacked} onMove={moveItem} onDelete={deleteItem}
+                      fullWidth
                     />
-                  ))}
+                  )}
+                  {travelers.map((traveler, idx) =>
+                    activeMobileCol === idx + 1 ? (
+                      <PackingColumn
+                        key={traveler.id}
+                        title={traveler.name}
+                        items={items.filter((i) => i.traveler_id === traveler.id)}
+                        travelerId={traveler.id}
+                        onAdd={addItem} onUpdate={updateItem}
+                        onToggle={togglePacked} onMove={moveItem} onDelete={deleteItem}
+                        fullWidth
+                      />
+                    ) : null
+                  )}
                 </div>
-              </div>
+
+                {/* Desktop: alle kolonner side om side */}
+                <div className="hidden md:block flex-1 overflow-x-auto overflow-y-hidden">
+                  <div
+                    className="flex gap-4 p-6 h-full"
+                    style={{ minWidth: `${(travelers.length + 1) * 300}px` }}
+                  >
+                    <PackingColumn
+                      title="Felles"
+                      items={items.filter((i) => i.traveler_id === null)}
+                      travelerId={null}
+                      onAdd={addItem} onUpdate={updateItem}
+                      onToggle={togglePacked} onMove={moveItem} onDelete={deleteItem}
+                    />
+                    {travelers.map((traveler) => (
+                      <PackingColumn
+                        key={traveler.id}
+                        title={traveler.name}
+                        items={items.filter((i) => i.traveler_id === traveler.id)}
+                        travelerId={traveler.id}
+                        onAdd={addItem} onUpdate={updateItem}
+                        onToggle={togglePacked} onMove={moveItem} onDelete={deleteItem}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </>
         )}
@@ -107,6 +196,7 @@ function PackingColumn({
   onToggle,
   onMove,
   onDelete,
+  fullWidth = false,
 }: {
   title: string
   items: TripPackingItem[]
@@ -116,6 +206,7 @@ function PackingColumn({
   onToggle: (id: string, packed: boolean) => void
   onMove: (id: string, direction: 'up' | 'down') => Promise<void>
   onDelete: (id: string) => Promise<void>
+  fullWidth?: boolean
 }) {
   const [newItem, setNewItem] = useState('')
   const [category, setCategory] = useState<PackingCategory>('other')
@@ -138,7 +229,7 @@ function PackingColumn({
     .filter((g) => g.items.length > 0)
 
   return (
-    <div className="w-[285px] flex-shrink-0 bg-slate-900 rounded-xl border border-slate-800 flex flex-col overflow-hidden h-full">
+    <div className={`${fullWidth ? 'w-full' : 'w-[285px]'} flex-shrink-0 bg-slate-900 rounded-xl border border-slate-800 flex flex-col overflow-hidden h-full`}>
       {/* Column header */}
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
         <h2 className="text-sm font-semibold text-slate-200">{title}</h2>
