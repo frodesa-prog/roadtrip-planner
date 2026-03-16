@@ -40,6 +40,7 @@ import {
   Clock,
   Link2,
   UserCheck,
+  Pencil,
 } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -87,6 +88,15 @@ const PROFILE_GENDERS = [
   { value: 'annet',  label: 'Annet',  emoji: '🧑' },
 ] as const
 
+function ProfileInfoRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <p className="text-xs text-slate-500 mb-0.5">{label}</p>
+      <p className={`text-sm ${mono ? 'font-mono text-xs text-slate-500 break-all' : 'text-slate-200'}`}>{value}</p>
+    </div>
+  )
+}
+
 function ProfilTab({ user }: { user: SupabaseUser | null }) {
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
@@ -98,6 +108,10 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
   const [birthDateVal, setBirthDateVal] = useState('')
   const [genderVal, setGenderVal] = useState<string>('')
   const [profileSaving, setProfileSaving] = useState(false)
+  const [profileEditing, setProfileEditing] = useState(false)
+
+  // Snapshot to restore on cancel
+  const [savedSnapshot, setSavedSnapshot] = useState({ name: '', birth: '', gender: '' })
 
   const supabase = useMemo(() => createClient(), [])
   const { profile, saveProfile } = useUserProfile()
@@ -105,10 +119,26 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
   // Sync when profile loads
   useEffect(() => {
     if (!profile) return
-    if (profile.display_name != null) setDisplayNameVal(profile.display_name)
-    if (profile.birth_date != null) setBirthDateVal(profile.birth_date)
-    if (profile.gender != null) setGenderVal(profile.gender)
+    const name = profile.display_name ?? ''
+    const birth = profile.birth_date ?? ''
+    const gender = profile.gender ?? ''
+    setDisplayNameVal(name)
+    setBirthDateVal(birth)
+    setGenderVal(gender)
+    setSavedSnapshot({ name, birth, gender })
   }, [profile])
+
+  function handleStartEdit() {
+    setSavedSnapshot({ name: displayNameVal, birth: birthDateVal, gender: genderVal })
+    setProfileEditing(true)
+  }
+
+  function handleCancelEdit() {
+    setDisplayNameVal(savedSnapshot.name)
+    setBirthDateVal(savedSnapshot.birth)
+    setGenderVal(savedSnapshot.gender)
+    setProfileEditing(false)
+  }
 
   async function handleChangePw() {
     if (newPw.length < 6) { toast.error('Passordet må være minst 6 tegn'); return }
@@ -129,7 +159,9 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
       birth_date: birthDateVal || null,
       gender: genderVal || null,
     })
+    setSavedSnapshot({ name: displayNameVal.trim(), birth: birthDateVal, gender: genderVal })
     setProfileSaving(false)
+    setProfileEditing(false)
     toast.success('Profil lagret')
     logActivity({ log_type: 'functional', action: 'lagret', entity_type: 'profil', entity_name: 'Profil' })
   }
@@ -147,94 +179,122 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
     return age >= 0 ? age : null
   })()
 
+  const genderLabel = PROFILE_GENDERS.find((g) => g.value === genderVal)
+  const birthFormatted = birthDateVal
+    ? fmtDateShort(birthDateVal) + (agePreview != null ? ` · ${agePreview} år` : '')
+    : '—'
+
   return (
     <div className="max-w-md space-y-8">
-      {/* ── Kontoinformasjon ── */}
-      <div>
-        <h2 className="text-base font-semibold text-white mb-4">Kontoinformasjon</h2>
-        <div className="space-y-3">
-          <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3">
-            <p className="text-xs text-slate-500 mb-0.5">E-postadresse</p>
-            <p className="text-sm text-slate-200">{user?.email ?? '—'}</p>
-          </div>
-          <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3">
-            <p className="text-xs text-slate-500 mb-0.5">Konto opprettet</p>
-            <p className="text-sm text-slate-200">
-              {user?.created_at ? fmtDateShort(user.created_at) : '—'}
-            </p>
-          </div>
-          <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3">
-            <p className="text-xs text-slate-500 mb-0.5">Bruker-ID</p>
-            <p className="text-xs text-slate-500 font-mono break-all">{user?.id ?? '—'}</p>
-          </div>
-        </div>
-      </div>
 
       {/* ── Profilinformasjon (navn, fødselsdato, kjønn) ── */}
       <div>
-        <h2 className="text-base font-semibold text-white mb-1">Profilinformasjon</h2>
-        <p className="text-xs text-slate-500 mb-4">
-          Brukes i turfølget og av reiseassistenten. Fødselsdato beregner alder automatisk.
-        </p>
-
-        <div className="space-y-4">
-          {/* Visningsnavn */}
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Visningsnavn</label>
-            <input
-              value={displayNameVal}
-              onChange={(e) => setDisplayNameVal(e.target.value)}
-              placeholder="Ditt navn (f.eks. «Ola»)"
-              className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-blue-500"
-            />
+            <h2 className="text-base font-semibold text-white">Profilinformasjon</h2>
+            {!profileEditing && (
+              <p className="text-xs text-slate-500 mt-0.5">Brukes i turfølget og av reiseassistenten</p>
+            )}
           </div>
+          {!profileEditing && (
+            <button
+              onClick={handleStartEdit}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-slate-200 text-xs font-medium transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Rediger
+            </button>
+          )}
+        </div>
 
-          {/* Fødselsdato */}
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              Fødselsdato
-              {agePreview != null && (
-                <span className="ml-2 text-slate-500 font-normal">→ {agePreview} år</span>
-              )}
-            </label>
-            <input
-              type="date"
-              value={birthDateVal}
-              onChange={(e) => setBirthDateVal(e.target.value)}
-              max={new Date().toISOString().split('T')[0]}
-              className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-blue-500 [color-scheme:dark]"
-            />
-          </div>
+        {profileEditing ? (
+          <div className="space-y-4">
+            {/* Visningsnavn */}
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Visningsnavn</label>
+              <input
+                value={displayNameVal}
+                onChange={(e) => setDisplayNameVal(e.target.value)}
+                placeholder="Ditt navn (f.eks. «Ola»)"
+                className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-blue-500"
+                autoFocus
+              />
+            </div>
 
-          {/* Kjønn */}
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Kjønn</label>
-            <div className="flex gap-2">
-              {PROFILE_GENDERS.map((g) => (
-                <button
-                  key={g.value}
-                  onClick={() => setGenderVal(genderVal === g.value ? '' : g.value)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                    genderVal === g.value
-                      ? 'bg-blue-600/20 border-blue-500 text-blue-200'
-                      : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  <span>{g.emoji}</span>
-                  <span className="text-xs">{g.label}</span>
-                </button>
-              ))}
+            {/* Fødselsdato */}
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                Fødselsdato
+                {agePreview != null && (
+                  <span className="ml-2 text-slate-500 font-normal">→ {agePreview} år</span>
+                )}
+              </label>
+              <input
+                type="date"
+                value={birthDateVal}
+                onChange={(e) => setBirthDateVal(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-blue-500 [color-scheme:dark]"
+              />
+            </div>
+
+            {/* Kjønn */}
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Kjønn</label>
+              <div className="flex gap-2">
+                {PROFILE_GENDERS.map((g) => (
+                  <button
+                    key={g.value}
+                    onClick={() => setGenderVal(genderVal === g.value ? '' : g.value)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      genderVal === g.value
+                        ? 'bg-blue-600/20 border-blue-500 text-blue-200'
+                        : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    <span>{g.emoji}</span>
+                    <span className="text-xs">{g.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={handleSaveProfile}
+                disabled={profileSaving}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium transition-colors"
+              >
+                {profileSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                Lagre
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="px-4 py-2 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 text-sm font-medium transition-colors"
+              >
+                Avbryt
+              </button>
             </div>
           </div>
+        ) : (
+          <div className="space-y-4">
+            <ProfileInfoRow label="Visningsnavn" value={displayNameVal || '—'} />
+            <ProfileInfoRow label="Fødselsdato" value={birthFormatted} />
+            <ProfileInfoRow
+              label="Kjønn"
+              value={genderLabel ? `${genderLabel.emoji} ${genderLabel.label}` : '—'}
+            />
+          </div>
+        )}
+      </div>
 
-          <button
-            onClick={handleSaveProfile}
-            disabled={profileSaving}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium transition-colors"
-          >
-            {profileSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            Lagre profil
-          </button>
+      {/* ── Kontoinformasjon ── */}
+      <div>
+        <h2 className="text-base font-semibold text-white mb-4">Kontoinformasjon</h2>
+        <div className="space-y-4">
+          <ProfileInfoRow label="E-postadresse" value={user?.email ?? '—'} />
+          <ProfileInfoRow label="Konto opprettet" value={user?.created_at ? fmtDateShort(user.created_at) : '—'} />
+          <ProfileInfoRow label="Bruker-ID" value={user?.id ?? '—'} mono />
         </div>
       </div>
 
