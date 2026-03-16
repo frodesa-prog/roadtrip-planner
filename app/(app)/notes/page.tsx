@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Plus, Trash2, FileText, ImageIcon, Loader2, X, Archive, ArrowLeft } from 'lucide-react'
+import { Plus, Trash2, FileText, ImageIcon, Loader2, X, Archive, ArrowLeft, Camera } from 'lucide-react'
 import Link from 'next/link'
 import { useTrips } from '@/hooks/useTrips'
 import { useNotes } from '@/hooks/useNotes'
@@ -45,6 +45,8 @@ export default function NotesPage() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [showDraft, setShowDraft] = useState(false)
   const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null)
+  // Fil som skal lastes opp etter at et nytt notat er opprettet
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
 
   // Mobil: 'list' viser notat-lista, 'editor' viser editoren
   const [mobileView, setMobileView] = useState<'list' | 'editor'>('list')
@@ -83,7 +85,7 @@ export default function NotesPage() {
 
   // --- Draft handlers ---
 
-  async function handleDraftSave(title: string, content: string) {
+  async function handleDraftSave(title: string, content: string, file?: File) {
     const note = await addNote({
       content,
       title: title.trim() || null,
@@ -91,6 +93,7 @@ export default function NotesPage() {
       note_date: null,
     })
     if (note) {
+      if (file) setPendingFile(file)
       setShowDraft(false)
       setSelectedNoteId(note.id)
     }
@@ -309,6 +312,8 @@ export default function NotesPage() {
             onRequestDelete={(id) => setConfirmArchiveId(id)}
             stops={stops}
             onBack={handleBackToList}
+            pendingFile={pendingFile}
+            onPendingFileConsumed={() => setPendingFile(null)}
           />
         )}
       </div>
@@ -323,13 +328,15 @@ function DraftEditor({
   onDiscard,
   onBack,
 }: {
-  onSave: (title: string, content: string) => Promise<void>
+  onSave: (title: string, content: string, file?: File) => Promise<void>
   onDiscard: () => void
   onBack: () => void
 }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const titleRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedRef = useRef(false)
 
@@ -355,6 +362,15 @@ function DraftEditor({
   function handleContentChange(val: string) {
     setContent(val)
     scheduleAutoSave(title, val)
+  }
+
+  async function handleFileSelect(file: File) {
+    // Lagre notatet umiddelbart, med filen som skal lastes opp etter overgang
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    if (!savedRef.current) {
+      savedRef.current = true
+      await onSave(title, content, file)
+    }
   }
 
   return (
@@ -393,9 +409,40 @@ function DraftEditor({
         className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
       />
 
-      {/* Footer hint */}
-      <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0">
+      {/* Footer – bildeopplasting + kamera */}
+      <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
         <p className="text-[11px] text-slate-600 italic">Lagres automatisk når du begynner å skrive</p>
+        <div className="flex items-center gap-1">
+          {/* Kamera */}
+          <label
+            title="Ta bilde"
+            className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
+          >
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }}
+            />
+            <Camera className="w-4 h-4" />
+          </label>
+          {/* Galleri / fil */}
+          <label
+            title="Last opp bilde"
+            className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }}
+            />
+            <ImageIcon className="w-4 h-4" />
+          </label>
+        </div>
       </div>
     </div>
   )
@@ -411,12 +458,16 @@ function NoteEditor({
   onRequestDelete,
   stops,
   onBack,
+  pendingFile,
+  onPendingFileConsumed,
 }: {
   note: Note
   onUpdate: (id: string, updates: NoteUpdates) => void
   onRequestDelete: (id: string) => void
   stops: Stop[]
   onBack: () => void
+  pendingFile?: File | null
+  onPendingFileConsumed?: () => void
 }) {
   const [title, setTitle] = useState(note.title ?? '')
   const [content, setContent] = useState(note.content)
@@ -424,8 +475,18 @@ function NoteEditor({
   const [noteDate, setNoteDate] = useState<string | null>(note.note_date)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   const { images, isUploading, uploadImage, removeImage } = useNoteImages(note.id)
+
+  // Last opp fil som ble valgt mens notatet ennå var et ulagret draft
+  useEffect(() => {
+    if (pendingFile) {
+      uploadImage(pendingFile)
+      onPendingFileConsumed?.()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const selectedStop = stops.find((s) => s.id === stopId) ?? null
   const stopDates = selectedStop ? getStopDateRange(selectedStop) : []
@@ -595,22 +656,40 @@ function NoteEditor({
       {/* Footer */}
       <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
         <p className="text-[11px] text-slate-600">Sist oppdatert {updatedLabel}</p>
-        <label
-          title="Last opp bilde (eller lim inn med ⌘V)"
-          className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          {isUploading
-            ? <Loader2 className="w-4 h-4 animate-spin" />
-            : <ImageIcon className="w-4 h-4" />
-          }
-        </label>
+        <div className="flex items-center gap-1">
+          {/* Kamera – åpner kamera direkte på mobil, filvelger på desktop */}
+          <label
+            title="Ta bilde med kamera"
+            className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
+          >
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <Camera className="w-4 h-4" />
+          </label>
+          {/* Galleri / fil – lim inn med ⌘V støttes også */}
+          <label
+            title="Last opp bilde fra galleri (eller lim inn med ⌘V)"
+            className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            {isUploading
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <ImageIcon className="w-4 h-4" />
+            }
+          </label>
+        </div>
       </div>
     </div>
   )
