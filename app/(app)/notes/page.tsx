@@ -99,18 +99,49 @@ function ensureCameraModal(): { modal: HTMLDivElement; video: HTMLVideoElement }
   }
   videoWrap.append(video, spinner)
 
-  // Shutter
+  // Footer med shutter + iPhone-knapp
   const footer = document.createElement('div')
   footer.style.cssText =
-    'display:flex;align-items:center;justify-content:center;padding:32px 0;flex-shrink:0;background:rgba(0,0,0,0.6);'
+    'display:flex;align-items:center;justify-content:center;gap:24px;padding:24px 16px;flex-shrink:0;background:rgba(0,0,0,0.6);'
 
+  // iPhone-knapp (åpner filvelger med Continuity Camera i sidepanelet)
+  const iphoneBtn = document.createElement('button')
+  iphoneBtn.id = 'cam-iphone-btn'
+  iphoneBtn.innerHTML = '<span style="font-size:20px;">📱</span><span style="font-size:11px;display:block;margin-top:2px;">iPhone</span>'
+  iphoneBtn.style.cssText =
+    'background:none;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:12px;padding:10px 16px;cursor:pointer;text-align:center;transition:background 0.2s;'
+  iphoneBtn.onmouseenter = () => { iphoneBtn.style.background = 'rgba(255,255,255,0.1)' }
+  iphoneBtn.onmouseleave = () => { iphoneBtn.style.background = 'none' }
+  iphoneBtn.onclick = () => {
+    // Åpner filvelger – macOS sin Continuity Camera vises i sidepanelet
+    const inp = document.createElement('input')
+    inp.type = 'file'
+    inp.accept = 'image/*'
+    inp.style.display = 'none'
+    document.body.appendChild(inp)
+    inp.onchange = () => {
+      const f = inp.files?.[0]
+      document.body.removeChild(inp)
+      if (f) closeCameraModal(f)
+    }
+    // Håndter avbryt
+    const onFocus = () => {
+      setTimeout(() => { if (document.body.contains(inp)) document.body.removeChild(inp) }, 500)
+      window.removeEventListener('focus', onFocus)
+    }
+    window.addEventListener('focus', onFocus)
+    inp.click()
+  }
+
+  // Shutter-knapp (webkamera)
   const shutter = document.createElement('button')
   shutter.id = 'cam-shutter'
   shutter.disabled = true
   shutter.style.cssText =
     'width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid #94a3b8;cursor:pointer;opacity:0.4;transition:opacity 0.2s;'
   shutter.onclick = () => takeSnapshot()
-  footer.appendChild(shutter)
+
+  footer.append(iphoneBtn, shutter)
 
   modal.append(header, videoWrap, footer)
   document.body.appendChild(modal)
@@ -144,14 +175,8 @@ function takeSnapshot() {
   }, 'image/jpeg', 0.9)
 }
 
-// Prøver å starte en kamerastream. Returnerer true hvis streamen er stabil
-// (ikke avsluttet innen timeoutMs), false ellers.
-async function tryStartStream(
-  video: HTMLVideoElement,
-  deviceId?: string,
-  timeoutMs = 3000
-): Promise<boolean> {
-  // Stopp gammel stream
+// Start kamerastream – bruker FaceTime/innebygd kamera (ingen stabilitetsjekk nødvendig)
+async function startStream(video: HTMLVideoElement, deviceId?: string) {
   if (_cameraStream) {
     _cameraStream.getTracks().forEach((t) => t.stop())
     _cameraStream = null
@@ -161,79 +186,10 @@ async function tryStartStream(
     video: deviceId ? { deviceId: { exact: deviceId } } : true,
     audio: false,
   }
-  console.log('[Camera] Trying:', deviceId || 'default', JSON.stringify(constraints))
 
-  const stream = await navigator.mediaDevices.getUserMedia(constraints)
-  _cameraStream = stream
-
-  const track = stream.getVideoTracks()[0]
-  console.log('[Camera] Got stream:', track?.label, 'settings:', JSON.stringify(track?.getSettings()))
-
-  video.srcObject = stream
+  _cameraStream = await navigator.mediaDevices.getUserMedia(constraints)
+  video.srcObject = _cameraStream
   await video.play()
-
-  // Vent og sjekk om track overlever (capture failure dreper den innen ~1-2s)
-  return new Promise<boolean>((resolve) => {
-    let settled = false
-    const onEnded = () => {
-      if (!settled) {
-        settled = true
-        console.log('[Camera] ✗ Track died:', track?.label)
-        resolve(false)
-      }
-    }
-    track?.addEventListener('ended', onEnded)
-
-    setTimeout(() => {
-      if (!settled) {
-        settled = true
-        track?.removeEventListener('ended', onEnded)
-        console.log('[Camera] ✓ Track stable:', track?.label)
-        resolve(true)
-      }
-    }, timeoutMs)
-  })
-}
-
-// Prøver alle tilgjengelige kameraer til ett fungerer
-async function startStreamWithFallback(video: HTMLVideoElement) {
-  // 1. Prøv standard (FaceTime) først
-  try {
-    const ok = await tryStartStream(video)
-    if (ok) return
-  } catch (err) {
-    console.log('[Camera] Default camera failed:', err)
-  }
-
-  // 2. List opp alle kameraer og prøv hvert enkelt
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices()
-    const cams = devices.filter((d) => d.kind === 'videoinput')
-    console.log('[Camera] Available cameras:', cams.map(c => c.label).join(', '))
-
-    // Sorter: FaceTime/innebygde kameraer først, Continuity Camera sist
-    const sorted = [...cams].sort((a, b) => {
-      const aBuiltin = /facetime|built-in|isight|internal/i.test(a.label) ? 0 : 1
-      const bBuiltin = /facetime|built-in|isight|internal/i.test(b.label) ? 0 : 1
-      return aBuiltin - bBuiltin
-    })
-
-    for (const cam of sorted) {
-      console.log('[Camera] Trying camera:', cam.label, cam.deviceId.slice(0, 8))
-      try {
-        const ok = await tryStartStream(video, cam.deviceId)
-        if (ok) return
-      } catch (err) {
-        console.log('[Camera] Camera failed:', cam.label, err)
-      }
-    }
-  } catch (err) {
-    console.error('[Camera] enumerateDevices failed:', err)
-  }
-
-  // 3. Ingenting fungerte – vis feilmelding i modalen
-  console.error('[Camera] All cameras failed')
-  throw new Error('Ingen kameraer fungerte')
 }
 
 async function switchToCamera(deviceId: string) {
@@ -244,15 +200,7 @@ async function switchToCamera(deviceId: string) {
   if (shutter) { shutter.disabled = true; shutter.style.opacity = '0.4' }
 
   try {
-    const ok = await tryStartStream(_cameraVideo, deviceId)
-    if (!ok) {
-      console.error('[Camera] Selected camera failed – capture failure')
-      // Vis feilmelding i spinner-området
-      if (spinner) {
-        spinner.style.display = 'flex'
-        spinner.innerHTML = '<p style="color:#f87171;font-size:14px;text-align:center;padding:20px;">Kameraet koblet fra.<br>Prøv et annet kamera.</p>'
-      }
-    }
+    await startStream(_cameraVideo, deviceId)
   } catch (err) {
     console.error('[Camera] Switch failed:', err)
   }
@@ -262,26 +210,33 @@ async function populateCameras() {
   const sel = document.getElementById('cam-select') as HTMLSelectElement | null
   if (!sel) return
   try {
-    // Deaktiver onchange midlertidig – forhindrer at dropdown-oppdatering
-    // trigger kamerabytte som dreper den fungerende streamen
     const prevOnChange = sel.onchange
     sel.onchange = null
 
     const devices = await navigator.mediaDevices.enumerateDevices()
-    const cams = devices.filter((d) => d.kind === 'videoinput')
+    // Filtrer bort Continuity Camera (feiler på deployede sider)
+    const cams = devices.filter((d) =>
+      d.kind === 'videoinput' &&
+      !/(continuity|iphone|ipad|bordvisning|desk\s*view)/i.test(d.label)
+    )
     sel.innerHTML = ''
-    cams.forEach((cam, i) => {
-      const opt = document.createElement('option')
-      opt.value = cam.deviceId
-      opt.textContent = cam.label || `Kamera ${i + 1}`
-      sel.appendChild(opt)
-    })
-    if (_cameraStream) {
-      const activeId = _cameraStream.getVideoTracks()[0]?.getSettings()?.deviceId
-      if (activeId) sel.value = activeId
+    if (cams.length <= 1) {
+      // Bare ett innebygd kamera – skjul dropdown
+      sel.style.display = 'none'
+    } else {
+      sel.style.display = ''
+      cams.forEach((cam, i) => {
+        const opt = document.createElement('option')
+        opt.value = cam.deviceId
+        opt.textContent = cam.label || `Kamera ${i + 1}`
+        sel.appendChild(opt)
+      })
+      if (_cameraStream) {
+        const activeId = _cameraStream.getVideoTracks()[0]?.getSettings()?.deviceId
+        if (activeId) sel.value = activeId
+      }
     }
 
-    // Gjenopprett onchange etter at verdien er satt
     sel.onchange = prevOnChange
   } catch { /* ignorer */ }
 }
@@ -295,7 +250,6 @@ async function openCameraCapture(): Promise<File | null> {
   const shutter = document.getElementById('cam-shutter') as HTMLButtonElement | null
   if (spinner) {
     spinner.style.display = 'flex'
-    // Reset spinner innhold (kan ha blitt overskrevet av feilmelding)
     spinner.innerHTML =
       '<div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:cam-spin 1s linear infinite;"></div>'
   }
@@ -308,16 +262,15 @@ async function openCameraCapture(): Promise<File | null> {
   video.onloadeddata = onReady
   video.onplaying = onReady
 
-  // Prøv alle kameraer til ett fungerer
+  // Start FaceTime-kamera direkte (ingen fallback-loop)
   try {
-    await startStreamWithFallback(video)
+    await startStream(video)
     populateCameras()
   } catch (err) {
-    console.error('[Camera] No camera worked:', err)
-    // Vis feilmelding i stedet for å lukke
+    console.error('[Camera] Camera failed:', err)
     if (spinner) {
       spinner.style.display = 'flex'
-      spinner.innerHTML = '<p style="color:#f87171;font-size:14px;text-align:center;padding:20px;">Kunne ikke starte kamera.<br>Sjekk tillatelser i Safari → Innstillinger → Nettsteder → Kamera.</p>'
+      spinner.innerHTML = '<p style="color:#f87171;font-size:14px;text-align:center;padding:20px;">Kunne ikke starte webkamera.<br>Bruk 📱 iPhone-knappen for å ta bilde med telefonen.</p>'
     }
   }
 
