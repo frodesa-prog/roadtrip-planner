@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Plus, Trash2, FileText, ImageIcon, Loader2, X, Archive, ArrowLeft, Camera } from 'lucide-react'
+import { Plus, Trash2, FileText, ImageIcon, Loader2, X, Archive, ArrowLeft, Camera, SwitchCamera } from 'lucide-react'
 import Link from 'next/link'
 import { useTrips } from '@/hooks/useTrips'
 import { useNotes } from '@/hooks/useNotes'
@@ -321,6 +321,142 @@ export default function NotesPage() {
   )
 }
 
+// ─── Camera Modal ─────────────────────────────────────────────────────────────
+
+function CameraModal({
+  onCapture,
+  onClose,
+}: {
+  onCapture: (file: File) => void
+  onClose: () => void
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
+  const [error, setError] = useState<string | null>(null)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    async function startCamera() {
+      // Stop any existing stream before starting a new one
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+      setReady(false)
+      setError(null)
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode },
+          audio: false,
+        })
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          videoRef.current.onloadedmetadata = () => {
+            if (!cancelled) setReady(true)
+          }
+        }
+      } catch {
+        if (!cancelled) setError('Kunne ikke åpne kamera. Sjekk at du har gitt tillatelse i nettleseren.')
+      }
+    }
+    startCamera()
+    return () => {
+      cancelled = true
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    }
+  }, [facingMode])
+
+  function capture() {
+    const video = videoRef.current
+    if (!video || !ready) return
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext('2d')?.drawImage(video, 0, 0)
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          const file = new File([blob], `kamera-${Date.now()}.jpg`, { type: 'image/jpeg' })
+          onCapture(file)
+          onClose()
+        }
+      },
+      'image/jpeg',
+      0.9
+    )
+  }
+
+  function flipCamera() {
+    setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'))
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/60 backdrop-blur-sm">
+        <button
+          onClick={onClose}
+          className="p-2 rounded-full text-white hover:bg-white/10 transition-colors"
+          title="Avbryt"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <span className="text-white text-sm font-medium">Ta bilde</span>
+        <button
+          onClick={flipCamera}
+          className="p-2 rounded-full text-white hover:bg-white/10 transition-colors"
+          title="Bytt kamera"
+        >
+          <SwitchCamera className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Video preview */}
+      <div className="flex-1 relative overflow-hidden">
+        {error ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 px-8">
+            <Camera className="w-12 h-12 text-slate-600" />
+            <p className="text-slate-300 text-sm text-center">{error}</p>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg bg-slate-700 text-slate-200 text-sm hover:bg-slate-600 transition-colors"
+            >
+              Lukk
+            </button>
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
+          />
+        )}
+        {!ready && !error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+            <Loader2 className="w-8 h-8 text-white animate-spin" />
+          </div>
+        )}
+      </div>
+
+      {/* Shutter button */}
+      <div className="flex items-center justify-center py-8 flex-shrink-0 bg-black/60 backdrop-blur-sm">
+        <button
+          onClick={capture}
+          disabled={!ready}
+          className="w-18 h-18 rounded-full bg-white border-[5px] border-slate-400 hover:bg-slate-100 active:scale-95 transition-all disabled:opacity-40"
+          style={{ width: '72px', height: '72px' }}
+          title="Ta bilde"
+        />
+      </div>
+    </div>
+  )
+}
+
 // ─── Draft Editor (new note, not yet saved to DB) ─────────────────────────────
 
 function DraftEditor({
@@ -334,9 +470,9 @@ function DraftEditor({
 }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [showCamera, setShowCamera] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const cameraInputRef = useRef<HTMLInputElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedRef = useRef(false)
 
@@ -374,77 +510,78 @@ function DraftEditor({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
-      {/* Title row */}
-      <div className="flex items-center gap-2 px-4 md:px-6 py-3 border-b border-slate-800 flex-shrink-0">
-        {/* Tilbake-pil kun på mobil */}
-        <button
-          onClick={onBack}
-          className="md:hidden p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0"
-          title="Tilbake til listen"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <input
-          ref={titleRef}
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          placeholder="Tittel"
-          className="flex-1 bg-transparent text-lg font-semibold text-slate-100 placeholder:text-slate-600 outline-none"
+    <>
+      {showCamera && (
+        <CameraModal
+          onCapture={(file) => handleFileSelect(file)}
+          onClose={() => setShowCamera(false)}
         />
-        <button
-          onClick={onDiscard}
-          className="p-1.5 rounded-md text-slate-600 hover:text-slate-400 hover:bg-slate-800 transition-colors flex-shrink-0"
-          title="Forkast"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Content */}
-      <textarea
-        value={content}
-        onChange={(e) => handleContentChange(e.target.value)}
-        placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
-        className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
-      />
-
-      {/* Footer – bildeopplasting + kamera */}
-      <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
-        <p className="text-[11px] text-slate-600 italic">Lagres automatisk når du begynner å skrive</p>
-        <div className="flex items-center gap-1">
-          {/* Kamera */}
-          <label
-            title="Ta bilde"
-            className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
+      )}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Title row */}
+        <div className="flex items-center gap-2 px-4 md:px-6 py-3 border-b border-slate-800 flex-shrink-0">
+          {/* Tilbake-pil kun på mobil */}
+          <button
+            onClick={onBack}
+            className="md:hidden p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0"
+            title="Tilbake til listen"
           >
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }}
-            />
-            <Camera className="w-4 h-4" />
-          </label>
-          {/* Galleri / fil */}
-          <label
-            title="Last opp bilde"
-            className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <input
+            ref={titleRef}
+            value={title}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            placeholder="Tittel"
+            className="flex-1 bg-transparent text-lg font-semibold text-slate-100 placeholder:text-slate-600 outline-none"
+          />
+          <button
+            onClick={onDiscard}
+            className="p-1.5 rounded-md text-slate-600 hover:text-slate-400 hover:bg-slate-800 transition-colors flex-shrink-0"
+            title="Forkast"
           >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }}
-            />
-            <ImageIcon className="w-4 h-4" />
-          </label>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <textarea
+          value={content}
+          onChange={(e) => handleContentChange(e.target.value)}
+          placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
+          className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
+        />
+
+        {/* Footer – bildeopplasting + kamera */}
+        <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
+          <p className="text-[11px] text-slate-600 italic">Lagres automatisk når du begynner å skrive</p>
+          <div className="flex items-center gap-1">
+            {/* Kamera – åpner live kamera-modal */}
+            <button
+              onClick={() => setShowCamera(true)}
+              title="Ta bilde med kamera"
+              className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
+            >
+              <Camera className="w-4 h-4" />
+            </button>
+            {/* Galleri / fil */}
+            <label
+              title="Last opp bilde fra galleri"
+              className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }}
+              />
+              <ImageIcon className="w-4 h-4" />
+            </label>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -473,9 +610,9 @@ function NoteEditor({
   const [content, setContent] = useState(note.content)
   const [stopId, setStopId] = useState<string | null>(note.stop_id)
   const [noteDate, setNoteDate] = useState<string | null>(note.note_date)
+  const [showCamera, setShowCamera] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   const { images, isUploading, uploadImage, removeImage } = useNoteImages(note.id)
 
@@ -552,6 +689,13 @@ function NoteEditor({
   })
 
   return (
+    <>
+      {showCamera && (
+        <CameraModal
+          onCapture={(file) => uploadImage(file)}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     <div className="flex-1 flex flex-col h-full overflow-hidden">
 
       {/* Title row */}
@@ -657,21 +801,14 @@ function NoteEditor({
       <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
         <p className="text-[11px] text-slate-600">Sist oppdatert {updatedLabel}</p>
         <div className="flex items-center gap-1">
-          {/* Kamera – åpner kamera direkte på mobil, filvelger på desktop */}
-          <label
+          {/* Kamera – åpner live kamera-modal */}
+          <button
+            onClick={() => setShowCamera(true)}
             title="Ta bilde med kamera"
-            className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
+            className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
           >
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
             <Camera className="w-4 h-4" />
-          </label>
+          </button>
           {/* Galleri / fil – lim inn med ⌘V støttes også */}
           <label
             title="Last opp bilde fra galleri (eller lim inn med ⌘V)"
@@ -692,6 +829,7 @@ function NoteEditor({
         </div>
       </div>
     </div>
+    </>
   )
 }
 
