@@ -338,19 +338,17 @@ function CameraModal({
   const [ready, setReady] = useState(false)
 
   // Koble stream til video-elementet og sett ready
-  const attachStream = useCallback((stream: MediaStream) => {
+  function attachStream(stream: MediaStream) {
     const video = videoRef.current
     if (!video) return
     video.srcObject = stream
     const markReady = () => setReady(true)
     video.addEventListener('canplay', markReady, { once: true })
     video.addEventListener('playing', markReady, { once: true })
-    // Eksplisitt play() – nødvendig for Safari / Continuity Camera
     video.play().then(markReady).catch(() => { /* håndteres av events over */ })
-  }, [])
+  }
 
-  // Steg 1: be om tillatelse, vis første tilgjengelige kamera umiddelbart,
-  // deretter enumerer alle kameraer i bakgrunnen
+  // Eneste effect: start kamera én gang og enumerer enheter
   useEffect(() => {
     let cancelled = false
     async function init() {
@@ -359,21 +357,21 @@ function CameraModal({
         return
       }
       try {
-        // Start første tilgjengelige kamera direkte – ikke stopp strømmen
+        // Start kamera direkte – behold strømmen (ikke stopp den!)
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
         streamRef.current = stream
         attachStream(stream)
 
-        // Enumerer alle kameraer (labels tilgjengelig etter at tillatelse er gitt)
+        // Enumerer kameraer i bakgrunnen – kun til dropdown-visning
         const devices = await navigator.mediaDevices.enumerateDevices()
         if (cancelled) return
         const videoDevices = devices.filter((d) => d.kind === 'videoinput')
         setCameras(videoDevices)
 
-        // Finn deviceId for det kameraet som allerede kjører
-        const activeTrack = stream.getVideoTracks()[0]
-        const activeDeviceId = (activeTrack?.getSettings() as { deviceId?: string })?.deviceId
+        // Finn aktiv deviceId – kun for å markere riktig valg i dropdown
+        const activeDeviceId =
+          (stream.getVideoTracks()[0]?.getSettings() as { deviceId?: string })?.deviceId
           ?? videoDevices[0]?.deviceId
           ?? null
         setSelectedDeviceId(activeDeviceId)
@@ -395,36 +393,24 @@ function CameraModal({
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
     }
-  }, [attachStream])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Steg 2: bytt kamera når bruker velger en annen enhet
-  useEffect(() => {
-    if (!selectedDeviceId) return
-
-    // Sjekk om det valgte kameraet allerede er aktivt
-    const activeTrack = streamRef.current?.getVideoTracks()[0]
-    const activeDeviceId = (activeTrack?.getSettings() as { deviceId?: string })?.deviceId
-    if (activeDeviceId === selectedDeviceId) return
-
-    let cancelled = false
-    async function switchCamera() {
-      setReady(false)
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: { exact: selectedDeviceId! } },
-          audio: false,
-        })
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
-        streamRef.current?.getTracks().forEach((t) => t.stop())
-        streamRef.current = stream
-        attachStream(stream)
-      } catch {
-        if (!cancelled) setError('Kunne ikke bytte til det valgte kameraet. Prøv et annet.')
-      }
+  // Brukertriggert kamerabytte – kalles kun fra dropdown/flip-knapp
+  async function switchToCamera(deviceId: string) {
+    setSelectedDeviceId(deviceId)
+    setReady(false)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId } },
+        audio: false,
+      })
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current = stream
+      attachStream(stream)
+    } catch {
+      setError('Kunne ikke bytte til det valgte kameraet. Prøv et annet.')
     }
-    switchCamera()
-    return () => { cancelled = true }
-  }, [selectedDeviceId, attachStream])
+  }
 
   function capture() {
     const video = videoRef.current
@@ -450,7 +436,7 @@ function CameraModal({
     if (cameras.length < 2) return
     const idx = cameras.findIndex((c) => c.deviceId === selectedDeviceId)
     const next = cameras[(idx + 1) % cameras.length]
-    setSelectedDeviceId(next.deviceId)
+    switchToCamera(next.deviceId)
   }
 
   return (
@@ -469,7 +455,7 @@ function CameraModal({
         {cameras.length > 1 ? (
           <select
             value={selectedDeviceId ?? ''}
-            onChange={(e) => setSelectedDeviceId(e.target.value)}
+            onChange={(e) => switchToCamera(e.target.value)}
             className="bg-black/40 text-white text-xs rounded px-2 py-1 border border-white/20 max-w-[180px] truncate"
           >
             {cameras.map((c, i) => (
