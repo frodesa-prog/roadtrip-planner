@@ -475,6 +475,15 @@ function DraftEditor({
         </button>
         <input ref={titleRef} value={title} onChange={(e) => handleTitleChange(e.target.value)}
           placeholder="Tittel" className="flex-1 bg-transparent text-lg font-semibold text-slate-100 placeholder:text-slate-600 outline-none" />
+        <button onClick={handleOpenCamera} title="Ta bilde med kamera"
+          className="p-1.5 rounded-md text-slate-600 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0">
+          <Camera className="w-4 h-4" />
+        </button>
+        <label title="Last opp bilde" className="cursor-pointer p-1.5 rounded-md text-slate-600 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0">
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }} />
+          <ImageIcon className="w-4 h-4" />
+        </label>
         <button onClick={onDiscard} className="p-1.5 rounded-md text-slate-600 hover:text-slate-400 hover:bg-slate-800 transition-colors flex-shrink-0" title="Forkast">
           <X className="w-4 h-4" />
         </button>
@@ -484,19 +493,8 @@ function DraftEditor({
         placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
         className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0" />
 
-      <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
+      <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0">
         <p className="text-[11px] text-slate-600 italic">Lagres automatisk når du begynner å skrive</p>
-        <div className="flex items-center gap-1">
-          <button onClick={handleOpenCamera} title="Ta bilde med kamera"
-            className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors">
-            <Camera className="w-4 h-4" />
-          </button>
-          <label title="Last opp bilde fra galleri" className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors">
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }} />
-            <ImageIcon className="w-4 h-4" />
-          </label>
-        </div>
       </div>
     </div>
   )
@@ -630,6 +628,29 @@ function NoteEditor({
           className="flex-1 bg-transparent text-lg font-semibold text-slate-100 placeholder:text-slate-600 outline-none"
         />
         <button
+          onClick={handleOpenCamera}
+          title="Ta bilde med kamera"
+          className="p-1.5 rounded-md text-slate-600 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0"
+        >
+          <Camera className="w-4 h-4" />
+        </button>
+        <label
+          title="Last opp bilde"
+          className="cursor-pointer p-1.5 rounded-md text-slate-600 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0"
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          {isUploading
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <ImageIcon className="w-4 h-4" />
+          }
+        </label>
+        <button
           onClick={() => onRequestDelete(note.id)}
           className="p-1.5 rounded-md text-slate-600 hover:text-red-400 hover:bg-slate-800 transition-colors flex-shrink-0"
           title="Flytt til arkiv"
@@ -713,35 +734,8 @@ function NoteEditor({
       </div>
 
       {/* Footer */}
-      <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
+      <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0">
         <p className="text-[11px] text-slate-600">Sist oppdatert {updatedLabel}</p>
-        <div className="flex items-center gap-1">
-          {/* Kamera – åpner live kamera-modal */}
-          <button
-            onClick={handleOpenCamera}
-            title="Ta bilde med kamera"
-            className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
-          >
-            <Camera className="w-4 h-4" />
-          </button>
-          {/* Galleri / fil – lim inn med ⌘V støttes også */}
-          <label
-            title="Last opp bilde fra galleri (eller lim inn med ⌘V)"
-            className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            {isUploading
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <ImageIcon className="w-4 h-4" />
-            }
-          </label>
-        </div>
       </div>
     </div>
   )
