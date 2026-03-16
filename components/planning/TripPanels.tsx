@@ -214,10 +214,13 @@ function FlightForm({ flight, onSave }: {
         </div>
       </div>
 
-      <label className="flex items-center gap-2 py-0.5 cursor-pointer select-none group">
-        <input type="checkbox" checked={stopover} onChange={(e) => onSave({ has_stopover: e.target.checked })} className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer" />
-        <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Mellomlanding</span>
-      </label>
+      <div className="flex items-center gap-2 py-0.5">
+        <label className="flex items-center gap-2 cursor-pointer select-none group">
+          <input type="checkbox" checked={stopover} onChange={(e) => onSave({ has_stopover: e.target.checked })} className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer" />
+          <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Mellomlanding</span>
+        </label>
+        {leg1Min !== null && <div className="ml-auto"><DurationBadge minutes={leg1Min} label={stopover ? 'Flytid etappe 1' : 'Flytid'} /></div>}
+      </div>
 
       {!stopover ? (
         <>
@@ -225,7 +228,6 @@ function FlightForm({ flight, onSave }: {
             <div><Label>Ankomst</Label><TimeInput key={`arr-d-${flight?.id}`} defaultValue={flight?.leg1_arrival} onSave={saveLeg1Arrival} /></div>
             <div><Label>Destinasjon</Label><AirportInput key={`to-d-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg1_to: v })} /></div>
           </div>
-          {leg1Min !== null && <DurationBadge minutes={leg1Min} label="Flytid" />}
         </>
       ) : (
         <>
@@ -233,7 +235,6 @@ function FlightForm({ flight, onSave }: {
             <div><Label>Ankomst</Label><TimeInput key={`arr1-s-${flight?.id}`} defaultValue={flight?.leg1_arrival} onSave={saveLeg1Arrival} /></div>
             <div><Label>Mellomstasjon</Label><AirportInput key={`stop-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="AMS – Amsterdam" onSave={(v) => onSave({ leg1_to: v })} /></div>
           </div>
-          {leg1Min !== null && <DurationBadge minutes={leg1Min} label="Flytid etappe 1" />}
           {stopoverMin !== null && <DurationBadge minutes={stopoverMin} label="Ventetid på flyplass" />}
           <Divider label="Neste etappe" />
           <div className="grid grid-cols-2 gap-2">
