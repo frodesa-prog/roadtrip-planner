@@ -63,13 +63,19 @@ function getCameraModal(): { modal: HTMLDivElement; video: HTMLVideoElement } {
   closeBtn.style.cssText =
     'background:none;border:none;color:#fff;font-size:20px;padding:8px;cursor:pointer;'
   closeBtn.onclick = () => closeCamera(null)
-  const title = document.createElement('span')
-  title.textContent = 'Ta bilde'
-  title.style.cssText = 'color:#fff;font-size:14px;font-weight:500;'
+  // Kameravelger-dropdown (identisk med baseball-appen)
+  const cameraSelect = document.createElement('select')
+  cameraSelect.id = 'camera-select'
+  cameraSelect.style.cssText =
+    'background:rgba(0,0,0,0.4);color:#fff;font-size:12px;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:4px 8px;max-width:200px;outline:none;'
+  cameraSelect.innerHTML = '<option value="">Ta bilde</option>'
+  cameraSelect.onchange = () => {
+    if (cameraSelect.value) switchCamera(cameraSelect.value)
+  }
   const spacer = document.createElement('div')
   spacer.style.width = '36px'
   header.appendChild(closeBtn)
-  header.appendChild(title)
+  header.appendChild(cameraSelect)
   header.appendChild(spacer)
 
   // Video-container
@@ -116,6 +122,67 @@ function getCameraModal(): { modal: HTMLDivElement; video: HTMLVideoElement } {
   _cameraModal = modal
   _cameraVideo = video
   return { modal, video }
+}
+
+// Populér kameravelger-dropdown – kopierer baseball-appens populateCameraList()
+async function populateCameraList() {
+  const sel = document.getElementById('camera-select') as HTMLSelectElement | null
+  if (!sel) return
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const cameras = devices.filter((d) => d.kind === 'videoinput')
+    sel.innerHTML = ''
+    if (cameras.length <= 1) {
+      // Bare ett kamera – vis enkel tittel
+      const opt = document.createElement('option')
+      opt.value = ''
+      opt.textContent = 'Ta bilde'
+      sel.appendChild(opt)
+    } else {
+      cameras.forEach((cam, i) => {
+        const opt = document.createElement('option')
+        opt.value = cam.deviceId
+        opt.textContent = cam.label || `Kamera ${i + 1}`
+        sel.appendChild(opt)
+      })
+      // Marker aktivt kamera som valgt
+      if (_cameraStream) {
+        const activeId = _cameraStream.getVideoTracks()[0]?.getSettings()?.deviceId
+        if (activeId) sel.value = activeId
+      }
+    }
+  } catch {
+    // Ignorer feil
+  }
+}
+
+// Bytt kamera – kopierer baseball-appens switchCamera()
+async function switchCamera(deviceId: string) {
+  if (!_cameraVideo) return
+  // Stopp forrige stream
+  if (_cameraStream) {
+    _cameraStream.getTracks().forEach((t) => t.stop())
+  }
+  try {
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: deviceId } },
+      audio: false,
+    })
+    _cameraStream = newStream
+    _cameraVideo.srcObject = newStream
+    await _cameraVideo.play()
+  } catch (err) {
+    console.error('Switch camera error:', err)
+    // Prøv fallback uten constraint
+    try {
+      const fallback = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      _cameraStream = fallback
+      _cameraVideo.srcObject = fallback
+      await _cameraVideo.play()
+    } catch {
+      // Gi opp
+    }
+  }
 }
 
 function closeCamera(file: File | null) {
@@ -169,9 +236,10 @@ async function openCameraCapture(): Promise<File | null> {
     video.srcObject = stream
     await video.play()
 
-    // 4. Skjul spinner, aktiver shutter
+    // 4. Skjul spinner, aktiver shutter, populér kameraliste
     if (spinner) spinner.style.display = 'none'
     if (shutter) { shutter.disabled = false; shutter.style.opacity = '1' }
+    populateCameraList()
   } catch (err) {
     console.error('Camera error:', err)
     closeCamera(null)
