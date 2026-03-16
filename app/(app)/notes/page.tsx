@@ -31,252 +31,106 @@ function formatShortDate(iso: string): string {
   })
 }
 
-// ─── Camera (getUserMedia, DOM-basert) ──────────────────────────────────────
+// ─── Webkamera (FaceTime / innebygd) ────────────────────────────────────────
 //
-// Bruker getUserMedia med { video: true } som standard (FaceTime/innebygd kamera).
-// IKKE facingMode: 'environment' – det trigger Continuity Camera som feiler
-// med "capture failure" på deployede HTTPS-sider.
-// Brukeren kan manuelt bytte til Continuity Camera via dropdown.
+// Bruker getUserMedia med { video: true } → FaceTime-kamera.
+// Continuity Camera (iPhone) fungerer ikke via getUserMedia på deployede
+// HTTPS-sider (Safari-bug: "capture failure"). For iPhone-bilder brukes
+// det eksisterende bilde-opplastingsikonet (galleri).
 
-let _cameraModal: HTMLDivElement | null = null
-let _cameraVideo: HTMLVideoElement | null = null
-let _cameraStream: MediaStream | null = null
-let _resolveCapture: ((file: File | null) => void) | null = null
+let _camModal: HTMLDivElement | null = null
+let _camVideo: HTMLVideoElement | null = null
+let _camStream: MediaStream | null = null
+let _camResolve: ((file: File | null) => void) | null = null
 
-function ensureCameraModal(): { modal: HTMLDivElement; video: HTMLVideoElement } {
-  if (_cameraModal && _cameraVideo) return { modal: _cameraModal, video: _cameraVideo }
+function closeCam(file: File | null) {
+  if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null }
+  if (_camModal) _camModal.style.display = 'none'
+  if (_camVideo) _camVideo.srcObject = null
+  if (_camResolve) { _camResolve(file); _camResolve = null }
+}
 
-  const modal = document.createElement('div')
-  modal.id = 'camera-modal'
-  modal.style.cssText =
-    'position:fixed;inset:0;z-index:9999;background:#000;display:none;flex-direction:column;'
+function openCameraCapture(): Promise<File | null> {
+  // Bygg modal én gang
+  if (!_camModal) {
+    const m = document.createElement('div')
+    m.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000;display:none;flex-direction:column;'
 
-  // Header med lukk + kameravelger
-  const header = document.createElement('div')
-  header.style.cssText =
-    'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;flex-shrink:0;background:rgba(0,0,0,0.6);'
+    // Lukk-knapp
+    const hdr = document.createElement('div')
+    hdr.style.cssText = 'display:flex;justify-content:flex-end;padding:12px 16px;flex-shrink:0;background:rgba(0,0,0,0.6);'
+    const closeBtn = document.createElement('button')
+    closeBtn.textContent = '✕'
+    closeBtn.style.cssText = 'background:none;border:none;color:#fff;font-size:20px;padding:8px;cursor:pointer;'
+    closeBtn.onclick = () => closeCam(null)
+    hdr.appendChild(closeBtn)
 
-  const closeBtn = document.createElement('button')
-  closeBtn.textContent = '✕'
-  closeBtn.style.cssText = 'background:none;border:none;color:#fff;font-size:20px;padding:8px;cursor:pointer;'
-  closeBtn.onclick = () => closeCameraModal(null)
-
-  const cameraSelect = document.createElement('select')
-  cameraSelect.id = 'cam-select'
-  cameraSelect.style.cssText =
-    'background:rgba(0,0,0,0.4);color:#fff;font-size:12px;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:4px 8px;max-width:220px;outline:none;'
-  cameraSelect.innerHTML = '<option value="">Laster...</option>'
-  cameraSelect.onchange = () => {
-    if (cameraSelect.value) switchToCamera(cameraSelect.value)
-  }
-
-  const spacer = document.createElement('div')
-  spacer.style.width = '36px'
-  header.append(closeBtn, cameraSelect, spacer)
-
-  // Video
-  const videoWrap = document.createElement('div')
-  videoWrap.style.cssText = 'flex:1;position:relative;overflow:hidden;'
-
-  const video = document.createElement('video')
-  video.autoplay = true
-  video.playsInline = true
-  video.muted = true
-  video.style.cssText = 'width:100%;height:100%;object-fit:cover;'
-
-  const spinner = document.createElement('div')
-  spinner.id = 'cam-spinner'
-  spinner.style.cssText =
-    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);'
-  spinner.innerHTML =
-    '<div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:cam-spin 1s linear infinite;"></div>'
-
-  if (!document.getElementById('cam-spin-style')) {
-    const s = document.createElement('style')
-    s.id = 'cam-spin-style'
-    s.textContent = '@keyframes cam-spin{to{transform:rotate(360deg)}}'
-    document.head.appendChild(s)
-  }
-  videoWrap.append(video, spinner)
-
-  // Footer med shutter + iPhone-knapp
-  const footer = document.createElement('div')
-  footer.style.cssText =
-    'display:flex;align-items:center;justify-content:center;gap:24px;padding:24px 16px;flex-shrink:0;background:rgba(0,0,0,0.6);'
-
-  // iPhone-knapp (åpner filvelger med Continuity Camera i sidepanelet)
-  const iphoneBtn = document.createElement('button')
-  iphoneBtn.id = 'cam-iphone-btn'
-  iphoneBtn.innerHTML = '<span style="font-size:20px;">📱</span><span style="font-size:11px;display:block;margin-top:2px;">iPhone</span>'
-  iphoneBtn.style.cssText =
-    'background:none;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:12px;padding:10px 16px;cursor:pointer;text-align:center;transition:background 0.2s;'
-  iphoneBtn.onmouseenter = () => { iphoneBtn.style.background = 'rgba(255,255,255,0.1)' }
-  iphoneBtn.onmouseleave = () => { iphoneBtn.style.background = 'none' }
-  iphoneBtn.onclick = () => {
-    // Åpner filvelger – macOS sin Continuity Camera vises i sidepanelet
-    const inp = document.createElement('input')
-    inp.type = 'file'
-    inp.accept = 'image/*'
-    inp.style.display = 'none'
-    document.body.appendChild(inp)
-    inp.onchange = () => {
-      const f = inp.files?.[0]
-      document.body.removeChild(inp)
-      if (f) closeCameraModal(f)
+    // Video + spinner
+    const wrap = document.createElement('div')
+    wrap.style.cssText = 'flex:1;position:relative;overflow:hidden;'
+    const vid = document.createElement('video')
+    vid.autoplay = true; vid.playsInline = true; vid.muted = true
+    vid.style.cssText = 'width:100%;height:100%;object-fit:cover;'
+    const spin = document.createElement('div')
+    spin.id = 'cam-spin'
+    spin.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);'
+    spin.innerHTML = '<div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:cam-s 1s linear infinite;"></div>'
+    if (!document.getElementById('cam-s-style')) {
+      const st = document.createElement('style'); st.id = 'cam-s-style'
+      st.textContent = '@keyframes cam-s{to{transform:rotate(360deg)}}'
+      document.head.appendChild(st)
     }
-    // Håndter avbryt
-    const onFocus = () => {
-      setTimeout(() => { if (document.body.contains(inp)) document.body.removeChild(inp) }, 500)
-      window.removeEventListener('focus', onFocus)
+    wrap.append(vid, spin)
+
+    // Shutter
+    const ftr = document.createElement('div')
+    ftr.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:32px 0;flex-shrink:0;background:rgba(0,0,0,0.6);'
+    const btn = document.createElement('button')
+    btn.id = 'cam-btn'
+    btn.disabled = true
+    btn.style.cssText = 'width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid #94a3b8;cursor:pointer;opacity:0.4;transition:opacity 0.2s;'
+    btn.onclick = () => {
+      if (!_camVideo || !_camVideo.videoWidth) return
+      const c = document.createElement('canvas')
+      c.width = _camVideo.videoWidth; c.height = _camVideo.videoHeight
+      c.getContext('2d')?.drawImage(_camVideo, 0, 0)
+      c.toBlob(b => { if (b) closeCam(new File([b], `cam-${Date.now()}.jpg`, { type: 'image/jpeg' })) }, 'image/jpeg', 0.9)
     }
-    window.addEventListener('focus', onFocus)
-    inp.click()
+    ftr.appendChild(btn)
+
+    m.append(hdr, wrap, ftr)
+    document.body.appendChild(m)
+    _camModal = m
+    _camVideo = vid
   }
-
-  // Shutter-knapp (webkamera)
-  const shutter = document.createElement('button')
-  shutter.id = 'cam-shutter'
-  shutter.disabled = true
-  shutter.style.cssText =
-    'width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid #94a3b8;cursor:pointer;opacity:0.4;transition:opacity 0.2s;'
-  shutter.onclick = () => takeSnapshot()
-
-  footer.append(iphoneBtn, shutter)
-
-  modal.append(header, videoWrap, footer)
-  document.body.appendChild(modal)
-
-  _cameraModal = modal
-  _cameraVideo = video
-  return { modal, video }
-}
-
-function closeCameraModal(file: File | null) {
-  if (_cameraStream) {
-    _cameraStream.getTracks().forEach((t) => t.stop())
-    _cameraStream = null
-  }
-  if (_cameraModal) _cameraModal.style.display = 'none'
-  if (_cameraVideo) _cameraVideo.srcObject = null
-  if (_resolveCapture) {
-    _resolveCapture(file)
-    _resolveCapture = null
-  }
-}
-
-function takeSnapshot() {
-  if (!_cameraVideo || !_cameraVideo.videoWidth) return
-  const c = document.createElement('canvas')
-  c.width = _cameraVideo.videoWidth
-  c.height = _cameraVideo.videoHeight
-  c.getContext('2d')?.drawImage(_cameraVideo, 0, 0)
-  c.toBlob((blob) => {
-    if (blob) closeCameraModal(new File([blob], `kamera-${Date.now()}.jpg`, { type: 'image/jpeg' }))
-  }, 'image/jpeg', 0.9)
-}
-
-// Start kamerastream – bruker FaceTime/innebygd kamera (ingen stabilitetsjekk nødvendig)
-async function startStream(video: HTMLVideoElement, deviceId?: string) {
-  if (_cameraStream) {
-    _cameraStream.getTracks().forEach((t) => t.stop())
-    _cameraStream = null
-  }
-
-  const constraints: MediaStreamConstraints = {
-    video: deviceId ? { deviceId: { exact: deviceId } } : true,
-    audio: false,
-  }
-
-  _cameraStream = await navigator.mediaDevices.getUserMedia(constraints)
-  video.srcObject = _cameraStream
-  await video.play()
-}
-
-async function switchToCamera(deviceId: string) {
-  if (!_cameraVideo) return
-  const spinner = document.getElementById('cam-spinner')
-  const shutter = document.getElementById('cam-shutter') as HTMLButtonElement | null
-  if (spinner) spinner.style.display = 'flex'
-  if (shutter) { shutter.disabled = true; shutter.style.opacity = '0.4' }
-
-  try {
-    await startStream(_cameraVideo, deviceId)
-  } catch (err) {
-    console.error('[Camera] Switch failed:', err)
-  }
-}
-
-async function populateCameras() {
-  const sel = document.getElementById('cam-select') as HTMLSelectElement | null
-  if (!sel) return
-  try {
-    const prevOnChange = sel.onchange
-    sel.onchange = null
-
-    const devices = await navigator.mediaDevices.enumerateDevices()
-    // Filtrer bort Continuity Camera (feiler på deployede sider)
-    const cams = devices.filter((d) =>
-      d.kind === 'videoinput' &&
-      !/(continuity|iphone|ipad|bordvisning|desk\s*view)/i.test(d.label)
-    )
-    sel.innerHTML = ''
-    if (cams.length <= 1) {
-      // Bare ett innebygd kamera – skjul dropdown
-      sel.style.display = 'none'
-    } else {
-      sel.style.display = ''
-      cams.forEach((cam, i) => {
-        const opt = document.createElement('option')
-        opt.value = cam.deviceId
-        opt.textContent = cam.label || `Kamera ${i + 1}`
-        sel.appendChild(opt)
-      })
-      if (_cameraStream) {
-        const activeId = _cameraStream.getVideoTracks()[0]?.getSettings()?.deviceId
-        if (activeId) sel.value = activeId
-      }
-    }
-
-    sel.onchange = prevOnChange
-  } catch { /* ignorer */ }
-}
-
-async function openCameraCapture(): Promise<File | null> {
-  const { modal, video } = ensureCameraModal()
 
   // Vis modal
-  modal.style.display = 'flex'
-  const spinner = document.getElementById('cam-spinner')
-  const shutter = document.getElementById('cam-shutter') as HTMLButtonElement | null
-  if (spinner) {
-    spinner.style.display = 'flex'
-    spinner.innerHTML =
-      '<div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:cam-spin 1s linear infinite;"></div>'
-  }
-  if (shutter) { shutter.disabled = true; shutter.style.opacity = '0.4' }
+  _camModal.style.display = 'flex'
+  const spin = document.getElementById('cam-spin')
+  const btn = document.getElementById('cam-btn') as HTMLButtonElement | null
+  if (spin) { spin.style.display = 'flex'; spin.innerHTML = '<div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:cam-s 1s linear infinite;"></div>' }
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4' }
 
-  function onReady() {
-    if (spinner) spinner.style.display = 'none'
-    if (shutter) { shutter.disabled = false; shutter.style.opacity = '1' }
+  const vid = _camVideo!
+  vid.onloadeddata = vid.onplaying = () => {
+    if (spin) spin.style.display = 'none'
+    if (btn) { btn.disabled = false; btn.style.opacity = '1' }
   }
-  video.onloadeddata = onReady
-  video.onplaying = onReady
 
-  // Start FaceTime-kamera direkte (ingen fallback-loop)
-  try {
-    await startStream(video)
-    populateCameras()
-  } catch (err) {
-    console.error('[Camera] Camera failed:', err)
-    if (spinner) {
-      spinner.style.display = 'flex'
-      spinner.innerHTML = '<p style="color:#f87171;font-size:14px;text-align:center;padding:20px;">Kunne ikke starte webkamera.<br>Bruk 📱 iPhone-knappen for å ta bilde med telefonen.</p>'
+  // Start FaceTime-kamera
+  ;(async () => {
+    try {
+      if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null }
+      _camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      vid.srcObject = _camStream
+      await vid.play()
+    } catch (err) {
+      console.error('[Camera]', err)
+      if (spin) { spin.style.display = 'flex'; spin.innerHTML = '<p style="color:#f87171;font-size:14px;text-align:center;padding:20px;">Kunne ikke starte webkamera.</p>' }
     }
-  }
+  })()
 
-  return new Promise<File | null>((resolve) => {
-    _resolveCapture = resolve
-  })
+  return new Promise<File | null>(resolve => { _camResolve = resolve })
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
