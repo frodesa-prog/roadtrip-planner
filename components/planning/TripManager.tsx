@@ -14,9 +14,17 @@ interface TripManagerProps {
   currentTrip: Trip | null
   loading: boolean
   userId?: string | null
+  startDate?: string | null
   onSelectTrip: (trip: Trip) => void
   onCreateTrip: (name: string, year: number) => Promise<Trip | null>
   onDeleteTrip: (id: string) => void
+}
+
+function getDaysUntil(dateStr: string): number {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(dateStr + 'T00:00:00')
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000)
 }
 
 export default function TripManager({
@@ -24,6 +32,7 @@ export default function TripManager({
   currentTrip,
   loading,
   userId,
+  startDate,
   onSelectTrip,
   onCreateTrip,
   onDeleteTrip,
@@ -75,7 +84,26 @@ export default function TripManager({
           ) : currentTrip ? (
             <>
               <p className="text-white font-bold text-base leading-tight truncate">{currentTrip.name}</p>
-              <p className="text-blue-200/60 text-xs">{currentTrip.year}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-blue-200/60 text-xs">{currentTrip.year}</p>
+                {startDate && (() => {
+                  const days = getDaysUntil(startDate)
+                  if (days > 0) {
+                    return (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-yellow-200/90 border border-yellow-300/20">
+                        ✈️ {days} dager igjen
+                      </span>
+                    )
+                  } else if (days === 0) {
+                    return (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-green-300 border border-green-400/20">
+                        🎉 Avreise i dag!
+                      </span>
+                    )
+                  }
+                  return null
+                })()}
+              </div>
             </>
           ) : (
             <p className="text-blue-200/80 text-sm font-medium">Velg eller opprett en tur</p>

@@ -101,6 +101,7 @@ export default function PlanSidebar({
     >
       <TripManager
         trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
+        startDate={stops.filter(s => s.arrival_date).sort((a, b) => a.arrival_date!.localeCompare(b.arrival_date!))[0]?.arrival_date ?? null}
         onSelectTrip={onSelectTrip} onCreateTrip={onCreateTrip}
         onDeleteTrip={(id) => {
           const name = trips.find((t) => t.id === id)?.name ?? 'denne turen'
