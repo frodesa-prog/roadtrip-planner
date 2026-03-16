@@ -332,80 +332,85 @@ function CameraModal({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  // null = ingen facingMode-constraint (fungerer på desktop + mobil)
-  // 'environment' | 'user' = eksplisitt etter at bruker flipper
-  const [facingMode, setFacingMode] = useState<'environment' | 'user' | null>(null)
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([])
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
+  // Steg 1: be om tillatelse, deretter list opp kameraer
   useEffect(() => {
     let cancelled = false
+    async function init() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError('Kamera er ikke tilgjengelig. Sjekk at siden bruker HTTPS og at nettleseren har tillatelse.')
+        return
+      }
+      try {
+        // Kortvarig stream bare for å utløse permission-dialogen
+        const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        tmp.getTracks().forEach((t) => t.stop())
 
-    async function startCamera() {
+        if (cancelled) return
+
+        // Nå har vi tillatelse – enumerateDevices gir oss labels
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const videoDevices = devices.filter((d) => d.kind === 'videoinput')
+        if (cancelled) return
+        setCameras(videoDevices)
+
+        // Foretrekk bakvendt/iPhone-kamera (merkelapper som "back", "bak", "iphone")
+        const preferred = videoDevices.find((d) =>
+          /back|bak|environment|iphone/i.test(d.label)
+        )
+        setSelectedDeviceId((preferred ?? videoDevices[0])?.deviceId ?? null)
+      } catch (err: unknown) {
+        if (cancelled) return
+        const name = err instanceof Error ? err.name : ''
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+          setError('Kameratilgang er blokkert. Gi tillatelse i nettleserens adresselinje og prøv igjen.')
+        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+          setError('Ingen kamera funnet. Koble til et kamera eller aktiver iPhone Continuity Camera.')
+        } else {
+          setError('Kunne ikke starte kamera. Sjekk at ingen andre apper bruker det, og prøv igjen.')
+        }
+      }
+    }
+    init()
+    return () => { cancelled = true }
+  }, [])
+
+  // Steg 2: start kamerastrøm når deviceId er valgt
+  useEffect(() => {
+    if (!selectedDeviceId) return
+    let cancelled = false
+
+    async function startStream() {
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
       setReady(false)
-      setError(null)
-
-      // navigator.mediaDevices er undefined på HTTP (unntatt localhost)
-      if (!navigator.mediaDevices?.getUserMedia) {
-        if (!cancelled) setError('Kamera er ikke tilgjengelig. Sjekk at siden bruker HTTPS og at nettleseren har tillatelse.')
-        return
-      }
-
-      // Bygg constraints: ingen facingMode-krav som standard → fungerer på alle desktop-kameraer.
-      // facingMode brukes kun etter at brukeren eksplisitt har trykket «bytt kamera».
-      const videoConstraint: MediaTrackConstraints | boolean =
-        facingMode ? { facingMode } : true
-
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraint,
+          video: { deviceId: { exact: selectedDeviceId! } },
           audio: false,
         })
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
         streamRef.current = stream
         if (videoRef.current) {
           videoRef.current.srcObject = stream
-          videoRef.current.onloadedmetadata = () => {
-            if (!cancelled) setReady(true)
-          }
+          videoRef.current.onloadedmetadata = () => { if (!cancelled) setReady(true) }
         }
-      } catch (err: unknown) {
-        if (cancelled) return
-        // facingMode-constraint kan feile på desktop; prøv uten constraint som fallback
-        if (facingMode) {
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-            if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
-            streamRef.current = stream
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream
-              videoRef.current.onloadedmetadata = () => {
-                if (!cancelled) setReady(true)
-              }
-            }
-            return
-          } catch { /* fall through to error */ }
-        }
-        const name = err instanceof Error ? err.name : ''
-        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-          setError('Kameratilgang er blokkert. Gi tillatelse i nettleserens adresselinje og prøv igjen.')
-        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-          setError('Ingen kamera funnet. Koble til et kamera eller aktiver Continuity Camera.')
-        } else {
-          setError('Kunne ikke starte kamera. Sjekk at ingen andre apper bruker det, og prøv igjen.')
-        }
+      } catch {
+        if (!cancelled) setError('Kunne ikke starte det valgte kameraet. Prøv et annet.')
       }
     }
 
-    startCamera()
+    startStream()
     return () => {
       cancelled = true
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
     }
-  }, [facingMode])
+  }, [selectedDeviceId])
 
   function capture() {
     const video = videoRef.current
@@ -428,10 +433,10 @@ function CameraModal({
   }
 
   function flipCamera() {
-    setFacingMode((prev) => {
-      if (prev === null || prev === 'environment') return 'user'
-      return 'environment'
-    })
+    if (cameras.length < 2) return
+    const idx = cameras.findIndex((c) => c.deviceId === selectedDeviceId)
+    const next = cameras[(idx + 1) % cameras.length]
+    setSelectedDeviceId(next.deviceId)
   }
 
   return (
@@ -445,10 +450,28 @@ function CameraModal({
         >
           <X className="w-5 h-5" />
         </button>
-        <span className="text-white text-sm font-medium">Ta bilde</span>
+
+        {/* Kameravelger – synlig når flere kameraer finnes */}
+        {cameras.length > 1 ? (
+          <select
+            value={selectedDeviceId ?? ''}
+            onChange={(e) => setSelectedDeviceId(e.target.value)}
+            className="bg-black/40 text-white text-xs rounded px-2 py-1 border border-white/20 max-w-[180px] truncate"
+          >
+            {cameras.map((c, i) => (
+              <option key={c.deviceId} value={c.deviceId}>
+                {c.label || `Kamera ${i + 1}`}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="text-white text-sm font-medium">Ta bilde</span>
+        )}
+
         <button
           onClick={flipCamera}
-          className="p-2 rounded-full text-white hover:bg-white/10 transition-colors"
+          disabled={cameras.length < 2}
+          className="p-2 rounded-full text-white hover:bg-white/10 transition-colors disabled:opacity-30"
           title="Bytt kamera"
         >
           <SwitchCamera className="w-5 h-5" />
