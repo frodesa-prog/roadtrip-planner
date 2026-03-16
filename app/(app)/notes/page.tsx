@@ -31,271 +31,46 @@ function formatShortDate(iso: string): string {
   })
 }
 
-// ─── Pure DOM Camera (zero React) ────────────────────────────────────────────
+// ─── Native Camera Capture ──────────────────────────────────────────────────
 //
-// Kopiert 1:1 fra baseball-appens camera.js-mønster:
-//   - Modal-HTML opprettes én gang via document.createElement
-//   - Lever utenfor Reacts kontroll (ingen state, useEffect, eller re-rendering)
-//   - openCamera() viser modal → getUserMedia → srcObject → await play()
-//   - Returnerer Promise<File | null>
+// Bruker <input type="file" capture="environment"> i stedet for getUserMedia.
+// Dette trigger macOS Continuity Camera via det native filvelger-systemet,
+// som er pålitelig også på deployede HTTPS-sider (getUserMedia + Continuity
+// Camera feiler med "capture failure" på ikke-localhost).
 //
 
-let _cameraModal: HTMLDivElement | null = null
-let _cameraVideo: HTMLVideoElement | null = null
-let _cameraStream: MediaStream | null = null
-let _resolveCapture: ((file: File | null) => void) | null = null
+/** Åpner native kamera via skjult file input med capture="environment".
+ *  Returnerer File eller null ved avbryt. */
+function openNativeCamera(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.capture = 'environment'
+    input.style.display = 'none'
+    document.body.appendChild(input)
 
-function getCameraModal(): { modal: HTMLDivElement; video: HTMLVideoElement } {
-  if (_cameraModal && _cameraVideo) return { modal: _cameraModal, video: _cameraVideo }
-
-  // Opprett modal-container
-  const modal = document.createElement('div')
-  modal.id = 'camera-modal'
-  modal.style.cssText =
-    'position:fixed;inset:0;z-index:9999;background:#000;display:none;flex-direction:column;'
-
-  // Header
-  const header = document.createElement('div')
-  header.style.cssText =
-    'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;flex-shrink:0;background:rgba(0,0,0,0.6);'
-  const closeBtn = document.createElement('button')
-  closeBtn.textContent = '✕'
-  closeBtn.style.cssText =
-    'background:none;border:none;color:#fff;font-size:20px;padding:8px;cursor:pointer;'
-  closeBtn.onclick = () => closeCamera(null)
-  // Kameravelger-dropdown (identisk med baseball-appen)
-  const cameraSelect = document.createElement('select')
-  cameraSelect.id = 'camera-select'
-  cameraSelect.style.cssText =
-    'background:rgba(0,0,0,0.4);color:#fff;font-size:12px;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:4px 8px;max-width:200px;outline:none;'
-  cameraSelect.innerHTML = '<option value="">Ta bilde</option>'
-  cameraSelect.onchange = () => {
-    if (cameraSelect.value) switchCamera(cameraSelect.value)
-  }
-  const spacer = document.createElement('div')
-  spacer.style.width = '36px'
-  header.appendChild(closeBtn)
-  header.appendChild(cameraSelect)
-  header.appendChild(spacer)
-
-  // Video-container
-  const videoWrap = document.createElement('div')
-  videoWrap.style.cssText = 'flex:1;position:relative;overflow:hidden;'
-  const video = document.createElement('video')
-  video.autoplay = true
-  video.playsInline = true
-  video.muted = true
-  video.style.cssText = 'width:100%;height:100%;object-fit:cover;'
-  const spinner = document.createElement('div')
-  spinner.id = 'camera-spinner'
-  spinner.style.cssText =
-    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);'
-  spinner.innerHTML =
-    '<div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;"></div>'
-  // Legg til @keyframes spin om den ikke finnes
-  if (!document.getElementById('camera-spin-style')) {
-    const style = document.createElement('style')
-    style.id = 'camera-spin-style'
-    style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}'
-    document.head.appendChild(style)
-  }
-  videoWrap.appendChild(video)
-  videoWrap.appendChild(spinner)
-
-  // Shutter-knapp
-  const footer = document.createElement('div')
-  footer.style.cssText =
-    'display:flex;align-items:center;justify-content:center;padding:32px 0;flex-shrink:0;background:rgba(0,0,0,0.6);'
-  const shutter = document.createElement('button')
-  shutter.id = 'camera-shutter'
-  shutter.disabled = true
-  shutter.style.cssText =
-    'width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid #94a3b8;cursor:pointer;opacity:0.4;transition:opacity 0.2s;'
-  shutter.onclick = () => capturePhoto()
-  footer.appendChild(shutter)
-
-  modal.appendChild(header)
-  modal.appendChild(videoWrap)
-  modal.appendChild(footer)
-  document.body.appendChild(modal)
-
-  _cameraModal = modal
-  _cameraVideo = video
-  return { modal, video }
-}
-
-// Populér kameravelger-dropdown – kopierer baseball-appens populateCameraList()
-async function populateCameraList() {
-  const sel = document.getElementById('camera-select') as HTMLSelectElement | null
-  if (!sel) return
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices()
-    const cameras = devices.filter((d) => d.kind === 'videoinput')
-    sel.innerHTML = ''
-    if (cameras.length <= 1) {
-      // Bare ett kamera – vis enkel tittel
-      const opt = document.createElement('option')
-      opt.value = ''
-      opt.textContent = 'Ta bilde'
-      sel.appendChild(opt)
-    } else {
-      cameras.forEach((cam, i) => {
-        const opt = document.createElement('option')
-        opt.value = cam.deviceId
-        opt.textContent = cam.label || `Kamera ${i + 1}`
-        sel.appendChild(opt)
-      })
-      // Marker aktivt kamera som valgt
-      if (_cameraStream) {
-        const activeId = _cameraStream.getVideoTracks()[0]?.getSettings()?.deviceId
-        if (activeId) sel.value = activeId
-      }
+    input.onchange = () => {
+      const file = input.files?.[0] ?? null
+      document.body.removeChild(input)
+      resolve(file)
     }
-  } catch {
-    // Ignorer feil
-  }
-}
 
-// Bytt kamera – bruker startCameraStream med spesifikt deviceId
-async function switchCamera(deviceId: string) {
-  if (!_cameraVideo) return
-  try {
-    await startCameraStream(_cameraVideo, deviceId)
-    populateCameraList()
-  } catch (err) {
-    console.error('[Camera] Switch camera error:', err)
-  }
-}
-
-function closeCamera(file: File | null) {
-  // Stopp stream
-  if (_cameraStream) {
-    _cameraStream.getTracks().forEach((t) => t.stop())
-    _cameraStream = null
-  }
-  // Skjul modal
-  if (_cameraModal) _cameraModal.style.display = 'none'
-  if (_cameraVideo) _cameraVideo.srcObject = null
-  // Resolve promise
-  if (_resolveCapture) {
-    _resolveCapture(file)
-    _resolveCapture = null
-  }
-}
-
-function capturePhoto() {
-  if (!_cameraVideo || !_cameraVideo.videoWidth) return
-  const canvas = document.createElement('canvas')
-  canvas.width = _cameraVideo.videoWidth
-  canvas.height = _cameraVideo.videoHeight
-  canvas.getContext('2d')?.drawImage(_cameraVideo, 0, 0)
-  canvas.toBlob((blob) => {
-    if (blob) {
-      const file = new File([blob], `kamera-${Date.now()}.jpg`, { type: 'image/jpeg' })
-      closeCamera(file)
-    }
-  }, 'image/jpeg', 0.9)
-}
-
-// Koble kamera – starter med enkle constraints først, prøver HD etterpå
-let _reconnectCount = 0
-const MAX_RECONNECTS = 2
-
-async function startCameraStream(video: HTMLVideoElement, deviceId?: string): Promise<MediaStream> {
-  // Start med enkle constraints – Continuity Camera takler dette bedre
-  // HD-constraints kan føre til umiddelbar capture failure
-  const simpleConstraints: MediaStreamConstraints = {
-    video: deviceId
-      ? { deviceId: { exact: deviceId } }
-      : { facingMode: { ideal: 'environment' } },
-    audio: false,
-  }
-  console.log('[Camera] getUserMedia (simple constraints):', JSON.stringify(simpleConstraints))
-
-  let stream: MediaStream
-  try {
-    stream = await navigator.mediaDevices.getUserMedia(simpleConstraints)
-  } catch {
-    console.log('[Camera] Simple constraints failed, trying { video: true }')
-    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-  }
-
-  // Stopp evt. forrige stream
-  if (_cameraStream && _cameraStream !== stream) {
-    _cameraStream.getTracks().forEach((t) => t.stop())
-  }
-  _cameraStream = stream
-
-  const track = stream.getVideoTracks()[0]
-  console.log('[Camera] Stream obtained:',
-    'active:', stream.active,
-    'track:', track?.readyState,
-    'settings:', JSON.stringify(track?.getSettings()))
-
-  // Fest til video
-  video.srcObject = stream
-  await video.play()
-
-  // Begrens auto-reconnect til MAX_RECONNECTS forsøk (ikke uendelig loop)
-  track?.addEventListener('ended', () => {
-    console.log(`[Camera] ⚠ Track ended – capture failure. Reconnect count: ${_reconnectCount}/${MAX_RECONNECTS}`)
-    if (_cameraModal?.style.display === 'flex' && _reconnectCount < MAX_RECONNECTS) {
-      _reconnectCount++
+    // Bruker lukket filvelger uten å velge noe
+    // Focus-event fyres når filvelgeren lukkes
+    const handleFocus = () => {
+      // Liten forsinkelse for å la onchange fyre først hvis bruker valgte fil
       setTimeout(() => {
-        if (_cameraModal?.style.display === 'flex') {
-          startCameraStream(video, deviceId).then(() => {
-            console.log('[Camera] ✓ Reconnect successful')
-            populateCameraList()
-          }).catch((err) => {
-            console.error('[Camera] Reconnect failed:', err)
-          })
+        if (document.body.contains(input)) {
+          document.body.removeChild(input)
+          resolve(null)
         }
-      }, 2000) // Lengre pause mellom forsøk
+      }, 500)
+      window.removeEventListener('focus', handleFocus)
     }
-  })
+    window.addEventListener('focus', handleFocus)
 
-  return stream
-}
-
-/** Åpner kamera-modal og returnerer bildefil (eller null ved avbryt).
- *  Må kalles fra click-handler for å bevare user gesture-kontekst. */
-async function openCameraCapture(): Promise<File | null> {
-  const { modal, video } = getCameraModal()
-
-  // 1. Vis modal med spinner – SYNKRON DOM
-  modal.style.display = 'flex'
-  const spinner = document.getElementById('camera-spinner')
-  if (spinner) spinner.style.display = 'flex'
-  const shutter = document.getElementById('camera-shutter') as HTMLButtonElement | null
-  if (shutter) { shutter.disabled = true; shutter.style.opacity = '0.4' }
-  console.log('[Camera] 1. Modal visible')
-
-  // Hjelpefunksjon: aktiver shutter når video har frames
-  function onVideoReady() {
-    console.log('[Camera] ✓ Video ready! readyState:', video.readyState,
-      'videoWidth:', video.videoWidth, 'videoHeight:', video.videoHeight)
-    if (spinner) spinner.style.display = 'none'
-    if (shutter) { shutter.disabled = false; shutter.style.opacity = '1' }
-  }
-
-  // Lytt etter video-events (vedvarer for reconnects)
-  video.addEventListener('loadeddata', () => onVideoReady())
-  video.addEventListener('playing', () => onVideoReady())
-
-  // 2. Start kamera med enkle constraints først
-  _reconnectCount = 0
-  try {
-    await startCameraStream(video)
-    populateCameraList()
-  } catch (err) {
-    console.error('[Camera] getUserMedia error:', err)
-    closeCamera(null)
-    return null
-  }
-
-  // 3. Returner promise som resolves når bruker tar bilde eller lukker
-  return new Promise<File | null>((resolve) => {
-    _resolveCapture = resolve
+    input.click()
   })
 }
 
@@ -626,9 +401,9 @@ function DraftEditor({
     if (!savedRef.current) { savedRef.current = true; await onSave(title, content, file) }
   }
 
-  // Ren DOM-kamera – ingen React state involvert
+  // Native kamera via capture="environment" – pålitelig med Continuity Camera
   async function handleOpenCamera() {
-    const file = await openCameraCapture()
+    const file = await openNativeCamera()
     if (file) handleFileSelect(file)
   }
 
@@ -770,9 +545,9 @@ function NoteEditor({
     hour: '2-digit', minute: '2-digit',
   })
 
-  // Ren DOM-kamera – ingen React state involvert
+  // Native kamera via capture="environment" – pålitelig med Continuity Camera
   async function handleOpenCamera() {
-    const file = await openCameraCapture()
+    const file = await openNativeCamera()
     if (file) uploadImage(file)
   }
 
