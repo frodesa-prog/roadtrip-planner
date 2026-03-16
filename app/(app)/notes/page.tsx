@@ -121,7 +121,7 @@ function openCameraCapture(): Promise<File | null> {
   ;(async () => {
     try {
       if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null }
-      _camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      _camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
       vid.srcObject = _camStream
       await vid.play()
     } catch (err) {
