@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
+import { Map, MapPin, FileText } from 'lucide-react'
 import PlanSidebar from '@/components/planning/PlanSidebar'
 import PlanningMap from '@/components/map/PlanningMap'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
@@ -19,6 +20,8 @@ import type { LegWaypoints } from '@/components/map/RoutePolyline'
 export default function PlanPage() {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
   const [routeStates, setRouteStates] = useState<string[]>([])
+  type MobileView = 'kart' | 'steder' | 'detaljer'
+  const [mobileView, setMobileView] = useState<MobileView>('kart')
 
   const {
     trips, currentTrip, loading: tripsLoading, userId,
@@ -61,80 +64,121 @@ export default function PlanPage() {
 
   function handleSelectStop(id: string) {
     setSelectedStopId((prev) => (prev === id ? null : id))
+    // På mobil: bytt automatisk til detalj-panel når et stopp velges
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setMobileView('detaljer')
+    }
   }
 
-  return (
-    <div className="flex h-full overflow-hidden">
-      {/* Venstre sidebar */}
-      <PlanSidebar
-        trips={trips}
-        currentTrip={currentTrip}
-        tripsLoading={tripsLoading}
-        userId={userId}
-        stops={stops}
-        stopsLoading={stopsLoading}
-        selectedStopId={selectedStopId}
-        hotels={hotels}
-        activities={activities}
-        onSelectStop={handleSelectStop}
-        onRemoveStop={removeStop}
-        onReorderStops={reorderStops}
-        onUpdateStop={updateStop}
-        onSelectTrip={setCurrentTrip}
-        onCreateTrip={createTrip}
-        onDeleteTrip={deleteTrip}
-        routeLegs={routeLegs}
-        routeStates={routeStates}
-        onUpdateGroupDescription={(desc) =>
-          currentTrip && updateTrip(currentTrip.id, { group_description: desc })
-        }
-      />
+  const mobileTabs = [
+    { id: 'kart',    label: 'Kart',    icon: Map },
+    { id: 'steder',  label: 'Steder',  icon: MapPin },
+    ...(selectedStop ? [{ id: 'detaljer', label: selectedStop.city, icon: FileText }] : []),
+  ] as { id: MobileView; label: string; icon: React.ElementType }[]
 
-      {/* Detaljpanel – mellom sidebar og kart */}
-      {selectedStop && (
-        <div className="w-[300px] flex-shrink-0 h-full border-r border-slate-700/50 overflow-hidden shadow-xl">
-          <StopDetailPanel
-            stop={selectedStop}
-            hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
-            activities={activities.filter((a) => a.stop_id === selectedStop.id)}
-            dining={dining.filter((d) => d.stop_id === selectedStop.id)}
-            possibleActivities={possibleActivities.filter((a) => a.stop_id === selectedStop.id)}
-            leg={selectedStopLeg}
-            selectedDate={selectedDate}
-            onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
-            onSaveHotel={(updates) => saveHotel(selectedStop.id, updates)}
-            onAddActivity={(data) => addActivity(selectedStop.id, data)}
-            onRemoveActivity={removeActivity}
-            onUpdateActivity={updateActivity}
-            onAddDining={(data) => addDining(selectedStop.id, data)}
-            onRemoveDining={removeDining}
-            onUpdateDining={updateDining}
-            onAddPossibleActivity={(data) => addPossibleActivity(selectedStop.id, data)}
-            onRemovePossibleActivity={removePossibleActivity}
-            onUpdatePossibleActivity={updatePossibleActivity}
-            stopNotes={notes.filter((n) => n.stop_id === selectedStop.id)}
-            onUpdateNote={updateNote}
-            onDeleteNote={deleteNote}
-            onClose={() => setSelectedStopId(null)}
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+
+      {/* ── Mobil tab-bar øverst ── */}
+      <div className="md:hidden flex border-b border-slate-800 bg-slate-900 flex-shrink-0">
+        {mobileTabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setMobileView(id)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+              mobileView === id
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-slate-500'
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            <span className="truncate max-w-[80px]">{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Paneler ── */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* Venstre sidebar */}
+        <div className={`${mobileView === 'steder' ? 'flex' : 'hidden'} md:flex h-full`}>
+          <PlanSidebar
+            trips={trips}
+            currentTrip={currentTrip}
+            tripsLoading={tripsLoading}
+            userId={userId}
+            stops={stops}
+            stopsLoading={stopsLoading}
+            selectedStopId={selectedStopId}
+            hotels={hotels}
+            activities={activities}
+            onSelectStop={handleSelectStop}
+            onRemoveStop={removeStop}
+            onReorderStops={reorderStops}
+            onUpdateStop={updateStop}
+            onSelectTrip={setCurrentTrip}
+            onCreateTrip={createTrip}
+            onDeleteTrip={deleteTrip}
+            routeLegs={routeLegs}
+            routeStates={routeStates}
+            onUpdateGroupDescription={(desc) =>
+              currentTrip && updateTrip(currentTrip.id, { group_description: desc })
+            }
           />
         </div>
-      )}
 
-      {/* Høyre: kart */}
-      <div className="flex-1 relative overflow-hidden">
-        <PlanningMap
-          stops={stops}
-          selectedStopId={selectedStopId}
-          onAddStop={handleAddStop}
-          onSelectStop={handleSelectStop}
-          disabled={!currentTrip}
-          hotels={hotels}
-          mapCenter={selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null}
-          routeLegs={routeLegs}
-          routeLegsLoaded={routeLegsLoaded}
-          onRouteLegsChange={handleRouteLegsChange}
-          onRouteStatesChange={setRouteStates}
-        />
+        {/* Detaljpanel */}
+        {selectedStop && (
+          <div className={`
+            ${mobileView === 'detaljer' ? 'flex' : 'hidden'} md:flex
+            w-full md:w-[300px] flex-shrink-0 h-full border-r border-slate-700/50 overflow-hidden shadow-xl
+          `}>
+            <StopDetailPanel
+              stop={selectedStop}
+              hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
+              activities={activities.filter((a) => a.stop_id === selectedStop.id)}
+              dining={dining.filter((d) => d.stop_id === selectedStop.id)}
+              possibleActivities={possibleActivities.filter((a) => a.stop_id === selectedStop.id)}
+              leg={selectedStopLeg}
+              selectedDate={selectedDate}
+              onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
+              onSaveHotel={(updates) => saveHotel(selectedStop.id, updates)}
+              onAddActivity={(data) => addActivity(selectedStop.id, data)}
+              onRemoveActivity={removeActivity}
+              onUpdateActivity={updateActivity}
+              onAddDining={(data) => addDining(selectedStop.id, data)}
+              onRemoveDining={removeDining}
+              onUpdateDining={updateDining}
+              onAddPossibleActivity={(data) => addPossibleActivity(selectedStop.id, data)}
+              onRemovePossibleActivity={removePossibleActivity}
+              onUpdatePossibleActivity={updatePossibleActivity}
+              stopNotes={notes.filter((n) => n.stop_id === selectedStop.id)}
+              onUpdateNote={updateNote}
+              onDeleteNote={deleteNote}
+              onClose={() => { setSelectedStopId(null); setMobileView('steder') }}
+            />
+          </div>
+        )}
+
+        {/* Kart */}
+        <div className={`
+          ${mobileView === 'kart' ? 'flex' : 'hidden'} md:flex
+          flex-1 relative overflow-hidden
+        `}>
+          <PlanningMap
+            stops={stops}
+            selectedStopId={selectedStopId}
+            onAddStop={handleAddStop}
+            onSelectStop={handleSelectStop}
+            disabled={!currentTrip}
+            hotels={hotels}
+            mapCenter={selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null}
+            routeLegs={routeLegs}
+            routeLegsLoaded={routeLegsLoaded}
+            onRouteLegsChange={handleRouteLegsChange}
+            onRouteStatesChange={setRouteStates}
+          />
+        </div>
       </div>
     </div>
   )

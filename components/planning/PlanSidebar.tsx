@@ -96,8 +96,8 @@ export default function PlanSidebar({
   return (
     <div
       className={`${
-        showCalendar ? 'w-[730px]' : 'w-[420px]'
-      } min-w-[300px] h-full bg-slate-900 border-r border-slate-800 flex flex-col transition-[width] duration-300 overflow-hidden`}
+        showCalendar ? 'w-full md:w-[730px]' : 'w-full md:w-[420px]'
+      } h-full bg-slate-900 border-r border-slate-800 flex flex-col transition-[width] duration-300 overflow-hidden`}
     >
       <TripManager
         trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
