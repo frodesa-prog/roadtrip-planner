@@ -262,6 +262,11 @@ async function populateCameras() {
   const sel = document.getElementById('cam-select') as HTMLSelectElement | null
   if (!sel) return
   try {
+    // Deaktiver onchange midlertidig – forhindrer at dropdown-oppdatering
+    // trigger kamerabytte som dreper den fungerende streamen
+    const prevOnChange = sel.onchange
+    sel.onchange = null
+
     const devices = await navigator.mediaDevices.enumerateDevices()
     const cams = devices.filter((d) => d.kind === 'videoinput')
     sel.innerHTML = ''
@@ -275,6 +280,9 @@ async function populateCameras() {
       const activeId = _cameraStream.getVideoTracks()[0]?.getSettings()?.deviceId
       if (activeId) sel.value = activeId
     }
+
+    // Gjenopprett onchange etter at verdien er satt
+    sel.onchange = prevOnChange
   } catch { /* ignorer */ }
 }
 
