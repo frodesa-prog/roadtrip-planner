@@ -275,6 +275,37 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
         </div>
       </div>
 
+      {/* Billett + sete (etappe 1 / direktefly) */}
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <Label>Billettkategori</Label>
+          <Txt
+            key={`tc-1-${flight?.id}`}
+            defaultValue={flight?.ticket_class}
+            placeholder="Economy"
+            onSave={(v) => onSave({ ticket_class: v })}
+          />
+        </div>
+        <div>
+          <Label>Rad</Label>
+          <Txt
+            key={`sr-1-${flight?.id}`}
+            defaultValue={flight?.seat_row}
+            placeholder="24"
+            onSave={(v) => onSave({ seat_row: v })}
+          />
+        </div>
+        <div>
+          <Label>Sete</Label>
+          <Txt
+            key={`sn-1-${flight?.id}`}
+            defaultValue={flight?.seat_number}
+            placeholder="A"
+            onSave={(v) => onSave({ seat_number: v })}
+          />
+        </div>
+      </div>
+
       {/* Mellomlanding toggle */}
       <label className="flex items-center gap-2 py-0.5 cursor-pointer select-none group">
         <input
@@ -314,38 +345,6 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
           {leg1Min !== null && (
             <DurationBadge minutes={leg1Min} label="Flytid" />
           )}
-
-          {/* Billett + sete */}
-          <Divider label="Billett & sete" />
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label>Billettkategori</Label>
-              <Txt
-                key={`tc-d-${flight?.id}`}
-                defaultValue={flight?.ticket_class}
-                placeholder="Economy"
-                onSave={(v) => onSave({ ticket_class: v })}
-              />
-            </div>
-            <div>
-              <Label>Rad</Label>
-              <Txt
-                key={`sr-d-${flight?.id}`}
-                defaultValue={flight?.seat_row}
-                placeholder="24"
-                onSave={(v) => onSave({ seat_row: v })}
-              />
-            </div>
-            <div>
-              <Label>Sete</Label>
-              <Txt
-                key={`sn-d-${flight?.id}`}
-                defaultValue={flight?.seat_number}
-                placeholder="A"
-                onSave={(v) => onSave({ seat_number: v })}
-              />
-            </div>
-          </div>
         </>
       ) : (
         <>
@@ -403,6 +402,37 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
             </div>
           </div>
 
+          {/* Billett + sete etappe 2 */}
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label>Billettkategori</Label>
+              <Txt
+                key={`tc-2-${flight?.id}`}
+                defaultValue={flight?.leg2_ticket_class}
+                placeholder="Economy"
+                onSave={(v) => onSave({ leg2_ticket_class: v })}
+              />
+            </div>
+            <div>
+              <Label>Rad</Label>
+              <Txt
+                key={`sr-2-${flight?.id}`}
+                defaultValue={flight?.leg2_seat_row}
+                placeholder="24"
+                onSave={(v) => onSave({ leg2_seat_row: v })}
+              />
+            </div>
+            <div>
+              <Label>Sete</Label>
+              <Txt
+                key={`sn-2-${flight?.id}`}
+                defaultValue={flight?.leg2_seat_number}
+                placeholder="A"
+                onSave={(v) => onSave({ leg2_seat_number: v })}
+              />
+            </div>
+          </div>
+
           {/* Ankomst + endelig destinasjon */}
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -438,38 +468,6 @@ function FlightForm({ flight, onSave }: FlightFormProps) {
               </div>
             </div>
           )}
-
-          {/* Billett + sete */}
-          <Divider label="Billett & sete" />
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label>Billettkategori</Label>
-              <Txt
-                key={`tc-s-${flight?.id}`}
-                defaultValue={flight?.ticket_class}
-                placeholder="Economy"
-                onSave={(v) => onSave({ ticket_class: v })}
-              />
-            </div>
-            <div>
-              <Label>Rad</Label>
-              <Txt
-                key={`sr-s-${flight?.id}`}
-                defaultValue={flight?.seat_row}
-                placeholder="24"
-                onSave={(v) => onSave({ seat_row: v })}
-              />
-            </div>
-            <div>
-              <Label>Sete</Label>
-              <Txt
-                key={`sn-s-${flight?.id}`}
-                defaultValue={flight?.seat_number}
-                placeholder="A"
-                onSave={(v) => onSave({ seat_number: v })}
-              />
-            </div>
-          </div>
         </>
       )}
     </div>

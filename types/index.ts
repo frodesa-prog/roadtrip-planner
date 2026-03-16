@@ -129,10 +129,14 @@ export interface Flight {
   leg2_departure: string | null   // HH:MM
   leg2_to: string | null          // endelig destinasjon
   leg2_arrival: string | null     // HH:MM
-  // Billett + sete
+  // Billett + sete (etappe 1 / direktefly)
   ticket_class: string | null     // f.eks. 'Economy', 'Premium', 'Business'
   seat_row: string | null         // radnummer
   seat_number: string | null      // setenummer/bokstav
+  // Billett + sete etappe 2 (kun mellomlanding)
+  leg2_ticket_class: string | null
+  leg2_seat_row: string | null
+  leg2_seat_number: string | null
 }
 
 export interface NoteImage {

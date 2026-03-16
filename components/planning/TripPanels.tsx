@@ -198,6 +198,22 @@ function FlightForm({ flight, onSave }: {
         <div><Label>Fra (flyplass / by)</Label><AirportInput key={`from-${flight?.id}`} defaultValue={flight?.leg1_from} placeholder="OSL – Oslo" onSave={(v) => onSave({ leg1_from: v })} /></div>
       </div>
 
+      {/* Billett + sete (etappe 1 / direktefly) */}
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <Label>Billettkategori</Label>
+          <Txt key={`tc-1-${flight?.id}`} defaultValue={flight?.ticket_class} placeholder="Economy" onSave={(v) => onSave({ ticket_class: v })} />
+        </div>
+        <div>
+          <Label>Rad</Label>
+          <Txt key={`sr-1-${flight?.id}`} defaultValue={flight?.seat_row} placeholder="24" onSave={(v) => onSave({ seat_row: v })} />
+        </div>
+        <div>
+          <Label>Sete</Label>
+          <Txt key={`sn-1-${flight?.id}`} defaultValue={flight?.seat_number} placeholder="A" onSave={(v) => onSave({ seat_number: v })} />
+        </div>
+      </div>
+
       <label className="flex items-center gap-2 py-0.5 cursor-pointer select-none group">
         <input type="checkbox" checked={stopover} onChange={(e) => onSave({ has_stopover: e.target.checked })} className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer" />
         <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Mellomlanding</span>
@@ -210,23 +226,6 @@ function FlightForm({ flight, onSave }: {
             <div><Label>Destinasjon</Label><AirportInput key={`to-d-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg1_to: v })} /></div>
           </div>
           {leg1Min !== null && <DurationBadge minutes={leg1Min} label="Flytid" />}
-
-          {/* Billett + sete */}
-          <Divider label="Billett & sete" />
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label>Billettkategori</Label>
-              <Txt key={`tc-d-${flight?.id}`} defaultValue={flight?.ticket_class} placeholder="Economy" onSave={(v) => onSave({ ticket_class: v })} />
-            </div>
-            <div>
-              <Label>Rad</Label>
-              <Txt key={`sr-d-${flight?.id}`} defaultValue={flight?.seat_row} placeholder="24" onSave={(v) => onSave({ seat_row: v })} />
-            </div>
-            <div>
-              <Label>Sete</Label>
-              <Txt key={`sn-d-${flight?.id}`} defaultValue={flight?.seat_number} placeholder="A" onSave={(v) => onSave({ seat_number: v })} />
-            </div>
-          </div>
         </>
       ) : (
         <>
@@ -241,6 +240,23 @@ function FlightForm({ flight, onSave }: {
             <div><Label>Avgang</Label><TimeInput key={`dep2-${flight?.id}`} defaultValue={flight?.leg2_departure} onSave={saveLeg2Departure} /></div>
             <div><Label>Flightnr.</Label><Txt key={`fn2-${flight?.id}`} defaultValue={flight?.leg2_flight_nr} placeholder="KL 0870" onSave={(v) => onSave({ leg2_flight_nr: v })} /></div>
           </div>
+
+          {/* Billett + sete etappe 2 */}
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label>Billettkategori</Label>
+              <Txt key={`tc-2-${flight?.id}`} defaultValue={flight?.leg2_ticket_class} placeholder="Economy" onSave={(v) => onSave({ leg2_ticket_class: v })} />
+            </div>
+            <div>
+              <Label>Rad</Label>
+              <Txt key={`sr-2-${flight?.id}`} defaultValue={flight?.leg2_seat_row} placeholder="24" onSave={(v) => onSave({ leg2_seat_row: v })} />
+            </div>
+            <div>
+              <Label>Sete</Label>
+              <Txt key={`sn-2-${flight?.id}`} defaultValue={flight?.leg2_seat_number} placeholder="A" onSave={(v) => onSave({ leg2_seat_number: v })} />
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div><Label>Ankomst</Label><TimeInput key={`arr2-${flight?.id}`} defaultValue={flight?.leg2_arrival} onSave={(v) => onSave({ leg2_arrival: v })} /></div>
             <div><Label>Endelig destinasjon</Label><AirportInput key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg2_to: v })} /></div>
@@ -255,23 +271,6 @@ function FlightForm({ flight, onSave }: {
               </div>
             </div>
           )}
-
-          {/* Billett + sete */}
-          <Divider label="Billett & sete" />
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label>Billettkategori</Label>
-              <Txt key={`tc-s-${flight?.id}`} defaultValue={flight?.ticket_class} placeholder="Economy" onSave={(v) => onSave({ ticket_class: v })} />
-            </div>
-            <div>
-              <Label>Rad</Label>
-              <Txt key={`sr-s-${flight?.id}`} defaultValue={flight?.seat_row} placeholder="24" onSave={(v) => onSave({ seat_row: v })} />
-            </div>
-            <div>
-              <Label>Sete</Label>
-              <Txt key={`sn-s-${flight?.id}`} defaultValue={flight?.seat_number} placeholder="A" onSave={(v) => onSave({ seat_number: v })} />
-            </div>
-          </div>
         </>
       )}
     </div>
@@ -660,7 +659,7 @@ export default function TripPanels({
 
       {/* ── Flight expanded (full width) ── */}
       {openPanel === 'flight' && (
-        <div className="border-t border-slate-800/60">
+        <div className="border-t border-slate-800/60 max-h-[70vh] overflow-y-auto">
           {/* Tabs: Utreise / Hjemreise */}
           <div className="flex border-b border-slate-800 bg-slate-900/50">
             {([
