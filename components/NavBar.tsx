@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, LogOut, UserCircle, ClipboardList, Package, MoreHorizontal, X } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
 
@@ -18,18 +18,10 @@ const links = [
   { href: '/notes', label: 'Notater', icon: FileText },
 ]
 
-// Vises i bottom tab bar på mobil
-const bottomNavLinks = [
-  { href: '/plan', label: 'Plan', icon: Map },
-  { href: '/todo', label: 'ToDo', icon: ClipboardList },
-  { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
-  { href: '/notes', label: 'Notater', icon: FileText },
-]
-
 export default function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
-  const [moreOpen, setMoreOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   async function handleLogout() {
     const supabase = createClient()
@@ -39,12 +31,22 @@ export default function NavBar() {
 
   return (
     <>
-      {/* ── Top nav (desktop) ─────────────────────────────────────────────── */}
+      {/* ── Top nav ───────────────────────────────────────────────────────── */}
       <nav className="h-11 flex-shrink-0 bg-slate-900 border-b border-slate-800 flex items-center px-4 gap-1">
+
+        {/* Hamburger-knapp – kun på mobil, til venstre */}
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="md:hidden p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors mr-2 flex-shrink-0"
+          title="Meny"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
         {/* Logo */}
         <span className="text-sm font-bold text-white mr-4 flex items-center gap-2 select-none">
           <span className="text-base">🗺️</span>
-          <span className="hidden sm:inline text-slate-200">Ferieplanlegger</span>
+          <span className="text-slate-200">Ferieplanlegger</span>
         </span>
 
         {/* Nav links – kun synlig på desktop */}
@@ -92,97 +94,83 @@ export default function NavBar() {
         </div>
       </nav>
 
-      {/* ── Bottom tab bar (mobil) ────────────────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-800 flex h-16">
-        {bottomNavLinks.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
-                isActive ? 'text-blue-400' : 'text-slate-500'
-              }`}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-[10px]">{label}</span>
-            </Link>
-          )
-        })}
+      {/* ── Mørk overlay bak drawer (mobil) ──────────────────────────────── */}
+      <div
+        className={`md:hidden fixed inset-0 z-40 bg-black/60 transition-opacity duration-200 ${
+          drawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setDrawerOpen(false)}
+      />
 
-        {/* Mer-knapp */}
-        <button
-          onClick={() => setMoreOpen(true)}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
-            moreOpen ? 'text-blue-400' : 'text-slate-500'
-          }`}
-        >
-          <MoreHorizontal className="w-5 h-5" />
-          <span className="text-[10px]">Mer</span>
-        </button>
-      </nav>
-
-      {/* ── «Mer»-overlay (mobil) ────────────────────────────────────────── */}
-      {moreOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-50 bg-black/50"
-          onClick={() => setMoreOpen(false)}
-        >
-          <div
-            className="absolute bottom-16 left-0 right-0 bg-slate-900 border-t border-slate-700 rounded-t-2xl p-4"
-            onClick={(e) => e.stopPropagation()}
+      {/* ── Side-drawer (mobil) ───────────────────────────────────────────── */}
+      <div
+        className={`md:hidden fixed top-0 left-0 bottom-0 z-50 w-72 bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-200 ease-in-out ${
+          drawerOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Drawer-header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 flex-shrink-0">
+          <span className="flex items-center gap-2 text-sm font-bold text-slate-200 select-none">
+            <span className="text-base">🗺️</span>
+            Ferieplanlegger
+          </span>
+          <button
+            onClick={() => setDrawerOpen(false)}
+            className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+            title="Lukk"
           >
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Alle sider</p>
-              <button
-                onClick={() => setMoreOpen(false)}
-                className="p-1 rounded-full text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {links.map(({ href, label, icon: Icon }) => {
-                const isActive = pathname === href
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setMoreOpen(false)}
-                    className={`flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    {label}
-                  </Link>
-                )
-              })}
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Nav-lenker */}
+        <nav className="flex-1 overflow-y-auto py-2">
+          {links.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname === href
+            return (
               <Link
-                href="/minside"
-                onClick={() => setMoreOpen(false)}
-                className={`flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
-                  pathname === '/minside'
-                    ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                key={href}
+                href={href}
+                onClick={() => setDrawerOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-blue-600/20 text-blue-400 border-r-2 border-blue-500'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
                 }`}
               >
-                <UserCircle className="w-4 h-4 flex-shrink-0" />
-                Min side
+                <Icon className="w-4.5 h-4.5 flex-shrink-0" />
+                {label}
               </Link>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
-              >
-                <LogOut className="w-4 h-4 flex-shrink-0" />
-                Logg ut
-              </button>
-            </div>
+            )
+          })}
+
+          <div className="mt-2 pt-2 border-t border-slate-800">
+            <Link
+              href="/minside"
+              onClick={() => setDrawerOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                pathname === '/minside'
+                  ? 'bg-blue-600/20 text-blue-400 border-r-2 border-blue-500'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
+              }`}
+            >
+              <UserCircle className="w-4 h-4 flex-shrink-0" />
+              Min side
+            </Link>
           </div>
+        </nav>
+
+        {/* Logg ut – bunnen av drawer */}
+        <div className="border-t border-slate-800 p-3 flex-shrink-0">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+          >
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            Logg ut
+          </button>
         </div>
-      )}
+      </div>
     </>
   )
 }
