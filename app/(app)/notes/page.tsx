@@ -323,21 +323,44 @@ export default function NotesPage() {
 
 // ─── Camera Modal ─────────────────────────────────────────────────────────────
 
+// Hjelpefunksjon: åpne kamera direkte fra click-handler (bevarer user gesture-kontekst)
+// Returnerer { stream } ved suksess, eller { error } ved feil
+async function startCameraStream(): Promise<{ stream: MediaStream } | { error: string }> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return { error: 'Kamera er ikke tilgjengelig. Sjekk at siden bruker HTTPS.' }
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+    return { stream }
+  } catch (err: unknown) {
+    const name = err instanceof Error ? err.name : ''
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+      return { error: 'Kameratilgang er blokkert. Gi tillatelse i nettleserens adresselinje og prøv igjen.' }
+    } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+      return { error: 'Ingen kamera funnet. Koble til et kamera eller aktiver iPhone Continuity Camera.' }
+    }
+    return { error: 'Kunne ikke starte kamera. Sjekk at ingen andre apper bruker det.' }
+  }
+}
+
+// CameraModal mottar en allerede kjørende stream – ingen getUserMedia inne i modalen
 function CameraModal({
+  initialStream,
   onCapture,
   onClose,
 }: {
+  initialStream: MediaStream
   onCapture: (file: File) => void
   onClose: () => void
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+  const streamRef = useRef<MediaStream>(initialStream)
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
-  // Koble stream til video-elementet og sett ready
+  // Fest stream til video-element
   function attachStream(stream: MediaStream) {
     const video = videoRef.current
     if (!video) return
@@ -345,57 +368,32 @@ function CameraModal({
     const markReady = () => setReady(true)
     video.addEventListener('canplay', markReady, { once: true })
     video.addEventListener('playing', markReady, { once: true })
-    video.play().then(markReady).catch(() => { /* håndteres av events over */ })
+    video.play().then(markReady).catch(() => {})
   }
 
-  // Eneste effect: start kamera én gang og enumerer enheter
+  // Fest initialStream til video-elementet og enumerer kameraer i bakgrunnen
   useEffect(() => {
-    let cancelled = false
-    async function init() {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setError('Kamera er ikke tilgjengelig. Sjekk at siden bruker HTTPS og at nettleseren har tillatelse.')
-        return
-      }
-      try {
-        // Start kamera direkte – behold strømmen (ikke stopp den!)
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
-        streamRef.current = stream
-        attachStream(stream)
+    streamRef.current = initialStream
+    attachStream(initialStream)
 
-        // Enumerer kameraer i bakgrunnen – kun til dropdown-visning
-        const devices = await navigator.mediaDevices.enumerateDevices()
-        if (cancelled) return
-        const videoDevices = devices.filter((d) => d.kind === 'videoinput')
-        setCameras(videoDevices)
+    // Enumerer kameraer for dropdown (labels tilgjengelig etter permission)
+    navigator.mediaDevices.enumerateDevices().then((devices) => {
+      const videoDevices = devices.filter((d) => d.kind === 'videoinput')
+      setCameras(videoDevices)
+      const activeDeviceId =
+        (initialStream.getVideoTracks()[0]?.getSettings() as { deviceId?: string })?.deviceId
+        ?? videoDevices[0]?.deviceId
+        ?? null
+      setSelectedDeviceId(activeDeviceId)
+    }).catch(() => {})
 
-        // Finn aktiv deviceId – kun for å markere riktig valg i dropdown
-        const activeDeviceId =
-          (stream.getVideoTracks()[0]?.getSettings() as { deviceId?: string })?.deviceId
-          ?? videoDevices[0]?.deviceId
-          ?? null
-        setSelectedDeviceId(activeDeviceId)
-      } catch (err: unknown) {
-        if (cancelled) return
-        const name = err instanceof Error ? err.name : ''
-        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-          setError('Kameratilgang er blokkert. Gi tillatelse i nettleserens adresselinje og prøv igjen.')
-        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-          setError('Ingen kamera funnet. Koble til et kamera eller aktiver iPhone Continuity Camera.')
-        } else {
-          setError('Kunne ikke starte kamera. Sjekk at ingen andre apper bruker det, og prøv igjen.')
-        }
-      }
-    }
-    init()
+    // Cleanup: stopp strøm når modalen lukkes
     return () => {
-      cancelled = true
-      streamRef.current?.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
+      streamRef.current.getTracks().forEach((t) => t.stop())
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialStream]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Brukertriggert kamerabytte – kalles kun fra dropdown/flip-knapp
+  // Brukertriggert kamerabytte
   async function switchToCamera(deviceId: string) {
     setSelectedDeviceId(deviceId)
     setReady(false)
@@ -404,12 +402,18 @@ function CameraModal({
         video: { deviceId: { exact: deviceId } },
         audio: false,
       })
-      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current.getTracks().forEach((t) => t.stop())
       streamRef.current = stream
       attachStream(stream)
     } catch {
-      setError('Kunne ikke bytte til det valgte kameraet. Prøv et annet.')
+      setError('Kunne ikke bytte kamera. Prøv et annet.')
     }
+  }
+
+  function flipCamera() {
+    if (cameras.length < 2) return
+    const idx = cameras.findIndex((c) => c.deviceId === selectedDeviceId)
+    switchToCamera(cameras[(idx + 1) % cameras.length].deviceId)
   }
 
   function capture() {
@@ -432,26 +436,14 @@ function CameraModal({
     )
   }
 
-  function flipCamera() {
-    if (cameras.length < 2) return
-    const idx = cameras.findIndex((c) => c.deviceId === selectedDeviceId)
-    const next = cameras[(idx + 1) % cameras.length]
-    switchToCamera(next.deviceId)
-  }
-
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/60 backdrop-blur-sm">
-        <button
-          onClick={onClose}
-          className="p-2 rounded-full text-white hover:bg-white/10 transition-colors"
-          title="Avbryt"
-        >
+        <button onClick={onClose} className="p-2 rounded-full text-white hover:bg-white/10 transition-colors" title="Avbryt">
           <X className="w-5 h-5" />
         </button>
 
-        {/* Kameravelger – synlig når flere kameraer finnes */}
         {cameras.length > 1 ? (
           <select
             value={selectedDeviceId ?? ''}
@@ -459,21 +451,15 @@ function CameraModal({
             className="bg-black/40 text-white text-xs rounded px-2 py-1 border border-white/20 max-w-[180px] truncate"
           >
             {cameras.map((c, i) => (
-              <option key={c.deviceId} value={c.deviceId}>
-                {c.label || `Kamera ${i + 1}`}
-              </option>
+              <option key={c.deviceId} value={c.deviceId}>{c.label || `Kamera ${i + 1}`}</option>
             ))}
           </select>
         ) : (
           <span className="text-white text-sm font-medium">Ta bilde</span>
         )}
 
-        <button
-          onClick={flipCamera}
-          disabled={cameras.length < 2}
-          className="p-2 rounded-full text-white hover:bg-white/10 transition-colors disabled:opacity-30"
-          title="Bytt kamera"
-        >
+        <button onClick={flipCamera} disabled={cameras.length < 2}
+          className="p-2 rounded-full text-white hover:bg-white/10 transition-colors disabled:opacity-30" title="Bytt kamera">
           <SwitchCamera className="w-5 h-5" />
         </button>
       </div>
@@ -484,21 +470,10 @@ function CameraModal({
           <div className="flex flex-col items-center justify-center h-full gap-4 px-8">
             <Camera className="w-12 h-12 text-slate-600" />
             <p className="text-slate-300 text-sm text-center">{error}</p>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-700 text-slate-200 text-sm hover:bg-slate-600 transition-colors"
-            >
-              Lukk
-            </button>
+            <button onClick={onClose} className="px-4 py-2 rounded-lg bg-slate-700 text-slate-200 text-sm hover:bg-slate-600 transition-colors">Lukk</button>
           </div>
         ) : (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover"
-          />
+          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
         )}
         {!ready && !error && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
@@ -509,12 +484,9 @@ function CameraModal({
 
       {/* Shutter button */}
       <div className="flex items-center justify-center py-8 flex-shrink-0 bg-black/60 backdrop-blur-sm">
-        <button
-          onClick={capture}
-          disabled={!ready}
+        <button onClick={capture} disabled={!ready}
           className="rounded-full bg-white border-[5px] border-slate-400 hover:bg-slate-100 active:scale-95 transition-all disabled:opacity-40"
-          style={{ width: '72px', height: '72px' }}
-          title="Ta bilde"
+          style={{ width: '72px', height: '72px' }} title="Ta bilde"
         />
       </div>
     </div>
@@ -534,7 +506,8 @@ function DraftEditor({
 }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [showCamera, setShowCamera] = useState(false)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+  const [cameraError, setCameraError] = useState<string | null>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -547,99 +520,69 @@ function DraftEditor({
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     if (!t.trim() && !c.trim()) return
     saveTimerRef.current = setTimeout(() => {
-      if (!savedRef.current) {
-        savedRef.current = true
-        onSave(t, c)
-      }
+      if (!savedRef.current) { savedRef.current = true; onSave(t, c) }
     }, 700)
   }
 
-  function handleTitleChange(val: string) {
-    setTitle(val)
-    scheduleAutoSave(val, content)
-  }
-
-  function handleContentChange(val: string) {
-    setContent(val)
-    scheduleAutoSave(title, val)
-  }
+  function handleTitleChange(val: string) { setTitle(val); scheduleAutoSave(val, content) }
+  function handleContentChange(val: string) { setContent(val); scheduleAutoSave(title, val) }
 
   async function handleFileSelect(file: File) {
-    // Lagre notatet umiddelbart, med filen som skal lastes opp etter overgang
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    if (!savedRef.current) {
-      savedRef.current = true
-      await onSave(title, content, file)
-    }
+    if (!savedRef.current) { savedRef.current = true; await onSave(title, content, file) }
+  }
+
+  // Kalles direkte fra click – bevarer user gesture-kontekst for getUserMedia
+  async function handleOpenCamera() {
+    setCameraError(null)
+    const result = await startCameraStream()
+    if ('error' in result) { setCameraError(result.error); return }
+    setCameraStream(result.stream)
+  }
+
+  function handleCloseCamera() {
+    setCameraStream(null)
+    setCameraError(null)
   }
 
   return (
     <>
-      {showCamera && (
+      {cameraStream && (
         <CameraModal
+          initialStream={cameraStream}
           onCapture={(file) => handleFileSelect(file)}
-          onClose={() => setShowCamera(false)}
+          onClose={handleCloseCamera}
         />
       )}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Title row */}
         <div className="flex items-center gap-2 px-4 md:px-6 py-3 border-b border-slate-800 flex-shrink-0">
-          {/* Tilbake-pil kun på mobil */}
-          <button
-            onClick={onBack}
-            className="md:hidden p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0"
-            title="Tilbake til listen"
-          >
+          <button onClick={onBack} className="md:hidden p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0" title="Tilbake til listen">
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <input
-            ref={titleRef}
-            value={title}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            placeholder="Tittel"
-            className="flex-1 bg-transparent text-lg font-semibold text-slate-100 placeholder:text-slate-600 outline-none"
-          />
-          <button
-            onClick={onDiscard}
-            className="p-1.5 rounded-md text-slate-600 hover:text-slate-400 hover:bg-slate-800 transition-colors flex-shrink-0"
-            title="Forkast"
-          >
+          <input ref={titleRef} value={title} onChange={(e) => handleTitleChange(e.target.value)}
+            placeholder="Tittel" className="flex-1 bg-transparent text-lg font-semibold text-slate-100 placeholder:text-slate-600 outline-none" />
+          <button onClick={onDiscard} className="p-1.5 rounded-md text-slate-600 hover:text-slate-400 hover:bg-slate-800 transition-colors flex-shrink-0" title="Forkast">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Content */}
-        <textarea
-          value={content}
-          onChange={(e) => handleContentChange(e.target.value)}
+        <textarea value={content} onChange={(e) => handleContentChange(e.target.value)}
           placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
-          className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
-        />
+          className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0" />
 
-        {/* Footer – bildeopplasting + kamera */}
         <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
-          <p className="text-[11px] text-slate-600 italic">Lagres automatisk når du begynner å skrive</p>
+          <p className="text-[11px] text-slate-600 italic">
+            {cameraError ? <span className="text-red-400">{cameraError}</span> : 'Lagres automatisk når du begynner å skrive'}
+          </p>
           <div className="flex items-center gap-1">
-            {/* Kamera – åpner live kamera-modal */}
-            <button
-              onClick={() => setShowCamera(true)}
-              title="Ta bilde med kamera"
-              className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
-            >
+            <button onClick={handleOpenCamera} title="Ta bilde med kamera"
+              className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors">
               <Camera className="w-4 h-4" />
             </button>
-            {/* Galleri / fil */}
-            <label
-              title="Last opp bilde fra galleri"
-              className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }}
-              />
+            <label title="Last opp bilde fra galleri" className="cursor-pointer p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors">
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = '' }} />
               <ImageIcon className="w-4 h-4" />
             </label>
           </div>
@@ -674,7 +617,7 @@ function NoteEditor({
   const [content, setContent] = useState(note.content)
   const [stopId, setStopId] = useState<string | null>(note.stop_id)
   const [noteDate, setNoteDate] = useState<string | null>(note.note_date)
-  const [showCamera, setShowCamera] = useState(false)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -752,12 +695,18 @@ function NoteEditor({
     hour: '2-digit', minute: '2-digit',
   })
 
+  async function handleOpenCamera() {
+    const result = await startCameraStream()
+    if ('stream' in result) setCameraStream(result.stream)
+  }
+
   return (
     <>
-      {showCamera && (
+      {cameraStream && (
         <CameraModal
+          initialStream={cameraStream}
           onCapture={(file) => uploadImage(file)}
-          onClose={() => setShowCamera(false)}
+          onClose={() => setCameraStream(null)}
         />
       )}
     <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -867,7 +816,7 @@ function NoteEditor({
         <div className="flex items-center gap-1">
           {/* Kamera – åpner live kamera-modal */}
           <button
-            onClick={() => setShowCamera(true)}
+            onClick={handleOpenCamera}
             title="Ta bilde med kamera"
             className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-300 transition-colors"
           >
