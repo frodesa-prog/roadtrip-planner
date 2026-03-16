@@ -210,6 +210,23 @@ function FlightForm({ flight, onSave }: {
             <div><Label>Destinasjon</Label><AirportInput key={`to-d-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg1_to: v })} /></div>
           </div>
           {leg1Min !== null && <DurationBadge minutes={leg1Min} label="Flytid" />}
+
+          {/* Billett + sete */}
+          <Divider label="Billett & sete" />
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label>Billettkategori</Label>
+              <Txt key={`tc-d-${flight?.id}`} defaultValue={flight?.ticket_class} placeholder="Economy" onSave={(v) => onSave({ ticket_class: v })} />
+            </div>
+            <div>
+              <Label>Rad</Label>
+              <Txt key={`sr-d-${flight?.id}`} defaultValue={flight?.seat_row} placeholder="24" onSave={(v) => onSave({ seat_row: v })} />
+            </div>
+            <div>
+              <Label>Sete</Label>
+              <Txt key={`sn-d-${flight?.id}`} defaultValue={flight?.seat_number} placeholder="A" onSave={(v) => onSave({ seat_number: v })} />
+            </div>
+          </div>
         </>
       ) : (
         <>
@@ -238,6 +255,23 @@ function FlightForm({ flight, onSave }: {
               </div>
             </div>
           )}
+
+          {/* Billett + sete */}
+          <Divider label="Billett & sete" />
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label>Billettkategori</Label>
+              <Txt key={`tc-s-${flight?.id}`} defaultValue={flight?.ticket_class} placeholder="Economy" onSave={(v) => onSave({ ticket_class: v })} />
+            </div>
+            <div>
+              <Label>Rad</Label>
+              <Txt key={`sr-s-${flight?.id}`} defaultValue={flight?.seat_row} placeholder="24" onSave={(v) => onSave({ seat_row: v })} />
+            </div>
+            <div>
+              <Label>Sete</Label>
+              <Txt key={`sn-s-${flight?.id}`} defaultValue={flight?.seat_number} placeholder="A" onSave={(v) => onSave({ seat_number: v })} />
+            </div>
+          </div>
         </>
       )}
     </div>
