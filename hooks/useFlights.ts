@@ -58,6 +58,9 @@ export function useFlights(tripId: string | null) {
           leg2_departure: null,
           leg2_to: null,
           leg2_arrival: null,
+          ticket_class: null,
+          seat_row: null,
+          seat_number: null,
           ...updates,
         }
         setFlights((prev) => [...prev, newFlight])
