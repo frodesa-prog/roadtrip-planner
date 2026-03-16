@@ -343,68 +343,83 @@ async function startCameraStream(): Promise<{ stream: MediaStream } | { error: s
   }
 }
 
-// CameraModal mottar en allerede kjørende stream – ingen getUserMedia inne i modalen
+// CameraModal er ALLTID i DOM (aldri conditionally rendered) slik at video-elementet
+// eksisterer umiddelbart når stream-en ankommer – kritisk for Continuity Camera.
 function CameraModal({
-  initialStream,
+  stream,
   onCapture,
   onClose,
 }: {
-  initialStream: MediaStream
+  stream: MediaStream | null   // null = skjult, MediaStream = synlig
   onCapture: (file: File) => void
   onClose: () => void
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream>(initialStream)
+  const activeStreamRef = useRef<MediaStream | null>(null)
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
-  // Fest stream til video-element
-  function attachStream(stream: MediaStream) {
+  // Kjører hver gang stream-prop endres – fester ny stream til video-elementet øyeblikkelig
+  useEffect(() => {
     const video = videoRef.current
-    if (!video) return
+    if (!stream || !video) {
+      // Ingen stream: nullstill
+      setReady(false)
+      setError(null)
+      setCameras([])
+      setSelectedDeviceId(null)
+      return
+    }
+
+    // Stopp evt. forrige stream
+    activeStreamRef.current?.getTracks().forEach((t) => t.stop())
+    activeStreamRef.current = stream
+    setReady(false)
+    setError(null)
+
+    // Fest til video-element umiddelbart
     video.srcObject = stream
     const markReady = () => setReady(true)
     video.addEventListener('canplay', markReady, { once: true })
     video.addEventListener('playing', markReady, { once: true })
     video.play().then(markReady).catch(() => {})
-  }
 
-  // Fest initialStream til video-elementet og enumerer kameraer i bakgrunnen
-  useEffect(() => {
-    streamRef.current = initialStream
-    attachStream(initialStream)
-
-    // Enumerer kameraer for dropdown (labels tilgjengelig etter permission)
+    // Enumerer kameraer i bakgrunnen
     navigator.mediaDevices.enumerateDevices().then((devices) => {
       const videoDevices = devices.filter((d) => d.kind === 'videoinput')
       setCameras(videoDevices)
       const activeDeviceId =
-        (initialStream.getVideoTracks()[0]?.getSettings() as { deviceId?: string })?.deviceId
-        ?? videoDevices[0]?.deviceId
-        ?? null
+        (stream.getVideoTracks()[0]?.getSettings() as { deviceId?: string })?.deviceId
+        ?? videoDevices[0]?.deviceId ?? null
       setSelectedDeviceId(activeDeviceId)
     }).catch(() => {})
 
-    // Cleanup: stopp strøm når modalen lukkes
     return () => {
-      streamRef.current.getTracks().forEach((t) => t.stop())
+      // Cleanup ved unmount – stopp stream
+      activeStreamRef.current?.getTracks().forEach((t) => t.stop())
+      activeStreamRef.current = null
     }
-  }, [initialStream]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stream])
 
   // Brukertriggert kamerabytte
   async function switchToCamera(deviceId: string) {
     setSelectedDeviceId(deviceId)
     setReady(false)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: deviceId } },
-        audio: false,
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId } }, audio: false,
       })
-      streamRef.current.getTracks().forEach((t) => t.stop())
-      streamRef.current = stream
-      attachStream(stream)
+      activeStreamRef.current?.getTracks().forEach((t) => t.stop())
+      activeStreamRef.current = newStream
+      const video = videoRef.current
+      if (video) {
+        video.srcObject = newStream
+        const markReady = () => setReady(true)
+        video.addEventListener('canplay', markReady, { once: true })
+        video.play().then(markReady).catch(() => {})
+      }
     } catch {
       setError('Kunne ikke bytte kamera. Prøv et annet.')
     }
@@ -423,33 +438,29 @@ function CameraModal({
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     canvas.getContext('2d')?.drawImage(video, 0, 0)
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          const file = new File([blob], `kamera-${Date.now()}.jpg`, { type: 'image/jpeg' })
-          onCapture(file)
-          onClose()
-        }
-      },
-      'image/jpeg',
-      0.9
-    )
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], `kamera-${Date.now()}.jpg`, { type: 'image/jpeg' })
+        onCapture(file)
+        onClose()
+      }
+    }, 'image/jpeg', 0.9)
   }
 
+  // Alltid rendret – skjult med display:none når ingen stream
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+    <div
+      className="fixed inset-0 z-50 bg-black flex flex-col"
+      style={{ display: stream ? 'flex' : 'none' }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/60 backdrop-blur-sm">
         <button onClick={onClose} className="p-2 rounded-full text-white hover:bg-white/10 transition-colors" title="Avbryt">
           <X className="w-5 h-5" />
         </button>
-
         {cameras.length > 1 ? (
-          <select
-            value={selectedDeviceId ?? ''}
-            onChange={(e) => switchToCamera(e.target.value)}
-            className="bg-black/40 text-white text-xs rounded px-2 py-1 border border-white/20 max-w-[180px] truncate"
-          >
+          <select value={selectedDeviceId ?? ''} onChange={(e) => switchToCamera(e.target.value)}
+            className="bg-black/40 text-white text-xs rounded px-2 py-1 border border-white/20 max-w-[180px] truncate">
             {cameras.map((c, i) => (
               <option key={c.deviceId} value={c.deviceId}>{c.label || `Kamera ${i + 1}`}</option>
             ))}
@@ -457,37 +468,34 @@ function CameraModal({
         ) : (
           <span className="text-white text-sm font-medium">Ta bilde</span>
         )}
-
         <button onClick={flipCamera} disabled={cameras.length < 2}
           className="p-2 rounded-full text-white hover:bg-white/10 transition-colors disabled:opacity-30" title="Bytt kamera">
           <SwitchCamera className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Video preview */}
+      {/* Video – alltid i DOM */}
       <div className="flex-1 relative overflow-hidden">
-        {error ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4 px-8">
+        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+        {error && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 bg-black">
             <Camera className="w-12 h-12 text-slate-600" />
             <p className="text-slate-300 text-sm text-center">{error}</p>
             <button onClick={onClose} className="px-4 py-2 rounded-lg bg-slate-700 text-slate-200 text-sm hover:bg-slate-600 transition-colors">Lukk</button>
           </div>
-        ) : (
-          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
         )}
         {!ready && !error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
             <Loader2 className="w-8 h-8 text-white animate-spin" />
           </div>
         )}
       </div>
 
-      {/* Shutter button */}
+      {/* Shutter */}
       <div className="flex items-center justify-center py-8 flex-shrink-0 bg-black/60 backdrop-blur-sm">
         <button onClick={capture} disabled={!ready}
           className="rounded-full bg-white border-[5px] border-slate-400 hover:bg-slate-100 active:scale-95 transition-all disabled:opacity-40"
-          style={{ width: '72px', height: '72px' }} title="Ta bilde"
-        />
+          style={{ width: '72px', height: '72px' }} title="Ta bilde" />
       </div>
     </div>
   )
@@ -547,13 +555,11 @@ function DraftEditor({
 
   return (
     <>
-      {cameraStream && (
-        <CameraModal
-          initialStream={cameraStream}
-          onCapture={(file) => handleFileSelect(file)}
-          onClose={handleCloseCamera}
-        />
-      )}
+      <CameraModal
+        stream={cameraStream}
+        onCapture={(file) => handleFileSelect(file)}
+        onClose={handleCloseCamera}
+      />
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Title row */}
         <div className="flex items-center gap-2 px-4 md:px-6 py-3 border-b border-slate-800 flex-shrink-0">
@@ -702,13 +708,11 @@ function NoteEditor({
 
   return (
     <>
-      {cameraStream && (
-        <CameraModal
-          initialStream={cameraStream}
-          onCapture={(file) => uploadImage(file)}
-          onClose={() => setCameraStream(null)}
-        />
-      )}
+      <CameraModal
+        stream={cameraStream}
+        onCapture={(file) => uploadImage(file)}
+        onClose={() => setCameraStream(null)}
+      />
     <div className="flex-1 flex flex-col h-full overflow-hidden">
 
       {/* Title row */}
