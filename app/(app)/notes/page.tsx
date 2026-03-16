@@ -332,21 +332,35 @@ function CameraModal({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
+  // null = ingen facingMode-constraint (fungerer på desktop + mobil)
+  // 'environment' | 'user' = eksplisitt etter at bruker flipper
+  const [facingMode, setFacingMode] = useState<'environment' | 'user' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+
     async function startCamera() {
-      // Stop any existing stream before starting a new one
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
       setReady(false)
       setError(null)
+
+      // navigator.mediaDevices er undefined på HTTP (unntatt localhost)
+      if (!navigator.mediaDevices?.getUserMedia) {
+        if (!cancelled) setError('Kamera er ikke tilgjengelig. Sjekk at siden bruker HTTPS og at nettleseren har tillatelse.')
+        return
+      }
+
+      // Bygg constraints: ingen facingMode-krav som standard → fungerer på alle desktop-kameraer.
+      // facingMode brukes kun etter at brukeren eksplisitt har trykket «bytt kamera».
+      const videoConstraint: MediaTrackConstraints | boolean =
+        facingMode ? { facingMode } : true
+
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode },
+          video: videoConstraint,
           audio: false,
         })
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
@@ -357,10 +371,34 @@ function CameraModal({
             if (!cancelled) setReady(true)
           }
         }
-      } catch {
-        if (!cancelled) setError('Kunne ikke åpne kamera. Sjekk at du har gitt tillatelse i nettleseren.')
+      } catch (err: unknown) {
+        if (cancelled) return
+        // facingMode-constraint kan feile på desktop; prøv uten constraint som fallback
+        if (facingMode) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+            if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+            streamRef.current = stream
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream
+              videoRef.current.onloadedmetadata = () => {
+                if (!cancelled) setReady(true)
+              }
+            }
+            return
+          } catch { /* fall through to error */ }
+        }
+        const name = err instanceof Error ? err.name : ''
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+          setError('Kameratilgang er blokkert. Gi tillatelse i nettleserens adresselinje og prøv igjen.')
+        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+          setError('Ingen kamera funnet. Koble til et kamera eller aktiver Continuity Camera.')
+        } else {
+          setError('Kunne ikke starte kamera. Sjekk at ingen andre apper bruker det, og prøv igjen.')
+        }
       }
     }
+
     startCamera()
     return () => {
       cancelled = true
@@ -390,7 +428,10 @@ function CameraModal({
   }
 
   function flipCamera() {
-    setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'))
+    setFacingMode((prev) => {
+      if (prev === null || prev === 'environment') return 'user'
+      return 'environment'
+    })
   }
 
   return (
@@ -448,7 +489,7 @@ function CameraModal({
         <button
           onClick={capture}
           disabled={!ready}
-          className="w-18 h-18 rounded-full bg-white border-[5px] border-slate-400 hover:bg-slate-100 active:scale-95 transition-all disabled:opacity-40"
+          className="rounded-full bg-white border-[5px] border-slate-400 hover:bg-slate-100 active:scale-95 transition-all disabled:opacity-40"
           style={{ width: '72px', height: '72px' }}
           title="Ta bilde"
         />
