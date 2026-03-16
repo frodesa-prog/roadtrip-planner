@@ -337,7 +337,7 @@ function CameraModal({
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
-  // Steg 1: be om tillatelse, deretter list opp kameraer
+  // Steg 1: be om tillatelse og enumerer kameraer
   useEffect(() => {
     let cancelled = false
     async function init() {
@@ -346,23 +346,27 @@ function CameraModal({
         return
       }
       try {
-        // Kortvarig stream bare for å utløse permission-dialogen
+        // Kortvarig stream for å utløse permission-dialogen – stopp umiddelbart
         const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         tmp.getTracks().forEach((t) => t.stop())
-
         if (cancelled) return
 
-        // Nå har vi tillatelse – enumerateDevices gir oss labels
+        // Nå har vi tillatelse – enumerateDevices gir labels
         const devices = await navigator.mediaDevices.enumerateDevices()
         const videoDevices = devices.filter((d) => d.kind === 'videoinput')
         if (cancelled) return
-        setCameras(videoDevices)
 
-        // Foretrekk bakvendt/iPhone-kamera (merkelapper som "back", "bak", "iphone")
-        const preferred = videoDevices.find((d) =>
-          /back|bak|environment|iphone/i.test(d.label)
-        )
-        setSelectedDeviceId((preferred ?? videoDevices[0])?.deviceId ?? null)
+        // Refresh: noen nettlesere (Chrome) krever en andre enumerate etter permission
+        const devices2 = await navigator.mediaDevices.enumerateDevices()
+        const videoDevices2 = devices2.filter((d) => d.kind === 'videoinput')
+        if (cancelled) return
+
+        const list = videoDevices2.length > videoDevices.length ? videoDevices2 : videoDevices
+        setCameras(list)
+
+        // Foretrekk bakvendt/iPhone-kamera
+        const preferred = list.find((d) => /back|bak|environment|iphone/i.test(d.label))
+        setSelectedDeviceId((preferred ?? list[0])?.deviceId ?? null)
       } catch (err: unknown) {
         if (cancelled) return
         const name = err instanceof Error ? err.name : ''
@@ -383,6 +387,7 @@ function CameraModal({
   useEffect(() => {
     if (!selectedDeviceId) return
     let cancelled = false
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
 
     async function startStream() {
       streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -395,21 +400,38 @@ function CameraModal({
         })
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
         streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.onloadedmetadata = () => { if (!cancelled) setReady(true) }
-        }
+
+        const video = videoRef.current
+        if (!video) return
+        video.srcObject = stream
+
+        // Sett klar når video kan spilles – bruk flere event-hooks for pålitelighet
+        const markReady = () => { if (!cancelled) { setReady(true) } }
+        video.addEventListener('canplay', markReady, { once: true })
+        video.addEventListener('playing', markReady, { once: true })
+
+        // Eksplisitt play() – nødvendig for Safari / Continuity Camera
+        video.play().then(markReady).catch(() => {
+          // Autoplay blokkert – setReady håndteres av canplay/playing over
+        })
+
+        // Timeout-fallback: gi opp spinner etter 8 sek om ingen events fyrer
+        timeoutId = setTimeout(() => {
+          if (!cancelled && !ready) setError('Kameraet svarte ikke. Prøv å bytte kamera eller lukk og prøv igjen.')
+        }, 8000)
       } catch {
-        if (!cancelled) setError('Kunne ikke starte det valgte kameraet. Prøv et annet.')
+        if (!cancelled) setError('Kunne ikke starte det valgte kameraet. Prøv et annet fra listen.')
       }
     }
 
     startStream()
     return () => {
       cancelled = true
+      if (timeoutId) clearTimeout(timeoutId)
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDeviceId])
 
   function capture() {
