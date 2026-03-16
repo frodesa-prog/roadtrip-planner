@@ -18,6 +18,14 @@ const links = [
   { href: '/notes', label: 'Notater', icon: FileText },
 ]
 
+// Vises i bottom tab bar på mobil
+const bottomNavLinks = [
+  { href: '/plan', label: 'Plan', icon: Map },
+  { href: '/todo', label: 'ToDo', icon: ClipboardList },
+  { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
+  { href: '/notes', label: 'Notater', icon: FileText },
+]
+
 export default function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
@@ -94,6 +102,35 @@ export default function NavBar() {
         </div>
       </nav>
 
+      {/* ── Bottom tab bar (mobil) ────────────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-800 flex h-16">
+        {bottomNavLinks.map(({ href, label, icon: Icon }) => {
+          const isActive = pathname === href
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+                isActive ? 'text-blue-400' : 'text-slate-500'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px]">{label}</span>
+            </Link>
+          )
+        })}
+        {/* Min side i bottom bar */}
+        <Link
+          href="/minside"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+            pathname === '/minside' ? 'text-blue-400' : 'text-slate-500'
+          }`}
+        >
+          <UserCircle className="w-5 h-5" />
+          <span className="text-[10px]">Min side</span>
+        </Link>
+      </nav>
+
       {/* ── Mørk overlay bak drawer (mobil) ──────────────────────────────── */}
       <div
         className={`md:hidden fixed inset-0 z-40 bg-black/60 transition-opacity duration-200 ${
@@ -102,7 +139,7 @@ export default function NavBar() {
         onClick={() => setDrawerOpen(false)}
       />
 
-      {/* ── Side-drawer (mobil) ───────────────────────────────────────────── */}
+      {/* ── Side-drawer / hamburger-meny (mobil) ─────────────────────────── */}
       <div
         className={`md:hidden fixed top-0 left-0 bottom-0 z-50 w-72 bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-200 ease-in-out ${
           drawerOpen ? 'translate-x-0' : '-translate-x-full'
@@ -138,7 +175,7 @@ export default function NavBar() {
                     : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
                 }`}
               >
-                <Icon className="w-4.5 h-4.5 flex-shrink-0" />
+                <Icon className="w-4 h-4 flex-shrink-0" />
                 {label}
               </Link>
             )
@@ -161,7 +198,7 @@ export default function NavBar() {
         </nav>
 
         {/* Logg ut – bunnen av drawer */}
-        <div className="border-t border-slate-800 p-3 flex-shrink-0">
+        <div className="border-t border-slate-800 p-3 pb-20 flex-shrink-0">
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
