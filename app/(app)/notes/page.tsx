@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { flushSync } from 'react-dom'
 import { Plus, Trash2, FileText, ImageIcon, Loader2, X, Archive, ArrowLeft, Camera, SwitchCamera } from 'lucide-react'
 import Link from 'next/link'
 import { useTrips } from '@/hooks/useTrips'
@@ -543,15 +544,17 @@ function DraftEditor({
     if (!savedRef.current) { savedRef.current = true; await onSave(title, content, file) }
   }
 
-  // Baseball-app-mønsteret:
-  //   1. Vis modal FØRST (setCameraOpen → synlig med spinner)
-  //   2. getUserMedia (user gesture-kontekst bevares gjennom await)
-  //   3. Fest stream til video-elementet DIREKTE via DOM
-  //   4. await video.play() – vent til video faktisk spiller
-  //   5. Oppdater React state
+  // Speiler baseball-appens openCamera() eksakt:
+  //   baseball: classList.add('open')       → SYNKRON DOM-oppdatering
+  //   react:    flushSync(setCameraOpen)    → SYNKRON React re-render
+  //   Deretter: getUserMedia → srcObject → await play()
   async function handleOpenCamera() {
     setCameraError(null)
-    setCameraOpen(true) // 1. Vis modal umiddelbart (spinner)
+
+    // 1. Vis modal SYNKRONT – flushSync tvinger React til å rendre umiddelbart,
+    //    akkurat som classList.add('open') i baseball-appen.
+    //    Etter denne linjen er video-elementet GARANTERT synlig i DOM.
+    flushSync(() => setCameraOpen(true))
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError('Kamera er ikke tilgjengelig. Sjekk at siden bruker HTTPS.')
@@ -559,17 +562,17 @@ function DraftEditor({
     }
 
     try {
-      // 2. Hent stream (user gesture-kontekst bevares gjennom await i Safari)
+      // 2. Hent stream – user gesture-kontekst er bevart (ingen async yield ennå)
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
 
-      // 3. Fest til video-elementet via DOM – det er allerede synlig pga. setCameraOpen(true)
+      // 3. Video-elementet er allerede synlig (flushSync garanterte det)
       const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
       if (video) {
         video.srcObject = stream
-        await video.play() // 4. AWAIT play – akkurat som baseball-appen
+        await video.play()
       }
 
-      // 5. Oppdater React state
+      // 4. Oppdater React state
       setCameraStream(stream)
     } catch (err: unknown) {
       const name = err instanceof Error ? err.name : ''
@@ -744,7 +747,8 @@ function NoteEditor({
   })
 
   async function handleOpenCamera() {
-    setCameraOpen(true)
+    // flushSync: vis modal SYNKRONT – video-element garantert synlig i DOM
+    flushSync(() => setCameraOpen(true))
     if (!navigator.mediaDevices?.getUserMedia) return
 
     try {
