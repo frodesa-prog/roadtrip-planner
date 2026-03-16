@@ -514,6 +514,14 @@ function BaggageTravelerRow({
   traveler: Traveler
   onUpdate: (id: string, data: Partial<Traveler>) => Promise<void>
 }) {
+  // Start in edit mode if no values have been set yet
+  const hasValues =
+    traveler.cabin_bags != null || traveler.cabin_bag_weight != null ||
+    traveler.checked_bags != null || traveler.checked_bag_weight != null ||
+    traveler.cabin_bags_home != null || traveler.cabin_bag_weight_home != null ||
+    traveler.checked_bags_home != null || traveler.checked_bag_weight_home != null
+  const [editing, setEditing] = useState(!hasValues)
+
   function handleChange(field: keyof Traveler, raw: string) {
     const val = raw === '' ? null : parseFloat(raw)
     if (val !== null && isNaN(val)) return
@@ -522,7 +530,24 @@ function BaggageTravelerRow({
 
   return (
     <div className="px-3 py-3 border-b border-slate-800/50 last:border-b-0">
-      <p className="text-xs font-medium text-slate-300 mb-2.5 truncate">{traveler.name}</p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-medium text-slate-300 truncate">{traveler.name}</p>
+        {!editing ? (
+          <button
+            onClick={() => setEditing(true)}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors flex-shrink-0"
+          >
+            <Pencil className="w-2.5 h-2.5" /> Rediger
+          </button>
+        ) : (
+          <button
+            onClick={() => setEditing(false)}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-blue-400 hover:text-blue-300 hover:bg-slate-700 transition-colors flex-shrink-0"
+          >
+            <Check className="w-2.5 h-2.5" /> Ferdig
+          </button>
+        )}
+      </div>
 
       {/* Utreise */}
       <p className="text-[10px] font-semibold text-blue-500/80 uppercase tracking-wide mb-1.5">Utreise</p>
@@ -531,12 +556,14 @@ function BaggageTravelerRow({
         bags={traveler.cabin_bags} bagWeight={traveler.cabin_bag_weight}
         onBags={(v) => handleChange('cabin_bags', v)}
         onWeight={(v) => handleChange('cabin_bag_weight', v)}
+        editing={editing}
       />
       <BaggageRow
         label="Innsjekket"
         bags={traveler.checked_bags} bagWeight={traveler.checked_bag_weight}
         onBags={(v) => handleChange('checked_bags', v)}
         onWeight={(v) => handleChange('checked_bag_weight', v)}
+        editing={editing}
         className="mb-3"
       />
 
@@ -547,35 +574,38 @@ function BaggageTravelerRow({
         bags={traveler.cabin_bags_home} bagWeight={traveler.cabin_bag_weight_home}
         onBags={(v) => handleChange('cabin_bags_home', v)}
         onWeight={(v) => handleChange('cabin_bag_weight_home', v)}
+        editing={editing}
       />
       <BaggageRow
         label="Innsjekket"
         bags={traveler.checked_bags_home} bagWeight={traveler.checked_bag_weight_home}
         onBags={(v) => handleChange('checked_bags_home', v)}
         onWeight={(v) => handleChange('checked_bag_weight_home', v)}
+        editing={editing}
       />
     </div>
   )
 }
 
 function BaggageRow({
-  label, bags, bagWeight, onBags, onWeight, className = '',
+  label, bags, bagWeight, onBags, onWeight, editing, className = '',
 }: {
   label: string
   bags: number | null
   bagWeight: number | null
   onBags: (v: string) => void
   onWeight: (v: string) => void
+  editing: boolean
   className?: string
 }) {
   return (
     <div className={`mb-1.5 ${className}`}>
-      <p className="text-[10px] text-slate-500 mb-0.5">{label}</p>
+      <p className={`text-[10px] mb-0.5 ${editing ? 'text-slate-500' : 'text-slate-600'}`}>{label}</p>
       <div className="flex items-center gap-1.5">
-        <BaggageInput value={bags} onChange={onBags} placeholder="1" step={1} min={0} />
-        <span className="text-[10px] text-slate-600">kolli</span>
-        <BaggageInput value={bagWeight} onChange={onWeight} placeholder="—" step={0.5} min={0} />
-        <span className="text-[10px] text-slate-600">kg</span>
+        <BaggageInput value={bags} onChange={onBags} placeholder="1" step={1} min={0} editing={editing} />
+        <span className={`text-[10px] ${editing ? 'text-slate-600' : 'text-slate-700'}`}>kolli</span>
+        <BaggageInput value={bagWeight} onChange={onWeight} placeholder="—" step={0.5} min={0} editing={editing} />
+        <span className={`text-[10px] ${editing ? 'text-slate-600' : 'text-slate-700'}`}>kg</span>
       </div>
     </div>
   )
@@ -587,13 +617,22 @@ function BaggageInput({
   placeholder,
   step,
   min,
+  editing,
 }: {
   value: number | null
   onChange: (val: string) => void
   placeholder: string
   step: number
   min: number
+  editing: boolean
 }) {
+  if (!editing) {
+    return (
+      <span className="w-10 text-[11px] text-slate-600 text-center tabular-nums">
+        {value != null ? value : <span className="text-slate-700">—</span>}
+      </span>
+    )
+  }
   return (
     <input
       type="number"
