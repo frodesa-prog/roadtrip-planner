@@ -337,7 +337,20 @@ function CameraModal({
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
-  // Steg 1: be om tillatelse og enumerer kameraer
+  // Koble stream til video-elementet og sett ready
+  const attachStream = useCallback((stream: MediaStream) => {
+    const video = videoRef.current
+    if (!video) return
+    video.srcObject = stream
+    const markReady = () => setReady(true)
+    video.addEventListener('canplay', markReady, { once: true })
+    video.addEventListener('playing', markReady, { once: true })
+    // Eksplisitt play() – nødvendig for Safari / Continuity Camera
+    video.play().then(markReady).catch(() => { /* håndteres av events over */ })
+  }, [])
+
+  // Steg 1: be om tillatelse, vis første tilgjengelige kamera umiddelbart,
+  // deretter enumerer alle kameraer i bakgrunnen
   useEffect(() => {
     let cancelled = false
     async function init() {
@@ -346,27 +359,24 @@ function CameraModal({
         return
       }
       try {
-        // Kortvarig stream for å utløse permission-dialogen – stopp umiddelbart
-        const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        tmp.getTracks().forEach((t) => t.stop())
-        if (cancelled) return
+        // Start første tilgjengelige kamera direkte – ikke stopp strømmen
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+        streamRef.current = stream
+        attachStream(stream)
 
-        // Nå har vi tillatelse – enumerateDevices gir labels
+        // Enumerer alle kameraer (labels tilgjengelig etter at tillatelse er gitt)
         const devices = await navigator.mediaDevices.enumerateDevices()
+        if (cancelled) return
         const videoDevices = devices.filter((d) => d.kind === 'videoinput')
-        if (cancelled) return
+        setCameras(videoDevices)
 
-        // Refresh: noen nettlesere (Chrome) krever en andre enumerate etter permission
-        const devices2 = await navigator.mediaDevices.enumerateDevices()
-        const videoDevices2 = devices2.filter((d) => d.kind === 'videoinput')
-        if (cancelled) return
-
-        const list = videoDevices2.length > videoDevices.length ? videoDevices2 : videoDevices
-        setCameras(list)
-
-        // Foretrekk bakvendt/iPhone-kamera
-        const preferred = list.find((d) => /back|bak|environment|iphone/i.test(d.label))
-        setSelectedDeviceId((preferred ?? list[0])?.deviceId ?? null)
+        // Finn deviceId for det kameraet som allerede kjører
+        const activeTrack = stream.getVideoTracks()[0]
+        const activeDeviceId = (activeTrack?.getSettings() as { deviceId?: string })?.deviceId
+          ?? videoDevices[0]?.deviceId
+          ?? null
+        setSelectedDeviceId(activeDeviceId)
       } catch (err: unknown) {
         if (cancelled) return
         const name = err instanceof Error ? err.name : ''
@@ -380,18 +390,24 @@ function CameraModal({
       }
     }
     init()
-    return () => { cancelled = true }
-  }, [])
-
-  // Steg 2: start kamerastrøm når deviceId er valgt
-  useEffect(() => {
-    if (!selectedDeviceId) return
-    let cancelled = false
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-    async function startStream() {
+    return () => {
+      cancelled = true
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
+    }
+  }, [attachStream])
+
+  // Steg 2: bytt kamera når bruker velger en annen enhet
+  useEffect(() => {
+    if (!selectedDeviceId) return
+
+    // Sjekk om det valgte kameraet allerede er aktivt
+    const activeTrack = streamRef.current?.getVideoTracks()[0]
+    const activeDeviceId = (activeTrack?.getSettings() as { deviceId?: string })?.deviceId
+    if (activeDeviceId === selectedDeviceId) return
+
+    let cancelled = false
+    async function switchCamera() {
       setReady(false)
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -399,40 +415,16 @@ function CameraModal({
           audio: false,
         })
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+        streamRef.current?.getTracks().forEach((t) => t.stop())
         streamRef.current = stream
-
-        const video = videoRef.current
-        if (!video) return
-        video.srcObject = stream
-
-        // Sett klar når video kan spilles – bruk flere event-hooks for pålitelighet
-        const markReady = () => { if (!cancelled) { setReady(true) } }
-        video.addEventListener('canplay', markReady, { once: true })
-        video.addEventListener('playing', markReady, { once: true })
-
-        // Eksplisitt play() – nødvendig for Safari / Continuity Camera
-        video.play().then(markReady).catch(() => {
-          // Autoplay blokkert – setReady håndteres av canplay/playing over
-        })
-
-        // Timeout-fallback: gi opp spinner etter 8 sek om ingen events fyrer
-        timeoutId = setTimeout(() => {
-          if (!cancelled && !ready) setError('Kameraet svarte ikke. Prøv å bytte kamera eller lukk og prøv igjen.')
-        }, 8000)
+        attachStream(stream)
       } catch {
-        if (!cancelled) setError('Kunne ikke starte det valgte kameraet. Prøv et annet fra listen.')
+        if (!cancelled) setError('Kunne ikke bytte til det valgte kameraet. Prøv et annet.')
       }
     }
-
-    startStream()
-    return () => {
-      cancelled = true
-      if (timeoutId) clearTimeout(timeoutId)
-      streamRef.current?.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDeviceId])
+    switchCamera()
+    return () => { cancelled = true }
+  }, [selectedDeviceId, attachStream])
 
   function capture() {
     const video = videoRef.current
