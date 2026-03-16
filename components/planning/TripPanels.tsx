@@ -214,13 +214,12 @@ function FlightForm({ flight, onSave }: {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 py-0.5">
-        <label className="flex items-center gap-2 cursor-pointer select-none group">
-          <input type="checkbox" checked={stopover} onChange={(e) => onSave({ has_stopover: e.target.checked })} className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer" />
-          <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Mellomlanding</span>
-        </label>
-        {leg1Min !== null && <div className="flex-1 flex justify-center"><DurationBadge minutes={leg1Min} label={stopover ? 'Flytid etappe 1' : 'Flytid'} /></div>}
-      </div>
+      {leg1Min !== null && <DurationBadge minutes={leg1Min} label={stopover ? 'Flytid etappe 1' : 'Flytid'} />}
+
+      <label className="flex items-center gap-2 py-0.5 cursor-pointer select-none group">
+        <input type="checkbox" checked={stopover} onChange={(e) => onSave({ has_stopover: e.target.checked })} className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer" />
+        <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Mellomlanding</span>
+      </label>
 
       {!stopover ? (
         <>
