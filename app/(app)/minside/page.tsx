@@ -41,6 +41,9 @@ import {
   Link2,
   UserCheck,
   Pencil,
+  Camera,
+  SwitchCamera,
+  Circle,
 } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -797,12 +800,109 @@ function DokumentTab() {
   const [dragging, setDragging] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Camera state
+  const [showCamera, setShowCamera] = useState(false)
+  const [camDevices, setCamDevices] = useState<MediaDeviceInfo[]>([])
+  const [camDeviceId, setCamDeviceId] = useState<string>('')
+  const [camStream, setCamStream] = useState<MediaStream | null>(null)
+  const [camError, setCamError] = useState<string | null>(null)
+  const [captured, setCaptured] = useState<string | null>(null) // data URL
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
   async function handleFile(file: File) {
     if (!name.trim()) { toast.error('Gi dokumentet et navn'); return }
     await uploadDocument(file, name.trim(), docType)
     setName('')
     logActivity({ log_type: 'database', action: 'INSERT', entity_type: 'document', entity_name: name.trim() })
   }
+
+  // Start camera
+  async function openCamera() {
+    setCaptured(null)
+    setCamError(null)
+    setShowCamera(true)
+    try {
+      // Enumerate devices first to build selector
+      const allDevices = await navigator.mediaDevices.enumerateDevices()
+      const videoDevices = allDevices.filter((d) => d.kind === 'videoinput')
+      setCamDevices(videoDevices)
+      const preferredId = camDeviceId || videoDevices[0]?.deviceId || ''
+      await startStream(preferredId || undefined)
+    } catch (err) {
+      console.error('[Camera]', err)
+      setCamError('Kunne ikke starte kamera. Sjekk at nettleseren har tillatelse.')
+    }
+  }
+
+  async function startStream(deviceId?: string) {
+    // Stop existing stream
+    camStream?.getTracks().forEach((t) => t.stop())
+    setCamStream(null)
+    const constraints: MediaStreamConstraints = {
+      video: deviceId ? { deviceId: { exact: deviceId } } : true,
+      audio: false,
+    }
+    const stream = await navigator.mediaDevices.getUserMedia(constraints)
+    setCamStream(stream)
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream
+      await videoRef.current.play()
+    }
+    // Re-enumerate after getUserMedia so labels are populated
+    const allDevices = await navigator.mediaDevices.enumerateDevices()
+    const videoDevices = allDevices.filter((d) => d.kind === 'videoinput')
+    setCamDevices(videoDevices)
+    if (deviceId) setCamDeviceId(deviceId)
+  }
+
+  async function switchCamera(deviceId: string) {
+    setCamDeviceId(deviceId)
+    setCamError(null)
+    try {
+      await startStream(deviceId)
+    } catch (err) {
+      console.error('[Camera switch]', err)
+      setCamError('Kunne ikke bytte kamera.')
+    }
+  }
+
+  function capturePhoto() {
+    if (!videoRef.current || !canvasRef.current) return
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext('2d')?.drawImage(video, 0, 0)
+    setCaptured(canvas.toDataURL('image/jpeg', 0.92))
+  }
+
+  function retake() {
+    setCaptured(null)
+  }
+
+  async function usePhoto() {
+    if (!captured) return
+    if (!name.trim()) { toast.error('Gi dokumentet et navn'); return }
+    const res = await fetch(captured)
+    const blob = await res.blob()
+    const file = new File([blob], `${name.trim().replace(/\s+/g, '_')}.jpg`, { type: 'image/jpeg' })
+    closeCamera()
+    await handleFile(file)
+  }
+
+  function closeCamera() {
+    camStream?.getTracks().forEach((t) => t.stop())
+    setCamStream(null)
+    setShowCamera(false)
+    setCaptured(null)
+    setCamError(null)
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { camStream?.getTracks().forEach((t) => t.stop()) }
+  }, [camStream])
 
   return (
     <div className="max-w-xl space-y-6">
@@ -832,28 +932,125 @@ function DokumentTab() {
           </div>
         </div>
 
-        {/* Drop zone */}
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
-          onClick={() => fileRef.current?.click()}
-          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-            dragging ? 'border-blue-500 bg-blue-500/5' : 'border-slate-700 hover:border-slate-500'
-          }`}
-        >
-          {isUploading ? (
-            <Loader2 className="w-5 h-5 text-slate-500 animate-spin mx-auto" />
-          ) : (
-            <>
-              <Upload className="w-5 h-5 text-slate-500 mx-auto mb-2" />
-              <p className="text-xs text-slate-500">Dra og slipp fil her, eller klikk for å velge</p>
-              <p className="text-xs text-slate-600 mt-1">PDF, JPG, PNG støttes</p>
-            </>
-          )}
+        {/* Action buttons row */}
+        <div className="flex gap-2">
+          {/* Drop zone */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
+            onClick={() => fileRef.current?.click()}
+            className={`flex-1 border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${
+              dragging ? 'border-blue-500 bg-blue-500/5' : 'border-slate-700 hover:border-slate-500'
+            }`}
+          >
+            {isUploading ? (
+              <Loader2 className="w-5 h-5 text-slate-500 animate-spin mx-auto" />
+            ) : (
+              <>
+                <Upload className="w-5 h-5 text-slate-500 mx-auto mb-1.5" />
+                <p className="text-xs text-slate-500">Dra og slipp, eller klikk</p>
+                <p className="text-xs text-slate-600 mt-0.5">PDF, JPG, PNG</p>
+              </>
+            )}
+          </div>
+
+          {/* Camera button */}
+          <button
+            onClick={openCamera}
+            className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-slate-700 hover:border-slate-500 rounded-xl px-5 py-5 transition-colors group"
+          >
+            <Camera className="w-5 h-5 text-slate-500 group-hover:text-slate-300 transition-colors" />
+            <span className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">Ta bilde</span>
+          </button>
         </div>
         <input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
       </div>
+
+      {/* Camera modal */}
+      {showCamera && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+              <p className="text-sm font-semibold text-slate-200">Ta bilde av dokument</p>
+              <button onClick={closeCamera} className="text-slate-500 hover:text-slate-300 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Camera selector */}
+            {camDevices.length > 1 && !captured && (
+              <div className="px-4 pt-3 flex items-center gap-2">
+                <SwitchCamera className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                <select
+                  value={camDeviceId}
+                  onChange={(e) => switchCamera(e.target.value)}
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:border-blue-500"
+                >
+                  {camDevices.map((d, i) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label || `Kamera ${i + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Video / captured preview */}
+            <div className="px-4 py-3">
+              {camError ? (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-xs text-red-400 text-center">
+                  {camError}
+                </div>
+              ) : captured ? (
+                // Show captured image
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={captured} alt="Tatt bilde" className="w-full rounded-xl object-contain max-h-72" />
+              ) : (
+                // Live video
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full rounded-xl object-cover max-h-72 bg-slate-800"
+                />
+              )}
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+
+            {/* Actions */}
+            <div className="px-4 pb-4 flex gap-2 justify-center">
+              {captured ? (
+                <>
+                  <button
+                    onClick={retake}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-700 transition-colors"
+                  >
+                    <Camera className="w-3.5 h-3.5" /> Ta om igjen
+                  </button>
+                  <button
+                    onClick={usePhoto}
+                    disabled={isUploading}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40 transition-colors"
+                  >
+                    {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    Bruk bildet
+                  </button>
+                </>
+              ) : !camError ? (
+                <button
+                  onClick={capturePhoto}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-full text-sm bg-white text-slate-900 font-semibold hover:bg-slate-100 transition-colors shadow"
+                >
+                  <Circle className="w-4 h-4" /> Ta bilde
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Document list */}
       {loading ? (
