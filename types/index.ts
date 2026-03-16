@@ -169,10 +169,14 @@ export interface Traveler {
   description: string | null     // interests_extra – vises som fritekst i UI
   ai_context: string | null      // mat/mobilitet/annet – sendes til AI, vises ikke i UI
   linked_user_id: string | null  // koblet til registrert bruker
-  cabin_bags: number | null       // antall håndbagasjer
-  cabin_bag_weight: number | null // maks vekt per håndbagasje (kg)
-  checked_bags: number | null     // antall innsjekket bagasje
-  checked_bag_weight: number | null // maks vekt per innsjekket kolli (kg)
+  cabin_bags: number | null              // utreise: antall håndbagasjer
+  cabin_bag_weight: number | null        // utreise: maks vekt per håndbagasje (kg)
+  checked_bags: number | null            // utreise: antall innsjekket bagasje
+  checked_bag_weight: number | null      // utreise: maks vekt per innsjekket kolli (kg)
+  cabin_bags_home: number | null         // hjemreise: antall håndbagasjer
+  cabin_bag_weight_home: number | null   // hjemreise: maks vekt per håndbagasje (kg)
+  checked_bags_home: number | null       // hjemreise: antall innsjekket bagasje
+  checked_bag_weight_home: number | null // hjemreise: maks vekt per innsjekket kolli (kg)
   created_at: string
 }
 

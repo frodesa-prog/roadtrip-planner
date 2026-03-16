@@ -431,47 +431,39 @@ function BaggageTravelerRow({
 
   return (
     <div className="px-3 py-2.5 border-b border-slate-800/50 last:border-b-0">
-      <p className="text-xs font-medium text-slate-300 mb-1.5 truncate">{traveler.name}</p>
+      <p className="text-xs font-medium text-slate-300 mb-2 truncate">{traveler.name}</p>
 
-      {/* Håndbagasje */}
+      {/* Utreise */}
+      <p className="text-[10px] font-semibold text-blue-500/80 uppercase tracking-wide mb-1">Utreise</p>
       <div className="flex items-center gap-1 mb-1">
         <span className="text-[10px] text-slate-500 w-[54px] flex-shrink-0">Hånd</span>
-        <BaggageInput
-          value={traveler.cabin_bags}
-          onChange={(v) => handleChange('cabin_bags', v)}
-          placeholder="1"
-          step={1}
-          min={0}
-        />
+        <BaggageInput value={traveler.cabin_bags} onChange={(v) => handleChange('cabin_bags', v)} placeholder="1" step={1} min={0} />
         <span className="text-[10px] text-slate-600">kolli</span>
-        <BaggageInput
-          value={traveler.cabin_bag_weight}
-          onChange={(v) => handleChange('cabin_bag_weight', v)}
-          placeholder="8"
-          step={0.5}
-          min={0}
-        />
+        <BaggageInput value={traveler.cabin_bag_weight} onChange={(v) => handleChange('cabin_bag_weight', v)} placeholder="8" step={0.5} min={0} />
+        <span className="text-[10px] text-slate-600">kg</span>
+      </div>
+      <div className="flex items-center gap-1 mb-2.5">
+        <span className="text-[10px] text-slate-500 w-[54px] flex-shrink-0">Innsjekket</span>
+        <BaggageInput value={traveler.checked_bags} onChange={(v) => handleChange('checked_bags', v)} placeholder="1" step={1} min={0} />
+        <span className="text-[10px] text-slate-600">kolli</span>
+        <BaggageInput value={traveler.checked_bag_weight} onChange={(v) => handleChange('checked_bag_weight', v)} placeholder="23" step={0.5} min={0} />
         <span className="text-[10px] text-slate-600">kg</span>
       </div>
 
-      {/* Innsjekket */}
-      <div className="flex items-center gap-1">
-        <span className="text-[10px] text-slate-500 w-[54px] flex-shrink-0">Sjekket</span>
-        <BaggageInput
-          value={traveler.checked_bags}
-          onChange={(v) => handleChange('checked_bags', v)}
-          placeholder="1"
-          step={1}
-          min={0}
-        />
+      {/* Hjemreise */}
+      <p className="text-[10px] font-semibold text-emerald-500/80 uppercase tracking-wide mb-1">Hjemreise</p>
+      <div className="flex items-center gap-1 mb-1">
+        <span className="text-[10px] text-slate-500 w-[54px] flex-shrink-0">Hånd</span>
+        <BaggageInput value={traveler.cabin_bags_home} onChange={(v) => handleChange('cabin_bags_home', v)} placeholder="1" step={1} min={0} />
         <span className="text-[10px] text-slate-600">kolli</span>
-        <BaggageInput
-          value={traveler.checked_bag_weight}
-          onChange={(v) => handleChange('checked_bag_weight', v)}
-          placeholder="23"
-          step={0.5}
-          min={0}
-        />
+        <BaggageInput value={traveler.cabin_bag_weight_home} onChange={(v) => handleChange('cabin_bag_weight_home', v)} placeholder="8" step={0.5} min={0} />
+        <span className="text-[10px] text-slate-600">kg</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] text-slate-500 w-[54px] flex-shrink-0">Innsjekket</span>
+        <BaggageInput value={traveler.checked_bags_home} onChange={(v) => handleChange('checked_bags_home', v)} placeholder="1" step={1} min={0} />
+        <span className="text-[10px] text-slate-600">kolli</span>
+        <BaggageInput value={traveler.checked_bag_weight_home} onChange={(v) => handleChange('checked_bag_weight_home', v)} placeholder="23" step={0.5} min={0} />
         <span className="text-[10px] text-slate-600">kg</span>
       </div>
     </div>
