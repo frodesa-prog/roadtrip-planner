@@ -21,7 +21,7 @@ export default function PlanPage() {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
   const [routeStates, setRouteStates] = useState<string[]>([])
   type MobileView = 'kart' | 'steder' | 'detaljer'
-  const [mobileView, setMobileView] = useState<MobileView>('kart')
+  const [mobileView, setMobileView] = useState<MobileView>('steder')
 
   const {
     trips, currentTrip, loading: tripsLoading, userId,

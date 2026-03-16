@@ -24,6 +24,7 @@ const bottomNavLinks = [
   { href: '/todo', label: 'ToDo', icon: ClipboardList },
   { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
   { href: '/notes', label: 'Notater', icon: FileText },
+  { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
 ]
 
 export default function NavBar() {
@@ -119,16 +120,6 @@ export default function NavBar() {
             </Link>
           )
         })}
-        {/* Min side i bottom bar */}
-        <Link
-          href="/minside"
-          className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
-            pathname === '/minside' ? 'text-blue-400' : 'text-slate-500'
-          }`}
-        >
-          <UserCircle className="w-5 h-5" />
-          <span className="text-[10px]">Min side</span>
-        </Link>
       </nav>
 
       {/* ── Mørk overlay bak drawer (mobil) ──────────────────────────────── */}
