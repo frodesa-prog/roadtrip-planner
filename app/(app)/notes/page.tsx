@@ -220,33 +220,86 @@ function capturePhoto() {
 async function openCameraCapture(): Promise<File | null> {
   const { modal, video } = getCameraModal()
 
-  // 1. Vis modal med spinner – SYNKRON DOM, akkurat som baseball-appen
+  // 1. Vis modal med spinner – SYNKRON DOM
   modal.style.display = 'flex'
   const spinner = document.getElementById('camera-spinner')
   if (spinner) spinner.style.display = 'flex'
   const shutter = document.getElementById('camera-shutter') as HTMLButtonElement | null
   if (shutter) { shutter.disabled = true; shutter.style.opacity = '0.4' }
+  console.log('[Camera] 1. Modal visible')
 
-  // 2. Hent stream – user gesture-kontekst er fortsatt aktiv
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-    _cameraStream = stream
-
-    // 3. Fest til video-element (allerede synlig!) og await play
-    video.srcObject = stream
-    await video.play()
-
-    // 4. Skjul spinner, aktiver shutter, populér kameraliste
+  // Hjelpefunksjon: aktiver shutter når video har frames
+  function onVideoReady() {
+    console.log('[Camera] ✓ Video ready! readyState:', video.readyState,
+      'videoWidth:', video.videoWidth, 'videoHeight:', video.videoHeight)
     if (spinner) spinner.style.display = 'none'
     if (shutter) { shutter.disabled = false; shutter.style.opacity = '1' }
     populateCameraList()
+  }
+
+  // 2. Hent stream
+  try {
+    console.log('[Camera] 2. Calling getUserMedia...')
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+    _cameraStream = stream
+    const tracks = stream.getVideoTracks()
+    console.log('[Camera] 3. Stream obtained:',
+      'active:', stream.active,
+      'tracks:', tracks.length,
+      'track.readyState:', tracks[0]?.readyState,
+      'track.enabled:', tracks[0]?.enabled,
+      'settings:', JSON.stringify(tracks[0]?.getSettings()))
+
+    // Lytt på track ended-event for diagnostikk
+    tracks[0]?.addEventListener('ended', () => {
+      console.log('[Camera] ⚠ Track ended! Stream active:', stream.active)
+    })
+
+    // 3. Fest til video-element
+    video.srcObject = stream
+    console.log('[Camera] 4. srcObject set, calling play()...')
+
+    // IKKE await play() – bruk event-lyttere i stedet.
+    // await play() kan henge med Continuity Camera hvis video-elementet
+    // ikke kan dekode frames raskt nok.
+    video.play().then(() => {
+      console.log('[Camera] 5a. play() resolved, readyState:', video.readyState)
+    }).catch((err) => {
+      console.error('[Camera] 5b. play() rejected:', err?.name, err?.message)
+    })
+
+    // Bruk flere event-lyttere for å fange opp når video er klar
+    video.addEventListener('loadeddata', () => {
+      console.log('[Camera] Event: loadeddata, readyState:', video.readyState)
+      onVideoReady()
+    }, { once: true })
+    video.addEventListener('playing', () => {
+      console.log('[Camera] Event: playing')
+      onVideoReady()
+    }, { once: true })
+    video.addEventListener('canplay', () => {
+      console.log('[Camera] Event: canplay, readyState:', video.readyState)
+      onVideoReady()
+    }, { once: true })
+
+    // Timeout: hvis ingenting skjer etter 8 sek, logg status
+    setTimeout(() => {
+      console.log('[Camera] 8s timeout check:',
+        'stream.active:', stream.active,
+        'track.readyState:', tracks[0]?.readyState,
+        'video.readyState:', video.readyState,
+        'video.paused:', video.paused,
+        'video.videoWidth:', video.videoWidth,
+        'video.networkState:', video.networkState)
+    }, 8000)
+
   } catch (err) {
-    console.error('Camera error:', err)
+    console.error('[Camera] getUserMedia error:', err)
     closeCamera(null)
     return null
   }
 
-  // 5. Returner promise som resolves når bruker tar bilde eller lukker
+  // 4. Returner promise som resolves når bruker tar bilde eller lukker
   return new Promise<File | null>((resolve) => {
     _resolveCapture = resolve
   })
