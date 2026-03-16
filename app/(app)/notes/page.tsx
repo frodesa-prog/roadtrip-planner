@@ -322,35 +322,23 @@ export default function NotesPage() {
 }
 
 // ─── Camera Modal ─────────────────────────────────────────────────────────────
+//
+// Speiler baseball-appens mønster eksakt:
+//   1. Modal gjøres SYNLIG først (via isOpen prop)
+//   2. Deretter hentes stream (getUserMedia) – video-elementet er allerede rendret
+//   3. srcObject settes og video.play() awaites – alt i SYNKRON rekkefølge
+//
+// isOpen:  styrer synlighet (vises med spinner mens vi venter på stream)
+// stream:  null mens vi venter, MediaStream når kamera er koblet til
 
-// Hjelpefunksjon: åpne kamera direkte fra click-handler (bevarer user gesture-kontekst)
-// Returnerer { stream } ved suksess, eller { error } ved feil
-async function startCameraStream(): Promise<{ stream: MediaStream } | { error: string }> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    return { error: 'Kamera er ikke tilgjengelig. Sjekk at siden bruker HTTPS.' }
-  }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-    return { stream }
-  } catch (err: unknown) {
-    const name = err instanceof Error ? err.name : ''
-    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-      return { error: 'Kameratilgang er blokkert. Gi tillatelse i nettleserens adresselinje og prøv igjen.' }
-    } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-      return { error: 'Ingen kamera funnet. Koble til et kamera eller aktiver iPhone Continuity Camera.' }
-    }
-    return { error: 'Kunne ikke starte kamera. Sjekk at ingen andre apper bruker det.' }
-  }
-}
-
-// CameraModal er ALLTID i DOM (aldri conditionally rendered) slik at video-elementet
-// eksisterer umiddelbart når stream-en ankommer – kritisk for Continuity Camera.
 function CameraModal({
+  isOpen,
   stream,
   onCapture,
   onClose,
 }: {
-  stream: MediaStream | null   // null = skjult, MediaStream = synlig
+  isOpen: boolean
+  stream: MediaStream | null
   onCapture: (file: File) => void
   onClose: () => void
 }) {
@@ -361,17 +349,16 @@ function CameraModal({
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
-  // Kjører hver gang stream-prop endres.
-  // MERK: srcObject er allerede satt av click-handleren (via DOM) FØR denne useEffect kjører.
-  // Denne useEffect synkroniserer intern state og enumererer kameraer.
+  // Når stream-prop endres – fest til video
   useEffect(() => {
     const video = videoRef.current
     if (!stream || !video) {
-      // Ingen stream: nullstill
-      setReady(false)
-      setError(null)
-      setCameras([])
-      setSelectedDeviceId(null)
+      if (!isOpen) {
+        setReady(false)
+        setError(null)
+        setCameras([])
+        setSelectedDeviceId(null)
+      }
       return
     }
 
@@ -382,8 +369,8 @@ function CameraModal({
     activeStreamRef.current = stream
     setError(null)
 
-    // srcObject er allerede satt av click-handleren, men sett igjen for sikkerhet
-    // (f.eks. ved hot-reload eller kamerabytte)
+    // srcObject kan allerede være satt av click-handleren via DOM,
+    // men sett igjen for sikkerhet (kamerabytte, hot-reload)
     if (video.srcObject !== stream) {
       video.srcObject = stream
       video.play().catch(() => {})
@@ -392,7 +379,6 @@ function CameraModal({
     // Marker klar når video faktisk spiller
     const markReady = () => setReady(true)
     if (video.readyState >= 2) {
-      // Allerede nok data – marker umiddelbart
       setReady(true)
     } else {
       setReady(false)
@@ -411,11 +397,10 @@ function CameraModal({
     }).catch(() => {})
 
     return () => {
-      // Cleanup ved unmount – stopp stream
       activeStreamRef.current?.getTracks().forEach((t) => t.stop())
       activeStreamRef.current = null
     }
-  }, [stream])
+  }, [stream, isOpen])
 
   // Brukertriggert kamerabytte
   async function switchToCamera(deviceId: string) {
@@ -430,9 +415,8 @@ function CameraModal({
       const video = videoRef.current
       if (video) {
         video.srcObject = newStream
-        const markReady = () => setReady(true)
-        video.addEventListener('canplay', markReady, { once: true })
-        video.play().then(markReady).catch(() => {})
+        await video.play()
+        setReady(true)
       }
     } catch {
       setError('Kunne ikke bytte kamera. Prøv et annet.')
@@ -461,15 +445,14 @@ function CameraModal({
     }, 'image/jpeg', 0.9)
   }
 
-  // Alltid rendret – skjult med visibility:hidden (IKKE display:none)
-  // slik at video-elementet forblir i render-treet og kan konsumere frames
-  // fra Continuity Camera selv når modal er «skjult».
+  // Alltid i DOM, synlighet styrt av isOpen.
+  // Bruker visibility (ikke display:none) slik at video-elementet alltid er i render-treet.
   return (
     <div
       className="fixed inset-0 z-50 bg-black flex flex-col"
       style={{
-        visibility: stream ? 'visible' : 'hidden',
-        pointerEvents: stream ? 'auto' : 'none',
+        visibility: isOpen ? 'visible' : 'hidden',
+        pointerEvents: isOpen ? 'auto' : 'none',
       }}
     >
       {/* Header */}
@@ -503,7 +486,7 @@ function CameraModal({
             <button onClick={onClose} className="px-4 py-2 rounded-lg bg-slate-700 text-slate-200 text-sm hover:bg-slate-600 transition-colors">Lukk</button>
           </div>
         )}
-        {!ready && !error && (
+        {!ready && !error && isOpen && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80">
             <Loader2 className="w-8 h-8 text-white animate-spin" />
           </div>
@@ -533,6 +516,7 @@ function DraftEditor({
 }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [cameraOpen, setCameraOpen] = useState(false)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const titleRef = useRef<HTMLInputElement>(null)
@@ -559,32 +543,60 @@ function DraftEditor({
     if (!savedRef.current) { savedRef.current = true; await onSave(title, content, file) }
   }
 
-  // Kalles direkte fra click – bevarer user gesture-kontekst for getUserMedia.
-  // Setter srcObject DIREKTE på video-elementet (via DOM) FØR React state-oppdatering,
-  // slik at Continuity Camera ser at streamen konsumeres umiddelbart.
+  // Baseball-app-mønsteret:
+  //   1. Vis modal FØRST (setCameraOpen → synlig med spinner)
+  //   2. getUserMedia (user gesture-kontekst bevares gjennom await)
+  //   3. Fest stream til video-elementet DIREKTE via DOM
+  //   4. await video.play() – vent til video faktisk spiller
+  //   5. Oppdater React state
   async function handleOpenCamera() {
     setCameraError(null)
-    const result = await startCameraStream()
-    if ('error' in result) { setCameraError(result.error); return }
+    setCameraOpen(true) // 1. Vis modal umiddelbart (spinner)
 
-    // Fest stream til video-element umiddelbart – ikke vent på React re-render
-    const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
-    if (video) {
-      video.srcObject = result.stream
-      video.play().catch(() => {})
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Kamera er ikke tilgjengelig. Sjekk at siden bruker HTTPS.')
+      return
     }
 
-    setCameraStream(result.stream)
+    try {
+      // 2. Hent stream (user gesture-kontekst bevares gjennom await i Safari)
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+
+      // 3. Fest til video-elementet via DOM – det er allerede synlig pga. setCameraOpen(true)
+      const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
+      if (video) {
+        video.srcObject = stream
+        await video.play() // 4. AWAIT play – akkurat som baseball-appen
+      }
+
+      // 5. Oppdater React state
+      setCameraStream(stream)
+    } catch (err: unknown) {
+      const name = err instanceof Error ? err.name : ''
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setCameraError('Kameratilgang er blokkert. Gi tillatelse i nettleserens adresselinje og prøv igjen.')
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setCameraError('Ingen kamera funnet. Koble til et kamera eller aktiver iPhone Continuity Camera.')
+      } else {
+        setCameraError('Kunne ikke starte kamera. Sjekk at ingen andre apper bruker det.')
+      }
+    }
   }
 
   function handleCloseCamera() {
+    // Stopp stream
+    cameraStream?.getTracks().forEach((t) => t.stop())
+    const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
+    if (video) video.srcObject = null
     setCameraStream(null)
+    setCameraOpen(false)
     setCameraError(null)
   }
 
   return (
     <>
       <CameraModal
+        isOpen={cameraOpen}
         stream={cameraStream}
         onCapture={(file) => handleFileSelect(file)}
         onClose={handleCloseCamera}
@@ -652,6 +664,7 @@ function NoteEditor({
   const [content, setContent] = useState(note.content)
   const [stopId, setStopId] = useState<string | null>(note.stop_id)
   const [noteDate, setNoteDate] = useState<string | null>(note.note_date)
+  const [cameraOpen, setCameraOpen] = useState(false)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -731,25 +744,37 @@ function NoteEditor({
   })
 
   async function handleOpenCamera() {
-    const result = await startCameraStream()
-    if ('error' in result) return
+    setCameraOpen(true)
+    if (!navigator.mediaDevices?.getUserMedia) return
 
-    // Fest stream til video-element umiddelbart – ikke vent på React re-render
-    const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
-    if (video) {
-      video.srcObject = result.stream
-      video.play().catch(() => {})
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
+      if (video) {
+        video.srcObject = stream
+        await video.play()
+      }
+      setCameraStream(stream)
+    } catch {
+      // Feil håndteres av CameraModal
     }
+  }
 
-    setCameraStream(result.stream)
+  function handleCloseCamera() {
+    cameraStream?.getTracks().forEach((t) => t.stop())
+    const video = document.getElementById('camera-preview-video') as HTMLVideoElement | null
+    if (video) video.srcObject = null
+    setCameraStream(null)
+    setCameraOpen(false)
   }
 
   return (
     <>
       <CameraModal
+        isOpen={cameraOpen}
         stream={cameraStream}
         onCapture={(file) => uploadImage(file)}
-        onClose={() => setCameraStream(null)}
+        onClose={handleCloseCamera}
       />
     <div className="flex-1 flex flex-col h-full overflow-hidden">
 
