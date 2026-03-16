@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Plus, Trash2, FileText, ImageIcon, Loader2, X, Archive, RotateCcw } from 'lucide-react'
+import { Plus, Trash2, FileText, ImageIcon, Loader2, X, Archive, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useTrips } from '@/hooks/useTrips'
 import { useNotes } from '@/hooks/useNotes'
@@ -46,6 +46,9 @@ export default function NotesPage() {
   const [showDraft, setShowDraft] = useState(false)
   const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null)
 
+  // Mobil: 'list' viser notat-lista, 'editor' viser editoren
+  const [mobileView, setMobileView] = useState<'list' | 'editor'>('list')
+
   // Stop order map for sorting
   const stopOrderMap = useMemo(() => {
     const map: Record<string, number> = {}
@@ -75,6 +78,7 @@ export default function NotesPage() {
     setSelectedNoteId(null)
     setConfirmArchiveId(null)
     setShowDraft(!!currentTrip)
+    setMobileView('list')
   }, [currentTrip?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Draft handlers ---
@@ -94,19 +98,22 @@ export default function NotesPage() {
 
   function handleDraftDiscard() {
     setShowDraft(false)
+    setMobileView('list')
     if (sortedNotes.length > 0) setSelectedNoteId(sortedNotes[0].id)
   }
 
-  // Select an existing note (hides draft without saving)
+  // Select an existing note
   function handleSelectNote(id: string) {
     setShowDraft(false)
     setSelectedNoteId(id)
+    setMobileView('editor')
   }
 
-  // "+" button: if draft already visible, focus it; otherwise show new draft
+  // "+" button: show new draft
   function handleAddNote() {
     setShowDraft(true)
     setSelectedNoteId(null)
+    setMobileView('editor')
   }
 
   async function handleArchiveNote(id: string) {
@@ -115,6 +122,11 @@ export default function NotesPage() {
       const remaining = sortedNotes.filter((n) => n.id !== id)
       setSelectedNoteId(remaining.length > 0 ? remaining[0].id : null)
     }
+    setMobileView('list')
+  }
+
+  function handleBackToList() {
+    setMobileView('list')
   }
 
   const selectedNote = showDraft
@@ -159,8 +171,16 @@ export default function NotesPage() {
         </div>
       )}
 
-      {/* ── Left sidebar ────────────────────────────────────────────────── */}
-      <div className="w-[240px] min-w-[200px] h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0">
+      {/* ── Left sidebar / notat-liste ───────────────────────────────────
+          Desktop: alltid synlig (w-[240px])
+          Mobil:   full bredde når mobileView === 'list', skjult ellers    */}
+      <div className={[
+        'h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0',
+        // Desktop: fast bredde, alltid synlig
+        'md:w-[240px] md:min-w-[200px] md:flex',
+        // Mobil: full bredde når vi er i list-view, skjult ellers
+        mobileView === 'list' ? 'flex w-full' : 'hidden',
+      ].join(' ')}>
         <TripManager
           trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
           onSelectTrip={setCurrentTrip} onCreateTrip={createTrip} onDeleteTrip={deleteTrip}
@@ -229,7 +249,7 @@ export default function NotesPage() {
                     )}
                   </button>
 
-                  {/* Delete → moves to archive with confirmation */}
+                  {/* Slett → arkiv med bekreftelse */}
                   <button
                     onClick={() => setConfirmArchiveId(note.id)}
                     className="opacity-0 group-hover/note:opacity-100 transition-opacity px-2 text-slate-600 hover:text-red-400 flex-shrink-0"
@@ -257,16 +277,29 @@ export default function NotesPage() {
         )}
       </div>
 
-      {/* ── Editor area ─────────────────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* ── Editor area ──────────────────────────────────────────────────
+          Desktop: alltid synlig (flex-1)
+          Mobil:   full bredde når mobileView === 'editor', skjult ellers */}
+      <div className={[
+        'flex overflow-hidden',
+        // Desktop: alltid synlig, tar resterende plass
+        'md:flex md:flex-1',
+        // Mobil: full bredde i editor-view, skjult ellers
+        mobileView === 'editor' ? 'flex flex-1' : 'hidden',
+      ].join(' ')}>
         {!currentTrip ? (
           <EmptyState message="Velg en tur til venstre for å se notater" />
         ) : showDraft ? (
-          <DraftEditor onSave={handleDraftSave} onDiscard={handleDraftDiscard} />
+          <DraftEditor
+            onSave={handleDraftSave}
+            onDiscard={handleDraftDiscard}
+            onBack={handleBackToList}
+          />
         ) : !selectedNote ? (
           <EmptyState
             message="Velg et notat eller opprett et nytt"
             action={{ label: '+ Nytt notat', onClick: handleAddNote }}
+            onBack={handleBackToList}
           />
         ) : (
           <NoteEditor
@@ -275,6 +308,7 @@ export default function NotesPage() {
             onUpdate={updateNote}
             onRequestDelete={(id) => setConfirmArchiveId(id)}
             stops={stops}
+            onBack={handleBackToList}
           />
         )}
       </div>
@@ -287,9 +321,11 @@ export default function NotesPage() {
 function DraftEditor({
   onSave,
   onDiscard,
+  onBack,
 }: {
   onSave: (title: string, content: string) => Promise<void>
   onDiscard: () => void
+  onBack: () => void
 }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -324,7 +360,15 @@ function DraftEditor({
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Title row */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-800 flex-shrink-0">
+      <div className="flex items-center gap-2 px-4 md:px-6 py-3 border-b border-slate-800 flex-shrink-0">
+        {/* Tilbake-pil kun på mobil */}
+        <button
+          onClick={onBack}
+          className="md:hidden p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0"
+          title="Tilbake til listen"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
         <input
           ref={titleRef}
           value={title}
@@ -346,11 +390,11 @@ function DraftEditor({
         value={content}
         onChange={(e) => handleContentChange(e.target.value)}
         placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
-        className="flex-1 bg-transparent text-slate-300 text-sm px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
+        className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
       />
 
       {/* Footer hint */}
-      <div className="px-6 py-2 border-t border-slate-800 flex-shrink-0">
+      <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0">
         <p className="text-[11px] text-slate-600 italic">Lagres automatisk når du begynner å skrive</p>
       </div>
     </div>
@@ -366,11 +410,13 @@ function NoteEditor({
   onUpdate,
   onRequestDelete,
   stops,
+  onBack,
 }: {
   note: Note
   onUpdate: (id: string, updates: NoteUpdates) => void
   onRequestDelete: (id: string) => void
   stops: Stop[]
+  onBack: () => void
 }) {
   const [title, setTitle] = useState(note.title ?? '')
   const [content, setContent] = useState(note.content)
@@ -448,7 +494,15 @@ function NoteEditor({
     <div className="flex-1 flex flex-col h-full overflow-hidden">
 
       {/* Title row */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-800 flex-shrink-0">
+      <div className="flex items-center gap-2 px-4 md:px-6 py-3 border-b border-slate-800 flex-shrink-0">
+        {/* Tilbake-pil kun på mobil */}
+        <button
+          onClick={onBack}
+          className="md:hidden p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0"
+          title="Tilbake til listen"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
         <input
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
@@ -465,7 +519,7 @@ function NoteEditor({
       </div>
 
       {/* City + date linking */}
-      <div className="px-6 py-3 border-b border-slate-800 flex-shrink-0 space-y-2">
+      <div className="px-4 md:px-6 py-3 border-b border-slate-800 flex-shrink-0 space-y-2">
         <div className="flex items-center gap-3">
           <span className="text-[11px] text-slate-500 w-12 flex-shrink-0">By</span>
           <select
@@ -517,7 +571,7 @@ function NoteEditor({
           onChange={(e) => handleContentChange(e.target.value)}
           onPaste={handlePaste}
           placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
-          className="flex-1 bg-transparent text-slate-300 text-sm px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
+          className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
         />
 
         {images.length > 0 && (
@@ -539,7 +593,7 @@ function NoteEditor({
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
+      <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
         <p className="text-[11px] text-slate-600">Sist oppdatert {updatedLabel}</p>
         <label
           title="Last opp bilde (eller lim inn med ⌘V)"
@@ -567,24 +621,40 @@ function NoteEditor({
 function EmptyState({
   message,
   action,
+  onBack,
 }: {
   message: string
   action?: { label: string; onClick: () => void }
+  onBack?: () => void
 }) {
   return (
-    <div className="flex flex-col items-center justify-center flex-1 text-center px-8">
-      <div className="bg-slate-800 rounded-full p-5 mb-4">
-        <FileText className="w-10 h-10 text-slate-600" />
-      </div>
-      <p className="text-slate-400 text-sm max-w-xs">{message}</p>
-      {action && (
-        <button
-          onClick={action.onClick}
-          className="mt-4 text-sm text-blue-400 hover:text-blue-300 transition-colors"
-        >
-          {action.label}
-        </button>
+    <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Tilbake-pil på mobil */}
+      {onBack && (
+        <div className="md:hidden px-4 py-3 border-b border-slate-800 flex-shrink-0">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Tilbake
+          </button>
+        </div>
       )}
+      <div className="flex flex-col items-center justify-center flex-1 text-center px-8">
+        <div className="bg-slate-800 rounded-full p-5 mb-4">
+          <FileText className="w-10 h-10 text-slate-600" />
+        </div>
+        <p className="text-slate-400 text-sm max-w-xs">{message}</p>
+        {action && (
+          <button
+            onClick={action.onClick}
+            className="mt-4 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            {action.label}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
