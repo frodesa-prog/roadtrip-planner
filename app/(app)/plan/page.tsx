@@ -131,7 +131,7 @@ export default function PlanPage() {
         {selectedStop && (
           <div className={`
             ${mobileView === 'detaljer' ? 'flex' : 'hidden'} md:flex
-            w-full md:w-[300px] flex-shrink-0 h-full border-r border-slate-700/50 overflow-hidden shadow-xl
+            w-full md:w-[370px] flex-shrink-0 h-full border-r border-slate-700/50 overflow-hidden shadow-xl
           `}>
             <StopDetailPanel
               stop={selectedStop}
