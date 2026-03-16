@@ -156,32 +156,14 @@ async function populateCameraList() {
   }
 }
 
-// Bytt kamera – kopierer baseball-appens switchCamera()
+// Bytt kamera – bruker startCameraStream med spesifikt deviceId
 async function switchCamera(deviceId: string) {
   if (!_cameraVideo) return
-  // Stopp forrige stream
-  if (_cameraStream) {
-    _cameraStream.getTracks().forEach((t) => t.stop())
-  }
   try {
-    const newStream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId: { exact: deviceId } },
-      audio: false,
-    })
-    _cameraStream = newStream
-    _cameraVideo.srcObject = newStream
-    await _cameraVideo.play()
+    await startCameraStream(_cameraVideo, deviceId)
+    populateCameraList()
   } catch (err) {
-    console.error('Switch camera error:', err)
-    // Prøv fallback uten constraint
-    try {
-      const fallback = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      _cameraStream = fallback
-      _cameraVideo.srcObject = fallback
-      await _cameraVideo.play()
-    } catch {
-      // Gi opp
-    }
+    console.error('[Camera] Switch camera error:', err)
   }
 }
 
@@ -215,6 +197,65 @@ function capturePhoto() {
   }, 'image/jpeg', 0.9)
 }
 
+// Koble kamera med constraints (brukes av openCameraCapture og auto-reconnect)
+// Matcher baseball-appens startCamera() med HD-oppløsning + facingMode
+async function startCameraStream(video: HTMLVideoElement, deviceId?: string): Promise<MediaStream> {
+  const constraints: MediaStreamConstraints = {
+    video: deviceId
+      ? { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+      : { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    audio: false,
+  }
+  console.log('[Camera] getUserMedia constraints:', JSON.stringify(constraints))
+
+  let stream: MediaStream
+  try {
+    stream = await navigator.mediaDevices.getUserMedia(constraints)
+  } catch {
+    // Fallback uten constraints (som baseball-appen)
+    console.log('[Camera] Constraints failed, falling back to { video: true }')
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+  }
+
+  // Stopp evt. forrige stream
+  if (_cameraStream && _cameraStream !== stream) {
+    _cameraStream.getTracks().forEach((t) => t.stop())
+  }
+  _cameraStream = stream
+
+  const track = stream.getVideoTracks()[0]
+  console.log('[Camera] Stream obtained:',
+    'active:', stream.active,
+    'track:', track?.readyState,
+    'settings:', JSON.stringify(track?.getSettings()))
+
+  // Fest til video
+  video.srcObject = stream
+  video.play().catch((err) => console.error('[Camera] play() error:', err))
+
+  // Auto-reconnect ved capture failure
+  track?.addEventListener('ended', () => {
+    console.log('[Camera] ⚠ Track ended – capture failure. Auto-reconnecting...')
+    // Bare reconnect hvis modalen fortsatt er åpen
+    if (_cameraModal?.style.display === 'flex') {
+      const failedDeviceId = track.getSettings()?.deviceId
+      // Liten forsinkelse så Continuity Camera får tid til å resette
+      setTimeout(() => {
+        if (_cameraModal?.style.display === 'flex') {
+          startCameraStream(video, failedDeviceId).then(() => {
+            console.log('[Camera] ✓ Auto-reconnect successful')
+            populateCameraList()
+          }).catch((err) => {
+            console.error('[Camera] Auto-reconnect failed:', err)
+          })
+        }
+      }, 1000)
+    }
+  })
+
+  return stream
+}
+
 /** Åpner kamera-modal og returnerer bildefil (eller null ved avbryt).
  *  Må kalles fra click-handler for å bevare user gesture-kontekst. */
 async function openCameraCapture(): Promise<File | null> {
@@ -234,72 +275,23 @@ async function openCameraCapture(): Promise<File | null> {
       'videoWidth:', video.videoWidth, 'videoHeight:', video.videoHeight)
     if (spinner) spinner.style.display = 'none'
     if (shutter) { shutter.disabled = false; shutter.style.opacity = '1' }
-    populateCameraList()
   }
 
-  // 2. Hent stream
+  // Lytt etter video-events (vedvarer for reconnects)
+  video.addEventListener('loadeddata', () => onVideoReady())
+  video.addEventListener('playing', () => onVideoReady())
+
+  // 2. Start kamera med HD-constraints (matcher baseball-appen)
   try {
-    console.log('[Camera] 2. Calling getUserMedia...')
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-    _cameraStream = stream
-    const tracks = stream.getVideoTracks()
-    console.log('[Camera] 3. Stream obtained:',
-      'active:', stream.active,
-      'tracks:', tracks.length,
-      'track.readyState:', tracks[0]?.readyState,
-      'track.enabled:', tracks[0]?.enabled,
-      'settings:', JSON.stringify(tracks[0]?.getSettings()))
-
-    // Lytt på track ended-event for diagnostikk
-    tracks[0]?.addEventListener('ended', () => {
-      console.log('[Camera] ⚠ Track ended! Stream active:', stream.active)
-    })
-
-    // 3. Fest til video-element
-    video.srcObject = stream
-    console.log('[Camera] 4. srcObject set, calling play()...')
-
-    // IKKE await play() – bruk event-lyttere i stedet.
-    // await play() kan henge med Continuity Camera hvis video-elementet
-    // ikke kan dekode frames raskt nok.
-    video.play().then(() => {
-      console.log('[Camera] 5a. play() resolved, readyState:', video.readyState)
-    }).catch((err) => {
-      console.error('[Camera] 5b. play() rejected:', err?.name, err?.message)
-    })
-
-    // Bruk flere event-lyttere for å fange opp når video er klar
-    video.addEventListener('loadeddata', () => {
-      console.log('[Camera] Event: loadeddata, readyState:', video.readyState)
-      onVideoReady()
-    }, { once: true })
-    video.addEventListener('playing', () => {
-      console.log('[Camera] Event: playing')
-      onVideoReady()
-    }, { once: true })
-    video.addEventListener('canplay', () => {
-      console.log('[Camera] Event: canplay, readyState:', video.readyState)
-      onVideoReady()
-    }, { once: true })
-
-    // Timeout: hvis ingenting skjer etter 8 sek, logg status
-    setTimeout(() => {
-      console.log('[Camera] 8s timeout check:',
-        'stream.active:', stream.active,
-        'track.readyState:', tracks[0]?.readyState,
-        'video.readyState:', video.readyState,
-        'video.paused:', video.paused,
-        'video.videoWidth:', video.videoWidth,
-        'video.networkState:', video.networkState)
-    }, 8000)
-
+    await startCameraStream(video)
+    populateCameraList()
   } catch (err) {
     console.error('[Camera] getUserMedia error:', err)
     closeCamera(null)
     return null
   }
 
-  // 4. Returner promise som resolves når bruker tar bilde eller lukker
+  // 3. Returner promise som resolves når bruker tar bilde eller lukker
   return new Promise<File | null>((resolve) => {
     _resolveCapture = resolve
   })
