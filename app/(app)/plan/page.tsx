@@ -6,6 +6,7 @@ import PlanSidebar from '@/components/planning/PlanSidebar'
 import CityPlanSidebar from '@/components/planning/CityPlanSidebar'
 import CityDayPanel from '@/components/planning/CityDayPanel'
 import CityMapPinModal from '@/components/planning/CityMapPinModal'
+import CityTripOverviewModal from '@/components/planning/CityTripOverviewModal'
 import PlanningMap from '@/components/map/PlanningMap'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import { useTrips } from '@/hooks/useTrips'
@@ -31,6 +32,7 @@ export default function PlanPage() {
   const [citySearchCenter, setCitySearchCenter] = useState<{ lat: number; lng: number } | null>(null)
   const [cityZoomVersion, setCityZoomVersion] = useState(0)
   const [cityMapPinPending, setCityMapPinPending] = useState<{ lat: number; lng: number } | null>(null)
+  const [showCityOverview, setShowCityOverview] = useState(false)
 
   const {
     trips, currentTrip, loading: tripsLoading, userId,
@@ -259,6 +261,7 @@ export default function PlanPage() {
               onUpdateGroupDescription={(desc) =>
                 currentTrip && updateTrip(currentTrip.id, { group_description: desc })
               }
+              onOpenOverview={() => setShowCityOverview(true)}
             />
           )}
         </div>
@@ -377,6 +380,21 @@ export default function PlanPage() {
           defaultDate={selectedDayStr}
           onConfirm={handleCityMapPinConfirm}
           onCancel={() => setCityMapPinPending(null)}
+        />
+      )}
+
+      {/* City trip overview modal */}
+      {showCityOverview && currentTrip && cityStop && (
+        <CityTripOverviewModal
+          trip={currentTrip}
+          activities={activities.filter((a) => a.stop_id === cityStop.id)}
+          dining={dining.filter((d) => d.stop_id === cityStop.id)}
+          notes={notes}
+          stopId={cityStop.id}
+          onSelectDay={(day) => {
+            handleSelectDay(day)
+          }}
+          onClose={() => setShowCityOverview(false)}
         />
       )}
     </div>

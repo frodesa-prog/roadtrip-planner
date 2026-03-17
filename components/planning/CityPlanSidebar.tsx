@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   ChevronDown, ChevronRight, Hotel as HotelIcon, MapPin,
-  UtensilsCrossed, Plus, Moon, ExternalLink, Navigation, Loader2,
+  UtensilsCrossed, Plus, Moon, ExternalLink, Navigation, Loader2, LayoutList,
 } from 'lucide-react'
 import { Trip, Stop, Activity, Dining, PossibleActivity, NewTripData } from '@/types'
 import TripManager from './TripManager'
@@ -266,6 +266,7 @@ interface CityPlanSidebarProps {
   onMoveHotelPin?: (lat: number, lng: number) => void
   onZoomToCity?: () => void
   onUpdateGroupDescription?: (desc: string) => void
+  onOpenOverview?: () => void
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -278,6 +279,7 @@ export default function CityPlanSidebar({
   onMoveHotelPin,
   onZoomToCity,
   onUpdateGroupDescription,
+  onOpenOverview,
 }: CityPlanSidebarProps) {
   const [showWizard, setShowWizard] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
@@ -383,8 +385,18 @@ export default function CityPlanSidebar({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-slate-800 flex-shrink-0">
-        <p className="text-[10px] text-slate-600 text-center">Alle endringer lagres automatisk</p>
+      <div className="px-4 py-2 border-t border-slate-800 flex-shrink-0 flex items-center justify-between">
+        <p className="text-[10px] text-slate-600">Alle endringer lagres automatisk</p>
+        {onOpenOverview && days.length > 0 && (
+          <button
+            onClick={onOpenOverview}
+            title="Vis reiseoversikt"
+            className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-400 transition-colors"
+          >
+            <LayoutList className="w-3 h-3" />
+            Oversikt
+          </button>
+        )}
       </div>
 
       {/* Delete confirm */}
