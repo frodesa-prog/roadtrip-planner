@@ -55,6 +55,7 @@ export const AIRPORTS: Airport[] = [
   { city: 'København',       name: 'Kastrup',                       code: 'CPH', offsetFromNorway: 0 },
   { city: 'Palma',           name: 'Son Sant Joan',                 code: 'PMI', offsetFromNorway: 0 },
   { city: 'Athen',           name: 'Eleftherios Venizelos',         code: 'ATH', offsetFromNorway: 1 },
+  { city: 'Chania',          name: 'Ioannis Daskalogiannis',        code: 'CHQ', offsetFromNorway: 1 },
   { city: 'Istanbul',        name: 'Istanbul Airport',              code: 'IST', offsetFromNorway: 2 },
   { city: 'Moskva',          name: 'Sheremetyevo',                  code: 'SVO', offsetFromNorway: 2 },
   // ── Midtøsten ─────────────────────────────────────────────────────────────
