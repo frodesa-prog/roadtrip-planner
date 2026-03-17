@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   ChevronDown, ChevronRight, Hotel as HotelIcon, MapPin,
-  UtensilsCrossed, Calendar, Plus, Moon, Check,
+  UtensilsCrossed, Plus, Moon, ExternalLink, Navigation, Loader2,
 } from 'lucide-react'
-import { Trip, Stop, Hotel, Activity, Dining, PossibleActivity, NewTripData } from '@/types'
+import { Trip, Stop, Activity, Dining, PossibleActivity, NewTripData } from '@/types'
 import TripManager from './TripManager'
 import TripPanels from './TripPanels'
 import NewTripWizard from './NewTripWizard'
@@ -27,36 +27,61 @@ function formatDayHeader(dateStr: string, index: number): string {
   return `Dag ${index + 1} – ${weekdays[d.getDay()]} ${d.getDate()}. ${months[d.getMonth()]}`
 }
 
-// ── Props ──────────────────────────────────────────────────────────────────────
-
-interface CityPlanSidebarProps {
-  trips: Trip[]
-  currentTrip: Trip
-  tripsLoading: boolean
-  userId?: string | null
-  stop: Stop | null            // The single city stop (auto-created)
-  activities: Activity[]
-  dining: Dining[]
-  possibleActivities: PossibleActivity[]
-  selectedDayStr: string | null
-  onSelectDay: (day: string | null) => void
-  onSelectActivity?: (id: string) => void
-  onSelectDining?: (id: string) => void
-  onSelectTrip: (trip: Trip) => void
-  onCreateTrip: (data: NewTripData) => Promise<Trip | null>
-  onDeleteTrip: (id: string) => void
-  onUpdateGroupDescription?: (desc: string) => void
-}
-
 // ── Hotel section ──────────────────────────────────────────────────────────────
 
-function HotelSection({ stopId }: { stopId: string }) {
-  const { hotels, saveHotel } = useHotels([stopId])
+function HotelSection({
+  stopId,
+  onMovePin,
+}: {
+  stopId: string
+  onMovePin?: (lat: number, lng: number) => void
+}) {
+  const { hotels, saveHotel, loading } = useHotels([stopId])
   const hotel = hotels.find((h) => h.stop_id === stopId) ?? null
-  const [editing, setEditing] = useState(!hotel?.name)
+
+  const [editing, setEditing] = useState(true)
+  const initialized = useRef(false)
+  const [geocoding, setGeocoding] = useState(false)
+
+  // Only auto-close editing once hotels data has actually loaded
+  useEffect(() => {
+    if (!loading && !initialized.current) {
+      initialized.current = true
+      setEditing(!hotel?.name)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
 
   function save(field: 'name' | 'address' | 'url', value: string) {
     saveHotel(stopId, { [field]: value || null })
+  }
+
+  async function geocodeAddress() {
+    if (!hotel?.address && !hotel?.name) return
+    const query = hotel.address || hotel.name
+    setGeocoding(true)
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+      const res = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query!)}&key=${apiKey}`
+      )
+      const json = await res.json()
+      const loc = json.results?.[0]?.geometry?.location
+      if (loc && onMovePin) {
+        onMovePin(loc.lat, loc.lng)
+      }
+    } finally {
+      setGeocoding(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="px-4 py-3 border-b border-slate-800 bg-slate-800/30 flex-shrink-0 flex items-center gap-2">
+        <HotelIcon className="w-3.5 h-3.5 text-amber-400" />
+        <Loader2 className="w-3.5 h-3.5 text-slate-500 animate-spin" />
+      </div>
+    )
   }
 
   return (
@@ -64,6 +89,16 @@ function HotelSection({ stopId }: { stopId: string }) {
       <div className="flex items-center gap-2 mb-2">
         <HotelIcon className="w-3.5 h-3.5 text-amber-400" />
         <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Hotell</span>
+        {hotel?.address && onMovePin && (
+          <button
+            onClick={geocodeAddress}
+            disabled={geocoding}
+            title="Flytt kartet til hotellets adresse"
+            className="text-slate-500 hover:text-blue-400 transition-colors disabled:opacity-50"
+          >
+            {geocoding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Navigation className="w-3 h-3" />}
+          </button>
+        )}
         <button
           onClick={() => setEditing((e) => !e)}
           className="ml-auto text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
@@ -97,17 +132,20 @@ function HotelSection({ stopId }: { stopId: string }) {
           />
         </div>
       ) : hotel?.name ? (
-        <div>
-          <p className="text-sm font-medium text-slate-200">{hotel.name}</p>
-          {hotel.address && <p className="text-xs text-slate-400 mt-0.5">{hotel.address}</p>}
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-slate-200">{hotel.name}</p>
+            {hotel.address && <p className="text-xs text-slate-400 mt-0.5">{hotel.address}</p>}
+          </div>
           {hotel.url && (
             <a
               href={hotel.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[10px] text-blue-400 hover:underline mt-0.5 block truncate"
+              title={hotel.url}
+              className="flex-shrink-0 text-slate-500 hover:text-blue-400 transition-colors mt-0.5"
             >
-              {hotel.url}
+              <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
         </div>
@@ -132,8 +170,6 @@ function DayRow({
   dining,
   isSelected,
   onToggle,
-  onSelectActivity,
-  onSelectDining,
 }: {
   dateStr: string
   index: number
@@ -141,8 +177,6 @@ function DayRow({
   dining: Dining[]
   isSelected: boolean
   onToggle: () => void
-  onSelectActivity?: (id: string) => void
-  onSelectDining?: (id: string) => void
 }) {
   const hasItems = activities.length > 0 || dining.length > 0
 
@@ -151,7 +185,7 @@ function DayRow({
       <button
         onClick={onToggle}
         className={`w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors ${
-          isSelected ? 'bg-blue-900/20' : 'hover:bg-slate-800/40'
+          isSelected ? 'bg-blue-900/20 border-l-2 border-blue-500' : 'hover:bg-slate-800/40'
         }`}
       >
         {isSelected ? (
@@ -169,41 +203,55 @@ function DayRow({
         )}
       </button>
 
+      {/* Mini preview when expanded – full editing in the right panel */}
       {isSelected && (
         <div className="pb-2 px-4 space-y-1">
           {activities.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => onSelectActivity?.(a.id)}
-              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-left transition-colors"
-            >
+            <div key={a.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60">
               <MapPin className="w-3 h-3 text-blue-400 flex-shrink-0" />
-              <span className="text-xs text-slate-200 flex-1 truncate">{a.name}</span>
+              <span className="text-xs text-slate-300 flex-1 truncate">{a.name}</span>
               {a.activity_time && (
                 <span className="text-[10px] text-slate-500 flex-shrink-0">{a.activity_time}</span>
               )}
-            </button>
+            </div>
           ))}
           {dining.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => onSelectDining?.(d.id)}
-              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 text-left transition-colors"
-            >
+            <div key={d.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60">
               <UtensilsCrossed className="w-3 h-3 text-orange-400 flex-shrink-0" />
-              <span className="text-xs text-slate-200 flex-1 truncate">{d.name}</span>
+              <span className="text-xs text-slate-300 flex-1 truncate">{d.name}</span>
               {d.booking_time && (
                 <span className="text-[10px] text-slate-500 flex-shrink-0">{d.booking_time}</span>
               )}
-            </button>
+            </div>
           ))}
           {!hasItems && (
-            <p className="text-xs text-slate-600 italic px-3 py-1">Ingen aktiviteter planlagt</p>
+            <p className="text-xs text-slate-600 italic px-3 py-1">Klikk for å planlegge dagen →</p>
           )}
         </div>
       )}
     </div>
   )
+}
+
+// ── Props ──────────────────────────────────────────────────────────────────────
+
+interface CityPlanSidebarProps {
+  trips: Trip[]
+  currentTrip: Trip
+  tripsLoading: boolean
+  userId?: string | null
+  stop: Stop | null
+  activities: Activity[]
+  dining: Dining[]
+  possibleActivities: PossibleActivity[]
+  selectedDayStr: string | null
+  onSelectDay: (day: string | null) => void
+  onSelectTrip: (trip: Trip) => void
+  onCreateTrip: (data: NewTripData) => Promise<Trip | null>
+  onDeleteTrip: (id: string) => void
+  onMoveHotelPin?: (lat: number, lng: number) => void
+  onZoomToCity?: () => void
+  onUpdateGroupDescription?: (desc: string) => void
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -212,8 +260,9 @@ export default function CityPlanSidebar({
   trips, currentTrip, tripsLoading, userId,
   stop, activities, dining,
   selectedDayStr, onSelectDay,
-  onSelectActivity, onSelectDining,
   onSelectTrip, onCreateTrip, onDeleteTrip,
+  onMoveHotelPin,
+  onZoomToCity,
   onUpdateGroupDescription,
 }: CityPlanSidebarProps) {
   const [showWizard, setShowWizard] = useState(false)
@@ -260,10 +309,15 @@ export default function CityPlanSidebar({
         onUpdateGroupDescription={onUpdateGroupDescription}
       />
 
-      {/* Hotel (static) */}
-      {stop && <HotelSection stopId={stop.id} />}
+      {/* Hotel (static, always visible) */}
+      {stop && (
+        <HotelSection
+          stopId={stop.id}
+          onMovePin={onMoveHotelPin}
+        />
+      )}
 
-      {/* Stats */}
+      {/* Stats row */}
       <div className="px-4 py-2 border-b border-slate-800 bg-slate-800/30 flex items-center gap-4 flex-shrink-0">
         <div className="flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5 text-blue-400" />
@@ -277,11 +331,17 @@ export default function CityPlanSidebar({
             <span className="text-white font-semibold">{nights}</span> netter
           </span>
         </div>
-        {currentTrip.destination_city && (
-          <div className="ml-auto flex items-center gap-1 text-xs text-slate-500">
-            <span>{currentTrip.destination_city}</span>
-            {currentTrip.destination_country && <span>· {currentTrip.destination_country}</span>}
-          </div>
+        {(currentTrip.destination_city || currentTrip.destination_country) && (
+          <button
+            onClick={onZoomToCity}
+            title="Zoom til destinasjon i kartet"
+            className="ml-auto flex items-center gap-1 text-xs text-slate-500 hover:text-blue-400 transition-colors"
+          >
+            <Navigation className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate max-w-[100px]">
+              {[currentTrip.destination_city, currentTrip.destination_country].filter(Boolean).join(', ')}
+            </span>
+          </button>
         )}
       </div>
 
@@ -289,7 +349,7 @@ export default function CityPlanSidebar({
       <div className="flex-1 overflow-y-auto">
         {days.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6 py-8">
-            <Calendar className="w-8 h-8 text-slate-600 mb-3" />
+            <MapPin className="w-8 h-8 text-slate-600 mb-3" />
             <p className="text-sm text-slate-400 font-medium">Ingen datoer satt</p>
             <p className="text-xs text-slate-600 mt-1">Datoer settes i opprettelsesvinduet for turen.</p>
           </div>
@@ -299,16 +359,10 @@ export default function CityPlanSidebar({
               key={dateStr}
               dateStr={dateStr}
               index={i}
-              activities={activities.filter(
-                (a) => a.activity_date === dateStr
-              )}
-              dining={dining.filter(
-                (d) => d.booking_date === dateStr
-              )}
+              activities={activities.filter(a => a.activity_date === dateStr)}
+              dining={dining.filter(d => d.booking_date === dateStr)}
               isSelected={selectedDayStr === dateStr}
               onToggle={() => onSelectDay(selectedDayStr === dateStr ? null : dateStr)}
-              onSelectActivity={onSelectActivity}
-              onSelectDining={onSelectDining}
             />
           ))
         )}
