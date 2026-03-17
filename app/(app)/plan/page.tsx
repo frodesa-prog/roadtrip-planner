@@ -117,6 +117,7 @@ export default function PlanPage() {
     name: string,
     time: string,
     date: string | null,
+    setAsStartPin: boolean,
   ) {
     if (!cityMapPinPending || !cityStop) return
     const { lat, lng } = cityMapPinPending
@@ -136,6 +137,9 @@ export default function PlanPage() {
         map_lat: lat,
         map_lng: lng,
       })
+    }
+    if (setAsStartPin) {
+      updateStop(cityStop.id, { lat, lng })
     }
     setCityMapPinPending(null)
   }

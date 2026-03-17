@@ -15,6 +15,7 @@ interface CityMapPinModalProps {
     name: string,
     time: string,
     date: string | null,
+    setAsStartPin: boolean,
   ) => void
   onCancel: () => void
 }
@@ -25,15 +26,16 @@ export default function CityMapPinModal({
   onConfirm,
   onCancel,
 }: CityMapPinModalProps) {
-  const [pinType, setPinType] = useState<PinType>('activity')
-  const [name, setName]       = useState('')
-  const [time, setTime]       = useState('')
-  const [date, setDate]       = useState(defaultDate ?? '')
+  const [pinType, setPinType]         = useState<PinType>('activity')
+  const [name, setName]               = useState('')
+  const [time, setTime]               = useState('')
+  const [date, setDate]               = useState(defaultDate ?? '')
+  const [setAsStartPin, setSetAsStartPin] = useState(false)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    onConfirm(pinType, name.trim(), time, date || null)
+    onConfirm(pinType, name.trim(), time, date || null, setAsStartPin)
   }
 
   return (
@@ -127,6 +129,17 @@ export default function CityMapPinModal({
               />
             </div>
           </div>
+
+          {/* Set as start pin checkbox */}
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={setAsStartPin}
+              onChange={(e) => setSetAsStartPin(e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 accent-blue-500 cursor-pointer"
+            />
+            <span className="text-xs text-slate-400">Sett som startpunkt (blå pin)</span>
+          </label>
 
           {/* Actions */}
           <div className="flex gap-2 pt-1">
