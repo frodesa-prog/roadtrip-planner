@@ -347,7 +347,7 @@ export default function StopDetailPanel({
 
   return (
     <>
-      <div className="h-full flex flex-col bg-slate-900 border-l border-slate-800">
+      <div className="w-full min-w-0 h-full flex flex-col bg-slate-900 border-l border-slate-800 overflow-x-hidden">
         {/* Header */}
         <div className="px-4 py-3 border-b border-slate-800 flex-shrink-0">
           <div className="flex items-start justify-between gap-2">
@@ -392,7 +392,7 @@ export default function StopDetailPanel({
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 space-y-4">
 
           {/* ── Opphold ─────────────────────────────────────────────────── */}
           <section>
