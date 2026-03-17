@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   X, MapPin, UtensilsCrossed, Plus, Trash2, Pencil,
-  Lightbulb, ExternalLink, Clock,
+  Lightbulb, ExternalLink, Clock, NotebookPen,
 } from 'lucide-react'
 import { Activity, Dining, PossibleActivity } from '@/types'
 import { AddActivityData, UpdateActivityData } from '@/hooks/useActivities'
@@ -32,6 +32,10 @@ interface CityDayPanelProps {
   onAddPossibleActivity: (data: AddPossibleActivityData) => void
   onRemovePossibleActivity: (id: string) => void
   onUpdatePossibleActivity: (id: string, updates: UpdatePossibleActivityData) => void
+  /** Current saved day plan text (from notes) */
+  dayPlanText?: string
+  /** Called with the new text when the day plan textarea is blurred */
+  onSaveDayPlan?: (text: string) => void
   onClose: () => void
 }
 
@@ -52,8 +56,27 @@ export default function CityDayPanel({
   onAddActivity, onRemoveActivity, onUpdateActivity,
   onAddDining, onRemoveDining, onUpdateDining,
   onAddPossibleActivity, onRemovePossibleActivity, onUpdatePossibleActivity,
+  dayPlanText = '',
+  onSaveDayPlan,
   onClose,
 }: CityDayPanelProps) {
+
+  // ── Day plan textarea ─────────────────────────────────────────────────────
+  const [localPlan, setLocalPlan] = useState(dayPlanText)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Sync incoming text when prop changes (e.g. day switches)
+  useEffect(() => { setLocalPlan(dayPlanText) }, [dayPlanText])
+
+  // Auto-resize whenever content changes
+  const adjustHeight = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  }, [])
+
+  useEffect(() => { adjustHeight() }, [localPlan, adjustHeight])
 
   // ── Activity state ────────────────────────────────────────────────────────
   const [showAddActivity, setShowAddActivity]   = useState(false)
@@ -217,6 +240,22 @@ export default function CityDayPanel({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
+
+          {/* ── Dagsplan ───────────────────────────────────────────────────── */}
+          <section>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+              <NotebookPen className="w-3 h-3 text-slate-400" /> Plan for dagen
+            </h3>
+            <textarea
+              ref={textareaRef}
+              value={localPlan}
+              placeholder="Skriv inn planen for dagen…"
+              rows={2}
+              onChange={(e) => { setLocalPlan(e.target.value); adjustHeight() }}
+              onBlur={() => { if (onSaveDayPlan) onSaveDayPlan(localPlan) }}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none overflow-hidden leading-relaxed"
+            />
+          </section>
 
           {/* ── Aktiviteter ────────────────────────────────────────────────── */}
           <section>

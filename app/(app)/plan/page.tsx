@@ -5,6 +5,7 @@ import { Map, MapPin, FileText } from 'lucide-react'
 import PlanSidebar from '@/components/planning/PlanSidebar'
 import CityPlanSidebar from '@/components/planning/CityPlanSidebar'
 import CityDayPanel from '@/components/planning/CityDayPanel'
+import CityMapPinModal from '@/components/planning/CityMapPinModal'
 import PlanningMap from '@/components/map/PlanningMap'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import { useTrips } from '@/hooks/useTrips'
@@ -29,6 +30,7 @@ export default function PlanPage() {
   // City trip map state
   const [citySearchCenter, setCitySearchCenter] = useState<{ lat: number; lng: number } | null>(null)
   const [cityZoomVersion, setCityZoomVersion] = useState(0)
+  const [cityMapPinPending, setCityMapPinPending] = useState<{ lat: number; lng: number } | null>(null)
 
   const {
     trips, currentTrip, loading: tripsLoading, userId,
@@ -45,7 +47,7 @@ export default function PlanPage() {
   const { activities, addActivity, removeActivity, updateActivity } = useActivities(stopIds)
   const { dining, addDining, removeDining, updateDining } = useDining(stopIds)
   const { possibleActivities, addPossibleActivity, removePossibleActivity, updatePossibleActivity } = usePossibleActivities(stopIds)
-  const { notes, updateNote, deleteNote } = useNotes(currentTrip?.id ?? null)
+  const { notes, addNote, updateNote, deleteNote } = useNotes(currentTrip?.id ?? null)
   const { legs: routeLegs, loaded: routeLegsLoaded, saveLeg } = useRouteWaypoints(currentTrip?.id ?? null)
   const drivingLegs = useDrivingInfo(stops, routeLegs)
 
@@ -76,6 +78,20 @@ export default function PlanPage() {
       ))
     : 0
 
+  // Day plan note for city trips (stored in notes table with special title)
+  const dayPlanNote = (isCityTrip && cityStop && selectedDayStr)
+    ? notes.find((n) => n.stop_id === cityStop.id && n.note_date === selectedDayStr && n.title === '__day_plan__')
+    : undefined
+
+  const handleSaveDayPlan = useCallback(async (text: string) => {
+    if (!cityStop || !selectedDayStr) return
+    if (dayPlanNote) {
+      updateNote(dayPlanNote.id, { content: text })
+    } else {
+      addNote({ stop_id: cityStop.id, note_date: selectedDayStr, title: '__day_plan__', content: text })
+    }
+  }, [cityStop, selectedDayStr, dayPlanNote, updateNote, addNote])
+
   function handleAddStop(stop: Stop) {
     if (!currentTrip) return
     addStop({ ...stop, trip_id: currentTrip.id })
@@ -83,7 +99,6 @@ export default function PlanPage() {
 
   function handleSelectStop(id: string) {
     setSelectedStopId((prev) => (prev === id ? null : id))
-    // På mobil: bytt automatisk til detalj-panel når et stopp velges
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setMobileView('detaljer')
     }
@@ -91,10 +106,38 @@ export default function PlanPage() {
 
   function handleSelectDay(day: string | null) {
     setSelectedDayStr(day)
-    // På mobil: bytt til detalj-panel når en dag velges
     if (day && typeof window !== 'undefined' && window.innerWidth < 768) {
       setMobileView('detaljer')
     }
+  }
+
+  // Handle map pin confirm (activity or dining with coordinates)
+  function handleCityMapPinConfirm(
+    type: 'activity' | 'dining',
+    name: string,
+    time: string,
+    date: string | null,
+  ) {
+    if (!cityMapPinPending || !cityStop) return
+    const { lat, lng } = cityMapPinPending
+    if (type === 'activity') {
+      addActivity(cityStop.id, {
+        name,
+        activity_time: time || undefined,
+        activity_date: date || undefined,
+        map_lat: lat,
+        map_lng: lng,
+      })
+    } else {
+      addDining(cityStop.id, {
+        name,
+        booking_time: time || undefined,
+        booking_date: date || undefined,
+        map_lat: lat,
+        map_lng: lng,
+      })
+    }
+    setCityMapPinPending(null)
   }
 
   // Mobile tab label for detail panel
@@ -178,7 +221,6 @@ export default function PlanPage() {
                 if (stops[0]) updateStop(stops[0].id, { lat, lng })
               }}
               onZoomToCity={() => {
-                // Clear any search override and force re-pan to city center
                 setCitySearchCenter(null)
                 setCityZoomVersion((v) => v + 1)
               }}
@@ -189,7 +231,7 @@ export default function PlanPage() {
           )}
         </div>
 
-        {/* Detaljpanel – Road trip stop OR city day */}
+        {/* Detaljpanel – Road trip stop */}
         {!isCityTrip && selectedStop && (
           <div className={`
             ${mobileView === 'detaljer' ? 'flex' : 'hidden'} md:flex
@@ -222,6 +264,7 @@ export default function PlanPage() {
           </div>
         )}
 
+        {/* Detaljpanel – City trip day */}
         {isCityTrip && selectedDayStr && cityStop && (
           <div className={`
             ${mobileView === 'detaljer' ? 'flex' : 'hidden'} md:flex
@@ -242,6 +285,8 @@ export default function PlanPage() {
               onAddPossibleActivity={(data) => addPossibleActivity(cityStop.id, data)}
               onRemovePossibleActivity={removePossibleActivity}
               onUpdatePossibleActivity={updatePossibleActivity}
+              dayPlanText={dayPlanNote?.content ?? ''}
+              onSaveDayPlan={handleSaveDayPlan}
               onClose={() => { setSelectedDayStr(null); setMobileView('steder') }}
             />
           </div>
@@ -252,8 +297,6 @@ export default function PlanPage() {
           ${mobileView === 'kart' ? 'flex' : 'hidden'} md:flex
           flex-1 relative overflow-hidden
         `}>
-          {/* City trip: use citySearchCenter as mapCenter when user searches;
-              fall back to mapFitPoints=[cityCenter] for initial / zoom-to-city */}
           {isCityTrip ? (
             <PlanningMap
               stops={stops}
@@ -273,6 +316,7 @@ export default function PlanPage() {
               onRouteLegsChange={() => {}}
               onRouteStatesChange={() => {}}
               onCitySearch={({ lat, lng }) => setCitySearchCenter({ lat, lng })}
+              onCityMapClick={(lat, lng) => setCityMapPinPending({ lat, lng })}
             />
           ) : (
             <PlanningMap
@@ -291,6 +335,17 @@ export default function PlanPage() {
           )}
         </div>
       </div>
+
+      {/* City map pin modal */}
+      {cityMapPinPending && (
+        <CityMapPinModal
+          lat={cityMapPinPending.lat}
+          lng={cityMapPinPending.lng}
+          defaultDate={selectedDayStr}
+          onConfirm={handleCityMapPinConfirm}
+          onCancel={() => setCityMapPinPending(null)}
+        />
+      )}
     </div>
   )
 }

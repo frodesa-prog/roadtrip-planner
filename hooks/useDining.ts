@@ -6,7 +6,7 @@ import { Dining } from '@/types'
 import { toast } from 'sonner'
 
 export type AddDiningData = Pick<Dining, 'name'> &
-  Partial<Pick<Dining, 'url' | 'booking_date' | 'booking_time'>>
+  Partial<Pick<Dining, 'url' | 'booking_date' | 'booking_time' | 'map_lat' | 'map_lng'>>
 
 export type UpdateDiningData = Partial<Pick<
   Dining,
@@ -44,8 +44,8 @@ export function useDining(stopIds: string[]) {
         url: data.url ?? null,
         booking_date: data.booking_date ?? null,
         booking_time: data.booking_time ?? null,
-        map_lat: null,
-        map_lng: null,
+        map_lat: data.map_lat ?? null,
+        map_lng: data.map_lng ?? null,
       }
       setDining((prev) => [...prev, newEntry])
       const { error } = await supabase.from('dining').insert(newEntry)

@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 
 export type AddActivityData = Pick<Activity, 'name'> &
   Partial<Pick<Activity, 'url' | 'cost' | 'activity_date' | 'activity_time' | 'activity_type' |
-    'stadium' | 'section' | 'seat_row' | 'seat'>>
+    'stadium' | 'section' | 'seat_row' | 'seat' | 'map_lat' | 'map_lng'>>
 
 export type UpdateActivityData = Partial<Pick<
   Activity,
@@ -51,8 +51,8 @@ export function useActivities(stopIds: string[]) {
         activity_date: data.activity_date ?? null,
         activity_time: data.activity_time ?? null,
         activity_type: data.activity_type ?? null,
-        map_lat: null,
-        map_lng: null,
+        map_lat: data.map_lat ?? null,
+        map_lng: data.map_lng ?? null,
         stadium:  data.stadium  ?? null,
         section:  data.section  ?? null,
         seat_row: data.seat_row ?? null,

@@ -51,6 +51,8 @@ interface PlanningMapProps {
   onRouteStatesChange?: (states: string[]) => void
   /** When provided, shows search box even in readOnly mode but only pans the map (no stop added) */
   onCitySearch?: (result: { lat: number; lng: number; city: string; state: string }) => void
+  /** When provided, a map click in readOnly mode emits the coords instead of being ignored */
+  onCityMapClick?: (lat: number, lng: number) => void
 }
 
 interface PendingStop {
@@ -604,6 +606,7 @@ export default function PlanningMap({
   onRouteLegsChange,
   onRouteStatesChange,
   onCitySearch,
+  onCityMapClick,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
   const activeToolRef = useRef(false)
@@ -613,9 +616,13 @@ export default function PlanningMap({
   }, [])
 
   const handleMapClick = useCallback((e: MapMouseEvent) => {
-    if (disabled || readOnly || !e.detail.latLng || activeToolRef.current) return
+    if (disabled || !e.detail.latLng || activeToolRef.current) return
+    if (readOnly) {
+      if (onCityMapClick) onCityMapClick(e.detail.latLng.lat, e.detail.latLng.lng)
+      return
+    }
     setPendingStop({ lat: e.detail.latLng.lat, lng: e.detail.latLng.lng })
-  }, [disabled, readOnly])
+  }, [disabled, readOnly, onCityMapClick])
 
   const handleSearchSelect = useCallback(
     ({ lat, lng, city, state }: { lat: number; lng: number; city: string; state: string }) => {
