@@ -52,8 +52,22 @@ function HotelSection({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading])
 
-  function save(field: 'name' | 'address' | 'url', value: string) {
+  async function save(field: 'name' | 'address' | 'url', value: string) {
     saveHotel(stopId, { [field]: value || null })
+    if (field === 'address' && value.trim() && onMovePin) {
+      setGeocoding(true)
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+        const res = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(value.trim())}&key=${apiKey}`
+        )
+        const json = await res.json()
+        const loc = json.results?.[0]?.geometry?.location
+        if (loc) onMovePin(loc.lat, loc.lng)
+      } finally {
+        setGeocoding(false)
+      }
+    }
   }
 
   async function geocodeAddress() {
