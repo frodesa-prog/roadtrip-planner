@@ -83,27 +83,27 @@ export default function TripManager({
             </div>
           ) : currentTrip ? (
             <>
-              <p className="text-white font-bold text-base leading-tight truncate">{currentTrip.name}</p>
-              <div className="flex items-center gap-2">
-                <p className="text-blue-200/60 text-xs">{currentTrip.year}</p>
+              <div className="flex items-center gap-2 min-w-0">
+                <p className="text-white font-bold text-base leading-tight truncate">{currentTrip.name}</p>
                 {startDate && (() => {
                   const days = getDaysUntil(startDate)
                   if (days > 0) {
                     return (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-yellow-200/90 border border-yellow-300/20">
-                        ✈️ {days} dager igjen
+                      <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-yellow-200/90 border border-yellow-300/20">
+                        ✈️ {days} d
                       </span>
                     )
                   } else if (days === 0) {
                     return (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-green-300 border border-green-400/20">
-                        🎉 Avreise i dag!
+                      <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-green-300 border border-green-400/20">
+                        🎉 i dag!
                       </span>
                     )
                   }
                   return null
                 })()}
               </div>
+              <p className="text-blue-200/60 text-xs">{currentTrip.year}</p>
             </>
           ) : (
             <p className="text-blue-200/80 text-sm font-medium">Velg eller opprett en tur</p>
