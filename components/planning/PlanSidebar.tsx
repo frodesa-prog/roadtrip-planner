@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { MapPin, Loader2, Car, CalendarDays, List } from 'lucide-react'
-import { Stop, Trip, Hotel, Activity, RouteLeg } from '@/types'
+import { Stop, Trip, Hotel, Activity, RouteLeg, NewTripData } from '@/types'
 import StopCard from './StopCard'
 import CalendarView from './CalendarView'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import TripPanels from './TripPanels'
 import TripManager from './TripManager'
+import NewTripWizard from './NewTripWizard'
 import { useDrivingInfo, addMinutes } from '@/hooks/useDrivingInfo'
 
 interface PlanSidebarProps {
@@ -25,7 +26,7 @@ interface PlanSidebarProps {
   onReorderStops: (stops: Stop[]) => void
   onUpdateStop: (id: string, updates: Partial<Stop>) => void
   onSelectTrip: (trip: Trip) => void
-  onCreateTrip: (name: string, year: number) => Promise<Trip | null>
+  onCreateTrip: (data: NewTripData) => Promise<Trip | null>
   onDeleteTrip: (id: string) => void
   routeLegs?: RouteLeg[]
   routeStates?: string[]
@@ -47,6 +48,7 @@ export default function PlanSidebar({
   const [departureTimes, setDepartureTimes] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
   const drivingLegs = useDrivingInfo(stops, routeLegs)
 
   // ── Auto-cascade arrival dates ──────────────────────────────────────────────
@@ -102,11 +104,18 @@ export default function PlanSidebar({
       <TripManager
         trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
         startDate={stops.filter(s => s.arrival_date).sort((a, b) => a.arrival_date!.localeCompare(b.arrival_date!))[0]?.arrival_date ?? null}
-        onSelectTrip={onSelectTrip} onCreateTrip={onCreateTrip}
+        onSelectTrip={onSelectTrip}
+        onRequestCreate={() => setShowWizard(true)}
         onDeleteTrip={(id) => {
           const name = trips.find((t) => t.id === id)?.name ?? 'denne turen'
           setConfirmDelete({ id, name })
         }}
+      />
+
+      <NewTripWizard
+        open={showWizard}
+        onClose={() => setShowWizard(false)}
+        onCreateTrip={onCreateTrip}
       />
 
       {/* Fly tur/retur + Turfølge */}

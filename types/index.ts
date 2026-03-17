@@ -1,4 +1,5 @@
 export type TripStatus = 'planning' | 'archived'
+export type TripType = 'road_trip' | 'storbytur' | 'resort'
 export type BookingStatus = 'not_booked' | 'confirmed'
 
 export interface Trip {
@@ -10,6 +11,30 @@ export interface Trip {
   created_at: string
   updated_at: string
   group_description: string | null  // generell beskrivelse av turfølget, brukes av Ferietips-chat
+  // Trip type + extended fields (added in migration 024)
+  trip_type: TripType
+  has_flight: boolean
+  has_car_rental: boolean
+  date_from: string | null       // ISO date "YYYY-MM-DD"
+  date_to: string | null
+  destination_city: string | null
+  destination_country: string | null
+  description: string | null
+}
+
+export interface NewTripData {
+  name: string
+  year: number
+  trip_type: TripType
+  has_flight: boolean
+  has_car_rental: boolean
+  date_from: string | null
+  date_to: string | null
+  destination_city: string | null
+  destination_country: string | null
+  description: string | null
+  city_lat?: number | null
+  city_lng?: number | null
 }
 
 export interface Stop {
@@ -92,7 +117,7 @@ export interface Photo {
 export interface BudgetItem {
   id: string
   trip_id: string
-  category: 'gas' | 'car' | 'flight' | 'hotel' | 'other'
+  category: 'gas' | 'car' | 'flight' | 'hotel' | 'other' | 'transport'
   amount: number
   remaining_amount: number | null
   notes: string | null

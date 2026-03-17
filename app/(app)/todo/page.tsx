@@ -10,6 +10,7 @@ import { useTodoItems } from '@/hooks/useTodoItems'
 import { useTravelers } from '@/hooks/useTravelers'
 import { useStops } from '@/hooks/useStops'
 import TripManager from '@/components/planning/TripManager'
+import NewTripWizard from '@/components/planning/NewTripWizard'
 import { TodoItem, Traveler } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -37,6 +38,7 @@ export default function TodoPage() {
     useTodoItems(currentTrip?.id ?? null)
   const { travelers } = useTravelers(currentTrip?.id ?? null)
   const { stops } = useStops(currentTrip?.id ?? null)
+  const [showWizard, setShowWizard] = useState(false)
   const [showReminderPanel, setShowReminderPanel] = useState(false)
   const [showCriticalPanel, setShowCriticalPanel] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -92,8 +94,9 @@ export default function TodoPage() {
       `}>
         <TripManager
           trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
-          onSelectTrip={setCurrentTrip} onCreateTrip={createTrip} onDeleteTrip={deleteTrip}
+          onSelectTrip={setCurrentTrip} onRequestCreate={() => setShowWizard(true)} onDeleteTrip={deleteTrip}
         />
+        <NewTripWizard open={showWizard} onClose={() => setShowWizard(false)} onCreateTrip={createTrip} />
 
         {/* Stats */}
         {currentTrip && (

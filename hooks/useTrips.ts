@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Trip } from '@/types'
+import { Trip, NewTripData } from '@/types'
 import { toast } from 'sonner'
 import { logActivity } from '@/hooks/useActivityLog'
 
@@ -48,13 +48,28 @@ export function useTrips() {
   }, [supabase])
 
   const createTrip = useCallback(
-    async (name: string, year: number): Promise<Trip | null> => {
+    async (tripData: NewTripData): Promise<Trip | null> => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return null
 
+      const { name, year, trip_type, has_flight, has_car_rental,
+              date_from, date_to, destination_city, destination_country,
+              description, city_lat, city_lng } = tripData
+
       const { data, error } = await supabase
         .from('trips')
-        .insert({ name, year, status: 'planning', owner_id: user.id })
+        .insert({
+          name, year, status: 'planning', owner_id: user.id,
+          trip_type: trip_type ?? 'road_trip',
+          has_flight: has_flight ?? true,
+          has_car_rental: has_car_rental ?? true,
+          date_from: date_from ?? null,
+          date_to: date_to ?? null,
+          destination_city: destination_city ?? null,
+          destination_country: destination_country ?? null,
+          description: description ?? null,
+          group_description: description ?? null,
+        })
         .select()
         .single()
 
@@ -68,6 +83,26 @@ export function useTrips() {
       setCurrentTrip(newTrip)
       toast.success(`"${name}" er opprettet! 🗺️`)
       logActivity({ log_type: 'database', action: 'INSERT', entity_type: 'trip', entity_name: name, trip_id: newTrip.id })
+
+      // For city trips (storbytur/resort): auto-create single city stop from geocoded coordinates
+      if (trip_type !== 'road_trip' && city_lat != null && city_lng != null && destination_city) {
+        let nights = 0
+        if (date_from && date_to) {
+          const from = new Date(date_from + 'T00:00:00')
+          const to = new Date(date_to + 'T00:00:00')
+          nights = Math.max(0, Math.round((to.getTime() - from.getTime()) / 86_400_000))
+        }
+        await supabase.from('stops').insert({
+          trip_id: newTrip.id,
+          city: destination_city,
+          state: destination_country ?? '',
+          lat: city_lat,
+          lng: city_lng,
+          order: 0,
+          nights,
+          arrival_date: date_from ?? null,
+        })
+      }
 
       // Auto-legg til tureier som første reisedeltaker
       const [profileRes, prefRes] = await Promise.all([

@@ -6,6 +6,7 @@ import { useTrips } from '@/hooks/useTrips'
 import { useTripPackingList } from '@/hooks/useTripPackingList'
 import { useTravelers } from '@/hooks/useTravelers'
 import TripManager from '@/components/planning/TripManager'
+import NewTripWizard from '@/components/planning/NewTripWizard'
 import { PackingCategory, TripPackingItem, Traveler } from '@/types'
 
 const CATEGORIES: { value: PackingCategory; label: string }[] = [
@@ -26,6 +27,7 @@ export default function PakkelistePage() {
     useTripPackingList(currentTrip?.id ?? null)
   const { travelers, updateTraveler } = useTravelers(currentTrip?.id ?? null)
 
+  const [showWizard, setShowWizard] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [activeMobileCol, setActiveMobileCol] = useState(0)
 
@@ -55,8 +57,9 @@ export default function PakkelistePage() {
       `}>
         <TripManager
           trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
-          onSelectTrip={setCurrentTrip} onCreateTrip={createTrip} onDeleteTrip={deleteTrip}
+          onSelectTrip={setCurrentTrip} onRequestCreate={() => setShowWizard(true)} onDeleteTrip={deleteTrip}
         />
+        <NewTripWizard open={showWizard} onClose={() => setShowWizard(false)} onCreateTrip={createTrip} />
         {currentTrip && travelers.length > 0 && (
           <BaggageAllowancePanel travelers={travelers} onUpdate={updateTraveler} />
         )}

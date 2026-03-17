@@ -15,7 +15,7 @@ import {
   Plane, Car, Fuel, BedDouble, Ticket,
   ChevronDown, Loader2, Receipt, ExternalLink,
   PlaneTakeoff, PlaneLanding, X, ChevronRight,
-  Link as LinkIcon, Clock, Calculator,
+  Link as LinkIcon, Clock, Calculator, Bus,
 } from 'lucide-react'
 import {
   getOffset,
@@ -810,25 +810,30 @@ export default function KostnaderPage() {
     [activities, stopById]
   )
 
+  // ── Car rental flag (null/undefined = true for backward compat with old trips) ──
+  const hasCarRental = currentTrip?.has_car_rental !== false
+
   // ── Totaler ──────────────────────────────────────────────────────────────
   const totalHotels = hotelRows.reduce((s, r) => s + (r.hotel.cost ?? 0), 0)
   const totalActivities = activityRows.reduce((s, r) => s + (r.activity.cost ?? 0), 0)
   const totalFlight = getAmount('flight')
-  const totalCar = getAmount('car')
-  const totalGas = getAmount('gas')
-  const totalParking = hotelRows.reduce(
-    (s, r) => s + (r.hotel.parking_cost_per_night ?? 0) * r.stop.nights, 0
-  )
-  const totalOther = totalFlight + totalCar + totalGas + totalParking
+  const totalCar = hasCarRental ? getAmount('car') : 0
+  const totalGas = hasCarRental ? getAmount('gas') : 0
+  const totalParking = hasCarRental
+    ? hotelRows.reduce((s, r) => s + (r.hotel.parking_cost_per_night ?? 0) * r.stop.nights, 0)
+    : 0
+  const totalTransport = !hasCarRental ? getAmount('transport') : 0
+  const totalOther = totalFlight + totalCar + totalGas + totalParking + totalTransport
   const grandTotal = totalHotels + totalActivities + totalOther
 
   const grandRemaining =
     hotelRows.reduce((s, r) => s + (r.hotel.remaining_amount ?? 0), 0) +
     activityRows.reduce((s, r) => s + (r.activity.remaining_amount ?? 0), 0) +
     (getRemaining('flight') ?? 0) +
-    (getRemaining('car') ?? 0) +
-    (getRemaining('gas') ?? 0) +
-    totalParking
+    (hasCarRental ? (getRemaining('car') ?? 0) : 0) +
+    (hasCarRental ? (getRemaining('gas') ?? 0) : 0) +
+    (hasCarRental ? totalParking : 0) +
+    (!hasCarRental ? (getRemaining('transport') ?? 0) : 0)
 
   // Felles kolonne-grid for aktiviteter og andre kostnader
   // [Label | Kostnad (5.5rem) | Gjenstår (4.5rem)]
@@ -1132,92 +1137,118 @@ export default function KostnaderPage() {
                     </div>
                   </div>
 
-                  {/* Leiebil – klikk åpner CarRentalModal */}
-                  <div
-                    className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors`}
-                  >
-                    <button
-                      onClick={() => setShowCarRentalModal(true)}
-                      className="px-2 py-2 flex items-center gap-1.5 text-left group"
-                      title="Vis/rediger leiebilinfo"
-                    >
-                      <Car className="w-3 h-3 text-violet-400 flex-shrink-0" />
-                      <span className="text-xs text-slate-200">Leiebil</span>
-                      <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-colors ml-auto" />
-                    </button>
-                    <div className="px-1.5 py-1.5">
-                      <CostInput
-                        defaultValue={totalCar || null}
-                        onSave={(v) => saveItem('car', { amount: v })}
-                      />
-                    </div>
-                    <div className="px-1.5 py-1.5">
-                      <RemainingCell
-                        remainingAmount={getRemaining('car')}
-                        onSave={(v) => saveItem('car', { remaining_amount: v })}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Bensin */}
-                  <div
-                    className={`grid ${rightGrid} items-center hover:bg-slate-800/40 transition-colors`}
-                  >
-                    <div className="px-2 py-2 flex items-center gap-1.5">
-                      <Fuel className="w-3 h-3 text-amber-400 flex-shrink-0" />
-                      <span className="text-xs text-slate-200">Bensin</span>
-                    </div>
-                    <div className="px-1.5 py-1.5 flex items-center gap-1">
-                      <button
-                        onClick={() => setShowFuelModal(true)}
-                        title="Beregn bensinkostnad automatisk"
-                        className="text-amber-400/50 hover:text-amber-400 flex-shrink-0 transition-colors"
+                  {hasCarRental ? (
+                    <>
+                      {/* Leiebil – klikk åpner CarRentalModal */}
+                      <div
+                        className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors`}
                       >
-                        <Calculator className="w-3.5 h-3.5" />
-                      </button>
-                      <div className="flex-1 min-w-0">
+                        <button
+                          onClick={() => setShowCarRentalModal(true)}
+                          className="px-2 py-2 flex items-center gap-1.5 text-left group"
+                          title="Vis/rediger leiebilinfo"
+                        >
+                          <Car className="w-3 h-3 text-violet-400 flex-shrink-0" />
+                          <span className="text-xs text-slate-200">Leiebil</span>
+                          <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-colors ml-auto" />
+                        </button>
+                        <div className="px-1.5 py-1.5">
+                          <CostInput
+                            defaultValue={totalCar || null}
+                            onSave={(v) => saveItem('car', { amount: v })}
+                          />
+                        </div>
+                        <div className="px-1.5 py-1.5">
+                          <RemainingCell
+                            remainingAmount={getRemaining('car')}
+                            onSave={(v) => saveItem('car', { remaining_amount: v })}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Bensin */}
+                      <div
+                        className={`grid ${rightGrid} items-center hover:bg-slate-800/40 transition-colors`}
+                      >
+                        <div className="px-2 py-2 flex items-center gap-1.5">
+                          <Fuel className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                          <span className="text-xs text-slate-200">Bensin</span>
+                        </div>
+                        <div className="px-1.5 py-1.5 flex items-center gap-1">
+                          <button
+                            onClick={() => setShowFuelModal(true)}
+                            title="Beregn bensinkostnad automatisk"
+                            className="text-amber-400/50 hover:text-amber-400 flex-shrink-0 transition-colors"
+                          >
+                            <Calculator className="w-3.5 h-3.5" />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <CostInput
+                              key={`gas-${totalGas}`}
+                              defaultValue={totalGas || null}
+                              onSave={(v) => saveItem('gas', { amount: v })}
+                            />
+                          </div>
+                        </div>
+                        <div className="px-1.5 py-1.5">
+                          <RemainingCell
+                            remainingAmount={getRemaining('gas')}
+                            onSave={(v) => saveItem('gas', { remaining_amount: v })}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Parkering – auto-beregnet fra parkeringspris pr. natt × netter */}
+                      <div
+                        className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors cursor-pointer`}
+                        onClick={() => setShowParkingModal(true)}
+                        title="Vis parkeringsdetaljer per hotell"
+                      >
+                        <div className="px-2 py-2 flex items-center gap-1.5">
+                          <span className="w-3 h-3 bg-slate-500 rounded text-white flex items-center justify-center text-[7px] font-bold leading-none flex-shrink-0">P</span>
+                          <span className="text-xs text-slate-200">Parkering</span>
+                          <ChevronRight className="w-3 h-3 text-slate-600 ml-auto" />
+                        </div>
+                        <div className="px-1.5 py-2 text-[11px] text-right tabular-nums whitespace-nowrap">
+                          {totalParking > 0
+                            ? <span className="text-slate-300">{fmt(totalParking)} kr</span>
+                            : <span className="text-slate-600">—</span>
+                          }
+                        </div>
+                        <div className="px-1.5 py-1.5">
+                          {totalParking > 0 ? (
+                            <div className="w-full text-right text-[11px] font-semibold text-amber-300 bg-amber-900/40 border border-amber-600/50 rounded-md px-1.5 py-0.5 whitespace-nowrap">
+                              {fmt(totalParking)} kr
+                            </div>
+                          ) : (
+                            <div className="w-full text-center text-[11px] text-green-600 py-0.5">✓</div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    /* Transport (vises kun når leiebil ikke er inkludert) */
+                    <div
+                      className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors`}
+                    >
+                      <div className="px-2 py-2 flex items-center gap-1.5">
+                        <Bus className="w-3 h-3 text-teal-400 flex-shrink-0" />
+                        <span className="text-xs text-slate-200">Transport</span>
+                      </div>
+                      <div className="px-1.5 py-1.5">
                         <CostInput
-                          key={`gas-${totalGas}`}
-                          defaultValue={totalGas || null}
-                          onSave={(v) => saveItem('gas', { amount: v })}
+                          defaultValue={totalTransport || null}
+                          onSave={(v) => saveItem('transport', { amount: v })}
+                        />
+                      </div>
+                      <div className="px-1.5 py-1.5">
+                        <RemainingCell
+                          remainingAmount={getRemaining('transport')}
+                          onSave={(v) => saveItem('transport', { remaining_amount: v })}
                         />
                       </div>
                     </div>
-                    <div className="px-1.5 py-1.5">
-                      <RemainingCell
-                        remainingAmount={getRemaining('gas')}
-                        onSave={(v) => saveItem('gas', { remaining_amount: v })}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Parkering – auto-beregnet fra parkeringspris pr. natt × netter */}
-                  <div
-                    className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors cursor-pointer`}
-                    onClick={() => setShowParkingModal(true)}
-                    title="Vis parkeringsdetaljer per hotell"
-                  >
-                    <div className="px-2 py-2 flex items-center gap-1.5">
-                      <span className="w-3 h-3 bg-slate-500 rounded text-white flex items-center justify-center text-[7px] font-bold leading-none flex-shrink-0">P</span>
-                      <span className="text-xs text-slate-200">Parkering</span>
-                      <ChevronRight className="w-3 h-3 text-slate-600 ml-auto" />
-                    </div>
-                    <div className="px-1.5 py-2 text-[11px] text-right tabular-nums whitespace-nowrap">
-                      {totalParking > 0
-                        ? <span className="text-slate-300">{fmt(totalParking)} kr</span>
-                        : <span className="text-slate-600">—</span>
-                      }
-                    </div>
-                    <div className="px-1.5 py-1.5">
-                      {totalParking > 0 ? (
-                        <div className="w-full text-right text-[11px] font-semibold text-amber-300 bg-amber-900/40 border border-amber-600/50 rounded-md px-1.5 py-0.5 whitespace-nowrap">
-                          {fmt(totalParking)} kr
-                        </div>
-                      ) : (
-                        <div className="w-full text-center text-[11px] text-green-600 py-0.5">✓</div>
-                      )}
-                    </div>
-                  </div>
+                  )}
 
                   <TableTotal label="Total andre" amount={totalOther} />
                 </div>

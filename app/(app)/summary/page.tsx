@@ -15,6 +15,7 @@ import { useFlights } from '@/hooks/useFlights'
 import { useNotes } from '@/hooks/useNotes'
 import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
 import TripManager from '@/components/planning/TripManager'
+import NewTripWizard from '@/components/planning/NewTripWizard'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import NoteModal from '@/components/planning/NoteModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -88,6 +89,7 @@ export default function SummaryPage() {
   const [flightModal, setFlightModal] = useState<Flight | null>(null)
   const [activityModal, setActivityModal] = useState<Activity | null>(null)
   const [diningModal, setDiningModal] = useState<Dining | null>(null)
+  const [showWizard, setShowWizard] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   type NoteModalState =
     | { mode: 'new'; stopId: string | null; initialDate: string | null }
@@ -270,8 +272,9 @@ export default function SummaryPage() {
       `}>
         <TripManager
           trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
-          onSelectTrip={setCurrentTrip} onCreateTrip={createTrip} onDeleteTrip={deleteTrip}
+          onSelectTrip={setCurrentTrip} onRequestCreate={() => setShowWizard(true)} onDeleteTrip={deleteTrip}
         />
+        <NewTripWizard open={showWizard} onClose={() => setShowWizard(false)} onCreateTrip={createTrip} />
 
         {currentTrip && !stopsLoading && stops.filter((s) => s.arrival_date).length > 0 && (
           <div className="flex-1 overflow-y-auto py-3 flex flex-col">

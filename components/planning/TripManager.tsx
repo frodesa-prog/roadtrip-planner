@@ -3,11 +3,9 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   ChevronDown, Plus, Check, Route,
-  Loader2, Trash2, X, Share2,
+  Loader2, Trash2, Share2,
 } from 'lucide-react'
 import { Trip } from '@/types'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 
 interface TripManagerProps {
   trips: Trip[]
@@ -16,8 +14,14 @@ interface TripManagerProps {
   userId?: string | null
   startDate?: string | null
   onSelectTrip: (trip: Trip) => void
-  onCreateTrip: (name: string, year: number) => Promise<Trip | null>
+  onRequestCreate: () => void
   onDeleteTrip: (id: string) => void
+}
+
+const TRIP_TYPE_EMOJI: Record<string, string> = {
+  road_trip: '🚗',
+  storbytur: '🏙️',
+  resort: '🌴',
 }
 
 function getDaysUntil(dateStr: string): number {
@@ -34,44 +38,30 @@ export default function TripManager({
   userId,
   startDate,
   onSelectTrip,
-  onCreateTrip,
+  onRequestCreate,
   onDeleteTrip,
 }: TripManagerProps) {
   const [open, setOpen] = useState(false)
-  const [showCreate, setShowCreate] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newYear, setNewYear] = useState(new Date().getFullYear())
-  const [creating, setCreating] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false)
-        setShowCreate(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!newName.trim()) return
-    setCreating(true)
-    await onCreateTrip(newName.trim(), newYear)
-    setNewName('')
-    setNewYear(new Date().getFullYear())
-    setCreating(false)
-    setShowCreate(false)
-    setOpen(false)
-  }
+  // Determine countdown: use date_from if available, else startDate prop (from stops)
+  const countdownDate = currentTrip?.date_from ?? startDate ?? null
 
   return (
     <div ref={dropdownRef} className="relative">
       {/* Trigger */}
       <button
-        onClick={() => { setOpen(!open); setShowCreate(false) }}
+        onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-2 px-5 py-4 bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 transition-colors"
       >
         <Route className="w-5 h-5 text-white/80 flex-shrink-0" />
@@ -84,9 +74,10 @@ export default function TripManager({
           ) : currentTrip ? (
             <>
               <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base leading-none">{TRIP_TYPE_EMOJI[currentTrip.trip_type ?? 'road_trip'] ?? '🚗'}</span>
                 <p className="text-white font-bold text-base leading-tight truncate">{currentTrip.name}</p>
-                {startDate && (() => {
-                  const days = getDaysUntil(startDate)
+                {countdownDate && (() => {
+                  const days = getDaysUntil(countdownDate)
                   if (days > 0) {
                     return (
                       <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-yellow-200/90 border border-yellow-300/20">
@@ -119,6 +110,7 @@ export default function TripManager({
             <div className="max-h-48 overflow-y-auto">
               {trips.map((trip) => {
                 const isShared = userId != null && trip.owner_id !== userId
+                const typeEmoji = TRIP_TYPE_EMOJI[trip.trip_type ?? 'road_trip'] ?? '🚗'
                 return (
                   <div key={trip.id} className="flex items-center group">
                     <button
@@ -134,6 +126,7 @@ export default function TripManager({
                       )}
                       <div className={currentTrip?.id === trip.id ? '' : 'ml-5'}>
                         <p className="text-sm font-medium text-slate-100 flex items-center gap-1.5">
+                          <span>{typeEmoji}</span>
                           {trip.name}
                           {isShared && (
                             <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-900/60 text-blue-300 border border-blue-700/50">
@@ -161,49 +154,13 @@ export default function TripManager({
 
           {trips.length > 0 && <div className="border-t border-slate-700/50" />}
 
-          {!showCreate ? (
-            <button
-              onClick={() => setShowCreate(true)}
-              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-blue-400 hover:bg-slate-800 transition-colors font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              Opprett ny tur
-            </button>
-          ) : (
-            <form onSubmit={handleCreate} className="p-3 space-y-2 bg-slate-800/50">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-semibold text-slate-300">Ny tur</p>
-                <button type="button" onClick={() => setShowCreate(false)} className="text-slate-500 hover:text-slate-300">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Navn på tur (f.eks. Route 66 2026)"
-                className="h-8 text-sm bg-slate-800 border-slate-700 text-slate-100"
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  value={newYear}
-                  onChange={(e) => setNewYear(Number(e.target.value))}
-                  className="h-8 text-sm w-24 bg-slate-800 border-slate-700 text-slate-100"
-                  min={2020}
-                  max={2035}
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!newName.trim() || creating}
-                  className="flex-1 h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                >
-                  {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Opprett'}
-                </Button>
-              </div>
-            </form>
-          )}
+          <button
+            onClick={() => { setOpen(false); onRequestCreate() }}
+            className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-blue-400 hover:bg-slate-800 transition-colors font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Opprett ny tur
+          </button>
         </div>
       )}
     </div>

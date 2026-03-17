@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { Map, MapPin, FileText } from 'lucide-react'
 import PlanSidebar from '@/components/planning/PlanSidebar'
+import CityPlanSidebar from '@/components/planning/CityPlanSidebar'
 import PlanningMap from '@/components/map/PlanningMap'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import { useTrips } from '@/hooks/useTrips'
@@ -19,6 +20,7 @@ import type { LegWaypoints } from '@/components/map/RoutePolyline'
 
 export default function PlanPage() {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
+  const [selectedDayStr, setSelectedDayStr] = useState<string | null>(null)
   const [routeStates, setRouteStates] = useState<string[]>([])
   type MobileView = 'kart' | 'steder' | 'detaljer'
   const [mobileView, setMobileView] = useState<MobileView>('steder')
@@ -100,31 +102,52 @@ export default function PlanPage() {
       {/* ── Paneler ── */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Venstre sidebar */}
+        {/* Venstre sidebar – Road trip vs City/Resort */}
         <div className={`${mobileView === 'steder' ? 'flex' : 'hidden'} md:flex h-full`}>
-          <PlanSidebar
-            trips={trips}
-            currentTrip={currentTrip}
-            tripsLoading={tripsLoading}
-            userId={userId}
-            stops={stops}
-            stopsLoading={stopsLoading}
-            selectedStopId={selectedStopId}
-            hotels={hotels}
-            activities={activities}
-            onSelectStop={handleSelectStop}
-            onRemoveStop={removeStop}
-            onReorderStops={reorderStops}
-            onUpdateStop={updateStop}
-            onSelectTrip={setCurrentTrip}
-            onCreateTrip={createTrip}
-            onDeleteTrip={deleteTrip}
-            routeLegs={routeLegs}
-            routeStates={routeStates}
-            onUpdateGroupDescription={(desc) =>
-              currentTrip && updateTrip(currentTrip.id, { group_description: desc })
-            }
-          />
+          {(!currentTrip || !currentTrip.trip_type || currentTrip.trip_type === 'road_trip') ? (
+            <PlanSidebar
+              trips={trips}
+              currentTrip={currentTrip}
+              tripsLoading={tripsLoading}
+              userId={userId}
+              stops={stops}
+              stopsLoading={stopsLoading}
+              selectedStopId={selectedStopId}
+              hotels={hotels}
+              activities={activities}
+              onSelectStop={handleSelectStop}
+              onRemoveStop={removeStop}
+              onReorderStops={reorderStops}
+              onUpdateStop={updateStop}
+              onSelectTrip={setCurrentTrip}
+              onCreateTrip={createTrip}
+              onDeleteTrip={deleteTrip}
+              routeLegs={routeLegs}
+              routeStates={routeStates}
+              onUpdateGroupDescription={(desc) =>
+                currentTrip && updateTrip(currentTrip.id, { group_description: desc })
+              }
+            />
+          ) : (
+            <CityPlanSidebar
+              trips={trips}
+              currentTrip={currentTrip}
+              tripsLoading={tripsLoading}
+              userId={userId}
+              stop={stops[0] ?? null}
+              activities={activities}
+              dining={dining}
+              possibleActivities={possibleActivities}
+              selectedDayStr={selectedDayStr}
+              onSelectDay={setSelectedDayStr}
+              onSelectTrip={setCurrentTrip}
+              onCreateTrip={createTrip}
+              onDeleteTrip={deleteTrip}
+              onUpdateGroupDescription={(desc) =>
+                currentTrip && updateTrip(currentTrip.id, { group_description: desc })
+              }
+            />
+          )}
         </div>
 
         {/* Detaljpanel */}
@@ -165,19 +188,34 @@ export default function PlanPage() {
           ${mobileView === 'kart' ? 'flex' : 'hidden'} md:flex
           flex-1 relative overflow-hidden
         `}>
-          <PlanningMap
-            stops={stops}
-            selectedStopId={selectedStopId}
-            onAddStop={handleAddStop}
-            onSelectStop={handleSelectStop}
-            disabled={!currentTrip}
-            hotels={hotels}
-            mapCenter={selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null}
-            routeLegs={routeLegs}
-            routeLegsLoaded={routeLegsLoaded}
-            onRouteLegsChange={handleRouteLegsChange}
-            onRouteStatesChange={setRouteStates}
-          />
+          {(() => {
+            const isCityTrip = currentTrip && currentTrip.trip_type && currentTrip.trip_type !== 'road_trip'
+            const cityStop = isCityTrip ? (stops[0] ?? null) : null
+            const cityCenter = cityStop ? { lat: cityStop.lat, lng: cityStop.lng } : null
+            return (
+              <PlanningMap
+                stops={stops}
+                selectedStopId={isCityTrip ? null : selectedStopId}
+                onAddStop={isCityTrip ? () => {} : handleAddStop}
+                onSelectStop={isCityTrip ? () => {} : handleSelectStop}
+                disabled={!currentTrip}
+                readOnly={!!isCityTrip}
+                hotels={hotels}
+                activities={isCityTrip ? activities : undefined}
+                dining={isCityTrip ? dining : undefined}
+                mapCenter={
+                  isCityTrip
+                    ? cityCenter
+                    : (selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null)
+                }
+                mapFitPoints={isCityTrip && cityCenter ? [cityCenter] : null}
+                routeLegs={isCityTrip ? [] : routeLegs}
+                routeLegsLoaded={isCityTrip ? true : routeLegsLoaded}
+                onRouteLegsChange={isCityTrip ? () => {} : handleRouteLegsChange}
+                onRouteStatesChange={isCityTrip ? () => {} : setRouteStates}
+              />
+            )
+          })()}
         </div>
       </div>
     </div>
