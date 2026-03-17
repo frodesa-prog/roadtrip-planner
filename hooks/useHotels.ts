@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 
 export function useHotels(stopIds: string[]) {
   const [hotels, setHotels] = useState<Hotel[]>([])
+  const [loading, setLoading] = useState(true)
   const supabase = useMemo(() => createClient(), [])
 
   // Stringify the stop IDs to use as a stable dependency
@@ -15,14 +16,17 @@ export function useHotels(stopIds: string[]) {
   useEffect(() => {
     if (stopIds.length === 0) {
       setHotels([])
+      setLoading(false)
       return
     }
+    setLoading(true)
     supabase
       .from('hotels')
       .select('*')
       .in('stop_id', stopIds)
       .then(({ data }) => {
         if (data) setHotels(data as Hotel[])
+        setLoading(false)
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, supabase])
@@ -79,5 +83,5 @@ export function useHotels(stopIds: string[]) {
     [hotels, supabase]
   )
 
-  return { hotels, saveHotel }
+  return { hotels, saveHotel, loading }
 }
