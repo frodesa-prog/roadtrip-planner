@@ -146,7 +146,7 @@ function TimeInput({ defaultValue, onSave }: { defaultValue?: string | null; onS
       type="time"
       defaultValue={defaultValue ?? ''}
       onBlur={(e) => onSave(e.target.value)}
-      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
+      className="w-full h-7 bg-slate-800 border border-slate-700 rounded-lg px-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
     />
   )
 }
@@ -158,7 +158,7 @@ function DateInput({ defaultValue, onSave }: { defaultValue?: string | null; onS
       defaultValue={defaultValue ?? ''}
       onBlur={(e) => onSave(e.target.value)}
       onChange={(e) => onSave(e.target.value)}
-      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
+      className="w-full h-7 bg-slate-800 border border-slate-700 rounded-lg px-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
     />
   )
 }
@@ -198,29 +198,32 @@ function FlightForm({ flight, onSave }: {
         <div><Label>Fra (flyplass / by)</Label><AirportInput key={`from-${flight?.id}`} defaultValue={flight?.leg1_from} placeholder="OSL – Oslo" onSave={(v) => onSave({ leg1_from: v })} /></div>
       </div>
 
-      {/* Billett + sete (etappe 1 / direktefly) */}
-      <div className="grid grid-cols-3 gap-2">
-        <div>
+      {/* Billett + sete + Mellomlanding på samme linje */}
+      <div className="flex items-end gap-1.5">
+        <div className="flex-[2] min-w-0">
           <Label>Billettkategori</Label>
           <Txt key={`tc-1-${flight?.id}`} defaultValue={flight?.ticket_class} placeholder="Economy" onSave={(v) => onSave({ ticket_class: v })} />
         </div>
-        <div>
+        <div className="w-12 flex-shrink-0">
           <Label>Rad</Label>
           <Txt key={`sr-1-${flight?.id}`} defaultValue={flight?.seat_row} placeholder="24" onSave={(v) => onSave({ seat_row: v })} />
         </div>
-        <div>
+        <div className="w-10 flex-shrink-0">
           <Label>Sete</Label>
           <Txt key={`sn-1-${flight?.id}`} defaultValue={flight?.seat_number} placeholder="A" onSave={(v) => onSave({ seat_number: v })} />
         </div>
-      </div>
-
-      <div className="flex items-center">
-        {leg1Min !== null && <DurationBadge minutes={leg1Min} label={stopover ? 'Flytid etappe 1' : 'Flytid'} />}
-        <label className="flex items-center gap-2 py-0.5 cursor-pointer select-none group ml-auto">
+        <label className="flex-shrink-0 flex items-center gap-1.5 mb-[3px] cursor-pointer select-none group">
           <input type="checkbox" checked={stopover} onChange={(e) => onSave({ has_stopover: e.target.checked })} className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer" />
           <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Mellomlanding</span>
         </label>
       </div>
+
+      {/* Flytid etappe 1 – midtstilt */}
+      {leg1Min !== null && (
+        <div className="flex justify-center">
+          <DurationBadge minutes={leg1Min} label={stopover ? 'Flytid etappe 1' : 'Flytid'} />
+        </div>
+      )}
 
       {!stopover ? (
         <>
@@ -243,16 +246,16 @@ function FlightForm({ flight, onSave }: {
           </div>
 
           {/* Billett + sete etappe 2 */}
-          <div className="grid grid-cols-3 gap-2">
-            <div>
+          <div className="flex items-end gap-1.5">
+            <div className="flex-[2] min-w-0">
               <Label>Billettkategori</Label>
               <Txt key={`tc-2-${flight?.id}`} defaultValue={flight?.leg2_ticket_class} placeholder="Economy" onSave={(v) => onSave({ leg2_ticket_class: v })} />
             </div>
-            <div>
+            <div className="w-12 flex-shrink-0">
               <Label>Rad</Label>
               <Txt key={`sr-2-${flight?.id}`} defaultValue={flight?.leg2_seat_row} placeholder="24" onSave={(v) => onSave({ leg2_seat_row: v })} />
             </div>
-            <div>
+            <div className="w-10 flex-shrink-0">
               <Label>Sete</Label>
               <Txt key={`sn-2-${flight?.id}`} defaultValue={flight?.leg2_seat_number} placeholder="A" onSave={(v) => onSave({ leg2_seat_number: v })} />
             </div>
