@@ -321,6 +321,7 @@ export default function PlanPage() {
               onRouteStatesChange={() => {}}
               onCitySearch={({ lat, lng }) => setCitySearchCenter({ lat, lng })}
               onCityMapClick={(lat, lng) => setCityMapPinPending({ lat, lng })}
+              cityTripMode
             />
           ) : (
             <PlanningMap

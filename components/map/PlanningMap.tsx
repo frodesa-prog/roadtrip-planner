@@ -53,6 +53,8 @@ interface PlanningMapProps {
   onCitySearch?: (result: { lat: number; lng: number; city: string; state: string }) => void
   /** When provided, a map click in readOnly mode emits the coords instead of being ignored */
   onCityMapClick?: (lat: number, lng: number) => void
+  /** When true, marks the first stop pin with a hotel bed icon instead of a number */
+  cityTripMode?: boolean
 }
 
 interface PendingStop {
@@ -607,6 +609,7 @@ export default function PlanningMap({
   onRouteStatesChange,
   onCitySearch,
   onCityMapClick,
+  cityTripMode = false,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
   const activeToolRef = useRef(false)
@@ -679,6 +682,7 @@ export default function PlanningMap({
               isSelected={stop.id === selectedStopId}
               onClick={() => onSelectStop(stop.id)}
               hotelName={hotels.find((h) => h.stop_id === stop.id)?.name || undefined}
+              showHotelIcon={cityTripMode && index === 0}
             />
           ))}
 
