@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { Map, MapPin, FileText } from 'lucide-react'
 import PlanSidebar from '@/components/planning/PlanSidebar'
 import CityPlanSidebar from '@/components/planning/CityPlanSidebar'
+import CityDayPanel from '@/components/planning/CityDayPanel'
 import PlanningMap from '@/components/map/PlanningMap'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import { useTrips } from '@/hooks/useTrips'
@@ -24,6 +25,10 @@ export default function PlanPage() {
   const [routeStates, setRouteStates] = useState<string[]>([])
   type MobileView = 'kart' | 'steder' | 'detaljer'
   const [mobileView, setMobileView] = useState<MobileView>('steder')
+
+  // City trip map state
+  const [citySearchCenter, setCitySearchCenter] = useState<{ lat: number; lng: number } | null>(null)
+  const [cityZoomVersion, setCityZoomVersion] = useState(0)
 
   const {
     trips, currentTrip, loading: tripsLoading, userId,
@@ -59,6 +64,18 @@ export default function PlanPage() {
   const selectedStopLeg = selectedStopIndex > 0 ? (drivingLegs[selectedStopIndex - 1] ?? null) : null
   const selectedDate = selectedStop?.arrival_date ?? new Date().toISOString().split('T')[0]
 
+  // City trip helpers
+  const isCityTrip = !!(currentTrip && currentTrip.trip_type && currentTrip.trip_type !== 'road_trip')
+  const cityStop = isCityTrip ? (stops[0] ?? null) : null
+  const cityCenter = cityStop ? { lat: cityStop.lat, lng: cityStop.lng } : null
+
+  // Day index for CityDayPanel header
+  const dayIndex = selectedDayStr && currentTrip?.date_from
+    ? Math.max(0, Math.round(
+        (new Date(selectedDayStr + 'T12:00:00').getTime() - new Date(currentTrip.date_from + 'T12:00:00').getTime()) / 86_400_000
+      ))
+    : 0
+
   function handleAddStop(stop: Stop) {
     if (!currentTrip) return
     addStop({ ...stop, trip_id: currentTrip.id })
@@ -72,10 +89,24 @@ export default function PlanPage() {
     }
   }
 
+  function handleSelectDay(day: string | null) {
+    setSelectedDayStr(day)
+    // På mobil: bytt til detalj-panel når en dag velges
+    if (day && typeof window !== 'undefined' && window.innerWidth < 768) {
+      setMobileView('detaljer')
+    }
+  }
+
+  // Mobile tab label for detail panel
+  const detailTabLabel = isCityTrip
+    ? (selectedDayStr ? `Dag ${dayIndex + 1}` : 'Dag')
+    : (selectedStop?.city ?? 'Detaljer')
+  const showDetailTab = isCityTrip ? !!selectedDayStr : !!selectedStop
+
   const mobileTabs = [
     { id: 'kart',    label: 'Kart',    icon: Map },
     { id: 'steder',  label: 'Steder',  icon: MapPin },
-    ...(selectedStop ? [{ id: 'detaljer', label: selectedStop.city, icon: FileText }] : []),
+    ...(showDetailTab ? [{ id: 'detaljer', label: detailTabLabel, icon: FileText }] : []),
   ] as { id: MobileView; label: string; icon: React.ElementType }[]
 
   return (
@@ -104,7 +135,7 @@ export default function PlanPage() {
 
         {/* Venstre sidebar – Road trip vs City/Resort */}
         <div className={`${mobileView === 'steder' ? 'flex' : 'hidden'} md:flex h-full`}>
-          {(!currentTrip || !currentTrip.trip_type || currentTrip.trip_type === 'road_trip') ? (
+          {!isCityTrip ? (
             <PlanSidebar
               trips={trips}
               currentTrip={currentTrip}
@@ -139,10 +170,18 @@ export default function PlanPage() {
               dining={dining}
               possibleActivities={possibleActivities}
               selectedDayStr={selectedDayStr}
-              onSelectDay={setSelectedDayStr}
+              onSelectDay={handleSelectDay}
               onSelectTrip={setCurrentTrip}
               onCreateTrip={createTrip}
               onDeleteTrip={deleteTrip}
+              onMoveHotelPin={(lat, lng) => {
+                if (stops[0]) updateStop(stops[0].id, { lat, lng })
+              }}
+              onZoomToCity={() => {
+                // Clear any search override and force re-pan to city center
+                setCitySearchCenter(null)
+                setCityZoomVersion((v) => v + 1)
+              }}
               onUpdateGroupDescription={(desc) =>
                 currentTrip && updateTrip(currentTrip.id, { group_description: desc })
               }
@@ -150,8 +189,8 @@ export default function PlanPage() {
           )}
         </div>
 
-        {/* Detaljpanel */}
-        {selectedStop && (
+        {/* Detaljpanel – Road trip stop OR city day */}
+        {!isCityTrip && selectedStop && (
           <div className={`
             ${mobileView === 'detaljer' ? 'flex' : 'hidden'} md:flex
             w-full md:w-[370px] flex-shrink-0 h-full border-r border-slate-700/50 overflow-hidden shadow-xl
@@ -183,39 +222,73 @@ export default function PlanPage() {
           </div>
         )}
 
+        {isCityTrip && selectedDayStr && cityStop && (
+          <div className={`
+            ${mobileView === 'detaljer' ? 'flex' : 'hidden'} md:flex
+            w-full md:w-[370px] flex-shrink-0 h-full border-r border-slate-700/50 overflow-hidden shadow-xl
+          `}>
+            <CityDayPanel
+              dateStr={selectedDayStr}
+              dayIndex={dayIndex}
+              activities={activities.filter((a) => a.stop_id === cityStop.id && a.activity_date === selectedDayStr)}
+              dining={dining.filter((d) => d.stop_id === cityStop.id && d.booking_date === selectedDayStr)}
+              possibleActivities={possibleActivities.filter((a) => a.stop_id === cityStop.id)}
+              onAddActivity={(data) => addActivity(cityStop.id, data)}
+              onRemoveActivity={removeActivity}
+              onUpdateActivity={updateActivity}
+              onAddDining={(data) => addDining(cityStop.id, data)}
+              onRemoveDining={removeDining}
+              onUpdateDining={updateDining}
+              onAddPossibleActivity={(data) => addPossibleActivity(cityStop.id, data)}
+              onRemovePossibleActivity={removePossibleActivity}
+              onUpdatePossibleActivity={updatePossibleActivity}
+              onClose={() => { setSelectedDayStr(null); setMobileView('steder') }}
+            />
+          </div>
+        )}
+
         {/* Kart */}
         <div className={`
           ${mobileView === 'kart' ? 'flex' : 'hidden'} md:flex
           flex-1 relative overflow-hidden
         `}>
-          {(() => {
-            const isCityTrip = currentTrip && currentTrip.trip_type && currentTrip.trip_type !== 'road_trip'
-            const cityStop = isCityTrip ? (stops[0] ?? null) : null
-            const cityCenter = cityStop ? { lat: cityStop.lat, lng: cityStop.lng } : null
-            return (
-              <PlanningMap
-                stops={stops}
-                selectedStopId={isCityTrip ? null : selectedStopId}
-                onAddStop={isCityTrip ? () => {} : handleAddStop}
-                onSelectStop={isCityTrip ? () => {} : handleSelectStop}
-                disabled={!currentTrip}
-                readOnly={!!isCityTrip}
-                hotels={hotels}
-                activities={isCityTrip ? activities : undefined}
-                dining={isCityTrip ? dining : undefined}
-                mapCenter={
-                  isCityTrip
-                    ? cityCenter
-                    : (selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null)
-                }
-                mapFitPoints={isCityTrip && cityCenter ? [cityCenter] : null}
-                routeLegs={isCityTrip ? [] : routeLegs}
-                routeLegsLoaded={isCityTrip ? true : routeLegsLoaded}
-                onRouteLegsChange={isCityTrip ? () => {} : handleRouteLegsChange}
-                onRouteStatesChange={isCityTrip ? () => {} : setRouteStates}
-              />
-            )
-          })()}
+          {/* City trip: use citySearchCenter as mapCenter when user searches;
+              fall back to mapFitPoints=[cityCenter] for initial / zoom-to-city */}
+          {isCityTrip ? (
+            <PlanningMap
+              stops={stops}
+              selectedStopId={null}
+              onAddStop={() => {}}
+              onSelectStop={() => {}}
+              disabled={!currentTrip}
+              readOnly
+              hotels={hotels}
+              activities={activities}
+              dining={dining}
+              mapCenter={citySearchCenter ?? null}
+              mapFitPoints={citySearchCenter ? null : (cityCenter ? [cityCenter] : null)}
+              mapForcePanVersion={cityZoomVersion}
+              routeLegs={[]}
+              routeLegsLoaded
+              onRouteLegsChange={() => {}}
+              onRouteStatesChange={() => {}}
+              onCitySearch={({ lat, lng }) => setCitySearchCenter({ lat, lng })}
+            />
+          ) : (
+            <PlanningMap
+              stops={stops}
+              selectedStopId={selectedStopId}
+              onAddStop={handleAddStop}
+              onSelectStop={handleSelectStop}
+              disabled={!currentTrip}
+              hotels={hotels}
+              mapCenter={selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null}
+              routeLegs={routeLegs}
+              routeLegsLoaded={routeLegsLoaded}
+              onRouteLegsChange={handleRouteLegsChange}
+              onRouteStatesChange={setRouteStates}
+            />
+          )}
         </div>
       </div>
     </div>

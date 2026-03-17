@@ -40,6 +40,8 @@ interface PlanningMapProps {
   onSelectDining?: (id: string) => void
   mapCenter?: { lat: number; lng: number } | null
   mapFitPoints?: Array<{ lat: number; lng: number }> | null
+  /** Increment to force MapController to re-pan/fit even if coords haven't changed */
+  mapForcePanVersion?: number
   activityRoute?: ActivityRoute | null
   onActivityRouteInfo?: (info: RouteInfo) => void
   hotels?: Hotel[]
@@ -47,6 +49,8 @@ interface PlanningMapProps {
   routeLegsLoaded?: boolean
   onRouteLegsChange?: (legs: LegWaypoints[]) => void
   onRouteStatesChange?: (states: string[]) => void
+  /** When provided, shows search box even in readOnly mode but only pans the map (no stop added) */
+  onCitySearch?: (result: { lat: number; lng: number; city: string; state: string }) => void
 }
 
 interface PendingStop {
@@ -516,14 +520,17 @@ function MapController({
   center,
   stops,
   fitPoints,
+  forcePanVersion,
 }: {
   center: { lat: number; lng: number } | null | undefined
   stops: Stop[]
   fitPoints?: Array<{ lat: number; lng: number }> | null
+  forcePanVersion?: number
 }) {
   const map = useMap()
   const prevCenterRef = useRef<typeof center>(undefined)
   const prevFitPointsRef = useRef<typeof fitPoints>(undefined)
+  const prevForcePanRef = useRef<number | undefined>(undefined)
   const stopsRef = useRef(stops)
   stopsRef.current = stops
 
@@ -533,10 +540,14 @@ function MapController({
     prevCenterRef.current = center
     const prevFit = prevFitPointsRef.current
     prevFitPointsRef.current = fitPoints
+    const prevForce = prevForcePanRef.current
+    prevForcePanRef.current = forcePanVersion
+
+    const forceTriggered = forcePanVersion !== prevForce && forcePanVersion !== undefined
 
     if (fitPoints && fitPoints.length >= 2) {
-      // Skip if points haven't changed
-      const same = prevFit &&
+      // Skip if points haven't changed (unless forced)
+      const same = !forceTriggered && prevFit &&
         prevFit.length === fitPoints.length &&
         fitPoints.every((p, i) => prevFit![i].lat === p.lat && prevFit![i].lng === p.lng)
       if (!same) {
@@ -545,14 +556,14 @@ function MapController({
         map.fitBounds(bounds, 80)
       }
     } else if (fitPoints && fitPoints.length === 1) {
-      // Single point (no route yet) – just pan in
+      // Single point – pan in (forced or when coords change)
       const [p] = fitPoints
-      if (prevFit?.[0]?.lat !== p.lat || prevFit?.[0]?.lng !== p.lng) {
+      if (forceTriggered || prevFit?.[0]?.lat !== p.lat || prevFit?.[0]?.lng !== p.lng) {
         map.panTo(p)
-        map.setZoom(15)
+        map.setZoom(13)
       }
     } else if (center) {
-      if (prev?.lat === center.lat && prev?.lng === center.lng) return
+      if (!forceTriggered && prev?.lat === center.lat && prev?.lng === center.lng) return
       map.panTo(center)
       map.setZoom(18)
     } else if ((prev != null || (prevFit && prevFit.length > 0)) && stopsRef.current.length > 0) {
@@ -562,7 +573,7 @@ function MapController({
       map.fitBounds(bounds, 80)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, center, fitPoints])
+  }, [map, center, fitPoints, forcePanVersion])
 
   return null
 }
@@ -584,6 +595,7 @@ export default function PlanningMap({
   onSelectDining,
   mapCenter,
   mapFitPoints,
+  mapForcePanVersion,
   activityRoute,
   onActivityRouteInfo,
   hotels = [],
@@ -591,6 +603,7 @@ export default function PlanningMap({
   routeLegsLoaded = true,
   onRouteLegsChange,
   onRouteStatesChange,
+  onCitySearch,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
   const activeToolRef = useRef(false)
@@ -648,7 +661,7 @@ export default function PlanningMap({
           rotateControl={false}
         >
           {/* Programmatic pan + zoom */}
-          <MapController center={mapCenter} stops={stops} fitPoints={mapFitPoints} />
+          <MapController center={mapCenter} stops={stops} fitPoints={mapFitPoints} forcePanVersion={mapForcePanVersion} />
 
           {/* Stoppesteder */}
           {stops.map((stop, index) => (
@@ -728,8 +741,12 @@ export default function PlanningMap({
             />
           )}
 
-          {/* Søkeboks */}
-          {!readOnly && <MapSearchBox onPlaceSelect={handleSearchSelect} />}
+          {/* Søkeboks: always shown for road trips; also shown for city trips if onCitySearch provided */}
+          {(!readOnly || onCitySearch) && (
+            <MapSearchBox
+              onPlaceSelect={readOnly && onCitySearch ? onCitySearch : handleSearchSelect}
+            />
+          )}
         </Map>
 
         {/* Egendefinerte kartkontroller */}
