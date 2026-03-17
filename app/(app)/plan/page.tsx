@@ -120,6 +120,19 @@ export default function PlanPage() {
     }
   }, [cityStop, selectedDayStr, dayPlanNote, updateNote, addNote])
 
+  // Generic save-day-plan for the overview modal (takes explicit dateStr)
+  const handleSaveDayPlanForDate = useCallback((dateStr: string, text: string) => {
+    if (!cityStop) return
+    const existing = notes.find(
+      (n) => n.stop_id === cityStop.id && n.note_date === dateStr && n.title === '__day_plan__',
+    )
+    if (existing) {
+      updateNote(existing.id, { content: text })
+    } else {
+      addNote({ stop_id: cityStop.id, note_date: dateStr, title: '__day_plan__', content: text })
+    }
+  }, [cityStop, notes, updateNote, addNote])
+
   function handleAddStop(stop: Stop) {
     if (!currentTrip) return
     addStop({ ...stop, trip_id: currentTrip.id })
@@ -396,9 +409,8 @@ export default function PlanPage() {
           dining={dining.filter((d) => d.stop_id === cityStop.id)}
           notes={notes}
           stopId={cityStop.id}
-          onSelectDay={(day) => {
-            handleSelectDay(day)
-          }}
+          onSelectDay={handleSelectDay}
+          onSaveDayPlan={handleSaveDayPlanForDate}
           onClose={() => setShowCityOverview(false)}
         />
       )}
