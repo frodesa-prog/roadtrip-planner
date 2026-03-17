@@ -36,6 +36,14 @@ interface CityDayPanelProps {
   dayPlanText?: string
   /** Called with the new text when the day plan textarea is blurred */
   onSaveDayPlan?: (text: string) => void
+  /** Currently selected activity id (for map route highlight) */
+  selectedActivityId?: string | null
+  /** Currently selected dining id (for map route highlight) */
+  selectedDiningId?: string | null
+  /** Called when user clicks an activity row to show route; null = deselect */
+  onSelectActivity?: (id: string | null) => void
+  /** Called when user clicks a dining row to show route; null = deselect */
+  onSelectDining?: (id: string | null) => void
   onClose: () => void
 }
 
@@ -58,6 +66,10 @@ export default function CityDayPanel({
   onAddPossibleActivity, onRemovePossibleActivity, onUpdatePossibleActivity,
   dayPlanText = '',
   onSaveDayPlan,
+  selectedActivityId = null,
+  selectedDiningId = null,
+  onSelectActivity,
+  onSelectDining,
   onClose,
 }: CityDayPanelProps) {
 
@@ -349,8 +361,17 @@ export default function CityDayPanel({
                     </div>
                   )
                 }
+                const isActSelected = selectedActivityId === act.id
+                const hasPin = act.map_lat != null && act.map_lng != null
                 return (
-                  <div key={act.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-800/50 group">
+                  <div
+                    key={act.id}
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-lg group transition-colors ${
+                      isActSelected
+                        ? 'bg-blue-500/15 border border-blue-500/40'
+                        : 'bg-slate-800/50 border border-transparent'
+                    }`}
+                  >
                     <span className="text-sm flex-shrink-0" title={cfg.label}>{cfg.emoji}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-slate-200 font-medium truncate">{act.name}</p>
@@ -364,6 +385,18 @@ export default function CityDayPanel({
                       <a href={act.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-slate-600 hover:text-blue-400 transition-colors">
                         <ExternalLink className="w-3 h-3" />
                       </a>
+                    )}
+                    {/* Route button (only for pinned activities) */}
+                    {hasPin && onSelectActivity && (
+                      <button
+                        onClick={() => onSelectActivity(isActSelected ? null : act.id)}
+                        title={isActSelected ? 'Skjul rute' : 'Vis rute til H-pin'}
+                        className={`flex-shrink-0 transition-colors ${
+                          isActSelected ? 'text-blue-400' : 'text-slate-600 hover:text-blue-400 opacity-0 group-hover:opacity-100'
+                        }`}
+                      >
+                        <MapPin className="w-3 h-3" />
+                      </button>
                     )}
                     <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => startEditActivity(act)} className="text-slate-500 hover:text-blue-400 transition-colors">
@@ -456,8 +489,17 @@ export default function CityDayPanel({
                     </div>
                   )
                 }
+                const isDinSelected = selectedDiningId === d.id
+                const hasDinPin = d.map_lat != null && d.map_lng != null
                 return (
-                  <div key={d.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-800/50 group">
+                  <div
+                    key={d.id}
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-lg group transition-colors ${
+                      isDinSelected
+                        ? 'bg-orange-500/15 border border-orange-500/40'
+                        : 'bg-slate-800/50 border border-transparent'
+                    }`}
+                  >
                     <UtensilsCrossed className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-slate-200 font-medium truncate">{d.name}</p>
@@ -471,6 +513,18 @@ export default function CityDayPanel({
                       <a href={d.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-slate-600 hover:text-blue-400 transition-colors">
                         <ExternalLink className="w-3 h-3" />
                       </a>
+                    )}
+                    {/* Route button (only for pinned dining) */}
+                    {hasDinPin && onSelectDining && (
+                      <button
+                        onClick={() => onSelectDining(isDinSelected ? null : d.id)}
+                        title={isDinSelected ? 'Skjul rute' : 'Vis rute til H-pin'}
+                        className={`flex-shrink-0 transition-colors ${
+                          isDinSelected ? 'text-orange-400' : 'text-slate-600 hover:text-orange-400 opacity-0 group-hover:opacity-100'
+                        }`}
+                      >
+                        <MapPin className="w-3 h-3" />
+                      </button>
                     )}
                     <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => startEditDining(d)} className="text-slate-500 hover:text-blue-400 transition-colors">
