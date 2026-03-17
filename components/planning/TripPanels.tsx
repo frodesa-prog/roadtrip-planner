@@ -266,7 +266,7 @@ function FlightForm({ flight, onSave }: {
             <div><Label>Endelig destinasjon</Label><AirportInput key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg2_to: v })} /></div>
           </div>
           {leg2Min !== null && (
-            <div className="flex items-center">
+            <div className="flex justify-center">
               <DurationBadge minutes={leg2Min} label="Flytid etappe 2" />
             </div>
           )}
