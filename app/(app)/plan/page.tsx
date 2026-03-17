@@ -71,6 +71,32 @@ export default function PlanPage() {
   const cityStop = isCityTrip ? (stops[0] ?? null) : null
   const cityCenter = cityStop ? { lat: cityStop.lat, lng: cityStop.lng } : null
 
+  // City trip: map fit points — day pins when a day is selected, all pins otherwise
+  const cityMapFitPoints = useMemo(() => {
+    if (!isCityTrip || citySearchCenter) return null
+
+    if (selectedDayStr && cityStop) {
+      const pts = [
+        ...activities
+          .filter((a) => a.stop_id === cityStop.id && a.activity_date === selectedDayStr && a.map_lat != null && a.map_lng != null)
+          .map((a) => ({ lat: a.map_lat!, lng: a.map_lng! })),
+        ...dining
+          .filter((d) => d.stop_id === cityStop.id && d.booking_date === selectedDayStr && d.map_lat != null && d.map_lng != null)
+          .map((d) => ({ lat: d.map_lat!, lng: d.map_lng! })),
+      ]
+      if (pts.length > 0) return pts
+      // Day has no pins → fall through to show all
+    }
+
+    // Default: all pinned activities + dining across trip
+    const all = [
+      ...activities.filter((a) => a.map_lat != null && a.map_lng != null).map((a) => ({ lat: a.map_lat!, lng: a.map_lng! })),
+      ...dining.filter((d) => d.map_lat != null && d.map_lng != null).map((d) => ({ lat: d.map_lat!, lng: d.map_lng! })),
+    ]
+    if (all.length > 0) return cityCenter ? [...all, cityCenter] : all
+    return cityCenter ? [cityCenter] : null
+  }, [isCityTrip, citySearchCenter, selectedDayStr, cityStop, activities, dining, cityCenter])
+
   // Day index for CityDayPanel header
   const dayIndex = selectedDayStr && currentTrip?.date_from
     ? Math.max(0, Math.round(
@@ -106,6 +132,7 @@ export default function PlanPage() {
 
   function handleSelectDay(day: string | null) {
     setSelectedDayStr(day)
+    setCityZoomVersion((v) => v + 1)
     if (day && typeof window !== 'undefined' && window.innerWidth < 768) {
       setMobileView('detaljer')
     }
@@ -226,6 +253,7 @@ export default function PlanPage() {
               }}
               onZoomToCity={() => {
                 setCitySearchCenter(null)
+                setSelectedDayStr(null)
                 setCityZoomVersion((v) => v + 1)
               }}
               onUpdateGroupDescription={(desc) =>
@@ -313,7 +341,7 @@ export default function PlanPage() {
               activities={activities}
               dining={dining}
               mapCenter={citySearchCenter ?? null}
-              mapFitPoints={citySearchCenter ? null : (cityCenter ? [cityCenter] : null)}
+              mapFitPoints={citySearchCenter ? null : cityMapFitPoints}
               mapForcePanVersion={cityZoomVersion}
               routeLegs={[]}
               routeLegsLoaded
