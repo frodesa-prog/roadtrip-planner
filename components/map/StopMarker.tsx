@@ -25,15 +25,9 @@ export default function StopMarker({ stop, index, isSelected, onClick, isPending
     const bgColor = isPending ? '#94a3b8' : isSelected ? '#f97316' : '#2563eb'
     const label = isPending ? '?' : String(index + 1)
 
-    // Inner content: hotel bed icon or number label
+    // Inner content: hotel "H" label or stop number label
     const innerContent = showHotelIcon
-      ? `
-        <rect x="8" y="10" width="20" height="5" rx="2.5" fill="white"/>
-        <rect x="7" y="15" width="22" height="8" rx="2" fill="white"/>
-        <rect x="9.5" y="16" width="7" height="4.5" rx="1.5" fill="${bgColor}"/>
-        <rect x="9" y="23" width="2" height="3" rx="1" fill="white"/>
-        <rect x="25" y="23" width="2" height="3" rx="1" fill="white"/>
-      `
+      ? `<text x="18" y="23" text-anchor="middle" fill="white" font-size="15" font-weight="bold" font-family="system-ui, sans-serif">H</text>`
       : `<text x="18" y="23" text-anchor="middle" fill="white" font-size="13" font-weight="bold" font-family="system-ui, sans-serif">${label}</text>`
 
     const svg = `

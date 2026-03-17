@@ -34,7 +34,7 @@ export default function CityMapPinModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!name.trim() && !setAsStartPin) return
     onConfirm(pinType, name.trim(), time, date || null, setAsStartPin)
   }
 
@@ -101,7 +101,7 @@ export default function CityMapPinModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={pinType === 'activity' ? 'f.eks. Eiffeltårnet' : 'f.eks. Café de Flore'}
-              required
+              required={!setAsStartPin}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -145,7 +145,7 @@ export default function CityMapPinModal({
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
-              disabled={!name.trim()}
+              disabled={!name.trim() && !setAsStartPin}
               className="flex-1 h-9 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium transition-colors"
             >
               Legg til pin
