@@ -150,23 +150,28 @@ export default function PlanPage() {
   ) {
     if (!cityMapPinPending || !cityStop) return
     const { lat, lng } = cityMapPinPending
-    if (type === 'activity') {
-      addActivity(cityStop.id, {
-        name,
-        activity_time: time || undefined,
-        activity_date: date || undefined,
-        map_lat: lat,
-        map_lng: lng,
-      })
-    } else {
-      addDining(cityStop.id, {
-        name,
-        booking_time: time || undefined,
-        booking_date: date || undefined,
-        map_lat: lat,
-        map_lng: lng,
-      })
+
+    // Only create activity/dining if a name was actually provided
+    if (name.trim()) {
+      if (type === 'activity') {
+        addActivity(cityStop.id, {
+          name,
+          activity_time: time || undefined,
+          activity_date: date || undefined,
+          map_lat: lat,
+          map_lng: lng,
+        })
+      } else {
+        addDining(cityStop.id, {
+          name,
+          booking_time: time || undefined,
+          booking_date: date || undefined,
+          map_lat: lat,
+          map_lng: lng,
+        })
+      }
     }
+
     if (setAsStartPin) {
       updateStop(cityStop.id, { lat, lng })
     }
