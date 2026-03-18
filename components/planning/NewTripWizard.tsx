@@ -259,7 +259,7 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
           || 'En venn'
 
         for (const entry of inviteEntries) {
-          // ── Found user: add as traveler ──────────────────────────────────
+          // ── Found user: add as traveler + grant trip access + send email ─
           if (entry.status === 'found' && entry.userId) {
             const { data: profileFull } = await supabase
               .from('user_profiles')
@@ -316,6 +316,7 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
               }
             }
 
+            // Add as traveler
             await supabase.from('travelers').insert({
               trip_id: tripId,
               name: entry.displayName || entry.email.split('@')[0],
@@ -326,6 +327,28 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
               ai_context: aiContext,
               linked_user_id: entry.userId,
             })
+
+            // Grant trip access via trip_shares so the trip shows up on their account
+            await supabase.from('trip_shares').insert({
+              trip_id: tripId,
+              owner_id: user.id,
+              shared_with_email: entry.email,
+              access_level: 'write',
+              status: 'accepted',
+            })
+
+            // Notify by email that they've been added to the trip
+            fetch('/api/share-trip-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipientEmail: entry.email,
+                tripName: result.name,
+                senderName,
+                accessLevel: 'write',
+                alreadyMember: true,
+              }),
+            }).catch(() => {})
           }
 
           // ── Not found, user chose to invite ─────────────────────────────

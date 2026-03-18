@@ -13,21 +13,22 @@ export async function POST(req: NextRequest) {
     tripName: string
     senderName: string
     accessLevel: 'read' | 'write'
+    alreadyMember?: boolean  // true = existing user added directly (vs. invite to register)
   }
-  const { recipientEmail, tripName, senderName, accessLevel } = body
+  const { recipientEmail, tripName, senderName, accessLevel, alreadyMember } = body
 
-  const accessLabel = accessLevel === 'write' ? 'full tilgang (kan redigere)' : 'lesetilgang'
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://din-app.no'
 
-  const html = `
+  const html = alreadyMember
+    ? `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2 style="color: #1d4ed8;">Du er invitert til en ferietur! 🗺️</h2>
-      <p><strong>${senderName}</strong> har delt turen <strong>"${tripName}"</strong> med deg.</p>
-      <p>Du har fått ${accessLabel}.</p>
+      <h2 style="color: #1d4ed8;">Du er lagt til i en ferietur! 🗺️</h2>
+      <p><strong>${senderName}</strong> har lagt deg til i turen <strong>"${tripName}"</strong>.</p>
+      <p>Turen er nå tilgjengelig på din konto og du kan åpne den direkte i appen.</p>
       <p>
         <a href="${appUrl}"
            style="display:inline-block;padding:12px 24px;background:#1d4ed8;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
-          Åpne appen
+          Åpne turen i appen
         </a>
       </p>
       <p style="color:#6b7280;font-size:0.85rem;">
@@ -35,8 +36,28 @@ export async function POST(req: NextRequest) {
       </p>
     </div>
   `
+    : `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color: #1d4ed8;">Du er invitert til en ferietur! 🗺️</h2>
+      <p><strong>${senderName}</strong> har invitert deg til turen <strong>"${tripName}"</strong>.</p>
+      <p>Opprett en konto med denne e-postadressen (${recipientEmail}) for å få tilgang til turen.</p>
+      <p>
+        <a href="${appUrl}"
+           style="display:inline-block;padding:12px 24px;background:#1d4ed8;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">
+          Opprett konto og åpne turen
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:0.85rem;">
+        ${accessLevel === 'write' ? 'Du vil få full tilgang og kan redigere turen.' : 'Du vil få lesetilgang til turen.'}
+      </p>
+    </div>
+  `
 
-  console.log('[share-trip-email] Sending to:', recipientEmail, 'from key:', resendApiKey.slice(0, 10) + '...')
+  const subject = alreadyMember
+    ? `${senderName} har lagt deg til i "${tripName}"`
+    : `${senderName} har invitert deg til "${tripName}"`
+
+  console.log('[share-trip-email] Sending to:', recipientEmail, 'alreadyMember:', alreadyMember)
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -47,7 +68,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       from: 'Reiseplanlegger <noreply@sirkussand.com>',
       to: recipientEmail,
-      subject: `${senderName} har delt "${tripName}" med deg`,
+      subject,
       html,
     }),
   })
