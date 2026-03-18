@@ -344,10 +344,9 @@ export default function ChatPanel() {
             <div className="flex items-center gap-1">
               <button
                 onClick={openArchiveList}
-                className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
-                title="Arkiverte chatter"
+                className="px-2 py-1 rounded-md text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
               >
-                <FolderOpen className="w-4 h-4" />
+                Chatarkiv
               </button>
               <button onClick={close}
                 className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
