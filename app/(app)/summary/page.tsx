@@ -292,7 +292,7 @@ export default function SummaryPage() {
                 return (
                   <div
                     key={stop.id}
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded border-l-2 ${pal.border} bg-transparent group/stop`}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-transparent group/stop"
                   >
                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pal.dot}`} />
                     <div className="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
@@ -301,12 +301,12 @@ export default function SummaryPage() {
                           href={hotelUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`text-xs font-semibold truncate flex-shrink-0 max-w-[50%] hover:underline ${pal.text}`}
+                          className="text-xs font-semibold truncate flex-shrink-0 max-w-[50%] hover:underline text-slate-200"
                         >
                           {stop.city}
                         </a>
                       ) : (
-                        <span className={`text-xs font-semibold truncate flex-shrink-0 max-w-[50%] ${pal.text}`}>
+                        <span className="text-xs font-semibold truncate flex-shrink-0 max-w-[50%] text-slate-200">
                           {stop.city}
                         </span>
                       )}
@@ -630,10 +630,10 @@ function DayCell({
     <div
       onClick={onClick}
       className={[
-        'min-h-[72px] rounded-lg border p-1.5 transition-all flex flex-col',
+        'relative min-h-[72px] rounded-lg border p-1.5 transition-all flex flex-col',
         stop && onClick ? 'cursor-pointer' : 'cursor-default',
         palette
-          ? `${palette.bg} ${palette.border} hover:brightness-125`
+          ? 'border-slate-700/60 bg-slate-800/40 hover:bg-slate-800/60'
           : 'border-slate-800/40 bg-slate-900/20',
         isSelected
           ? `ring-2 ${palette?.sel ?? 'ring-white'} ring-offset-1 ring-offset-slate-950`
@@ -642,15 +642,20 @@ function DayCell({
             : '',
       ].join(' ')}
     >
+      {/* Colored dot in top-right corner */}
+      {palette && (
+        <div className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full flex-shrink-0 ${palette.dot}`} />
+      )}
+
       {/* Date + drive info on same line */}
-      <div className="flex items-center gap-1 leading-none min-w-0">
+      <div className="flex items-center gap-1 leading-none min-w-0 pr-3">
         <span className={`text-[11px] font-semibold flex-shrink-0 ${stop || flight ? 'text-slate-300' : 'text-slate-700'}`}>
           {isFirstOfMonth
             ? date.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
             : date.getDate()}
         </span>
         {stop && isArrival && leg && (
-          <div className={`flex items-center gap-0.5 text-[9px] font-medium min-w-0 ${palette?.drive ?? 'text-slate-400'}`}>
+          <div className="flex items-center gap-0.5 text-[9px] font-medium min-w-0 text-slate-400">
             <Car className="w-2.5 h-2.5 flex-shrink-0" />
             <span className="truncate">{leg.durationText} · {leg.distanceText}</span>
           </div>
@@ -659,7 +664,7 @@ function DayCell({
 
       {/* City name – always on line 2, same position for all days */}
       {stop && (
-        <p className={`text-[11px] font-semibold truncate leading-tight mt-0.5 ${palette?.text ?? 'text-slate-300'}`}>
+        <p className="text-[11px] font-semibold truncate leading-tight mt-0.5 text-slate-200">
           {stop.city}
         </p>
       )}

@@ -77,17 +77,17 @@ function activityIcon(type: string | null): string {
 // ─── Stop colors (same palette as summary page) ───────────────────────────────
 
 const COLORS = [
-  { border: 'border-l-blue-500',    badge: 'bg-blue-500/20 text-blue-300',    label: 'text-blue-400' },
-  { border: 'border-l-emerald-500', badge: 'bg-emerald-500/20 text-emerald-300', label: 'text-emerald-400' },
-  { border: 'border-l-amber-500',   badge: 'bg-amber-500/20 text-amber-300',   label: 'text-amber-400' },
-  { border: 'border-l-pink-500',    badge: 'bg-pink-500/20 text-pink-300',    label: 'text-pink-400' },
-  { border: 'border-l-violet-500',  badge: 'bg-violet-500/20 text-violet-300', label: 'text-violet-400' },
-  { border: 'border-l-teal-500',    badge: 'bg-teal-500/20 text-teal-300',    label: 'text-teal-400' },
-  { border: 'border-l-orange-500',  badge: 'bg-orange-500/20 text-orange-300', label: 'text-orange-400' },
-  { border: 'border-l-sky-500',     badge: 'bg-sky-500/20 text-sky-300',      label: 'text-sky-400' },
-  { border: 'border-l-lime-500',    badge: 'bg-lime-500/20 text-lime-300',    label: 'text-lime-400' },
-  { border: 'border-l-rose-500',    badge: 'bg-rose-500/20 text-rose-300',    label: 'text-rose-400' },
-  { border: 'border-l-purple-500',  badge: 'bg-purple-500/20 text-purple-300', label: 'text-purple-400' },
+  { dot: 'bg-blue-400',    badge: 'bg-blue-500/20 text-blue-300',    label: 'text-blue-400' },
+  { dot: 'bg-emerald-400', badge: 'bg-emerald-500/20 text-emerald-300', label: 'text-emerald-400' },
+  { dot: 'bg-amber-400',   badge: 'bg-amber-500/20 text-amber-300',   label: 'text-amber-400' },
+  { dot: 'bg-pink-400',    badge: 'bg-pink-500/20 text-pink-300',    label: 'text-pink-400' },
+  { dot: 'bg-violet-400',  badge: 'bg-violet-500/20 text-violet-300', label: 'text-violet-400' },
+  { dot: 'bg-teal-400',    badge: 'bg-teal-500/20 text-teal-300',    label: 'text-teal-400' },
+  { dot: 'bg-orange-400',  badge: 'bg-orange-500/20 text-orange-300', label: 'text-orange-400' },
+  { dot: 'bg-sky-400',     badge: 'bg-sky-500/20 text-sky-300',      label: 'text-sky-400' },
+  { dot: 'bg-lime-400',    badge: 'bg-lime-500/20 text-lime-300',    label: 'text-lime-400' },
+  { dot: 'bg-rose-400',    badge: 'bg-rose-500/20 text-rose-300',    label: 'text-rose-400' },
+  { dot: 'bg-purple-400',  badge: 'bg-purple-500/20 text-purple-300', label: 'text-purple-400' },
 ]
 
 // ─── DayEntry type ────────────────────────────────────────────────────────────
@@ -129,7 +129,9 @@ function DayCard({ entry }: { entry: DayEntry }) {
   const hasContent = sortedActivities.length > 0 || sortedDining.length > 0
 
   return (
-    <div className={`bg-slate-900 border border-slate-800 border-l-4 ${color.border} rounded-xl overflow-hidden`}>
+    <div className="relative bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      {/* Colored dot in top-right corner */}
+      <div className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full ${color.dot}`} />
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-baseline gap-3">
