@@ -30,10 +30,13 @@ export function useTrips() {
 
   const supabase = useMemo(() => createClient(), [])
 
-  // Wrapper: updates state AND persists to localStorage
+  // Wrapper: updates state, persists to localStorage og varsler andre instanser
   const setCurrentTrip = useCallback((trip: Trip | null) => {
     saveSelectedTripId(trip?.id ?? null)
     setCurrentTripState(trip)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('trip-changed', { detail: { trip } }))
+    }
   }, [])
 
   const loadTrips = useCallback(async () => {

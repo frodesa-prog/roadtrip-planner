@@ -4,13 +4,14 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   ReactNode,
 } from 'react'
 import { useTrips } from '@/hooks/useTrips'
 import { useTripGroupChat } from '@/hooks/useTripGroupChat'
-import { TripGroupMessage } from '@/types'
+import { Trip, TripGroupMessage } from '@/types'
 
 interface ChatContextValue {
   isOpen: boolean
@@ -44,7 +45,23 @@ const ChatContext = createContext<ChatContextValue>({
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false)
-  const { currentTrip, userId } = useTrips()
+  const { currentTrip: tripsCurrentTrip, userId } = useTrips()
+
+  // Overstyr currentTrip når andre useTrips-instanser bytter tur (f.eks. fra en side)
+  // trip-changed-eventet sendes fra setCurrentTrip-wrapperen i useTrips.ts
+  const [tripOverride, setTripOverride] = useState<Trip | null | undefined>(undefined)
+
+  useEffect(() => {
+    function onTripChanged(e: Event) {
+      const { trip } = (e as CustomEvent<{ trip: Trip | null }>).detail
+      setTripOverride(trip)
+    }
+    window.addEventListener('trip-changed', onTripChanged)
+    return () => window.removeEventListener('trip-changed', onTripChanged)
+  }, [])
+
+  // tripOverride === undefined betyr at ingen event har kommet ennå → bruk verdi fra useTrips()
+  const currentTrip = tripOverride !== undefined ? tripOverride : tripsCurrentTrip
 
   const tripId = currentTrip?.id ?? null
   const tripName = currentTrip?.name ?? null
