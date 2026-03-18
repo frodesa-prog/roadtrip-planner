@@ -372,9 +372,10 @@ export default function ChatPanel() {
               </button>
               <button
                 onClick={openArchiveList}
-                className="px-2 py-1 rounded-md text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
               >
-                Chatarkiv
+                <Archive className="w-3.5 h-3.5" />
+                Arkiv
               </button>
               <button onClick={close}
                 className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
