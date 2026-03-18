@@ -6,6 +6,17 @@ import { UserProfile } from '@/types'
 
 type ProfileUpdate = Partial<Pick<UserProfile, 'display_name' | 'birth_date' | 'gender'>>
 
+function calcAge(birthDate: string): number | null {
+  const today = new Date()
+  const dob = new Date(birthDate)
+  let age = today.getFullYear() - dob.getFullYear()
+  if (
+    today.getMonth() < dob.getMonth() ||
+    (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())
+  ) age--
+  return age
+}
+
 export function useUserProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -47,6 +58,26 @@ export function useUserProfile() {
         .from('user_profiles')
         .update({ ...updates, updated_at: now })
         .eq('user_id', user.id)
+
+      // ── Synkroniser til reisedeltaker-rader der brukeren er registrert ──
+      const travelerUpdate: Record<string, unknown> = {}
+
+      if (updates.display_name !== undefined) {
+        travelerUpdate.name = updates.display_name || null
+      }
+      if (updates.birth_date !== undefined) {
+        travelerUpdate.age = updates.birth_date ? calcAge(updates.birth_date) : null
+      }
+      if (updates.gender !== undefined) {
+        travelerUpdate.gender = updates.gender || null
+      }
+
+      if (Object.keys(travelerUpdate).length > 0) {
+        await supabase
+          .from('travelers')
+          .update(travelerUpdate)
+          .eq('linked_user_id', user.id)
+      }
     },
     [supabase],
   )

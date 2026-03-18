@@ -48,7 +48,26 @@ export function useUserPreferences() {
         .select()
         .single()
 
-      if (!error && data) setPreferences(data as UserPreferences)
+      if (!error && data) {
+        const prefs = data as UserPreferences
+        setPreferences(prefs)
+
+        // ── Synkroniser til reisedeltaker-rader der brukeren er registrert ──
+        // Bygg ai_context fra mat-, mobilitets- og annen informasjon
+        const aiParts: string[] = []
+        if (prefs.food_preferences) aiParts.push(`Mat: ${prefs.food_preferences}`)
+        if (prefs.mobility_notes) aiParts.push(`Mobilitet: ${prefs.mobility_notes}`)
+        if (prefs.other_info) aiParts.push(prefs.other_info)
+
+        await supabase
+          .from('travelers')
+          .update({
+            interests:   prefs.interests ?? null,
+            description: prefs.interests_extra ?? null,
+            ai_context:  aiParts.length > 0 ? aiParts.join('\n') : null,
+          })
+          .eq('linked_user_id', user.id)
+      }
     },
     [supabase],
   )
