@@ -4,6 +4,7 @@ import {
   useEffect, useMemo, useRef, useState,
   KeyboardEvent, ClipboardEvent,
 } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X, MessageSquare, MessageSquarePlus, Send, Paperclip, FileText,
   Trash2, Archive, FolderOpen, ChevronLeft,
@@ -775,73 +776,6 @@ export default function ChatPanel() {
         </div>
       )}
 
-      {/* ── Lightbox overlay ─────────────────────────────────────────── */}
-      {lightbox && (
-        <div
-          className="absolute inset-0 z-20 bg-black/95 flex flex-col"
-          onClick={(e) => { if (e.target === e.currentTarget) setLightbox(null) }}
-        >
-          {/* Lightbox header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
-            <span className="text-sm text-slate-300 truncate min-w-0 pr-2 font-medium">
-              {lightbox.name ?? 'Vedlegg'}
-            </span>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                onClick={() => downloadAttachment(lightbox.url, lightbox.name)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500
-                  text-white text-xs font-medium transition-colors"
-                title="Last ned"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Last ned
-              </button>
-              <button
-                onClick={() => setLightbox(null)}
-                className="ml-1 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                title="Lukk (Esc)"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Lightbox content */}
-          <div
-            className="flex-1 flex items-center justify-center p-4 overflow-auto"
-            onClick={() => setLightbox(null)}
-          >
-            {lightbox.type === 'image' ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={lightbox.url}
-                alt={lightbox.name ?? 'Bilde'}
-                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <div
-                className="flex flex-col items-center gap-5 text-center p-6 bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <FileText className="w-16 h-16 text-blue-400" />
-                <div>
-                  <p className="text-slate-100 text-sm font-semibold break-all">{lightbox.name ?? 'Dokument'}</p>
-                </div>
-                <button
-                  onClick={() => downloadAttachment(lightbox.url, lightbox.name)}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500
-                    text-white text-sm font-medium transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Last ned
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* ── New chat dialog overlay ──────────────────────────────────── */}
       {showNewChatDialog && (
         <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm z-10 flex items-center justify-center p-5">
@@ -1027,5 +961,73 @@ export default function ChatPanel() {
         </div>
       )}
     </div>
+
+    {/* ── Lightbox portal (renders over the entire app) ─────────────── */}
+    {lightbox && typeof document !== 'undefined' && createPortal(
+      <div
+        className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex flex-col"
+        onClick={(e) => { if (e.target === e.currentTarget) setLightbox(null) }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
+          <span className="text-sm text-slate-200 truncate min-w-0 pr-3 font-medium">
+            {lightbox.name ?? 'Vedlegg'}
+          </span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => downloadAttachment(lightbox.url, lightbox.name)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500
+                text-white text-sm font-medium transition-colors"
+              title="Last ned"
+            >
+              <Download className="w-4 h-4" />
+              Last ned
+            </button>
+            <button
+              onClick={() => setLightbox(null)}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              title="Lukk (Esc)"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div
+          className="flex-1 flex items-center justify-center p-6 overflow-auto"
+          onClick={() => setLightbox(null)}
+        >
+          {lightbox.type === 'image' ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={lightbox.url}
+              alt={lightbox.name ?? 'Bilde'}
+              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <div
+              className="flex flex-col items-center gap-6 text-center p-8 bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <FileText className="w-20 h-20 text-blue-400" />
+              <p className="text-slate-100 text-base font-semibold break-all leading-relaxed">
+                {lightbox.name ?? 'Dokument'}
+              </p>
+              <button
+                onClick={() => downloadAttachment(lightbox.url, lightbox.name)}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500
+                  text-white text-sm font-medium transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Last ned
+              </button>
+            </div>
+          )}
+        </div>
+      </div>,
+      document.body
+    )}
   )
 }
