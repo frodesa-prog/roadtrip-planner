@@ -20,7 +20,7 @@ interface ChatContextValue {
   close: () => void
   unreadCount: number
   messages: TripGroupMessage[]
-  sendMessage: (content: string) => Promise<void>
+  sendMessage: (content: string, file?: File) => Promise<void>
   markAsRead: () => void
   readReceipts: ReadReceipts
   loading: boolean
@@ -36,7 +36,7 @@ const ChatContext = createContext<ChatContextValue>({
   close: () => {},
   unreadCount: 0,
   messages: [],
-  sendMessage: async () => {},
+  sendMessage: async (_content: string, _file?: File) => {},
   markAsRead: () => {},
   readReceipts: {},
   loading: false,

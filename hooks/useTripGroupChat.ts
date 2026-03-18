@@ -143,10 +143,12 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
       .then(() => {})
   }, [tripId, userId, supabase])
 
-  // ── Send message ─────────────────────────────────────────────────────────
+  // ── Send message (with optional file attachment) ─────────────────────────
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!tripId || !userId || !content.trim()) return
+    async (content: string, file?: File) => {
+      if (!tripId || !userId) return
+      const trimmed = content.trim()
+      if (!trimmed && !file) return
 
       // Resolve sender name: user_profiles.display_name → traveler name → email
       let senderName = 'Ukjent'
@@ -175,17 +177,42 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
         senderName = userRes.data.user.email.split('@')[0]
       }
 
-      // Optimistic insert
-      const optimisticId = `optimistic-${Date.now()}`
-      const optimistic: TripGroupMessage = {
-        id: optimisticId,
-        trip_id: tripId,
-        user_id: userId,
-        sender_name: senderName,
-        content: content.trim(),
-        created_at: new Date().toISOString(),
+      // ── Upload file if provided ──────────────────────────────────────────
+      let attachmentUrl: string | null = null
+      let attachmentName: string | null = null
+      let attachmentType: 'image' | 'document' | null = null
+
+      if (file) {
+        const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+        const path = `${tripId}/${crypto.randomUUID()}.${ext}`
+        const { error: uploadError } = await sb.storage
+          .from('chat-attachments')
+          .upload(path, file, { contentType: file.type })
+
+        if (!uploadError) {
+          const { data: urlData } = sb.storage
+            .from('chat-attachments')
+            .getPublicUrl(path)
+          attachmentUrl = urlData.publicUrl
+          attachmentName = file.name
+          attachmentType = file.type.startsWith('image/') ? 'image' : 'document'
+        }
       }
-      setMessages((prev) => [...prev, optimistic])
+
+      // ── Optimistic insert (text-only; file messages wait for real ID) ────
+      let optimisticId: string | null = null
+      if (!file) {
+        optimisticId = `optimistic-${Date.now()}`
+        const optimistic: TripGroupMessage = {
+          id: optimisticId,
+          trip_id: tripId,
+          user_id: userId,
+          sender_name: senderName,
+          content: trimmed,
+          created_at: new Date().toISOString(),
+        }
+        setMessages((prev) => [...prev, optimistic])
+      }
 
       const { data, error } = await sb
         .from('trip_group_messages')
@@ -193,22 +220,32 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
           trip_id: tripId,
           user_id: userId,
           sender_name: senderName,
-          content: content.trim(),
+          content: trimmed,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
+          attachment_type: attachmentType,
         })
         .select()
         .single()
 
       if (error) {
-        // Roll back optimistic insert on failure
-        setMessages((prev) => prev.filter((m) => m.id !== optimisticId))
+        if (optimisticId) {
+          setMessages((prev) => prev.filter((m) => m.id !== optimisticId))
+        }
         return
       }
 
-      // Replace optimistic with real record
       const real = data as TripGroupMessage
-      setMessages((prev) =>
-        prev.map((m) => (m.id === optimisticId ? real : m))
-      )
+      if (optimisticId) {
+        // Replace optimistic with real record
+        setMessages((prev) => prev.map((m) => (m.id === optimisticId ? real : m)))
+      } else {
+        // File message: real-time subscription may not fire for own inserts → add directly
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === real.id)) return prev
+          return [...prev, real]
+        })
+      }
     },
     [tripId, userId]
   )
