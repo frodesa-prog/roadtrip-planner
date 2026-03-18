@@ -1,13 +1,22 @@
 'use client'
 
-import { useState } from 'react'
-import { X, ChevronRight, ChevronLeft, Check, Loader2 } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { X, ChevronRight, ChevronLeft, Check, Loader2, UserCheck, UserX, Mail, Users } from 'lucide-react'
 import { Trip, NewTripData, TripType } from '@/types'
+import { createClient } from '@/lib/supabase/client'
 
 interface NewTripWizardProps {
   open: boolean
   onClose: () => void
   onCreateTrip: (data: NewTripData) => Promise<Trip | null>
+}
+
+interface InviteEntry {
+  email: string
+  status: 'checking' | 'found' | 'not_found'
+  userId?: string
+  displayName?: string
+  wantToInvite: boolean
 }
 
 const TRIP_TYPES: { type: TripType; emoji: string; label: string; desc: string }[] = [
@@ -72,6 +81,8 @@ function ToggleField({
 }
 
 export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWizardProps) {
+  const supabase = useMemo(() => createClient(), [])
+
   const [step, setStep] = useState(0)
   const [tripType, setTripType] = useState<TripType>('road_trip')
   const [name, setName] = useState('')
@@ -85,12 +96,17 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
   const [creating, setCreating] = useState(false)
   const [geocodeError, setGeocodeError] = useState('')
 
+  // ── Invite step state ──────────────────────────────────────────────────────
+  const [inviteEntries, setInviteEntries] = useState<InviteEntry[]>([])
+  const [inviteInput, setInviteInput] = useState('')
+  const [checkingEmail, setCheckingEmail] = useState(false)
+
   const isCityTrip = tripType !== 'road_trip'
-  // Steps: 0=type, 1=grunninfo, 2=destinasjon(city only), 3=reisevalg, 4=beskrivelse
-  const steps = isCityTrip ? 5 : 4
+  // Steps: 0=type, 1=grunninfo, 2=destinasjon(city only), 3=reisevalg, 4=beskrivelse, 5=deltakere
+  const steps = isCityTrip ? 6 : 5
   const STEP_LABELS = isCityTrip
-    ? ['Ferietype', 'Grunninfo', 'Destinasjon', 'Reisevalg', 'Beskrivelse']
-    : ['Ferietype', 'Grunninfo', 'Reisevalg', 'Beskrivelse']
+    ? ['Ferietype', 'Grunninfo', 'Destinasjon', 'Reisevalg', 'Beskrivelse', 'Deltakere']
+    : ['Ferietype', 'Grunninfo', 'Reisevalg', 'Beskrivelse', 'Deltakere']
 
   // Map logical step index (accounting for skipped destinasjon step for road_trip)
   function getActualStep(logical: number) {
@@ -110,6 +126,8 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
     setHasCarRental(true)
     setDescription('')
     setGeocodeError('')
+    setInviteEntries([])
+    setInviteInput('')
   }
 
   function handleClose() {
@@ -119,14 +137,13 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
 
   function handleTripTypeSelect(type: TripType) {
     setTripType(type)
-    // Default car rental: off for city/resort trips
     if (type !== 'road_trip') setHasCarRental(false)
     else setHasCarRental(true)
   }
 
   function canNext(): boolean {
     const actual = getActualStep(step)
-    if (actual === 0) return true // type always selected
+    if (actual === 0) return true
     if (actual === 1) return name.trim().length > 0
     if (actual === 2) return city.trim().length > 0 && country.trim().length > 0
     return true
@@ -141,6 +158,44 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
     if (step > 0) setStep((s) => s - 1)
   }
 
+  // ── Invite helpers ───────────────────────────────────────────────────────────
+  async function handleAddInvite() {
+    const email = inviteInput.trim().toLowerCase()
+    if (!email || inviteEntries.some((e) => e.email === email)) return
+    setInviteInput('')
+    setCheckingEmail(true)
+
+    setInviteEntries((prev) => [...prev, { email, status: 'checking', wantToInvite: false }])
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('user_id, display_name')
+      .eq('email', email)
+      .maybeSingle()
+
+    setInviteEntries((prev) =>
+      prev.map((e) =>
+        e.email === email
+          ? error || !data
+            ? { ...e, status: 'not_found' }
+            : { ...e, status: 'found', userId: (data as { user_id: string; display_name: string | null }).user_id, displayName: (data as { user_id: string; display_name: string | null }).display_name ?? undefined }
+          : e
+      )
+    )
+    setCheckingEmail(false)
+  }
+
+  function removeInviteEntry(email: string) {
+    setInviteEntries((prev) => prev.filter((e) => e.email !== email))
+  }
+
+  function toggleWantToInvite(email: string) {
+    setInviteEntries((prev) =>
+      prev.map((e) => (e.email === email ? { ...e, wantToInvite: !e.wantToInvite } : e))
+    )
+  }
+
+  // ── Create trip + process invites ──────────────────────────────────────────
   async function handleCreate() {
     setGeocodeError('')
     setCreating(true)
@@ -187,11 +242,123 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
     }
 
     const result = await onCreateTrip(data)
-    setCreating(false)
+
     if (result) {
+      const tripId = result.id
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (user) {
+        // Get sender display name (for email)
+        const { data: myProfile } = await supabase
+          .from('user_profiles')
+          .select('display_name')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        const senderName = (myProfile as { display_name: string | null } | null)?.display_name
+          || user.email?.split('@')[0]
+          || 'En venn'
+
+        for (const entry of inviteEntries) {
+          // ── Found user: add as traveler ──────────────────────────────────
+          if (entry.status === 'found' && entry.userId) {
+            const { data: profileFull } = await supabase
+              .from('user_profiles')
+              .select('display_name, birth_date, gender')
+              .eq('user_id', entry.userId)
+              .maybeSingle()
+
+            const pf = profileFull as { display_name: string | null; birth_date: string | null; gender: string | null } | null
+
+            // Calculate age
+            let age: number | null = null
+            if (pf?.birth_date) {
+              const today = new Date()
+              const dob = new Date(pf.birth_date)
+              let a = today.getFullYear() - dob.getFullYear()
+              if (today.getMonth() < dob.getMonth() ||
+                (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())) a--
+              age = a
+            }
+
+            // Check preference access
+            const { data: accessData } = await supabase
+              .from('preference_access')
+              .select('id')
+              .eq('user_id', entry.userId)
+              .eq('granted_to_email', user.email ?? '')
+              .maybeSingle()
+
+            let interests: string | null = null
+            let travelerDescription: string | null = null
+            let aiContext: string | null = null
+
+            if (accessData) {
+              const { data: prefData } = await supabase
+                .from('user_preferences')
+                .select('interests, interests_extra, food_preferences, mobility_notes, other_info')
+                .eq('user_id', entry.userId)
+                .maybeSingle()
+              const prefs = prefData as {
+                interests: string | null
+                interests_extra: string | null
+                food_preferences: string | null
+                mobility_notes: string | null
+                other_info: string | null
+              } | null
+              if (prefs) {
+                interests = prefs.interests
+                travelerDescription = prefs.interests_extra
+                const parts: string[] = []
+                if (prefs.food_preferences) parts.push(`Mat: ${prefs.food_preferences}`)
+                if (prefs.mobility_notes) parts.push(`Mobilitet: ${prefs.mobility_notes}`)
+                if (prefs.other_info) parts.push(prefs.other_info)
+                aiContext = parts.length > 0 ? parts.join('\n') : null
+              }
+            }
+
+            await supabase.from('travelers').insert({
+              trip_id: tripId,
+              name: entry.displayName || entry.email.split('@')[0],
+              age,
+              gender: pf?.gender ?? null,
+              interests,
+              description: travelerDescription,
+              ai_context: aiContext,
+              linked_user_id: entry.userId,
+            })
+          }
+
+          // ── Not found, user chose to invite ─────────────────────────────
+          if (entry.status === 'not_found' && entry.wantToInvite) {
+            // Create trip_shares record (ignore duplicate errors)
+            await supabase.from('trip_shares').insert({
+              trip_id: tripId,
+              owner_id: user.id,
+              shared_with_email: entry.email,
+              access_level: 'write',
+              status: 'pending',
+            })
+
+            // Send invitation email
+            fetch('/api/share-trip-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipientEmail: entry.email,
+                tripName: result.name,
+                senderName,
+                accessLevel: 'write',
+              }),
+            }).catch(() => {})
+          }
+        }
+      }
+
       reset()
       onClose()
     }
+
+    setCreating(false)
   }
 
   if (!open) return null
@@ -398,9 +565,136 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none"
                 />
               </div>
-              {geocodeError && (
-                <p className="text-xs text-red-400 bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">
-                  {geocodeError}
+            </div>
+          )}
+
+          {/* Step 5: Deltakere */}
+          {actualStep === 5 && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-2.5">
+                <Users className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-slate-400 leading-relaxed">
+                  Inviter andre til ferien. Finnes de som brukere legges de automatisk til i turfølget.
+                  Finnes de ikke får du mulighet til å sende en invitasjon på e-post.
+                  <span className="block mt-1 text-slate-500">Du kan også legge til deltakere etter at turen er opprettet.</span>
+                </p>
+              </div>
+
+              {/* Email input row */}
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={inviteInput}
+                  onChange={(e) => setInviteInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); handleAddInvite() }
+                  }}
+                  placeholder="e-postadresse"
+                  disabled={checkingEmail}
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm
+                    placeholder:text-slate-500 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddInvite}
+                  disabled={!inviteInput.trim() || checkingEmail}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500
+                    text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0"
+                >
+                  {checkingEmail ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Legg til'}
+                </button>
+              </div>
+
+              {/* Invite entries list */}
+              <div className="space-y-2">
+                {inviteEntries.map((entry) => (
+                  <div
+                    key={entry.email}
+                    className={`rounded-xl border p-3 ${
+                      entry.status === 'found'
+                        ? 'bg-green-900/10 border-green-700/30'
+                        : entry.status === 'not_found'
+                        ? 'bg-amber-900/10 border-amber-700/30'
+                        : 'bg-slate-800 border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      {entry.status === 'checking' && (
+                        <Loader2 className="w-4 h-4 text-slate-400 animate-spin flex-shrink-0 mt-0.5" />
+                      )}
+                      {entry.status === 'found' && (
+                        <UserCheck className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                      )}
+                      {entry.status === 'not_found' && (
+                        <UserX className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-200 truncate">{entry.email}</p>
+
+                        {entry.status === 'found' && (
+                          <p className="text-xs text-green-400 mt-0.5">
+                            {entry.displayName
+                              ? `${entry.displayName} er bruker – legges til i turfølget`
+                              : 'Bruker funnet – legges til i turfølget'}
+                          </p>
+                        )}
+
+                        {entry.status === 'not_found' && (
+                          <div className="mt-1.5">
+                            <p className="text-xs text-amber-300 mb-2">
+                              Ingen bruker funnet med denne e-postadressen.
+                            </p>
+                            {!entry.wantToInvite ? (
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-slate-400">Send invitasjon til å opprette konto?</p>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleWantToInvite(entry.email)}
+                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600/20 border border-amber-600/40
+                                    text-amber-300 text-xs font-medium hover:bg-amber-600/30 transition-colors"
+                                >
+                                  <Mail className="w-3 h-3" />
+                                  Ja, send invitasjon
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-xs text-amber-300">
+                                <Check className="w-3.5 h-3.5" />
+                                Invitasjon sendes når turen opprettes
+                                <button
+                                  type="button"
+                                  onClick={() => toggleWantToInvite(entry.email)}
+                                  className="ml-1 text-slate-500 hover:text-slate-300 underline"
+                                >
+                                  Angre
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {entry.status === 'checking' && (
+                          <p className="text-xs text-slate-500 mt-0.5">Søker etter bruker…</p>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeInviteEntry(entry.email)}
+                        className="p-1 rounded-md text-slate-600 hover:text-slate-400 hover:bg-slate-700 transition-colors flex-shrink-0"
+                        title="Fjern"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {inviteEntries.length === 0 && (
+                <p className="text-xs text-slate-600 text-center pt-2">
+                  Ingen deltakere lagt til ennå
                 </p>
               )}
             </div>
@@ -432,7 +726,7 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
             <button
               type="button"
               onClick={handleCreate}
-              disabled={creating || !name.trim()}
+              disabled={creating || !name.trim() || checkingEmail}
               className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
             >
               {creating ? (
