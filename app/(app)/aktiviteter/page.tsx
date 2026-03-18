@@ -43,6 +43,7 @@ export default function AktiviteterPage() {
   const [diningRouteInfo, setDiningRouteInfo] = useState<RouteInfo | null>(null)
 
   const { currentTrip } = useTrips()
+  const isCityTrip = !!(currentTrip && currentTrip.trip_type && currentTrip.trip_type !== 'road_trip')
   const { stops } = useStops(currentTrip?.id ?? null)
   const { legs: routeLegs, loaded: routeLegsLoaded } = useRouteWaypoints(currentTrip?.id ?? null)
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
@@ -113,7 +114,7 @@ export default function AktiviteterPage() {
     return {
       fromLat: selectedDining.map_lat,
       fromLng: selectedDining.map_lng,
-      toAddress: selectedDiningHotel?.address ?? null,
+      toAddress: null as string | null,
       toLat: selectedDiningStop.lat,
       toLng: selectedDiningStop.lng,
     }
@@ -121,7 +122,6 @@ export default function AktiviteterPage() {
     selectedDining?.map_lat,
     selectedDining?.map_lng,
     selectedDiningStop,
-    selectedDiningHotel?.address,
   ])
 
   // Fit map to show both the activity/dining location and the associated stop
@@ -150,14 +150,14 @@ export default function AktiviteterPage() {
     selectedDiningStop,
   ])
 
-  // Route from activity to hotel/stop
+  // Route from activity to H-pin (stop coords – always tracks current pin position)
   const activityRoute = useMemo(() => {
     if (!selectedActivity?.map_lat || !selectedActivity?.map_lng) return null
     if (!selectedStop) return null
     return {
       fromLat: selectedActivity.map_lat,
       fromLng: selectedActivity.map_lng,
-      toAddress: selectedHotel?.address ?? null,
+      toAddress: null as string | null,
       toLat: selectedStop.lat,
       toLng: selectedStop.lng,
     }
@@ -165,7 +165,6 @@ export default function AktiviteterPage() {
     selectedActivity?.map_lat,
     selectedActivity?.map_lng,
     selectedStop,
-    selectedHotel?.address,
   ])
 
   function handleSelectActivity(id: string) {
@@ -388,6 +387,7 @@ export default function AktiviteterPage() {
           onActivityRouteInfo={selectedDining ? setDiningRouteInfo : setRouteInfo}
           routeLegs={routeLegs}
           routeLegsLoaded={routeLegsLoaded}
+          cityTripMode={isCityTrip}
         />
 
         {/* ─── Activity info box overlay ─────────────────────────────── */}
