@@ -381,6 +381,7 @@ export default function ChatPanel() {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div
       className={`fixed right-0 top-11 bottom-0 z-30 flex flex-col w-full md:w-[370px]
         bg-slate-900 border-l border-slate-800 shadow-2xl
@@ -1029,5 +1030,6 @@ export default function ChatPanel() {
       </div>,
       document.body
     )}
+    </>
   )
 }
