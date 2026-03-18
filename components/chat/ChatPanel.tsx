@@ -9,6 +9,31 @@ function formatTime(iso: string) {
   return d.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
 }
 
+// Gjør URL-er klikkbare og bevarer linjeskift
+function renderContent(text: string) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g
+  const parts = text.split(urlRegex)
+  return parts.map((part, i) => {
+    if (/^https?:\/\//.test(part)) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline break-all opacity-90 hover:opacity-100"
+        >
+          {part}
+        </a>
+      )
+    }
+    // Bevar linjeskift i vanlig tekst
+    return part.split('\n').flatMap((line, j, arr) =>
+      j < arr.length - 1 ? [line, <br key={`br-${i}-${j}`} />] : [line]
+    )
+  })
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso)
   const today = new Date()
@@ -168,7 +193,7 @@ export default function ChatPanel() {
                         : 'bg-slate-700 text-slate-100 rounded-bl-sm'
                     }`}
                   >
-                    {msg.content}
+                    {renderContent(msg.content)}
                   </div>
                   <span className="text-[10px] text-slate-600 mt-0.5 px-1">
                     {formatTime(msg.created_at)}
