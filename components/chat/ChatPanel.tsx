@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState, KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, KeyboardEvent } from 'react'
 import { X, MessageSquare, Send } from 'lucide-react'
 import { useChat } from '@/components/chat/ChatContext'
+import { TripGroupMessage } from '@/types'
 
 function formatTime(iso: string) {
   const d = new Date(iso)
@@ -52,10 +53,36 @@ export default function ChatPanel() {
     messages,
     sendMessage,
     markAsRead,
+    readReceipts,
     loading,
     currentTripName,
     userId,
   } = useChat()
+
+  // For each own message: find the LAST one that each other user has read.
+  // Returns a map: messageId → { count, latestReadAt }
+  const readReceiptMap = useMemo(() => {
+    const result: Record<string, { count: number; latestReadAt: string }> = {}
+    const ownMessages = messages.filter((m: TripGroupMessage) => m.user_id === userId)
+    if (!ownMessages.length) return result
+
+    for (const [readerId, readAt] of Object.entries(readReceipts)) {
+      if (readerId === userId) continue // skip own receipt
+      const readTime = new Date(readAt)
+      // Find the last own message sent before readAt
+      let lastRead: TripGroupMessage | null = null
+      for (const msg of ownMessages) {
+        if (new Date(msg.created_at) <= readTime) lastRead = msg
+      }
+      if (!lastRead) continue
+      const prev = result[lastRead.id]
+      result[lastRead.id] = {
+        count: (prev?.count ?? 0) + 1,
+        latestReadAt: !prev || readAt > prev.latestReadAt ? readAt : prev.latestReadAt,
+      }
+    }
+    return result
+  }, [messages, readReceipts, userId])
 
   const [inputValue, setInputValue] = useState('')
   const [sending, setSending] = useState(false)
@@ -198,6 +225,11 @@ export default function ChatPanel() {
                   <span className="text-[10px] text-slate-600 mt-0.5 px-1">
                     {formatTime(msg.created_at)}
                   </span>
+                  {isOwn && readReceiptMap[msg.id] && (
+                    <span className="text-[10px] text-blue-400 px-1 -mt-0.5">
+                      ✓ Lest {readReceiptMap[msg.id].count > 1 ? `av ${readReceiptMap[msg.id].count} · ` : ''}{formatTime(readReceiptMap[msg.id].latestReadAt)}
+                    </span>
+                  )}
                 </div>
               )
             })}

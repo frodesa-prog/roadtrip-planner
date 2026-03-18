@@ -4,9 +4,13 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { TripGroupMessage } from '@/types'
 
+// userId → ISO-tidsstempel for siste lesing
+export type ReadReceipts = Record<string, string>
+
 export function useTripGroupChat(tripId: string | null, userId: string | null) {
   const [messages, setMessages] = useState<TripGroupMessage[]>([])
   const [loading, setLoading] = useState(false)
+  const [readReceipts, setReadReceipts] = useState<ReadReceipts>({})
   // Bump this to force unreadCount to recompute after markAsRead()
   const [lastReadVersion, setLastReadVersion] = useState(0)
   const supabase = useMemo(() => createClient(), [])
@@ -35,7 +39,7 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
     return () => { cancelled = true }
   }, [tripId, supabase])
 
-  // ── Real-time subscription ───────────────────────────────────────────────
+  // ── Real-time: nye meldinger ─────────────────────────────────────────────
   useEffect(() => {
     if (!tripId) return
     const channel = supabase
@@ -64,6 +68,56 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
     }
   }, [tripId, supabase])
 
+  // ── Last lesekvitteringer (for alle turmedlemmer) ────────────────────────
+  useEffect(() => {
+    if (!tripId || !userId) {
+      setReadReceipts({})
+      return
+    }
+    supabase
+      .from('trip_chat_read_receipts')
+      .select('user_id, last_read_at')
+      .eq('trip_id', tripId)
+      .then(({ data }) => {
+        if (!data) return
+        const map: ReadReceipts = {}
+        for (const r of data as { user_id: string; last_read_at: string }[]) {
+          map[r.user_id] = r.last_read_at
+        }
+        setReadReceipts(map)
+      })
+  }, [tripId, userId, supabase])
+
+  // ── Real-time: lesekvitteringer ──────────────────────────────────────────
+  useEffect(() => {
+    if (!tripId || !userId) return
+    const channel = supabase
+      .channel(`trip-read-receipts-${tripId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'trip_chat_read_receipts',
+          filter: `trip_id=eq.${tripId}`,
+        },
+        (payload) => {
+          const rec = (payload.new ?? payload.old) as {
+            user_id: string
+            last_read_at: string
+          } | null
+          if (rec?.user_id) {
+            setReadReceipts((prev) => ({ ...prev, [rec.user_id]: rec.last_read_at }))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [tripId, userId, supabase])
+
   // ── Unread count ─────────────────────────────────────────────────────────
   const unreadCount = useMemo(() => {
     if (!tripId || !userId || typeof window === 'undefined') return 0
@@ -82,7 +136,7 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
     const now = new Date().toISOString()
     localStorage.setItem(`chat_last_read_${tripId}_${userId}`, now)
     setLastReadVersion((v) => v + 1)
-    // Sync til server slik at e-postvarsler vet hva som er lest (fire-and-forget)
+    // Sync til server slik at e-postvarsler og "Lest"-indikator fungerer
     supabase
       .from('trip_chat_read_receipts')
       .upsert({ user_id: userId, trip_id: tripId, last_read_at: now })
@@ -159,5 +213,5 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
     [tripId, userId]
   )
 
-  return { messages, sendMessage, unreadCount, markAsRead, loading }
+  return { messages, sendMessage, unreadCount, markAsRead, readReceipts, loading }
 }
