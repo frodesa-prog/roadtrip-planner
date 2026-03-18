@@ -6,13 +6,35 @@ import { Trip, NewTripData } from '@/types'
 import { toast } from 'sonner'
 import { logActivity } from '@/hooks/useActivityLog'
 
+const SELECTED_TRIP_KEY = 'selected_trip_id'
+
+function getSavedTripId(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(SELECTED_TRIP_KEY)
+}
+
+function saveSelectedTripId(id: string | null) {
+  if (typeof window === 'undefined') return
+  if (id) {
+    localStorage.setItem(SELECTED_TRIP_KEY, id)
+  } else {
+    localStorage.removeItem(SELECTED_TRIP_KEY)
+  }
+}
+
 export function useTrips() {
   const [trips, setTrips] = useState<Trip[]>([])
-  const [currentTrip, setCurrentTrip] = useState<Trip | null>(null)
+  const [currentTrip, setCurrentTripState] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
 
   const supabase = useMemo(() => createClient(), [])
+
+  // Wrapper: updates state AND persists to localStorage
+  const setCurrentTrip = useCallback((trip: Trip | null) => {
+    saveSelectedTripId(trip?.id ?? null)
+    setCurrentTripState(trip)
+  }, [])
 
   const loadTrips = useCallback(async () => {
     setLoading(true)
@@ -25,8 +47,17 @@ export function useTrips() {
 
     if (!error && data) {
       setTrips(data as Trip[])
-      // Auto-velg nyeste tur om ingen er valgt
-      setCurrentTrip((prev) => prev ?? (data[0] as Trip) ?? null)
+
+      // Auto-velg tur: bruk lagret valg fra localStorage, ellers nyeste tur
+      setCurrentTripState((prev) => {
+        if (prev) return prev  // allerede satt (f.eks. av ChatContext)
+        const savedId = getSavedTripId()
+        if (savedId) {
+          const saved = (data as Trip[]).find((t) => t.id === savedId) ?? null
+          if (saved) return saved
+        }
+        return (data[0] as Trip) ?? null
+      })
 
       // Oppdater status til 'accepted' for delte turer mottaker har sett
       if (user) {
@@ -80,7 +111,7 @@ export function useTrips() {
 
       const newTrip = data as Trip
       setTrips((prev) => [newTrip, ...prev])
-      setCurrentTrip(newTrip)
+      setCurrentTrip(newTrip)  // saves to localStorage
       toast.success(`"${name}" er opprettet! 🗺️`)
       logActivity({ log_type: 'database', action: 'INSERT', entity_type: 'trip', entity_name: name, trip_id: newTrip.id })
 
@@ -169,13 +200,14 @@ export function useTrips() {
 
       return newTrip
     },
-    [supabase]
+    [supabase, setCurrentTrip]
   )
 
   const updateTrip = useCallback(
     async (tripId: string, data: Partial<Pick<Trip, 'group_description'>>) => {
       setTrips((prev) => prev.map((t) => (t.id === tripId ? { ...t, ...data } : t)))
-      setCurrentTrip((prev) => (prev?.id === tripId ? { ...prev, ...data } : prev))
+      // Oppdater currentTrip i state (ID endres ikke, localStorage trenger ikke oppdateres)
+      setCurrentTripState((prev) => (prev?.id === tripId ? { ...prev, ...data } : prev))
       const { error } = await supabase.from('trips').update(data).eq('id', tripId)
       if (error) toast.error('Kunne ikke lagre endringen')
     },
@@ -191,8 +223,12 @@ export function useTrips() {
       }
       const deletedTrip = trips.find((t) => t.id === tripId)
       setTrips((prev) => prev.filter((t) => t.id !== tripId))
-      setCurrentTrip((prev) => {
-        if (prev?.id === tripId) return null
+      // Fjern fra localStorage og nullstill valg hvis denne turen var aktiv
+      setCurrentTripState((prev) => {
+        if (prev?.id === tripId) {
+          saveSelectedTripId(null)
+          return null
+        }
         return prev
       })
       toast.success('Tur slettet')
