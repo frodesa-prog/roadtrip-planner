@@ -375,10 +375,19 @@ export default function ChatPanel() {
                 )}
               </div>
             </div>
-            <button onClick={close}
-              className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setView('chat')}
+                className="p-1.5 rounded-md text-slate-500 hover:text-blue-400 hover:bg-slate-800 transition-colors flex-shrink-0"
+                title="Gå til aktiv chat"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+              <button onClick={close}
+                className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </>
         )}
       </div>
