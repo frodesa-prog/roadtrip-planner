@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
@@ -401,9 +402,18 @@ export default function SummaryPage() {
           ) : (
             <>
               {/* Trip header */}
-              <div className="mb-5">
-                <h1 className="text-xl font-bold text-slate-100">{currentTrip.name}</h1>
-                {dateRange && <p className="text-sm text-slate-400 mt-0.5">{dateRange}</p>}
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <div>
+                  <h1 className="text-xl font-bold text-slate-100">{currentTrip.name}</h1>
+                  {dateRange && <p className="text-sm text-slate-400 mt-0.5">{dateRange}</p>}
+                </div>
+                <Link
+                  href="/beskrivelse"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-700 text-sm font-medium transition-colors flex-shrink-0"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  Beskrivelse
+                </Link>
               </div>
 
               {/* Stop legend */}
