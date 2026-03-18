@@ -79,12 +79,15 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
   // ── Mark all as read ─────────────────────────────────────────────────────
   const markAsRead = useCallback(() => {
     if (!tripId || !userId || typeof window === 'undefined') return
-    localStorage.setItem(
-      `chat_last_read_${tripId}_${userId}`,
-      new Date().toISOString()
-    )
+    const now = new Date().toISOString()
+    localStorage.setItem(`chat_last_read_${tripId}_${userId}`, now)
     setLastReadVersion((v) => v + 1)
-  }, [tripId, userId])
+    // Sync til server slik at e-postvarsler vet hva som er lest (fire-and-forget)
+    supabase
+      .from('trip_chat_read_receipts')
+      .upsert({ user_id: userId, trip_id: tripId, last_read_at: now })
+      .then(() => {})
+  }, [tripId, userId, supabase])
 
   // ── Send message ─────────────────────────────────────────────────────────
   const sendMessage = useCallback(
