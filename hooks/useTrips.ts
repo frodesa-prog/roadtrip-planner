@@ -183,7 +183,7 @@ export function useTrips() {
       if (prefs?.mobility_notes) aiParts.push(`Mobilitet: ${prefs.mobility_notes}`)
       if (prefs?.other_info) aiParts.push(prefs.other_info)
 
-      // Prøv med alle felt; fall tilbake til minste insert om kolonner mangler
+      // Legg til tureier som første deltaker i turfølget
       const { error: travelerErr } = await supabase.from('travelers').insert({
         trip_id: newTrip.id,
         name: displayName,
@@ -195,9 +195,13 @@ export function useTrips() {
         ai_context: aiParts.length > 0 ? aiParts.join('\n') : null,
       })
       if (travelerErr) {
+        // Fallback: insert med kjernefelter (linked_user_id bevares alltid)
         await supabase.from('travelers').insert({
           trip_id: newTrip.id,
           name: displayName,
+          linked_user_id: user.id,
+          age,
+          gender: prof?.gender ?? null,
         })
       }
 
