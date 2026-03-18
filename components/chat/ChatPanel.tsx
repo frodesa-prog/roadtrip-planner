@@ -522,7 +522,7 @@ export default function ChatPanel() {
 
                       <div className={`flex items-start gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                         {/* Message bubble */}
-                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                        <div className={`w-[75%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
                           isOwn ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-slate-700 text-slate-100 rounded-bl-sm'
                         }`}>
                           {msg.content && renderContent(msg.content)}
@@ -752,7 +752,7 @@ export default function ChatPanel() {
                     {showSender && (
                       <span className="text-[10px] text-slate-500 mb-0.5 px-1">{msg.sender_name}</span>
                     )}
-                    <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                    <div className={`w-[75%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
                       isOwn ? 'bg-blue-600/70 text-white rounded-br-sm' : 'bg-slate-700 text-slate-100 rounded-bl-sm'
                     }`}>
                       {msg.content && renderContent(msg.content)}
