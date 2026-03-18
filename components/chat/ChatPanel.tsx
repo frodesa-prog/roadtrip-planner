@@ -996,7 +996,7 @@ export default function ChatPanel() {
 
         {/* Content */}
         <div
-          className="flex-1 flex items-center justify-center p-6 overflow-auto"
+          className={`flex-1 overflow-auto ${lightbox.name?.toLowerCase().endsWith('.pdf') ? 'p-3' : 'flex items-center justify-center p-6'}`}
           onClick={() => setLightbox(null)}
         >
           {lightbox.type === 'image' ? (
@@ -1005,6 +1005,13 @@ export default function ChatPanel() {
               src={lightbox.url}
               alt={lightbox.name ?? 'Bilde'}
               className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : lightbox.name?.toLowerCase().endsWith('.pdf') ? (
+            <iframe
+              src={lightbox.url}
+              title={lightbox.name ?? 'PDF'}
+              className="w-full h-full rounded-xl border-0 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
