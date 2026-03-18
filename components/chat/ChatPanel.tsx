@@ -228,7 +228,7 @@ export default function ChatPanel() {
   // ── Close lightbox on Escape ─────────────────────────────────────────────
   useEffect(() => {
     if (!lightbox) return
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setLightbox(null) }
+    function onKey(e: globalThis.KeyboardEvent) { if (e.key === 'Escape') setLightbox(null) }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [lightbox])
