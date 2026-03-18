@@ -468,6 +468,7 @@ export default function SummaryPage() {
                           onNoteClick={(note) => setNoteModal({ mode: 'edit', note })}
                           onActivityClick={setActivityModal}
                           onDiningClick={setDiningModal}
+                          showHotelWarning={currentTrip?.trip_type === 'road_trip'}
                           onClick={stop ? () => setSelectedDate(isSelected ? null : dateStr) : undefined}
                         />
                       )
@@ -604,6 +605,7 @@ function DayCell({
   onNoteClick,
   onActivityClick,
   onDiningClick,
+  showHotelWarning = false,
   onClick,
 }: {
   date: Date
@@ -622,6 +624,7 @@ function DayCell({
   onNoteClick: (note: Note) => void
   onActivityClick: (activity: Activity) => void
   onDiningClick: (dining: Dining) => void
+  showHotelWarning?: boolean
   onClick?: () => void
 }) {
   const isFirstOfMonth = date.getDate() === 1
@@ -637,7 +640,7 @@ function DayCell({
           : 'border-slate-800/40 bg-slate-900/20',
         isSelected
           ? `ring-2 ${palette?.sel ?? 'ring-white'} ring-offset-1 ring-offset-slate-950`
-          : stop && !hasConfirmedHotel
+          : showHotelWarning && stop && !hasConfirmedHotel
             ? 'ring-2 ring-red-600/70 ring-offset-1 ring-offset-slate-950'
             : '',
       ].join(' ')}
