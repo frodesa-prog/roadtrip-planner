@@ -135,6 +135,10 @@ export default function ChatPanel() {
   const [archiving, setArchiving] = useState(false)
   const [archiveError, setArchiveError] = useState<string | null>(null)
 
+  // ── Delete archive confirm ──────────────────────────────────────────────
+  const [showDeleteArchiveConfirm, setShowDeleteArchiveConfirm] = useState(false)
+  const [deletingArchive, setDeletingArchive] = useState(false)
+
   // ── Archive list ────────────────────────────────────────────────────────
   const [archives, setArchives] = useState<ChatArchive[]>([])
   const [archivesLoading, setArchivesLoading] = useState(false)
@@ -253,6 +257,19 @@ export default function ChatPanel() {
   async function handleDeleteMessage(msg: TripGroupMessage) {
     setPendingDeleteId(null)
     await deleteMessage(msg.id, msg.attachment_url)
+  }
+
+  // ── Delete archived chat permanently ────────────────────────────────────
+  async function handleDeleteArchive() {
+    if (!selectedArchive) return
+    setDeletingArchive(true)
+    await supabase.from('trip_chat_archives').delete().eq('id', selectedArchive.id)
+    setDeletingArchive(false)
+    setShowDeleteArchiveConfirm(false)
+    setArchives((prev) => prev.filter((a) => a.id !== selectedArchive.id))
+    setSelectedArchive(null)
+    setArchiveMsgs([])
+    setView('archives')
   }
 
   // ── File helpers ────────────────────────────────────────────────────────
@@ -382,6 +399,13 @@ export default function ChatPanel() {
                 title="Gå til aktiv chat"
               >
                 <MessageSquare className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowDeleteArchiveConfirm(true)}
+                className="p-1.5 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors flex-shrink-0"
+                title="Slett arkiv permanent"
+              >
+                <Trash2 className="w-4 h-4" />
               </button>
               <button onClick={close}
                 className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0">
@@ -681,6 +705,51 @@ export default function ChatPanel() {
               })}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Delete archive confirmation overlay ─────────────────────── */}
+      {showDeleteArchiveConfirm && (
+        <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm z-10 flex items-center justify-center p-5">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <Trash2 className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <h3 className="text-base font-semibold text-slate-100">Slett arkiv permanent</h3>
+            </div>
+
+            <p className="text-sm text-slate-300 mb-4 leading-relaxed">
+              Er du sikker på at du vil slette arkivet{' '}
+              <span className="font-semibold text-slate-100">«{selectedArchive?.name}»</span>?
+            </p>
+
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-900/20 border border-red-700/30 mb-5">
+              <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-red-200 leading-relaxed">
+                Dette kan <strong>ikke</strong> angres. Alle meldinger i dette arkivet slettes permanent.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteArchiveConfirm(false)}
+                disabled={deletingArchive}
+                className="flex-1 px-4 py-2 rounded-lg border border-slate-600 text-slate-300 text-sm
+                  hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={handleDeleteArchive}
+                disabled={deletingArchive}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-700
+                  hover:bg-red-600 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm
+                  font-medium transition-colors"
+              >
+                {deletingArchive ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {deletingArchive ? 'Sletter…' : 'Slett permanent'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
