@@ -288,6 +288,21 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
     [userId]
   )
 
+  // ── Delete all live messages without archiving ────────────────────────────
+  const clearChat = useCallback(
+    async (): Promise<boolean> => {
+      if (!tripId || !userId) return false
+      const { error } = await supabaseRef.current
+        .from('trip_group_messages')
+        .delete()
+        .eq('trip_id', tripId)
+      if (error) return false
+      setMessages([])
+      return true
+    },
+    [tripId, userId]
+  )
+
   // ── Archive all messages and clear current chat ───────────────────────────
   const archiveAndClear = useCallback(
     async (name: string): Promise<boolean> => {
@@ -340,5 +355,5 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
     [tripId, userId, messages]
   )
 
-  return { messages, sendMessage, deleteMessage, archiveAndClear, unreadCount, markAsRead, readReceipts, loading }
+  return { messages, sendMessage, deleteMessage, clearChat, archiveAndClear, unreadCount, markAsRead, readReceipts, loading }
 }

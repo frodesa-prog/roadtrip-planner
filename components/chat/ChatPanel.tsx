@@ -5,7 +5,7 @@ import {
   KeyboardEvent, ClipboardEvent,
 } from 'react'
 import {
-  X, MessageSquare, Send, Paperclip, FileText,
+  X, MessageSquare, MessageSquarePlus, Send, Paperclip, FileText,
   Trash2, Archive, FolderOpen, ChevronLeft,
   AlertTriangle, Loader2, ImageIcon,
 } from 'lucide-react'
@@ -119,7 +119,7 @@ type PanelView = 'chat' | 'archives' | 'archiveDetail'
 export default function ChatPanel() {
   const {
     isOpen, close,
-    messages, sendMessage, deleteMessage, archiveAndClear,
+    messages, sendMessage, deleteMessage, clearChat, archiveAndClear,
     markAsRead, readReceipts,
     loading, currentTripName, currentTripId, userId,
   } = useChat()
@@ -128,6 +128,10 @@ export default function ChatPanel() {
 
   // ── View state ──────────────────────────────────────────────────────────
   const [view, setView] = useState<PanelView>('chat')
+
+  // ── New chat dialog ─────────────────────────────────────────────────────
+  const [showNewChatDialog, setShowNewChatDialog] = useState(false)
+  const [clearingChat, setClearingChat] = useState(false)
 
   // ── Archive dialog ──────────────────────────────────────────────────────
   const [showArchiveDialog, setShowArchiveDialog] = useState(false)
@@ -237,6 +241,22 @@ export default function ChatPanel() {
     setArchiveMsgsLoading(false)
   }
 
+  // ── Clear chat permanently (from new-chat dialog) ───────────────────────
+  async function handleClearChatConfirm() {
+    setClearingChat(true)
+    await clearChat()
+    setClearingChat(false)
+    setShowNewChatDialog(false)
+  }
+
+  // ── Open archive dialog from new-chat dialog ─────────────────────────────
+  function handleNewChatGoToArchive() {
+    setShowNewChatDialog(false)
+    setArchiveName('')
+    setArchiveError(null)
+    setShowArchiveDialog(true)
+  }
+
   // ── Archive current chat ────────────────────────────────────────────────
   async function handleArchiveConfirm() {
     if (!archiveName.trim()) { archiveNameRef.current?.focus(); return }
@@ -342,6 +362,14 @@ export default function ChatPanel() {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowNewChatDialog(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                title="Start ny chat"
+              >
+                <MessageSquarePlus className="w-3.5 h-3.5" />
+                Ny chat
+              </button>
               <button
                 onClick={openArchiveList}
                 className="px-2 py-1 rounded-md text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
@@ -704,6 +732,84 @@ export default function ChatPanel() {
               })}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── New chat dialog overlay ──────────────────────────────────── */}
+      {showNewChatDialog && (
+        <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm z-10 flex items-center justify-center p-5">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquarePlus className="w-5 h-5 text-blue-400 flex-shrink-0" />
+              <h3 className="text-base font-semibold text-slate-100">Start ny chat</h3>
+            </div>
+
+            {messages.length === 0 ? (
+              <>
+                <p className="text-sm text-slate-400 mb-5 leading-relaxed">
+                  Det er ingen aktiv chat. Chatvinduet er allerede tomt.
+                </p>
+                <button
+                  onClick={() => setShowNewChatDialog(false)}
+                  className="w-full px-4 py-2 rounded-lg border border-slate-600 text-slate-300 text-sm hover:bg-slate-700 transition-colors"
+                >
+                  Lukk
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+                  Det er {messages.length} meldinger i den aktive chatten. Hva vil du gjøre med dem?
+                </p>
+
+                {/* Archive option */}
+                <button
+                  onClick={handleNewChatGoToArchive}
+                  disabled={clearingChat}
+                  className="w-full flex items-start gap-3 px-3.5 py-3 rounded-xl bg-amber-600/10 border border-amber-600/30
+                    text-left hover:bg-amber-600/20 transition-colors disabled:opacity-50 mb-2"
+                >
+                  <Archive className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-300">Arkiver chatten</p>
+                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                      Lagres i arkivet og kan alltid leses igjen senere.
+                    </p>
+                  </div>
+                </button>
+
+                {/* Delete option */}
+                <button
+                  onClick={handleClearChatConfirm}
+                  disabled={clearingChat}
+                  className="w-full flex items-start gap-3 px-3.5 py-3 rounded-xl bg-red-900/10 border border-red-700/30
+                    text-left hover:bg-red-900/20 transition-colors disabled:opacity-50 mb-4"
+                >
+                  {clearingChat
+                    ? <Loader2 className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5 animate-spin" />
+                    : <Trash2 className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  }
+                  <div>
+                    <p className="text-sm font-medium text-red-300">
+                      {clearingChat ? 'Sletter…' : 'Slett permanent'}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                      Alle meldinger slettes og kan <strong className="text-slate-300">ikke</strong> gjenopprettes.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setShowNewChatDialog(false)}
+                  disabled={clearingChat}
+                  className="w-full px-4 py-2 rounded-lg border border-slate-600 text-slate-400 text-sm
+                    hover:bg-slate-700 hover:text-slate-300 transition-colors disabled:opacity-50"
+                >
+                  Avbryt
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
