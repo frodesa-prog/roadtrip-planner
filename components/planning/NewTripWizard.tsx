@@ -357,12 +357,12 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
                 Disse valgene tilpasser funksjonaliteten i appen.
               </p>
               <ToggleField
-                label="✈️  Flytur inkludert?"
+                label="✈️  Skal du benytte fly på denne reisen?"
                 value={hasFlight}
                 onChange={setHasFlight}
               />
               <ToggleField
-                label="🚗  Leiebil inkludert?"
+                label="🚗  Skal du leie bil på denne ferien?"
                 value={hasCarRental}
                 onChange={setHasCarRental}
               />

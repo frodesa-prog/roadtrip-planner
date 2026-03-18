@@ -549,6 +549,8 @@ interface TripPanelsProps {
   onUpdateGroupDescription?: (desc: string) => void
   /** Trip start date – pre-fills flight date when no flight is saved yet */
   tripDateFrom?: string
+  /** Skjul fly-panel hvis turen ikke inkluderer fly (default: true) */
+  hasFlight?: boolean
 }
 
 export default function TripPanels({
@@ -556,6 +558,7 @@ export default function TripPanels({
   groupDescription,
   onUpdateGroupDescription,
   tripDateFrom,
+  hasFlight = true,
 }: TripPanelsProps) {
   const { outbound, returnFlight, saveFlight } = useFlights(tripId)
   const { travelers, addTraveler, addLinkedTraveler, updateTraveler, deleteTraveler } = useTravelers(tripId)
@@ -622,28 +625,30 @@ export default function TripPanels({
       {/* ── Header row: two buttons side by side ── */}
       <div className="flex">
 
-        {/* Flight button */}
-        <button
-          onClick={() => togglePanel('flight')}
-          className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors border-r border-slate-800 min-w-0 ${
-            openPanel === 'flight'
-              ? 'text-slate-200 bg-slate-800/60'
-              : 'text-slate-300 hover:bg-slate-800/50'
-          }`}
-        >
-          <Plane className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
-          <span className="text-xs truncate">Fly tur/retur</span>
-          {flightSummaryText && (
-            <span className="text-[10px] text-slate-500 ml-auto truncate max-w-[56px] flex-shrink-0">
-              {flightSummaryText}
-            </span>
-          )}
-          <ChevronDown
-            className={`w-3.5 h-3.5 text-slate-500 transition-transform flex-shrink-0 ${
-              openPanel === 'flight' ? 'rotate-180' : ''
+        {/* Flight button – skjult hvis turen ikke har fly */}
+        {hasFlight && (
+          <button
+            onClick={() => togglePanel('flight')}
+            className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors border-r border-slate-800 min-w-0 ${
+              openPanel === 'flight'
+                ? 'text-slate-200 bg-slate-800/60'
+                : 'text-slate-300 hover:bg-slate-800/50'
             }`}
-          />
-        </button>
+          >
+            <Plane className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+            <span className="text-xs truncate">Fly tur/retur</span>
+            {flightSummaryText && (
+              <span className="text-[10px] text-slate-500 ml-auto truncate max-w-[56px] flex-shrink-0">
+                {flightSummaryText}
+              </span>
+            )}
+            <ChevronDown
+              className={`w-3.5 h-3.5 text-slate-500 transition-transform flex-shrink-0 ${
+                openPanel === 'flight' ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+        )}
 
         {/* Turfølge button */}
         <button
@@ -670,7 +675,7 @@ export default function TripPanels({
       </div>
 
       {/* ── Flight expanded (full width) ── */}
-      {openPanel === 'flight' && (
+      {hasFlight && openPanel === 'flight' && (
         <div className="border-t border-slate-800/60 max-h-[70vh] overflow-y-auto">
           {/* Tabs: Utreise / Hjemreise */}
           <div className="flex border-b border-slate-800 bg-slate-900/50">

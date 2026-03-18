@@ -810,13 +810,14 @@ export default function KostnaderPage() {
     [activities, stopById]
   )
 
-  // ── Car rental flag (null/undefined = true for backward compat with old trips) ──
+  // ── Car/flight flags (null/undefined = true for backward compat with old trips) ──
   const hasCarRental = currentTrip?.has_car_rental !== false
+  const hasFlight    = currentTrip?.has_flight !== false
 
   // ── Totaler ──────────────────────────────────────────────────────────────
   const totalHotels = hotelRows.reduce((s, r) => s + (r.hotel.cost ?? 0), 0)
   const totalActivities = activityRows.reduce((s, r) => s + (r.activity.cost ?? 0), 0)
-  const totalFlight = getAmount('flight')
+  const totalFlight = hasFlight ? getAmount('flight') : 0
   const totalCar = hasCarRental ? getAmount('car') : 0
   const totalGas = hasCarRental ? getAmount('gas') : 0
   const totalParking = hasCarRental
@@ -829,7 +830,7 @@ export default function KostnaderPage() {
   const grandRemaining =
     hotelRows.reduce((s, r) => s + (r.hotel.remaining_amount ?? 0), 0) +
     activityRows.reduce((s, r) => s + (r.activity.remaining_amount ?? 0), 0) +
-    (getRemaining('flight') ?? 0) +
+    (hasFlight ? (getRemaining('flight') ?? 0) : 0) +
     (hasCarRental ? (getRemaining('car') ?? 0) : 0) +
     (hasCarRental ? (getRemaining('gas') ?? 0) : 0) +
     (hasCarRental ? totalParking : 0) +
@@ -1110,32 +1111,34 @@ export default function KostnaderPage() {
                     <Th right>Gjenstår</Th>
                   </div>
 
-                  {/* Fly – klikk åpner FlightInfoModal */}
-                  <div
-                    className={`grid ${rightGrid} items-center hover:bg-slate-800/40 transition-colors`}
-                  >
-                    <button
-                      onClick={() => setShowFlightModal(true)}
-                      className="px-2 py-2 flex items-center gap-1.5 text-left group"
-                      title="Vis flyinformasjon"
+                  {/* Fly – vises kun når turen inkluderer fly */}
+                  {hasFlight && (
+                    <div
+                      className={`grid ${rightGrid} items-center hover:bg-slate-800/40 transition-colors`}
                     >
-                      <Plane className="w-3 h-3 text-sky-400 flex-shrink-0" />
-                      <span className="text-xs text-slate-200">Fly</span>
-                      <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-colors ml-auto" />
-                    </button>
-                    <div className="px-1.5 py-1.5">
-                      <CostInput
-                        defaultValue={totalFlight || null}
-                        onSave={(v) => saveItem('flight', { amount: v })}
-                      />
+                      <button
+                        onClick={() => setShowFlightModal(true)}
+                        className="px-2 py-2 flex items-center gap-1.5 text-left group"
+                        title="Vis flyinformasjon"
+                      >
+                        <Plane className="w-3 h-3 text-sky-400 flex-shrink-0" />
+                        <span className="text-xs text-slate-200">Fly</span>
+                        <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-colors ml-auto" />
+                      </button>
+                      <div className="px-1.5 py-1.5">
+                        <CostInput
+                          defaultValue={totalFlight || null}
+                          onSave={(v) => saveItem('flight', { amount: v })}
+                        />
+                      </div>
+                      <div className="px-1.5 py-1.5">
+                        <RemainingCell
+                          remainingAmount={getRemaining('flight')}
+                          onSave={(v) => saveItem('flight', { remaining_amount: v })}
+                        />
+                      </div>
                     </div>
-                    <div className="px-1.5 py-1.5">
-                      <RemainingCell
-                        remainingAmount={getRemaining('flight')}
-                        onSave={(v) => saveItem('flight', { remaining_amount: v })}
-                      />
-                    </div>
-                  </div>
+                  )}
 
                   {hasCarRental ? (
                     <>
