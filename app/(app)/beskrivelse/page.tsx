@@ -1,6 +1,8 @@
 'use client'
 
 import { useMemo } from 'react'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
@@ -385,6 +387,15 @@ export default function BeskrivelsePage() {
   return (
     <div className="h-full overflow-y-auto bg-slate-950">
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-3">
+
+        {/* Back button */}
+        <Link
+          href="/summary"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors mb-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Tilbake til oppsummering
+        </Link>
 
         {/* Page header */}
         <div className="mb-6">
