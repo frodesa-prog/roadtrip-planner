@@ -163,9 +163,10 @@ function DateInput({ defaultValue, onSave }: { defaultValue?: string | null; onS
   )
 }
 
-function FlightForm({ flight, onSave }: {
+function FlightForm({ flight, onSave, tripDateFrom }: {
   flight: Flight | null
   onSave: (updates: Partial<Omit<Flight, 'id' | 'trip_id' | 'direction'>>) => void
+  tripDateFrom?: string
 }) {
   const stopover = flight?.has_stopover ?? false
   const fromOffset  = getOffset(flight?.leg1_from)
@@ -188,7 +189,7 @@ function FlightForm({ flight, onSave }: {
 
       {/* Dato | Avgang */}
       <div className="grid grid-cols-2 gap-2">
-        <div><Label>Dato</Label><DateInput key={`date-${flight?.id}`} defaultValue={flight?.flight_date} onSave={(v) => onSave({ flight_date: v })} /></div>
+        <div><Label>Dato</Label><DateInput key={`date-${flight?.id}`} defaultValue={flight?.flight_date ?? tripDateFrom} onSave={(v) => onSave({ flight_date: v })} /></div>
         <div><Label>Avgang</Label><TimeInput key={`dep1-${flight?.id}`} defaultValue={flight?.leg1_departure} onSave={(v) => onSave({ leg1_departure: v })} /></div>
       </div>
 
@@ -546,12 +547,15 @@ interface TripPanelsProps {
   tripId: string
   groupDescription?: string | null
   onUpdateGroupDescription?: (desc: string) => void
+  /** Trip start date – pre-fills flight date when no flight is saved yet */
+  tripDateFrom?: string
 }
 
 export default function TripPanels({
   tripId,
   groupDescription,
   onUpdateGroupDescription,
+  tripDateFrom,
 }: TripPanelsProps) {
   const { outbound, returnFlight, saveFlight } = useFlights(tripId)
   const { travelers, addTraveler, addLinkedTraveler, updateTraveler, deleteTraveler } = useTravelers(tripId)
@@ -707,6 +711,7 @@ export default function TripPanels({
             key={`${flightTab}-${activeFlight?.has_stopover ?? false}`}
             flight={activeFlight}
             onSave={(updates) => saveFlight(flightTab, updates)}
+            tripDateFrom={tripDateFrom}
           />
         </div>
       )}

@@ -323,6 +323,7 @@ export default function CityPlanSidebar({
         tripId={currentTrip.id}
         groupDescription={currentTrip.group_description}
         onUpdateGroupDescription={onUpdateGroupDescription}
+        tripDateFrom={currentTrip.date_from ?? undefined}
       />
 
       {/* Hotel (static, always visible) */}

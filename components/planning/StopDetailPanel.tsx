@@ -29,6 +29,8 @@ interface StopDetailPanelProps {
   possibleActivities: PossibleActivity[]
   leg: LegInfo | null
   selectedDate: string
+  /** Trip start date – used as fallback default for new activity/dining dates */
+  tripDateFrom?: string
   stopIndex?: number
   onUpdateStop: (updates: Partial<Pick<Stop, 'nights' | 'arrival_date' | 'lat' | 'lng'>>) => void
   onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'address' | 'url' | 'status' | 'cost' | 'parking_cost_per_night'>>) => void
@@ -61,6 +63,7 @@ function getStopDates(stop: Stop): string[] {
 
 export default function StopDetailPanel({
   stop, hotel, activities, dining, possibleActivities, stopNotes, leg, selectedDate,
+  tripDateFrom = '',
   onUpdateStop, onSaveHotel, onAddActivity, onRemoveActivity, onUpdateActivity,
   onAddDining, onRemoveDining, onUpdateDining,
   onAddPossibleActivity, onRemovePossibleActivity, onUpdatePossibleActivity,
@@ -82,7 +85,7 @@ export default function StopDetailPanel({
   const [newActName, setNewActName]         = useState('')
   const [newActUrl, setNewActUrl]           = useState('')
   const [newActCost, setNewActCost]         = useState('')
-  const [newActDate, setNewActDate]         = useState(selectedDate)
+  const [newActDate, setNewActDate]         = useState(selectedDate || tripDateFrom)
   const [newActTime, setNewActTime]         = useState('')
   const [newActType, setNewActType]         = useState<string | null>(null)
   const [customTypeInput, setCustomTypeInput]   = useState('')
@@ -147,7 +150,7 @@ export default function StopDetailPanel({
   const [showAddDining, setShowAddDining]       = useState(false)
   const [newDiningName, setNewDiningName]       = useState('')
   const [newDiningUrl, setNewDiningUrl]         = useState('')
-  const [newDiningDate, setNewDiningDate]       = useState(selectedDate)
+  const [newDiningDate, setNewDiningDate]       = useState(selectedDate || tripDateFrom)
   const [newDiningTime, setNewDiningTime]       = useState('')
   const [pinningDiningId, setPinningDiningId]   = useState<string | null>(null)
 
@@ -231,7 +234,7 @@ export default function StopDetailPanel({
       booking_time: newDiningTime.trim() || undefined,
     })
     setNewDiningName(''); setNewDiningUrl('')
-    setNewDiningDate(selectedDate); setNewDiningTime('')
+    setNewDiningDate(selectedDate || tripDateFrom); setNewDiningTime('')
     setShowAddDining(false)
   }
 
@@ -265,8 +268,8 @@ export default function StopDetailPanel({
 
   useEffect(() => { setNights(stop.nights) }, [stop.nights])
   useEffect(() => { setArrivalDate(stop.arrival_date ?? '') }, [stop.arrival_date])
-  useEffect(() => { setNewActDate(selectedDate) }, [selectedDate])
-  useEffect(() => { setNewDiningDate(selectedDate) }, [selectedDate])
+  useEffect(() => { setNewActDate(selectedDate || tripDateFrom) }, [selectedDate, tripDateFrom])
+  useEffect(() => { setNewDiningDate(selectedDate || tripDateFrom) }, [selectedDate, tripDateFrom])
 
   function handleBookedToggle() {
     const newStatus = hotelBooked ? 'not_booked' : 'confirmed'
@@ -312,7 +315,7 @@ export default function StopDetailPanel({
       seat:     newActSeat.trim()     || undefined,
     })
     setNewActName(''); setNewActUrl(''); setNewActCost('')
-    setNewActDate(selectedDate); setNewActTime('')
+    setNewActDate(selectedDate || tripDateFrom); setNewActTime('')
     setNewActType(null); setCustomTypeInput(''); setShowCustomType(false); setShowAddActivity(false)
     setNewActStadium(''); setNewActSection(''); setNewActRow(''); setNewActSeat('')
   }
@@ -320,7 +323,7 @@ export default function StopDetailPanel({
   function handleCancelAddActivity() {
     setShowAddActivity(false)
     setNewActName(''); setNewActUrl(''); setNewActCost('')
-    setNewActDate(selectedDate); setNewActTime('')
+    setNewActDate(selectedDate || tripDateFrom); setNewActTime('')
     setNewActType(null); setCustomTypeInput(''); setShowCustomType(false)
     setNewActStadium(''); setNewActSection(''); setNewActRow(''); setNewActSeat('')
   }
@@ -984,7 +987,7 @@ export default function StopDetailPanel({
                     className="flex-1 h-7 rounded-md bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
                     Legg til
                   </button>
-                  <button type="button" onClick={() => { setShowAddDining(false); setNewDiningName(''); setNewDiningUrl(''); setNewDiningTime(''); setNewDiningDate(selectedDate) }}
+                  <button type="button" onClick={() => { setShowAddDining(false); setNewDiningName(''); setNewDiningUrl(''); setNewDiningTime(''); setNewDiningDate(selectedDate || tripDateFrom) }}
                     className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
                     Avbryt
                   </button>

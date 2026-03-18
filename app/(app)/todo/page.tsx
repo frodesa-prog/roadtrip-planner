@@ -298,6 +298,7 @@ export default function TodoPage() {
                       onMove={moveItem} onSetReminder={setReminder}
                       onToggleCritical={toggleCritical} onDelete={deleteItem}
                       fullWidth
+                      defaultReminderDate={currentTrip?.date_from ?? ''}
                     />
                   )}
                   {travelers.map((traveler, idx) =>
@@ -311,6 +312,7 @@ export default function TodoPage() {
                         onMove={moveItem} onSetReminder={setReminder}
                         onToggleCritical={toggleCritical} onDelete={deleteItem}
                         fullWidth
+                        defaultReminderDate={currentTrip?.date_from ?? ''}
                       />
                     ) : null
                   )}
@@ -329,6 +331,7 @@ export default function TodoPage() {
                       onAdd={addItem} onUpdate={updateItem} onToggle={toggleItem}
                       onMove={moveItem} onSetReminder={setReminder}
                       onToggleCritical={toggleCritical} onDelete={deleteItem}
+                      defaultReminderDate={currentTrip?.date_from ?? ''}
                     />
                     {travelers.map((traveler) => (
                       <TodoColumn
@@ -339,6 +342,7 @@ export default function TodoPage() {
                         onAdd={addItem} onUpdate={updateItem} onToggle={toggleItem}
                         onMove={moveItem} onSetReminder={setReminder}
                         onToggleCritical={toggleCritical} onDelete={deleteItem}
+                        defaultReminderDate={currentTrip?.date_from ?? ''}
                       />
                     ))}
                   </div>
@@ -358,6 +362,7 @@ function TodoColumn({
   title, responsible, items,
   onAdd, onUpdate, onToggle, onMove, onSetReminder, onToggleCritical, onDelete,
   fullWidth = false,
+  defaultReminderDate = '',
 }: {
   title: string
   responsible: string
@@ -370,12 +375,13 @@ function TodoColumn({
   onToggleCritical: (id: string, critical: boolean) => Promise<void>
   onDelete: (id: string) => Promise<void>
   fullWidth?: boolean
+  defaultReminderDate?: string
 }) {
   const [showCompleted, setShowCompleted] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newDesc, setNewDesc] = useState('')
   const [newLink, setNewLink] = useState('')
-  const [newReminder, setNewReminder] = useState('')
+  const [newReminder, setNewReminder] = useState(defaultReminderDate)
   const addInputRef = useRef<HTMLTextAreaElement>(null)
 
   const active = items.filter((i) => !i.completed).sort((a, b) => a.sort_order - b.sort_order)
@@ -390,7 +396,7 @@ function TodoColumn({
     await onAdd(newDesc.trim(), newLink.trim() || null, responsible, newReminder || null)
     setNewDesc('')
     setNewLink('')
-    setNewReminder('')
+    setNewReminder(defaultReminderDate)
     setShowAddForm(false)
   }
 

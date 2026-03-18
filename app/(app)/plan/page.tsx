@@ -68,7 +68,7 @@ export default function PlanPage() {
   const selectedStop = stops.find((s) => s.id === selectedStopId) ?? null
   const selectedStopIndex = stops.findIndex((s) => s.id === selectedStopId)
   const selectedStopLeg = selectedStopIndex > 0 ? (drivingLegs[selectedStopIndex - 1] ?? null) : null
-  const selectedDate = selectedStop?.arrival_date ?? new Date().toISOString().split('T')[0]
+  const selectedDate = selectedStop?.arrival_date ?? currentTrip?.date_from ?? ''
 
   // City trip helpers
   const isCityTrip = !!(currentTrip && currentTrip.trip_type && currentTrip.trip_type !== 'road_trip')
@@ -332,6 +332,7 @@ export default function PlanPage() {
               possibleActivities={possibleActivities.filter((a) => a.stop_id === selectedStop.id)}
               leg={selectedStopLeg}
               selectedDate={selectedDate}
+              tripDateFrom={currentTrip?.date_from ?? ''}
               onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
               onSaveHotel={(updates) => saveHotel(selectedStop.id, updates)}
               onAddActivity={(data) => addActivity(selectedStop.id, data)}
@@ -438,7 +439,7 @@ export default function PlanPage() {
         <CityMapPinModal
           lat={cityMapPinPending.lat}
           lng={cityMapPinPending.lng}
-          defaultDate={selectedDayStr}
+          defaultDate={selectedDayStr ?? currentTrip?.date_from ?? ''}
           onConfirm={handleCityMapPinConfirm}
           onCancel={() => setCityMapPinPending(null)}
         />
