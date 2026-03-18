@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, BookOpen, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
+import { useChat } from '@/components/chat/ChatContext'
 
 const links = [
   { href: '/plan', label: 'Planlegg', icon: Map },
@@ -31,6 +32,7 @@ export default function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const { toggle: toggleChat, unreadCount } = useChat()
 
   async function handleLogout() {
     const supabase = createClient()
@@ -79,7 +81,7 @@ export default function NavBar() {
           })}
         </div>
 
-        {/* Min Side + Logout – høyre side */}
+        {/* Min Side + Chat + Logout – høyre side */}
         <div className="ml-auto flex items-center gap-1">
           <Link
             href="/minside"
@@ -93,6 +95,21 @@ export default function NavBar() {
             <UserCircle className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Min side</span>
           </Link>
+          {/* Chat-knapp med ulest-badge */}
+          <button
+            onClick={toggleChat}
+            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
+            title="Chat"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline text-sm font-medium">Chat</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-red-500 rounded-full
+                text-[9px] text-white flex items-center justify-center font-bold px-0.5 leading-none">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
@@ -185,6 +202,26 @@ export default function NavBar() {
               <UserCircle className="w-4 h-4 flex-shrink-0" />
               Min side
             </Link>
+            <button
+              onClick={() => { setDrawerOpen(false); toggleChat() }}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100 transition-colors text-left"
+            >
+              <div className="relative flex-shrink-0">
+                <MessageSquare className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 rounded-full
+                    text-[8px] text-white flex items-center justify-center font-bold px-0.5 leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </div>
+              Chat
+              {unreadCount > 0 && (
+                <span className="ml-auto text-xs bg-red-500/20 text-red-400 rounded-full px-2 py-0.5 font-medium">
+                  {unreadCount} ny{unreadCount !== 1 ? 'e' : ''}
+                </span>
+              )}
+            </button>
           </div>
         </nav>
 
