@@ -10,16 +10,37 @@ function formatTime(iso: string) {
   return d.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
 }
 
-// Gjør URL-er klikkbare og bevarer linjeskift
+// Gjør URL-er klikkbare og bevarer linjeskift.
+// Gjenkjenner: https?://, www., og bare domener med kjente TLD-er.
+const TLDS = 'no|com|org|net|io|app|dev|ai|co|uk|de|fr|se|dk|fi|eu|gov|edu|info|biz|store|shop|online|site|web|tech|digital|media|cloud|tv|as|me|nu|pro|name|blog|club|life|film|land|world|space'
+
+// En "URL-del" er tegn som ikke er whitespace, men siste tegn må ikke være typisk avsluttende tegn.
+const URL_BODY  = `[^\\s<>"']*[^\\s<>"'.,:;!?()\\[\\]]`
+const BARE_BODY = `(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+(?:${TLDS})(?:[/\\?#]${URL_BODY})?`
+
+const URL_REGEX = new RegExp(
+  `(https?://${URL_BODY}|www\\.${URL_BODY}|${BARE_BODY})`,
+  'gi'
+)
+
+const BARE_DOMAIN_RE = new RegExp(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+(?:${TLDS})`, 'i')
+
+function toHref(s: string): string {
+  return /^https?:\/\//i.test(s) ? s : `https://${s}`
+}
+
+function isUrlPart(s: string): boolean {
+  return /^https?:\/\//i.test(s) || /^www\./i.test(s) || BARE_DOMAIN_RE.test(s)
+}
+
 function renderContent(text: string) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g
-  const parts = text.split(urlRegex)
+  const parts = text.split(URL_REGEX)
   return parts.map((part, i) => {
-    if (/^https?:\/\//.test(part)) {
+    if (isUrlPart(part)) {
       return (
         <a
           key={i}
-          href={part}
+          href={toHref(part)}
           target="_blank"
           rel="noopener noreferrer"
           className="underline break-all opacity-90 hover:opacity-100"
