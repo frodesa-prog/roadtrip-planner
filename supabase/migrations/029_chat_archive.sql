@@ -15,7 +15,7 @@ CREATE POLICY "Trip members can view archives"
   ON trip_chat_archives FOR SELECT
   USING (
     trip_id IN (
-      SELECT id       FROM trips    WHERE user_id        = auth.uid()
+      SELECT id       FROM trips    WHERE owner_id       = auth.uid()
       UNION ALL
       SELECT trip_id  FROM travelers WHERE linked_user_id = auth.uid()
     )
@@ -48,7 +48,7 @@ CREATE POLICY "Trip members can view archive messages"
     archive_id IN (
       SELECT a.id FROM trip_chat_archives a
       WHERE a.trip_id IN (
-        SELECT id      FROM trips    WHERE user_id        = auth.uid()
+        SELECT id      FROM trips    WHERE owner_id       = auth.uid()
         UNION ALL
         SELECT trip_id FROM travelers WHERE linked_user_id = auth.uid()
       )
