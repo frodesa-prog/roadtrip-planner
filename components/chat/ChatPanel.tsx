@@ -7,7 +7,7 @@ import {
 import {
   X, MessageSquare, MessageSquarePlus, Send, Paperclip, FileText,
   Trash2, Archive, FolderOpen, ChevronLeft,
-  AlertTriangle, Loader2, ImageIcon,
+  AlertTriangle, Loader2, ImageIcon, Download,
 } from 'lucide-react'
 import { useChat } from '@/components/chat/ChatContext'
 import { createClient } from '@/lib/supabase/client'
@@ -69,28 +69,37 @@ const ACCEPTED_TYPES = [
   'text/plain',
 ]
 
+// ─── Lightbox item type ───────────────────────────────────────────────────────
+
+interface LightboxItem { url: string; name: string | null; type: string | null }
+
 // ─── Attachment renderer (shared between live and archived messages) ──────────
 
 function AttachmentBubble({
-  url, name, type, isOwn,
-}: { url: string; name: string | null; type: string | null; isOwn: boolean }) {
+  url, name, type, isOwn, onOpen,
+}: { url: string; name: string | null; type: string | null; isOwn: boolean; onOpen: (item: LightboxItem) => void }) {
   if (type === 'image') {
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="block mt-1" title="Åpne bilde">
+      <button
+        onClick={() => onOpen({ url, name, type })}
+        className="block mt-1 w-full text-left"
+        title="Vis bilde"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={url} alt={name ?? 'Bilde'}
-          className="max-w-full rounded-lg max-h-56 object-contain hover:opacity-90 transition-opacity" />
-      </a>
+          className="max-w-full rounded-lg max-h-56 object-contain hover:opacity-90 transition-opacity cursor-zoom-in" />
+      </button>
     )
   }
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" download={name ?? true}
-      className={`flex items-center gap-2 mt-1 px-2.5 py-1.5 rounded-lg border transition-colors
+    <button
+      onClick={() => onOpen({ url, name, type })}
+      className={`flex items-center gap-2 mt-1 w-full px-2.5 py-1.5 rounded-lg border transition-colors text-left
         ${isOwn ? 'bg-blue-700/50 border-blue-500/30 hover:bg-blue-700/80' : 'bg-slate-800/60 border-slate-600/40 hover:bg-slate-700/60'}`}
     >
       <FileText className="w-4 h-4 text-blue-300 flex-shrink-0" />
       <span className="text-xs truncate max-w-[180px]">{name ?? 'Dokument'}</span>
-    </a>
+    </button>
   )
 }
 
@@ -152,6 +161,9 @@ export default function ChatPanel() {
   const [archiveMsgs, setArchiveMsgs] = useState<ChatArchiveMessage[]>([])
   const [archiveMsgsLoading, setArchiveMsgsLoading] = useState(false)
 
+  // ── Lightbox ────────────────────────────────────────────────────────────
+  const [lightbox, setLightbox] = useState<LightboxItem | null>(null)
+
   // ── Message delete ──────────────────────────────────────────────────────
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
@@ -212,6 +224,14 @@ export default function ChatPanel() {
   useEffect(() => {
     return () => { if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl) }
   }, [pendingPreviewUrl])
+
+  // ── Close lightbox on Escape ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!lightbox) return
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setLightbox(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox])
 
   // ── Archive list loader ─────────────────────────────────────────────────
   async function openArchiveList() {
@@ -290,6 +310,23 @@ export default function ChatPanel() {
     setSelectedArchive(null)
     setArchiveMsgs([])
     setView('archives')
+  }
+
+  // ── Download attachment (cross-origin safe) ──────────────────────────────
+  async function downloadAttachment(url: string, name: string | null) {
+    const filename = name ?? url.split('/').pop() ?? 'fil'
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(blobUrl)
+    } catch {
+      window.open(url, '_blank')
+    }
   }
 
   // ── File helpers ────────────────────────────────────────────────────────
@@ -493,6 +530,7 @@ export default function ChatPanel() {
                               name={msg.attachment_name ?? null}
                               type={msg.attachment_type ?? null}
                               isOwn={isOwn}
+                              onOpen={setLightbox}
                             />
                           )}
                           {!msg.content && !msg.attachment_url && (
@@ -722,6 +760,7 @@ export default function ChatPanel() {
                           name={msg.attachment_name}
                           type={msg.attachment_type}
                           isOwn={isOwn}
+                          onOpen={setLightbox}
                         />
                       )}
                     </div>
@@ -733,6 +772,73 @@ export default function ChatPanel() {
               })}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Lightbox overlay ─────────────────────────────────────────── */}
+      {lightbox && (
+        <div
+          className="absolute inset-0 z-20 bg-black/95 flex flex-col"
+          onClick={(e) => { if (e.target === e.currentTarget) setLightbox(null) }}
+        >
+          {/* Lightbox header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
+            <span className="text-sm text-slate-300 truncate min-w-0 pr-2 font-medium">
+              {lightbox.name ?? 'Vedlegg'}
+            </span>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={() => downloadAttachment(lightbox.url, lightbox.name)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500
+                  text-white text-xs font-medium transition-colors"
+                title="Last ned"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Last ned
+              </button>
+              <button
+                onClick={() => setLightbox(null)}
+                className="ml-1 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                title="Lukk (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Lightbox content */}
+          <div
+            className="flex-1 flex items-center justify-center p-4 overflow-auto"
+            onClick={() => setLightbox(null)}
+          >
+            {lightbox.type === 'image' ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={lightbox.url}
+                alt={lightbox.name ?? 'Bilde'}
+                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <div
+                className="flex flex-col items-center gap-5 text-center p-6 bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <FileText className="w-16 h-16 text-blue-400" />
+                <div>
+                  <p className="text-slate-100 text-sm font-semibold break-all">{lightbox.name ?? 'Dokument'}</p>
+                </div>
+                <button
+                  onClick={() => downloadAttachment(lightbox.url, lightbox.name)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500
+                    text-white text-sm font-medium transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Last ned
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
