@@ -39,7 +39,7 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
     return () => { cancelled = true }
   }, [tripId, supabase])
 
-  // ── Real-time: nye meldinger ─────────────────────────────────────────────
+  // ── Real-time: nye og slettede meldinger ────────────────────────────────
   useEffect(() => {
     if (!tripId) return
     const channel = supabase
@@ -55,10 +55,22 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
         (payload) => {
           const newMsg = payload.new as TripGroupMessage
           setMessages((prev) => {
-            // Avoid duplicates (optimistic insert already added it)
             if (prev.some((m) => m.id === newMsg.id)) return prev
             return [...prev, newMsg]
           })
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'trip_group_messages',
+          filter: `trip_id=eq.${tripId}`,
+        },
+        (payload) => {
+          const deletedId = (payload.old as { id: string }).id
+          setMessages((prev) => prev.filter((m) => m.id !== deletedId))
         }
       )
       .subscribe()
@@ -250,5 +262,83 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
     [tripId, userId]
   )
 
-  return { messages, sendMessage, unreadCount, markAsRead, readReceipts, loading }
+  // ── Delete a single message (own only) ───────────────────────────────────
+  const deleteMessage = useCallback(
+    async (messageId: string, attachmentUrl?: string | null) => {
+      if (!userId) return
+      // Optimistic removal
+      setMessages((prev) => prev.filter((m) => m.id !== messageId))
+      // Delete attachment from storage
+      if (attachmentUrl) {
+        const match = attachmentUrl.match(/\/storage\/v1\/object\/public\/chat-attachments\/(.+)$/)
+        if (match) {
+          supabaseRef.current.storage
+            .from('chat-attachments')
+            .remove([decodeURIComponent(match[1])])
+            .then(() => {})
+        }
+      }
+      // Delete from DB (only own messages via RLS)
+      await supabaseRef.current
+        .from('trip_group_messages')
+        .delete()
+        .eq('id', messageId)
+        .eq('user_id', userId)
+    },
+    [userId]
+  )
+
+  // ── Archive all messages and clear current chat ───────────────────────────
+  const archiveAndClear = useCallback(
+    async (name: string): Promise<boolean> => {
+      if (!tripId || !userId) return false
+      const sb = supabaseRef.current
+      // Only archive persisted messages (skip optimistic)
+      const realMessages = messages.filter((m) => !m.id.startsWith('optimistic-'))
+      if (realMessages.length === 0) return false
+
+      // 1. Create archive record
+      const { data: archive, error: archiveErr } = await sb
+        .from('trip_chat_archives')
+        .insert({
+          trip_id: tripId,
+          archived_by: userId,
+          name: name.trim(),
+          message_count: realMessages.length,
+        })
+        .select()
+        .single()
+
+      if (archiveErr || !archive) return false
+
+      // 2. Copy messages to archive
+      const archiveMsgs = realMessages.map((m) => ({
+        archive_id: archive.id,
+        original_message_id: m.id,
+        user_id: m.user_id,
+        sender_name: m.sender_name,
+        content: m.content,
+        attachment_url: m.attachment_url ?? null,
+        attachment_name: m.attachment_name ?? null,
+        attachment_type: m.attachment_type ?? null,
+        original_created_at: m.created_at,
+      }))
+
+      const { error: msgErr } = await sb
+        .from('trip_chat_archive_messages')
+        .insert(archiveMsgs)
+
+      if (msgErr) return false
+
+      // 3. Delete all live messages for this trip
+      await sb.from('trip_group_messages').delete().eq('trip_id', tripId)
+
+      // 4. Clear local state
+      setMessages([])
+      return true
+    },
+    [tripId, userId, messages]
+  )
+
+  return { messages, sendMessage, deleteMessage, archiveAndClear, unreadCount, markAsRead, readReceipts, loading }
 }

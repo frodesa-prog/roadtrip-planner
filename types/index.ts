@@ -343,3 +343,25 @@ export interface TripGroupMessage {
   attachment_name?: string | null
   attachment_type?: 'image' | 'document' | null
 }
+
+export interface ChatArchive {
+  id: string
+  trip_id: string
+  archived_by: string
+  name: string
+  archived_at: string
+  message_count: number
+}
+
+export interface ChatArchiveMessage {
+  id: string
+  archive_id: string
+  original_message_id: string | null
+  user_id: string | null
+  sender_name: string | null
+  content: string | null
+  attachment_url: string | null
+  attachment_name: string | null
+  attachment_type: 'image' | 'document' | null
+  original_created_at: string
+}

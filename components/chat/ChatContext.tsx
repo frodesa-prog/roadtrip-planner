@@ -21,6 +21,8 @@ interface ChatContextValue {
   unreadCount: number
   messages: TripGroupMessage[]
   sendMessage: (content: string, file?: File) => Promise<void>
+  deleteMessage: (messageId: string, attachmentUrl?: string | null) => Promise<void>
+  archiveAndClear: (name: string) => Promise<boolean>
   markAsRead: () => void
   readReceipts: ReadReceipts
   loading: boolean
@@ -37,6 +39,8 @@ const ChatContext = createContext<ChatContextValue>({
   unreadCount: 0,
   messages: [],
   sendMessage: async (_content: string, _file?: File) => {},
+  deleteMessage: async () => {},
+  archiveAndClear: async () => false,
   markAsRead: () => {},
   readReceipts: {},
   loading: false,
@@ -65,7 +69,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const tripId = currentTrip?.id ?? null
   const tripName = currentTrip?.name ?? null
 
-  const { messages, sendMessage, unreadCount, markAsRead, readReceipts, loading } =
+  const { messages, sendMessage, deleteMessage, archiveAndClear, unreadCount, markAsRead, readReceipts, loading } =
     useTripGroupChat(tripId, userId)
 
   const toggle = useCallback(() => setIsOpen((v) => !v), [])
@@ -81,6 +85,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       unreadCount,
       messages,
       sendMessage,
+      deleteMessage,
+      archiveAndClear,
       markAsRead,
       readReceipts,
       loading,
@@ -88,7 +94,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       currentTripName: tripName,
       userId,
     }),
-    [isOpen, toggle, open, close, unreadCount, messages, sendMessage, markAsRead, readReceipts, loading, tripId, tripName, userId]
+    [isOpen, toggle, open, close, unreadCount, messages, sendMessage, deleteMessage, archiveAndClear, markAsRead, readReceipts, loading, tripId, tripName, userId]
   )
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>

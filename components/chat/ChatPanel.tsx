@@ -1,59 +1,48 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, KeyboardEvent, ClipboardEvent } from 'react'
-import { X, MessageSquare, Send, Paperclip, FileText, ImageIcon, AlertCircle } from 'lucide-react'
+import {
+  useEffect, useMemo, useRef, useState,
+  KeyboardEvent, ClipboardEvent,
+} from 'react'
+import {
+  X, MessageSquare, Send, Paperclip, FileText,
+  Trash2, Archive, FolderOpen, ChevronLeft,
+  AlertTriangle, Loader2, ImageIcon,
+} from 'lucide-react'
 import { useChat } from '@/components/chat/ChatContext'
-import { TripGroupMessage } from '@/types'
+import { createClient } from '@/lib/supabase/client'
+import { TripGroupMessage, ChatArchive, ChatArchiveMessage } from '@/types'
 
-function formatTime(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
-}
+// ─── URL helpers ──────────────────────────────────────────────────────────────
 
-// Gjør URL-er klikkbare og bevarer linjeskift.
-// Gjenkjenner: https?://, www., og bare domener med kjente TLD-er.
 const TLDS = 'no|com|org|net|io|app|dev|ai|co|uk|de|fr|se|dk|fi|eu|gov|edu|info|biz|store|shop|online|site|web|tech|digital|media|cloud|tv|as|me|nu|pro|name|blog|club|life|film|land|world|space'
-
-// En "URL-del" er tegn som ikke er whitespace, men siste tegn må ikke være typisk avsluttende tegn.
 const URL_BODY  = `[^\\s<>"']*[^\\s<>"'.,:;!?()\\[\\]]`
 const BARE_BODY = `(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+(?:${TLDS})(?:[/\\?#]${URL_BODY})?`
-
-const URL_REGEX = new RegExp(
-  `(https?://${URL_BODY}|www\\.${URL_BODY}|${BARE_BODY})`,
-  'gi'
-)
-
+const URL_REGEX = new RegExp(`(https?://${URL_BODY}|www\\.${URL_BODY}|${BARE_BODY})`, 'gi')
 const BARE_DOMAIN_RE = new RegExp(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+(?:${TLDS})`, 'i')
 
-function toHref(s: string): string {
-  return /^https?:\/\//i.test(s) ? s : `https://${s}`
-}
-
-function isUrlPart(s: string): boolean {
-  return /^https?:\/\//i.test(s) || /^www\./i.test(s) || BARE_DOMAIN_RE.test(s)
-}
+function toHref(s: string) { return /^https?:\/\//i.test(s) ? s : `https://${s}` }
+function isUrlPart(s: string) { return /^https?:\/\//i.test(s) || /^www\./i.test(s) || BARE_DOMAIN_RE.test(s) }
 
 function renderContent(text: string) {
   const parts = text.split(URL_REGEX)
   return parts.map((part, i) => {
     if (isUrlPart(part)) {
       return (
-        <a
-          key={i}
-          href={toHref(part)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline break-all opacity-90 hover:opacity-100"
-        >
-          {part}
-        </a>
+        <a key={i} href={toHref(part)} target="_blank" rel="noopener noreferrer"
+          className="underline break-all opacity-90 hover:opacity-100">{part}</a>
       )
     }
-    // Bevar linjeskift i vanlig tekst
     return part.split('\n').flatMap((line, j, arr) =>
       j < arr.length - 1 ? [line, <br key={`br-${i}-${j}`} />] : [line]
     )
   })
+}
+
+// ─── Date/time helpers ────────────────────────────────────────────────────────
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
 }
 
 function formatDate(iso: string) {
@@ -61,91 +50,125 @@ function formatDate(iso: string) {
   const today = new Date()
   const yesterday = new Date(today)
   yesterday.setDate(today.getDate() - 1)
-
   if (d.toDateString() === today.toDateString()) return 'I dag'
   if (d.toDateString() === yesterday.toDateString()) return 'I går'
-  return d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })
+  return d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+function formatArchiveDate(iso: string) {
+  return new Date(iso).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// ─── File upload constants ────────────────────────────────────────────────────
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024
 const ACCEPTED_TYPES = [
   'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif',
-  'application/pdf',
-  'application/msword',
+  'application/pdf', 'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'text/plain',
 ]
 
-function AttachmentMessage({ msg, isOwn }: { msg: TripGroupMessage; isOwn: boolean }) {
-  if (!msg.attachment_url) return null
+// ─── Attachment renderer (shared between live and archived messages) ──────────
 
-  if (msg.attachment_type === 'image') {
+function AttachmentBubble({
+  url, name, type, isOwn,
+}: { url: string; name: string | null; type: string | null; isOwn: boolean }) {
+  if (type === 'image') {
     return (
-      <a
-        href={msg.attachment_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block mt-1"
-        title="Åpne bilde"
-      >
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block mt-1" title="Åpne bilde">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={msg.attachment_url}
-          alt={msg.attachment_name ?? 'Bilde'}
-          className="max-w-full rounded-lg max-h-56 object-contain hover:opacity-90 transition-opacity"
-        />
+        <img src={url} alt={name ?? 'Bilde'}
+          className="max-w-full rounded-lg max-h-56 object-contain hover:opacity-90 transition-opacity" />
       </a>
     )
   }
-
-  if (msg.attachment_type === 'document') {
-    return (
-      <a
-        href={msg.attachment_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        download={msg.attachment_name ?? true}
-        className={`flex items-center gap-2 mt-1 px-2.5 py-1.5 rounded-lg border transition-colors
-          ${isOwn
-            ? 'bg-blue-700/50 border-blue-500/30 hover:bg-blue-700/80'
-            : 'bg-slate-800/60 border-slate-600/40 hover:bg-slate-700/60'
-          }`}
-      >
-        <FileText className="w-4 h-4 text-blue-300 flex-shrink-0" />
-        <span className="text-xs truncate max-w-[180px]">
-          {msg.attachment_name ?? 'Dokument'}
-        </span>
-      </a>
-    )
-  }
-
-  return null
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" download={name ?? true}
+      className={`flex items-center gap-2 mt-1 px-2.5 py-1.5 rounded-lg border transition-colors
+        ${isOwn ? 'bg-blue-700/50 border-blue-500/30 hover:bg-blue-700/80' : 'bg-slate-800/60 border-slate-600/40 hover:bg-slate-700/60'}`}
+    >
+      <FileText className="w-4 h-4 text-blue-300 flex-shrink-0" />
+      <span className="text-xs truncate max-w-[180px]">{name ?? 'Dokument'}</span>
+    </a>
+  )
 }
+
+// ─── Group messages by date ───────────────────────────────────────────────────
+
+function groupByDate<T extends { created_at?: string; original_created_at?: string }>(
+  msgs: T[]
+): Array<{ date: string; msgs: T[] }> {
+  const grouped: Array<{ date: string; msgs: T[] }> = []
+  for (const msg of msgs) {
+    const iso = msg.created_at ?? msg.original_created_at ?? ''
+    const dateKey = new Date(iso).toDateString()
+    const last = grouped[grouped.length - 1]
+    if (!last || last.date !== dateKey) grouped.push({ date: dateKey, msgs: [msg] })
+    else last.msgs.push(msg)
+  }
+  return grouped
+}
+
+// ─── Panel view type ──────────────────────────────────────────────────────────
+
+type PanelView = 'chat' | 'archives' | 'archiveDetail'
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ChatPanel() {
   const {
-    isOpen,
-    close,
-    messages,
-    sendMessage,
-    markAsRead,
-    readReceipts,
-    loading,
-    currentTripName,
-    userId,
+    isOpen, close,
+    messages, sendMessage, deleteMessage, archiveAndClear,
+    markAsRead, readReceipts,
+    loading, currentTripName, currentTripId, userId,
   } = useChat()
 
-  // For each own message: find the LAST one that each other user has read.
+  const supabase = useMemo(() => createClient(), [])
+
+  // ── View state ──────────────────────────────────────────────────────────
+  const [view, setView] = useState<PanelView>('chat')
+
+  // ── Archive dialog ──────────────────────────────────────────────────────
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false)
+  const [archiveName, setArchiveName] = useState('')
+  const [archiving, setArchiving] = useState(false)
+  const [archiveError, setArchiveError] = useState<string | null>(null)
+
+  // ── Archive list ────────────────────────────────────────────────────────
+  const [archives, setArchives] = useState<ChatArchive[]>([])
+  const [archivesLoading, setArchivesLoading] = useState(false)
+
+  // ── Archive detail ──────────────────────────────────────────────────────
+  const [selectedArchive, setSelectedArchive] = useState<ChatArchive | null>(null)
+  const [archiveMsgs, setArchiveMsgs] = useState<ChatArchiveMessage[]>([])
+  const [archiveMsgsLoading, setArchiveMsgsLoading] = useState(false)
+
+  // ── Message delete ──────────────────────────────────────────────────────
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+  // ── Input / file upload ─────────────────────────────────────────────────
+  const [inputValue, setInputValue] = useState('')
+  const [sending, setSending] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef    = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef   = useRef<HTMLInputElement>(null)
+  const archiveNameRef = useRef<HTMLInputElement>(null)
+
+  // Read-receipt map (last own message each other user has read)
   const readReceiptMap = useMemo(() => {
     const result: Record<string, { count: number; latestReadAt: string }> = {}
-    const ownMessages = messages.filter((m: TripGroupMessage) => m.user_id === userId)
-    if (!ownMessages.length) return result
-
+    const ownMsgs = messages.filter((m: TripGroupMessage) => m.user_id === userId)
+    if (!ownMsgs.length) return result
     for (const [readerId, readAt] of Object.entries(readReceipts)) {
       if (readerId === userId) continue
       const readTime = new Date(readAt)
       let lastRead: TripGroupMessage | null = null
-      for (const msg of ownMessages) {
+      for (const msg of ownMsgs) {
         if (new Date(msg.created_at) <= readTime) lastRead = msg
       }
       if (!lastRead) continue
@@ -158,338 +181,561 @@ export default function ChatPanel() {
     return result
   }, [messages, readReceipts, userId])
 
-  const [inputValue, setInputValue] = useState('')
-  const [sending, setSending] = useState(false)
-  const [pendingFile, setPendingFile] = useState<File | null>(null)
-  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null)
-  const [fileError, setFileError] = useState<string | null>(null)
+  // ── Scroll to bottom ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isOpen && view === 'chat') messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isOpen, view])
 
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  // ── Mark as read ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isOpen) { markAsRead(); setTimeout(() => textareaRef.current?.focus(), 150) }
+  }, [isOpen, markAsRead])
+  useEffect(() => {
+    if (isOpen && view === 'chat' && messages.length > 0) markAsRead()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, isOpen, view])
 
-  // Revoke preview URL on unmount
+  // ── Reset view when panel closes ────────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen) { setView('chat'); setShowArchiveDialog(false) }
+  }, [isOpen])
+
+  // ── Revoke object URL on unmount ────────────────────────────────────────
   useEffect(() => {
     return () => { if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl) }
   }, [pendingPreviewUrl])
 
-  useEffect(() => {
-    if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isOpen])
+  // ── Archive list loader ─────────────────────────────────────────────────
+  async function openArchiveList() {
+    setView('archives')
+    if (!currentTripId) return
+    setArchivesLoading(true)
+    const { data } = await supabase
+      .from('trip_chat_archives')
+      .select('*')
+      .eq('trip_id', currentTripId)
+      .order('archived_at', { ascending: false })
+    setArchives((data as ChatArchive[]) ?? [])
+    setArchivesLoading(false)
+  }
 
-  useEffect(() => {
-    if (isOpen) {
-      markAsRead()
-      setTimeout(() => textareaRef.current?.focus(), 150)
+  // ── Archive detail loader ───────────────────────────────────────────────
+  async function openArchiveDetail(archive: ChatArchive) {
+    setSelectedArchive(archive)
+    setView('archiveDetail')
+    setArchiveMsgsLoading(true)
+    const { data } = await supabase
+      .from('trip_chat_archive_messages')
+      .select('*')
+      .eq('archive_id', archive.id)
+      .order('original_created_at', { ascending: true })
+    setArchiveMsgs((data as ChatArchiveMessage[]) ?? [])
+    setArchiveMsgsLoading(false)
+  }
+
+  // ── Archive current chat ────────────────────────────────────────────────
+  async function handleArchiveConfirm() {
+    if (!archiveName.trim()) { archiveNameRef.current?.focus(); return }
+    setArchiving(true)
+    setArchiveError(null)
+    const ok = await archiveAndClear(archiveName)
+    setArchiving(false)
+    if (ok) {
+      setShowArchiveDialog(false)
+      setArchiveName('')
+      setView('chat')
+    } else {
+      setArchiveError('Noe gikk galt. Prøv igjen.')
     }
-  }, [isOpen, markAsRead])
+  }
 
-  useEffect(() => {
-    if (isOpen && messages.length > 0) markAsRead()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, isOpen])
+  // ── Delete message ──────────────────────────────────────────────────────
+  async function handleDeleteMessage(msg: TripGroupMessage) {
+    setPendingDeleteId(null)
+    await deleteMessage(msg.id, msg.attachment_url)
+  }
 
+  // ── File helpers ────────────────────────────────────────────────────────
   function validateAndSetFile(file: File) {
     setFileError(null)
     if (!ACCEPTED_TYPES.includes(file.type)) {
       setFileError('Filtype ikke støttet. Tillatte typer: bilder, PDF, Word, tekstfiler.')
       return
     }
-    if (file.size > MAX_FILE_SIZE) {
-      setFileError('Filen er for stor. Maks 10 MB.')
-      return
-    }
-    // Revoke old preview
+    if (file.size > MAX_FILE_SIZE) { setFileError('Filen er for stor. Maks 10 MB.'); return }
     if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl)
-
     setPendingFile(file)
-    if (file.type.startsWith('image/')) {
-      setPendingPreviewUrl(URL.createObjectURL(file))
-    } else {
-      setPendingPreviewUrl(null)
-    }
+    setPendingPreviewUrl(file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
   }
 
   function removePendingFile() {
     if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl)
-    setPendingFile(null)
-    setPendingPreviewUrl(null)
-    setFileError(null)
+    setPendingFile(null); setPendingPreviewUrl(null); setFileError(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) validateAndSetFile(file)
   }
 
   function handlePaste(e: ClipboardEvent<HTMLTextAreaElement>) {
     const files = Array.from(e.clipboardData.files)
-    if (files.length === 0) return
-    const file = files[0]
-    // Only intercept if it's a file (image paste or file copy)
+    if (!files.length) return
     e.preventDefault()
-    validateAndSetFile(file)
+    validateAndSetFile(files[0])
   }
 
+  // ── Send ────────────────────────────────────────────────────────────────
   async function handleSend() {
     const trimmed = inputValue.trim()
     if ((!trimmed && !pendingFile) || sending) return
     setSending(true)
-
     const fileToSend = pendingFile
     removePendingFile()
     setInputValue('')
-
     await sendMessage(trimmed, fileToSend ?? undefined)
     setSending(false)
     textareaRef.current?.focus()
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
-  // Group messages by date
-  const grouped: Array<{ date: string; msgs: typeof messages }> = []
-  for (const msg of messages) {
-    const dateKey = new Date(msg.created_at).toDateString()
-    const last = grouped[grouped.length - 1]
-    if (!last || last.date !== dateKey) {
-      grouped.push({ date: dateKey, msgs: [msg] })
-    } else {
-      last.msgs.push(msg)
-    }
-  }
+  // ── Group live messages ─────────────────────────────────────────────────
+  const grouped = groupByDate(messages)
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <div
-      ref={panelRef}
       className={`fixed right-0 top-11 bottom-0 z-30 flex flex-col w-full md:w-[370px]
         bg-slate-900 border-l border-slate-800 shadow-2xl
         transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       aria-hidden={!isOpen}
     >
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-blue-400 flex-shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-100 leading-tight">Chat</p>
-            {currentTripName && (
-              <p className="text-xs text-slate-400 truncate">{currentTripName}</p>
-            )}
-          </div>
-        </div>
-        <button
-          onClick={close}
-          className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0"
-          title="Lukk chat"
-        >
-          <X className="w-4 h-4" />
-        </button>
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 flex-shrink-0 min-h-[52px]">
+        {view === 'chat' && (
+          <>
+            <div className="flex items-center gap-2 min-w-0">
+              <MessageSquare className="w-4 h-4 text-blue-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-100 leading-tight">Chat</p>
+                {currentTripName && <p className="text-xs text-slate-400 truncate">{currentTripName}</p>}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={openArchiveList}
+                className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+                title="Arkiverte chatter"
+              >
+                <FolderOpen className="w-4 h-4" />
+              </button>
+              <button onClick={close}
+                className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+                title="Lukk chat">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </>
+        )}
+
+        {view === 'archives' && (
+          <>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setView('chat')}
+                className="p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <p className="text-sm font-semibold text-slate-100">Arkiverte chatter</p>
+            </div>
+            <button onClick={close}
+              className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </>
+        )}
+
+        {view === 'archiveDetail' && (
+          <>
+            <div className="flex items-center gap-2 min-w-0">
+              <button onClick={() => setView('archives')}
+                className="p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-100 truncate">
+                  {selectedArchive?.name}
+                </p>
+                {selectedArchive && (
+                  <p className="text-xs text-slate-500">
+                    {formatArchiveDate(selectedArchive.archived_at)} · {selectedArchive.message_count} meldinger
+                  </p>
+                )}
+              </div>
+            </div>
+            <button onClick={close}
+              className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors flex-shrink-0">
+              <X className="w-4 h-4" />
+            </button>
+          </>
+        )}
       </div>
 
-      {/* ── Messages ────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-        {loading && (
-          <p className="text-center text-xs text-slate-500 mt-8">Laster meldinger…</p>
-        )}
+      {/* ── Body: CHAT VIEW ─────────────────────────────────────────── */}
+      {view === 'chat' && (
+        <>
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+            {loading && <p className="text-center text-xs text-slate-500 mt-8">Laster meldinger…</p>}
+            {!loading && messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-4">
+                <span className="text-3xl">💬</span>
+                <p className="text-sm text-slate-400">Ingen meldinger ennå. Si hei! 👋</p>
+              </div>
+            )}
 
-        {!loading && messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-4">
-            <span className="text-3xl">💬</span>
-            <p className="text-sm text-slate-400">Ingen meldinger ennå. Si hei! 👋</p>
+            {grouped.map(({ date, msgs }) => (
+              <div key={date}>
+                <div className="flex items-center gap-2 my-3">
+                  <div className="flex-1 h-px bg-slate-800" />
+                  <span className="text-[10px] text-slate-500 font-medium flex-shrink-0">
+                    {formatDate(msgs[0].created_at)}
+                  </span>
+                  <div className="flex-1 h-px bg-slate-800" />
+                </div>
+
+                {msgs.map((msg, i) => {
+                  const isOwn = msg.user_id === userId
+                  const prevMsg = i > 0 ? msgs[i - 1] : null
+                  const showSender = !isOwn && (!prevMsg || prevMsg.user_id !== msg.user_id)
+                  const isPendingDelete = pendingDeleteId === msg.id
+
+                  return (
+                    <div key={msg.id} className={`flex flex-col mb-1 ${isOwn ? 'items-end' : 'items-start'}`}
+                      onMouseLeave={() => { if (pendingDeleteId === msg.id) setPendingDeleteId(null) }}
+                    >
+                      {showSender && (
+                        <span className="text-[10px] text-slate-500 mb-0.5 px-1">{msg.sender_name}</span>
+                      )}
+
+                      <div className={`flex items-start gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                        {/* Message bubble */}
+                        <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                          isOwn ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-slate-700 text-slate-100 rounded-bl-sm'
+                        }`}>
+                          {msg.content && renderContent(msg.content)}
+                          {msg.attachment_url && (
+                            <AttachmentBubble
+                              url={msg.attachment_url}
+                              name={msg.attachment_name ?? null}
+                              type={msg.attachment_type ?? null}
+                              isOwn={isOwn}
+                            />
+                          )}
+                          {!msg.content && !msg.attachment_url && (
+                            <span className="italic text-xs opacity-60">Slettet melding</span>
+                          )}
+                        </div>
+
+                        {/* Delete control (own messages only) */}
+                        {isOwn && (
+                          isPendingDelete ? (
+                            <button
+                              onClick={() => handleDeleteMessage(msg)}
+                              className="flex-shrink-0 px-2 py-1 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-medium transition-colors mt-0.5"
+                              title="Bekreft sletting"
+                            >
+                              Slett?
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setPendingDeleteId(msg.id)}
+                              className="flex-shrink-0 w-6 h-6 rounded-full text-slate-700 hover:text-red-400 hover:bg-red-900/20
+                                flex items-center justify-center transition-colors opacity-0 hover:opacity-100 focus:opacity-100 mt-0.5
+                                group-hover:opacity-100"
+                              title="Slett melding"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )
+                        )}
+                      </div>
+
+                      <span className="text-[10px] text-slate-600 mt-0.5 px-1">{formatTime(msg.created_at)}</span>
+                      {isOwn && readReceiptMap[msg.id] && (
+                        <span className="text-[10px] text-blue-400 px-1 -mt-0.5">
+                          ✓ Lest {readReceiptMap[msg.id].count > 1 ? `av ${readReceiptMap[msg.id].count} · ` : ''}{formatTime(readReceiptMap[msg.id].latestReadAt)}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
           </div>
-        )}
 
-        {grouped.map(({ date, msgs }) => (
-          <div key={date}>
-            {/* Date separator */}
-            <div className="flex items-center gap-2 my-3">
-              <div className="flex-1 h-px bg-slate-800" />
-              <span className="text-[10px] text-slate-500 font-medium flex-shrink-0">
-                {formatDate(msgs[0].created_at)}
-              </span>
-              <div className="flex-1 h-px bg-slate-800" />
+          {/* Input area */}
+          <div className="border-t border-slate-800 p-3 flex-shrink-0">
+            {/* Pending file preview */}
+            {(pendingFile || fileError) && (
+              <div className="mb-2">
+                {fileError ? (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-900/30 border border-red-700/40 text-xs text-red-300">
+                    <span className="flex-1">{fileError}</span>
+                    <button onClick={() => setFileError(null)}><X className="w-3 h-3" /></button>
+                  </div>
+                ) : pendingFile && (
+                  <div className="relative inline-flex items-center gap-2 px-2.5 py-2 bg-slate-800 border border-slate-700 rounded-xl max-w-full">
+                    {pendingPreviewUrl ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={pendingPreviewUrl} alt="Forhåndsvisning"
+                          className="h-14 w-14 object-cover rounded-lg flex-shrink-0" />
+                        <span className="text-xs text-slate-400 truncate max-w-[160px]">{pendingFile.name}</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                        <span className="text-xs text-slate-300 truncate max-w-[200px]">{pendingFile.name}</span>
+                      </>
+                    )}
+                    <button onClick={removePendingFile}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-600 hover:bg-slate-500
+                        border border-slate-700 flex items-center justify-center transition-colors"
+                      title="Fjern vedlegg">
+                      <X className="w-3 h-3 text-slate-200" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES.join(',')}
+              className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f) }} />
+
+            <div className="flex items-end gap-2">
+              <button onClick={() => fileInputRef.current?.click()} disabled={!userId || sending}
+                className="flex-shrink-0 w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700
+                  disabled:opacity-40 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center"
+                title="Last opp bilde eller dokument">
+                <Paperclip className="w-4 h-4" />
+              </button>
+
+              <textarea ref={textareaRef} value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown} onPaste={handlePaste}
+                placeholder="Skriv en melding… (Enter = send)"
+                rows={1} disabled={!userId}
+                className="flex-1 resize-none bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100
+                  placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500
+                  min-h-[38px] max-h-32 overflow-y-auto leading-relaxed"
+                style={{ height: 'auto' }}
+                onInput={(e) => {
+                  const el = e.currentTarget; el.style.height = 'auto'
+                  el.style.height = Math.min(el.scrollHeight, 128) + 'px'
+                }}
+              />
+
+              <button onClick={handleSend}
+                disabled={(!inputValue.trim() && !pendingFile) || sending || !userId}
+                className="flex-shrink-0 w-9 h-9 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700
+                  disabled:text-slate-500 text-white transition-colors flex items-center justify-center"
+                title="Send (Enter)">
+                {sending ? <ImageIcon className="w-4 h-4 animate-pulse" /> : <Send className="w-4 h-4" />}
+              </button>
             </div>
 
-            {msgs.map((msg, i) => {
-              const isOwn = msg.user_id === userId
-              const prevMsg = i > 0 ? msgs[i - 1] : null
-              const showSender = !isOwn && (
-                !prevMsg || prevMsg.user_id !== msg.user_id
-              )
-              const hasAttachment = !!(msg.attachment_url)
-              const textOnly = !hasAttachment
-
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col mb-1 ${isOwn ? 'items-end' : 'items-start'}`}
+            <div className="flex items-center justify-between mt-1.5">
+              <p className="text-[10px] text-slate-600">Shift+Enter for ny linje · Lim inn bilde direkte</p>
+              {messages.length > 0 && (
+                <button
+                  onClick={() => { setArchiveName(''); setArchiveError(null); setShowArchiveDialog(true) }}
+                  className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-amber-400 transition-colors"
+                  title="Arkiver og nullstill chatdialogen"
                 >
-                  {showSender && (
-                    <span className="text-[10px] text-slate-500 mb-0.5 px-1">
-                      {msg.sender_name}
-                    </span>
-                  )}
+                  <Archive className="w-3 h-3" />
+                  Arkiver chat
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
-                  {/* Message bubble — only shown when there's text content */}
-                  {(msg.content || textOnly) && (
-                    <div
-                      className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
-                        isOwn
-                          ? 'bg-blue-600 text-white rounded-br-sm'
-                          : 'bg-slate-700 text-slate-100 rounded-bl-sm'
-                      }`}
-                    >
-                      {msg.content && renderContent(msg.content)}
-                      <AttachmentMessage msg={msg} isOwn={isOwn} />
-                    </div>
-                  )}
+      {/* ── Body: ARCHIVE LIST VIEW ──────────────────────────────────── */}
+      {view === 'archives' && (
+        <div className="flex-1 overflow-y-auto flex flex-col">
+          {/* Archive current chat button */}
+          {messages.length > 0 && (
+            <div className="px-3 pt-3 pb-2 border-b border-slate-800 flex-shrink-0">
+              <button
+                onClick={() => { setArchiveName(''); setArchiveError(null); setShowArchiveDialog(true) }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-amber-600/10 border border-amber-600/30
+                  text-amber-400 hover:bg-amber-600/20 transition-colors text-sm font-medium"
+              >
+                <Archive className="w-4 h-4 flex-shrink-0" />
+                Arkiver nåværende chat ({messages.length} meldinger)
+              </button>
+            </div>
+          )}
 
-                  {/* Attachment without text — no bubble wrapper */}
-                  {!msg.content && hasAttachment && (
-                    <div className={`max-w-[85%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
-                      <AttachmentMessage msg={msg} isOwn={isOwn} />
-                    </div>
-                  )}
+          <div className="flex-1 overflow-y-auto p-3">
+            {archivesLoading && (
+              <div className="flex items-center justify-center gap-2 mt-8 text-slate-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-xs">Laster arkiver…</span>
+              </div>
+            )}
 
-                  <span className="text-[10px] text-slate-600 mt-0.5 px-1">
-                    {formatTime(msg.created_at)}
-                  </span>
-                  {isOwn && readReceiptMap[msg.id] && (
-                    <span className="text-[10px] text-blue-400 px-1 -mt-0.5">
-                      ✓ Lest {readReceiptMap[msg.id].count > 1 ? `av ${readReceiptMap[msg.id].count} · ` : ''}{formatTime(readReceiptMap[msg.id].latestReadAt)}
-                    </span>
-                  )}
+            {!archivesLoading && archives.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-2 mt-12 text-center px-4">
+                <FolderOpen className="w-10 h-10 text-slate-700" />
+                <p className="text-sm text-slate-500">Ingen arkiverte chatter ennå</p>
+              </div>
+            )}
+
+            {archives.map((archive) => (
+              <button
+                key={archive.id}
+                onClick={() => openArchiveDetail(archive)}
+                className="w-full flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-slate-800 transition-colors text-left mb-1"
+              >
+                <Archive className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-200 truncate">{archive.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {formatArchiveDate(archive.archived_at)} · {archive.message_count} meldinger
+                  </p>
                 </div>
-              )
-            })}
+                <ChevronLeft className="w-4 h-4 text-slate-600 flex-shrink-0 rotate-180 mt-0.5" />
+              </button>
+            ))}
           </div>
-        ))}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* ── Input area ──────────────────────────────────────────────────── */}
-      <div className="border-t border-slate-800 p-3 flex-shrink-0">
-
-        {/* Pending file preview */}
-        {(pendingFile || fileError) && (
-          <div className="mb-2">
-            {fileError ? (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-900/30 border border-red-700/40 text-xs text-red-300">
-                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="flex-1">{fileError}</span>
-                <button
-                  onClick={() => setFileError(null)}
-                  className="hover:text-red-100 transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ) : pendingFile && (
-              <div className="relative inline-flex items-center gap-2 px-2.5 py-2 bg-slate-800 border border-slate-700 rounded-xl max-w-full">
-                {pendingPreviewUrl ? (
-                  /* Image preview */
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={pendingPreviewUrl}
-                      alt="Forhåndsvisning"
-                      className="h-14 w-14 object-cover rounded-lg flex-shrink-0"
-                    />
-                    <span className="text-xs text-slate-400 truncate max-w-[160px]">
-                      {pendingFile.name}
-                    </span>
-                  </>
-                ) : (
-                  /* Document preview */
-                  <>
-                    <FileText className="w-5 h-5 text-blue-400 flex-shrink-0" />
-                    <span className="text-xs text-slate-300 truncate max-w-[200px]">
-                      {pendingFile.name}
-                    </span>
-                  </>
-                )}
-                <button
-                  onClick={removePendingFile}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-600
-                    hover:bg-slate-500 border border-slate-700 flex items-center justify-center transition-colors"
-                  title="Fjern vedlegg"
-                >
-                  <X className="w-3 h-3 text-slate-200" />
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={ACCEPTED_TYPES.join(',')}
-          className="hidden"
-          onChange={handleFileSelected}
-        />
-
-        <div className="flex items-end gap-2">
-          {/* Attachment button */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={!userId || sending}
-            className="flex-shrink-0 w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700
-              disabled:opacity-40 text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center"
-            title="Last opp bilde eller dokument"
-          >
-            <Paperclip className="w-4 h-4" />
-          </button>
-
-          <textarea
-            ref={textareaRef}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder="Skriv en melding… (Enter = send)"
-            rows={1}
-            className="flex-1 resize-none bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100
-              placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500
-              min-h-[38px] max-h-32 overflow-y-auto leading-relaxed"
-            style={{ height: 'auto' }}
-            onInput={(e) => {
-              const el = e.currentTarget
-              el.style.height = 'auto'
-              el.style.height = Math.min(el.scrollHeight, 128) + 'px'
-            }}
-            disabled={!userId}
-          />
-          <button
-            onClick={handleSend}
-            disabled={(!inputValue.trim() && !pendingFile) || sending || !userId}
-            className="flex-shrink-0 w-9 h-9 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700
-              disabled:text-slate-500 text-white transition-colors flex items-center justify-center"
-            title="Send (Enter)"
-          >
-            {sending ? (
-              <ImageIcon className="w-4 h-4 animate-pulse" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </button>
         </div>
+      )}
 
-        <p className="text-[10px] text-slate-600 mt-1.5 text-center">
-          Shift+Enter for ny linje · Lim inn bilde direkte
-        </p>
-      </div>
+      {/* ── Body: ARCHIVE DETAIL VIEW ────────────────────────────────── */}
+      {view === 'archiveDetail' && (
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          {archiveMsgsLoading && (
+            <div className="flex items-center justify-center gap-2 mt-8 text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-xs">Laster meldinger…</span>
+            </div>
+          )}
+
+          {!archiveMsgsLoading && archiveMsgs.length === 0 && (
+            <p className="text-center text-xs text-slate-600 mt-8">Ingen meldinger i dette arkivet</p>
+          )}
+
+          {groupByDate(archiveMsgs.map(m => ({ ...m, created_at: m.original_created_at }))).map(({ date, msgs }) => (
+            <div key={date}>
+              <div className="flex items-center gap-2 my-3">
+                <div className="flex-1 h-px bg-slate-800" />
+                <span className="text-[10px] text-slate-500 font-medium flex-shrink-0">
+                  {formatDate(date)}
+                </span>
+                <div className="flex-1 h-px bg-slate-800" />
+              </div>
+
+              {(msgs as unknown as Array<ChatArchiveMessage & { created_at: string }>).map((msg, i) => {
+                const isOwn = msg.user_id === userId
+                const prev = i > 0 ? msgs[i - 1] as unknown as ChatArchiveMessage : null
+                const showSender = !isOwn && (!prev || prev.user_id !== msg.user_id)
+
+                return (
+                  <div key={msg.id} className={`flex flex-col mb-1 ${isOwn ? 'items-end' : 'items-start'}`}>
+                    {showSender && (
+                      <span className="text-[10px] text-slate-500 mb-0.5 px-1">{msg.sender_name}</span>
+                    )}
+                    <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                      isOwn ? 'bg-blue-600/70 text-white rounded-br-sm' : 'bg-slate-700 text-slate-100 rounded-bl-sm'
+                    }`}>
+                      {msg.content && renderContent(msg.content)}
+                      {msg.attachment_url && (
+                        <AttachmentBubble
+                          url={msg.attachment_url}
+                          name={msg.attachment_name}
+                          type={msg.attachment_type}
+                          isOwn={isOwn}
+                        />
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-600 mt-0.5 px-1">
+                      {formatTime(msg.original_created_at)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Archive dialog overlay ───────────────────────────────────── */}
+      {showArchiveDialog && (
+        <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm z-10 flex items-center justify-center p-5">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <Archive className="w-5 h-5 text-amber-400 flex-shrink-0" />
+              <h3 className="text-base font-semibold text-slate-100">Arkiver chatdialogen</h3>
+            </div>
+
+            {/* Name input */}
+            <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+              Gi arkivet et navn
+            </label>
+            <input
+              ref={archiveNameRef}
+              type="text"
+              value={archiveName}
+              onChange={(e) => setArchiveName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleArchiveConfirm() }}
+              placeholder={`f.eks. "Sommer ${new Date().getFullYear()}"`}
+              autoFocus
+              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100
+                placeholder:text-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 mb-4"
+            />
+
+            {/* Warning */}
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-900/20 border border-amber-700/30 mb-4">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-200 leading-relaxed">
+                Chatdialogen arkiveres og chatvinduet nullstilles. Du kan <strong>ikke</strong> angre denne handlingen,
+                men du vil alltid kunne lese den arkiverte chatten i arkivlisten.
+              </p>
+            </div>
+
+            {archiveError && (
+              <p className="text-xs text-red-400 mb-3">{archiveError}</p>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowArchiveDialog(false); setArchiveName(''); setArchiveError(null) }}
+                disabled={archiving}
+                className="flex-1 px-4 py-2 rounded-lg border border-slate-600 text-slate-300 text-sm
+                  hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={handleArchiveConfirm}
+                disabled={archiving || !archiveName.trim()}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-amber-600
+                  hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm
+                  font-medium transition-colors"
+              >
+                {archiving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
+                {archiving ? 'Arkiverer…' : 'Arkiver'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
