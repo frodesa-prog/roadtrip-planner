@@ -487,6 +487,16 @@ export default function ChatPanel() {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {messages.length > 0 && (
+                <button
+                  onClick={() => { setNoteDescription(''); setSaveNoteError(null); setShowSaveNoteDialog(true) }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-slate-400 hover:text-blue-400 hover:bg-slate-800 transition-colors"
+                  title="Lagre chat som notat"
+                >
+                  <NotebookPen className="w-3.5 h-3.5" />
+                  Notat
+                </button>
+              )}
               <button
                 onClick={() => setShowNewChatDialog(true)}
                 className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
@@ -606,9 +616,9 @@ export default function ChatPanel() {
                         <span className="text-[10px] text-slate-500 mb-0.5 px-1">{msg.sender_name}</span>
                       )}
 
-                      <div className={`flex items-start gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-                        {/* Message bubble */}
-                        <div className={`w-[75%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                      <div className={`flex items-start gap-1.5 w-full ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                        {/* Message bubble – alltid 75% av full chatbredde */}
+                        <div className={`w-[75%] flex-shrink-0 px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
                           isOwn ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-slate-700 text-slate-100 rounded-bl-sm'
                         }`}>
                           {msg.content && renderContent(msg.content)}
@@ -738,24 +748,14 @@ export default function ChatPanel() {
             <div className="flex items-center justify-between mt-1.5">
               <p className="text-[10px] text-slate-600">Shift+Enter for ny linje · Lim inn bilde direkte</p>
               {messages.length > 0 && (
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => { setNoteDescription(''); setSaveNoteError(null); setShowSaveNoteDialog(true) }}
-                    className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-blue-400 transition-colors"
-                    title="Lagre chat som notat"
-                  >
-                    <NotebookPen className="w-3 h-3" />
-                    Lagre som notat
-                  </button>
-                  <button
-                    onClick={() => { setArchiveName(''); setArchiveError(null); setShowArchiveDialog(true) }}
-                    className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-amber-400 transition-colors"
-                    title="Arkiver og nullstill chatdialogen"
-                  >
-                    <Archive className="w-3 h-3" />
-                    Arkiver chat
-                  </button>
-                </div>
+                <button
+                  onClick={() => { setArchiveName(''); setArchiveError(null); setShowArchiveDialog(true) }}
+                  className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-amber-400 transition-colors"
+                  title="Arkiver og nullstill chatdialogen"
+                >
+                  <Archive className="w-3 h-3" />
+                  Arkiver chat
+                </button>
               )}
             </div>
           </div>
@@ -848,7 +848,8 @@ export default function ChatPanel() {
                     {showSender && (
                       <span className="text-[10px] text-slate-500 mb-0.5 px-1">{msg.sender_name}</span>
                     )}
-                    <div className={`w-[75%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                    <div className={`flex w-full ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`w-[75%] flex-shrink-0 px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
                       isOwn ? 'bg-blue-600/70 text-white rounded-br-sm' : 'bg-slate-700 text-slate-100 rounded-bl-sm'
                     }`}>
                       {msg.content && renderContent(msg.content)}
@@ -862,6 +863,7 @@ export default function ChatPanel() {
                         />
                       )}
                     </div>
+                    </div>{/* end bubble row */}
                     <span className="text-[10px] text-slate-600 mt-0.5 px-1">
                       {formatTime(msg.original_created_at)}
                     </span>
