@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom'
 import {
   X, MessageSquare, MessageSquarePlus, Send, Paperclip, FileText,
   Trash2, Archive, FolderOpen, ChevronLeft,
-  AlertTriangle, Loader2, ImageIcon, Download,
+  AlertTriangle, Loader2, ImageIcon, Download, NotebookPen,
 } from 'lucide-react'
 import { useChat } from '@/components/chat/ChatContext'
 import { createClient } from '@/lib/supabase/client'
@@ -149,6 +149,12 @@ export default function ChatPanel() {
   const [archiving, setArchiving] = useState(false)
   const [archiveError, setArchiveError] = useState<string | null>(null)
 
+  // ── Save as note dialog ─────────────────────────────────────────────────
+  const [showSaveNoteDialog, setShowSaveNoteDialog] = useState(false)
+  const [noteDescription, setNoteDescription] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+  const [saveNoteError, setSaveNoteError] = useState<string | null>(null)
+
   // ── Delete archive confirm ──────────────────────────────────────────────
   const [showDeleteArchiveConfirm, setShowDeleteArchiveConfirm] = useState(false)
   const [deletingArchive, setDeletingArchive] = useState(false)
@@ -175,10 +181,11 @@ export default function ChatPanel() {
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
 
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const textareaRef    = useRef<HTMLTextAreaElement>(null)
-  const fileInputRef   = useRef<HTMLInputElement>(null)
-  const archiveNameRef = useRef<HTMLInputElement>(null)
+  const messagesEndRef    = useRef<HTMLDivElement>(null)
+  const textareaRef       = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef      = useRef<HTMLInputElement>(null)
+  const archiveNameRef    = useRef<HTMLInputElement>(null)
+  const noteDescriptionRef = useRef<HTMLInputElement>(null)
 
   // Read-receipt map (last own message each other user has read)
   const readReceiptMap = useMemo(() => {
@@ -311,6 +318,56 @@ export default function ChatPanel() {
     setSelectedArchive(null)
     setArchiveMsgs([])
     setView('archives')
+  }
+
+  // ── Save active chat as a note ───────────────────────────────────────────
+  async function handleSaveAsNote() {
+    if (!currentTripId || !noteDescription.trim()) {
+      noteDescriptionRef.current?.focus()
+      return
+    }
+    setSavingNote(true)
+    setSaveNoteError(null)
+
+    const now = new Date()
+    const dateStr = now.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+    const title = `Chat ${dateStr} – ${noteDescription.trim()}`
+
+    // Build note content as readable markdown
+    const lines: string[] = []
+    for (const { date, msgs } of groupByDate(messages)) {
+      const dayLabel = new Date(date).toLocaleDateString('nb-NO', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      })
+      lines.push(`## ${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)}`)
+      lines.push('')
+      for (const msg of msgs as TripGroupMessage[]) {
+        const time = formatTime(msg.created_at)
+        lines.push(`**${msg.sender_name}** · ${time}`)
+        if (msg.content) lines.push(msg.content)
+        if (msg.attachment_url) {
+          const name = msg.attachment_name ?? 'Vedlegg'
+          lines.push(
+            msg.attachment_type === 'image'
+              ? `![${name}](${msg.attachment_url})`
+              : `📎 [${name}](${msg.attachment_url})`
+          )
+        }
+        lines.push('')
+      }
+    }
+
+    const { error } = await supabase
+      .from('notes')
+      .insert({ trip_id: currentTripId, title, content: lines.join('\n'), stop_id: null, note_date: null })
+
+    setSavingNote(false)
+    if (error) {
+      setSaveNoteError('Noe gikk galt. Prøv igjen.')
+    } else {
+      setShowSaveNoteDialog(false)
+      setNoteDescription('')
+    }
   }
 
   // ── Download attachment (cross-origin safe) ──────────────────────────────
@@ -652,14 +709,24 @@ export default function ChatPanel() {
             <div className="flex items-center justify-between mt-1.5">
               <p className="text-[10px] text-slate-600">Shift+Enter for ny linje · Lim inn bilde direkte</p>
               {messages.length > 0 && (
-                <button
-                  onClick={() => { setArchiveName(''); setArchiveError(null); setShowArchiveDialog(true) }}
-                  className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-amber-400 transition-colors"
-                  title="Arkiver og nullstill chatdialogen"
-                >
-                  <Archive className="w-3 h-3" />
-                  Arkiver chat
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => { setNoteDescription(''); setSaveNoteError(null); setShowSaveNoteDialog(true) }}
+                    className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-blue-400 transition-colors"
+                    title="Lagre chat som notat"
+                  >
+                    <NotebookPen className="w-3 h-3" />
+                    Lagre som notat
+                  </button>
+                  <button
+                    onClick={() => { setArchiveName(''); setArchiveError(null); setShowArchiveDialog(true) }}
+                    className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-amber-400 transition-colors"
+                    title="Arkiver og nullstill chatdialogen"
+                  >
+                    <Archive className="w-3 h-3" />
+                    Arkiver chat
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -894,6 +961,65 @@ export default function ChatPanel() {
               >
                 {deletingArchive ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 {deletingArchive ? 'Sletter…' : 'Slett permanent'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Save as note dialog overlay ──────────────────────────────── */}
+      {showSaveNoteDialog && (
+        <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm z-10 flex items-center justify-center p-5">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <NotebookPen className="w-5 h-5 text-blue-400 flex-shrink-0" />
+              <h3 className="text-base font-semibold text-slate-100">Lagre chat som notat</h3>
+            </div>
+
+            <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+              Hele chatdialogen ({messages.length} meldinger) lagres som et notat på turen, inkludert bilder og dokumentlenker.
+            </p>
+
+            <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+              Kort beskrivelse
+            </label>
+            <input
+              ref={noteDescriptionRef}
+              type="text"
+              value={noteDescription}
+              onChange={(e) => setNoteDescription(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveAsNote() }}
+              placeholder='F.eks. "Planlegging av aktiviteter"'
+              autoFocus
+              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100
+                placeholder:text-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-1"
+            />
+            <p className="text-[10px] text-slate-600 mb-4">
+              Notattittel: «Chat {new Date().toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })} – {noteDescription.trim() || '…'}»
+            </p>
+
+            {saveNoteError && (
+              <p className="text-xs text-red-400 mb-3">{saveNoteError}</p>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowSaveNoteDialog(false); setNoteDescription(''); setSaveNoteError(null) }}
+                disabled={savingNote}
+                className="flex-1 px-4 py-2 rounded-lg border border-slate-600 text-slate-300 text-sm
+                  hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={handleSaveAsNote}
+                disabled={savingNote || !noteDescription.trim()}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600
+                  hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm
+                  font-medium transition-colors"
+              >
+                {savingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <NotebookPen className="w-3.5 h-3.5" />}
+                {savingNote ? 'Lagrer…' : 'Lagre notat'}
               </button>
             </div>
           </div>
