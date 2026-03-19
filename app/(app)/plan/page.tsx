@@ -7,7 +7,7 @@ import CityPlanSidebar from '@/components/planning/CityPlanSidebar'
 import CityDayPanel from '@/components/planning/CityDayPanel'
 import CityMapPinModal from '@/components/planning/CityMapPinModal'
 import CityTripOverviewModal from '@/components/planning/CityTripOverviewModal'
-import PlanningMap from '@/components/map/PlanningMap'
+import PlanningMap, { PoiActionCallbacks } from '@/components/map/PlanningMap'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
@@ -164,6 +164,16 @@ export default function PlanPage() {
       addNote({ stop_id: cityStop.id, note_date: dateStr, title: '__day_plan__', content: text })
     }
   }, [cityStop, notes, updateNote, addNote])
+
+  const poiAction = useCallback((): PoiActionCallbacks => ({
+    linkActivity: (activityId, lat, lng) => updateActivity(activityId, { map_lat: lat, map_lng: lng }),
+    linkDining: (diningId, lat, lng) => updateDining(diningId, { map_lat: lat, map_lng: lng }),
+    addActivity: (stopId, name, website, lat, lng) => addActivity(stopId, { name, url: website ?? undefined, map_lat: lat, map_lng: lng }),
+    addDining: (stopId, name, website, lat, lng) => addDining(stopId, { name, url: website ?? undefined, map_lat: lat, map_lng: lng }),
+    addPossible: (stopId, name, website) => addPossibleActivity(stopId, { description: name, url: website ?? undefined }),
+    saveHotel: (stopId, name, address, website) => saveHotel(stopId, { name, address, url: website }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [updateActivity, updateDining, addActivity, addDining, addPossibleActivity, saveHotel])
 
   function handleAddStop(stop: Stop) {
     if (!currentTrip) return
@@ -416,6 +426,7 @@ export default function PlanPage() {
               hotels={hotels}
               activities={activities}
               dining={dining}
+              possibleActivities={possibleActivities}
               selectedActivityId={selectedCityActivityId}
               selectedDiningId={selectedCityDiningId}
               onSelectActivity={(id) => { setSelectedCityActivityId((prev) => prev === id ? null : id); setSelectedCityDiningId(null) }}
@@ -431,6 +442,7 @@ export default function PlanPage() {
               onCitySearch={({ lat, lng }) => setCitySearchCenter({ lat, lng })}
               onCityMapClick={(lat, lng) => setCityMapPinPending({ lat, lng })}
               cityTripMode
+              onPoiAction={poiAction()}
             />
           ) : (
             <PlanningMap
@@ -440,11 +452,15 @@ export default function PlanPage() {
               onSelectStop={handleSelectStop}
               disabled={!currentTrip}
               hotels={hotels}
+              activities={activities}
+              dining={dining}
+              possibleActivities={possibleActivities}
               mapCenter={selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null}
               routeLegs={routeLegs}
               routeLegsLoaded={routeLegsLoaded}
               onRouteLegsChange={handleRouteLegsChange}
               onRouteStatesChange={setRouteStates}
+              onPoiAction={poiAction()}
             />
           )}
         </div>

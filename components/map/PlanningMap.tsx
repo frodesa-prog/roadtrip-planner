@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, Check, Ruler, Images, X, RotateCcw, RotateCw, Layers3, ExternalLink, Phone, Globe, Star, Clock, Loader2 } from 'lucide-react'
+import { ChevronDown, Check, Ruler, Images, X, RotateCcw, RotateCw, Layers3, ExternalLink, Phone, Globe, Star, Clock, Loader2, Plus, MapPin, CheckCircle2 } from 'lucide-react'
 import {
   APIProvider,
   Map,
@@ -9,7 +9,7 @@ import {
   useMap,
   useMapsLibrary,
 } from '@vis.gl/react-google-maps'
-import { Activity, Dining, Hotel, RouteLeg, Stop } from '@/types'
+import { Activity, Dining, Hotel, PossibleActivity, RouteLeg, Stop } from '@/types'
 import RoutePolyline, { LegWaypoints } from './RoutePolyline'
 import StopMarker from './StopMarker'
 import AddStopPopup from './AddStopPopup'
@@ -46,6 +46,8 @@ interface PlanningMapProps {
   activityRoute?: ActivityRoute | null
   onActivityRouteInfo?: (info: RouteInfo) => void
   hotels?: Hotel[]
+  possibleActivities?: PossibleActivity[]
+  onPoiAction?: PoiActionCallbacks
   routeLegs?: RouteLeg[]
   routeLegsLoaded?: boolean
   onRouteLegsChange?: (legs: LegWaypoints[]) => void
@@ -92,20 +94,63 @@ interface PoiDetails {
   googleUrl: string
   types: string[]
   priceLevel: number | null
+  lat: number | null
+  lng: number | null
 }
+
+export interface PoiActionCallbacks {
+  linkActivity: (activityId: string, lat: number, lng: number) => void
+  linkDining: (diningId: string, lat: number, lng: number) => void
+  addActivity: (stopId: string, name: string, website: string | null, lat: number, lng: number) => void
+  addDining: (stopId: string, name: string, website: string | null, lat: number, lng: number) => void
+  addPossible: (stopId: string, name: string, website: string | null) => void
+  saveHotel: (stopId: string, name: string, address: string | null, website: string | null) => void
+}
+
+type PoiTab = 'aktivitet' | 'spisested' | 'mulig' | 'hotell'
 
 function PoiInfoBox({
   placeId,
   onClose,
+  stops = [],
+  activities = [],
+  dining = [],
+  possibleActivities = [],
+  hotels = [],
+  onPoiAction,
 }: {
   placeId: string
   onClose: () => void
+  stops?: Stop[]
+  activities?: Activity[]
+  dining?: Dining[]
+  possibleActivities?: PossibleActivity[]
+  hotels?: Hotel[]
+  onPoiAction?: PoiActionCallbacks
 }) {
   const map = useMap()
   const placesLib = useMapsLibrary('places')
   const [info, setInfo] = useState<PoiDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
+
+  // Action panel state
+  const [actionOpen, setActionOpen] = useState(false)
+  const [selectedTab, setSelectedTab] = useState<PoiTab>('aktivitet')
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
+  const [savedMsg, setSavedMsg] = useState<string | null>(null)
+
+  // Auto-select stop when stops become available
+  useEffect(() => {
+    if (stops.length > 0 && !selectedStopId) {
+      setSelectedStopId(stops[0].id)
+    }
+  }, [stops, selectedStopId])
+
+  function showSaved(msg: string) {
+    setSavedMsg(msg)
+    setTimeout(() => setSavedMsg(null), 2000)
+  }
 
   useEffect(() => {
     setInfo(null)
@@ -125,7 +170,7 @@ function PoiInfoBox({
         fields: [
           'name', 'formatted_address', 'formatted_phone_number',
           'website', 'rating', 'user_ratings_total',
-          'opening_hours', 'url', 'types', 'price_level',
+          'opening_hours', 'url', 'types', 'price_level', 'geometry',
         ],
       },
       (result, status) => {
@@ -144,6 +189,8 @@ function PoiInfoBox({
               .filter((t) => t !== 'point_of_interest' && t !== 'establishment')
               .slice(0, 3),
             priceLevel: result.price_level ?? null,
+            lat: result.geometry?.location?.lat() ?? null,
+            lng: result.geometry?.location?.lng() ?? null,
           })
         } else {
           setFailed(true)
@@ -154,8 +201,51 @@ function PoiInfoBox({
 
   const fallbackUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`
 
+  const stopActivities = activities.filter((a) => a.stop_id === selectedStopId)
+  const stopDining = dining.filter((d) => d.stop_id === selectedStopId)
+  const stopPossible = possibleActivities.filter((p) => p.stop_id === selectedStopId)
+  const stopHotel = hotels.find((h) => h.stop_id === selectedStopId) ?? null
+
+  function handleLinkActivity(activityId: string) {
+    if (!info?.lat || !info?.lng) return
+    onPoiAction?.linkActivity(activityId, info.lat, info.lng)
+    showSaved('Koblet til aktivitet!')
+  }
+
+  function handleLinkDining(diningId: string) {
+    if (!info?.lat || !info?.lng) return
+    onPoiAction?.linkDining(diningId, info.lat, info.lng)
+    showSaved('Koblet til spisested!')
+  }
+
+  function handleAddActivity() {
+    if (!selectedStopId || !info?.name || !info?.lat || !info?.lng) return
+    onPoiAction?.addActivity(selectedStopId, info.name, info.website, info.lat, info.lng)
+    showSaved('Ny aktivitet opprettet!')
+  }
+
+  function handleAddDining() {
+    if (!selectedStopId || !info?.name || !info?.lat || !info?.lng) return
+    onPoiAction?.addDining(selectedStopId, info.name, info.website, info.lat, info.lng)
+    showSaved('Nytt spisested opprettet!')
+  }
+
+  function handleAddPossible() {
+    if (!selectedStopId || !info?.name) return
+    onPoiAction?.addPossible(selectedStopId, info.name, info.website)
+    showSaved('Mulig aktivitet lagt til!')
+  }
+
+  function handleSaveHotel() {
+    if (!selectedStopId || !info?.name) return
+    onPoiAction?.saveHotel(selectedStopId, info.name, info.address, info.website)
+    showSaved('Hotell lagret!')
+  }
+
+  const canDoAction = !!onPoiAction && info != null && stops.length > 0
+
   return (
-    <div className="absolute bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-auto w-[320px] max-w-[calc(100vw-2rem)]">
+    <div className="absolute bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-auto w-[340px] max-w-[calc(100vw-2rem)]">
       <div className="bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-start justify-between px-4 pt-3.5 pb-2 border-b border-slate-800">
@@ -251,7 +341,7 @@ function PoiInfoBox({
         )}
 
         {/* Footer – Google Maps link */}
-        <div className="px-4 py-2.5 border-t border-slate-800">
+        <div className="px-4 py-2.5 border-t border-slate-800 flex items-center justify-between gap-2">
           <a
             href={info?.googleUrl ?? fallbackUrl}
             target="_blank"
@@ -262,6 +352,202 @@ function PoiInfoBox({
             Åpne i Google Maps
           </a>
         </div>
+
+        {/* ── Add to trip section ── */}
+        {canDoAction && (
+          <div className="border-t border-slate-800">
+            {/* Toggle */}
+            <button
+              onClick={() => setActionOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-[11px] font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
+            >
+              <span className="flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5" />
+                Legg til i tur
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${actionOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {actionOpen && (
+              <div className="px-3 pb-3 space-y-2.5 border-t border-slate-800/60">
+                {/* Success message */}
+                {savedMsg && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-900/30 border border-green-700/40 rounded-lg mt-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                    <span className="text-[11px] text-green-300">{savedMsg}</span>
+                  </div>
+                )}
+
+                {/* Stop picker */}
+                {stops.length > 1 && (
+                  <div className="mt-2">
+                    <p className="text-[10px] text-slate-500 mb-1">Stoppested</p>
+                    <select
+                      value={selectedStopId ?? ''}
+                      onChange={(e) => setSelectedStopId(e.target.value)}
+                      className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-200 outline-none focus:border-slate-500 transition-colors"
+                    >
+                      {stops.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.city}{s.state ? `, ${s.state}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Tab bar */}
+                <div className="flex gap-0.5 bg-slate-800/70 rounded-lg p-0.5 mt-2">
+                  {(['aktivitet', 'spisested', 'mulig', 'hotell'] as PoiTab[]).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setSelectedTab(tab)}
+                      className={`flex-1 text-[10px] font-medium py-1 rounded-md transition-colors ${
+                        selectedTab === tab
+                          ? 'bg-slate-700 text-white shadow-sm'
+                          : 'text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      {tab === 'aktivitet' ? 'Aktivitet' : tab === 'spisested' ? 'Spise' : tab === 'mulig' ? 'Mulig' : 'Hotell'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── Aktivitet tab ── */}
+                {selectedTab === 'aktivitet' && (
+                  <div className="space-y-1.5">
+                    {stopActivities.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-slate-500">Knytt til eksisterende:</p>
+                        {stopActivities.slice(0, 4).map((a) => {
+                          const pinned = !!(a.map_lat && a.map_lng)
+                          return (
+                            <div key={a.id} className="flex items-center gap-1.5 px-2 py-1 bg-slate-800/60 rounded-md">
+                              <span className="text-[11px] text-slate-300 truncate flex-1">{a.name}</span>
+                              {pinned ? (
+                                <span className="text-[10px] text-teal-400 flex items-center gap-0.5 flex-shrink-0">
+                                  <MapPin className="w-2.5 h-2.5" /> Festet
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleLinkActivity(a.id)}
+                                  className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-0.5 flex-shrink-0 transition-colors"
+                                >
+                                  <MapPin className="w-2.5 h-2.5" /> Knytt hit
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                        {stopActivities.length > 4 && (
+                          <p className="text-[10px] text-slate-600 text-center">og {stopActivities.length - 4} til</p>
+                        )}
+                      </div>
+                    )}
+                    {(!info.lat || !info.lng) ? (
+                      <p className="text-[10px] text-slate-600 italic">Ingen kartkoordinater tilgjengelig for dette stedet.</p>
+                    ) : (
+                      <button
+                        onClick={handleAddActivity}
+                        className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-[11px] transition-colors"
+                      >
+                        <Plus className="w-3 h-3" /> Opprett ny aktivitet
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Spisested tab ── */}
+                {selectedTab === 'spisested' && (
+                  <div className="space-y-1.5">
+                    {stopDining.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-slate-500">Knytt til eksisterende:</p>
+                        {stopDining.slice(0, 4).map((d) => {
+                          const pinned = !!(d.map_lat && d.map_lng)
+                          return (
+                            <div key={d.id} className="flex items-center gap-1.5 px-2 py-1 bg-slate-800/60 rounded-md">
+                              <span className="text-[11px] text-slate-300 truncate flex-1">{d.name}</span>
+                              {pinned ? (
+                                <span className="text-[10px] text-teal-400 flex items-center gap-0.5 flex-shrink-0">
+                                  <MapPin className="w-2.5 h-2.5" /> Festet
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleLinkDining(d.id)}
+                                  className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-0.5 flex-shrink-0 transition-colors"
+                                >
+                                  <MapPin className="w-2.5 h-2.5" /> Knytt hit
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                        {stopDining.length > 4 && (
+                          <p className="text-[10px] text-slate-600 text-center">og {stopDining.length - 4} til</p>
+                        )}
+                      </div>
+                    )}
+                    {(!info.lat || !info.lng) ? (
+                      <p className="text-[10px] text-slate-600 italic">Ingen kartkoordinater tilgjengelig for dette stedet.</p>
+                    ) : (
+                      <button
+                        onClick={handleAddDining}
+                        className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-[11px] transition-colors"
+                      >
+                        <Plus className="w-3 h-3" /> Opprett nytt spisested
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Mulig aktivitet tab ── */}
+                {selectedTab === 'mulig' && (
+                  <div className="space-y-1.5">
+                    {stopPossible.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-slate-500">Eksisterende mulige aktiviteter:</p>
+                        {stopPossible.slice(0, 4).map((p) => (
+                          <div key={p.id} className="px-2 py-1 bg-slate-800/60 rounded-md">
+                            <span className="text-[11px] text-slate-300 line-clamp-1">{p.description}</span>
+                          </div>
+                        ))}
+                        {stopPossible.length > 4 && (
+                          <p className="text-[10px] text-slate-600 text-center">og {stopPossible.length - 4} til</p>
+                        )}
+                      </div>
+                    )}
+                    <button
+                      onClick={handleAddPossible}
+                      className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-[11px] transition-colors"
+                    >
+                      <Plus className="w-3 h-3" /> Legg til som mulig aktivitet
+                    </button>
+                  </div>
+                )}
+
+                {/* ── Hotell tab ── */}
+                {selectedTab === 'hotell' && (
+                  <div className="space-y-1.5">
+                    {stopHotel && (
+                      <div className="px-2 py-1.5 bg-slate-800/60 rounded-md border border-slate-700/50">
+                        <p className="text-[10px] text-slate-500 mb-0.5">Eksisterende hotell</p>
+                        <p className="text-[11px] text-slate-300 truncate">{stopHotel.name || '(uten navn)'}</p>
+                      </div>
+                    )}
+                    <button
+                      onClick={handleSaveHotel}
+                      className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-[11px] transition-colors"
+                    >
+                      <Plus className="w-3 h-3" />
+                      {stopHotel ? 'Oppdater hotell med dette stedet' : 'Registrer som hotell'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -815,6 +1101,8 @@ export default function PlanningMap({
   activityRoute,
   onActivityRouteInfo,
   hotels = [],
+  possibleActivities = [],
+  onPoiAction,
   routeLegs = [],
   routeLegsLoaded = true,
   onRouteLegsChange,
@@ -996,6 +1284,12 @@ export default function PlanningMap({
             key={poiPlaceId}
             placeId={poiPlaceId}
             onClose={() => setPoiPlaceId(null)}
+            stops={stops}
+            activities={activities}
+            dining={dining}
+            possibleActivities={possibleActivities}
+            hotels={hotels}
+            onPoiAction={onPoiAction}
           />
         )}
 
