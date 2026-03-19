@@ -104,7 +104,7 @@ export interface PoiActionCallbacks {
   addActivity: (stopId: string, name: string, website: string | null, lat: number, lng: number) => void
   addDining: (stopId: string, name: string, website: string | null, lat: number, lng: number) => void
   addPossible: (stopId: string, name: string, website: string | null) => void
-  saveHotel: (stopId: string, name: string, address: string | null, website: string | null) => void
+  saveHotel: (stopId: string, name: string, address: string | null, website: string | null, lat: number | null, lng: number | null) => void
 }
 
 type PoiTab = 'aktivitet' | 'spisested' | 'mulig' | 'hotell'
@@ -238,7 +238,7 @@ function PoiInfoBox({
 
   function handleSaveHotel() {
     if (!selectedStopId || !info?.name) return
-    onPoiAction?.saveHotel(selectedStopId, info.name, info.address, info.website)
+    onPoiAction?.saveHotel(selectedStopId, info.name, info.address, info.website, info.lat, info.lng)
     showSaved('Hotell lagret!')
   }
 

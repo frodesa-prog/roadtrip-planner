@@ -21,6 +21,7 @@ import ActivityLocationSearch from '@/components/map/ActivityLocationSearch'
 import InlineLocationPicker from '@/components/map/InlineLocationPicker'
 import NoteModal from '@/components/planning/NoteModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { toast } from 'sonner'
 
 interface StopDetailPanelProps {
   stop: Stop
@@ -33,8 +34,8 @@ interface StopDetailPanelProps {
   /** Trip start date – used as fallback default for new activity/dining dates */
   tripDateFrom?: string
   stopIndex?: number
-  onUpdateStop: (updates: Partial<Pick<Stop, 'nights' | 'arrival_date' | 'lat' | 'lng'>>) => void
-  onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'address' | 'url' | 'status' | 'cost' | 'parking_cost_per_night'>>) => void
+  onUpdateStop: (updates: Partial<Pick<Stop, 'nights' | 'arrival_date' | 'lat' | 'lng' | 'city' | 'state'>>) => void
+  onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'address' | 'url' | 'status' | 'cost' | 'parking_cost_per_night'>>, lat?: number | null, lng?: number | null) => void
   onAddActivity: (data: AddActivityData) => void
   onRemoveActivity: (id: string) => void
   onUpdateActivity: (id: string, updates: UpdateActivityData) => void
@@ -81,6 +82,10 @@ export default function StopDetailPanel({
   const [editingHotel, setEditingHotel] = useState(!(hotel?.name))
   const [nights, setNights]             = useState(stop.nights)
   const [arrivalDate, setArrivalDate]   = useState(stop.arrival_date ?? '')
+  const [editingStopName, setEditingStopName] = useState(false)
+  const [stopCity, setStopCity]         = useState(stop.city)
+  const [stopState, setStopState]       = useState(stop.state ?? '')
+  const stopNameInputRef = useRef<HTMLInputElement>(null)
 
   const [showAddActivity, setShowAddActivity] = useState(false)
   const [newActName, setNewActName]         = useState('')
@@ -286,15 +291,37 @@ export default function StopDetailPanel({
     onSaveHotel({ status: newStatus as 'not_booked' | 'confirmed' })
   }
 
-  function handleSaveHotel() {
-    onSaveHotel({
+  async function handleSaveHotel() {
+    const address = hotelAddress.trim() || null
+    const updates: Parameters<typeof onSaveHotel>[0] = {
       name: hotelName.trim(),
-      address: hotelAddress.trim() || null,
+      address,
       url: hotelUrl.trim() || null,
       cost: hotelCost ? Number(hotelCost) : null,
       parking_cost_per_night: hotelParkingCost ? Number(hotelParkingCost) : null,
       status: hotelBooked ? 'confirmed' : 'not_booked',
-    })
+    }
+
+    if (address) {
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+        const res = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
+        )
+        const json = await res.json()
+        const loc = json.results?.[0]?.geometry?.location
+        if (loc) {
+          onSaveHotel(updates, loc.lat, loc.lng)
+          toast.success('Hotell lagret · stoppested flyttet til hotellets posisjon')
+          setEditingHotel(false)
+          return
+        }
+      } catch {
+        // fall through — save without coordinates
+      }
+    }
+
+    onSaveHotel(updates)
     setEditingHotel(false)
   }
 
@@ -367,14 +394,46 @@ export default function StopDetailPanel({
         {/* Header */}
         <div className="px-4 py-3 border-b border-slate-800 flex-shrink-0">
           <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <MapPin className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-                <p className="text-sm font-bold text-slate-100 truncate">
-                  {stop.city}
-                  {stop.state && <span className="text-slate-400 font-normal">, {stop.state}</span>}
-                </p>
-              </div>
+            <div className="min-w-0 flex-1">
+              {editingStopName ? (
+                <div className="flex items-center gap-1 mb-0.5">
+                  <MapPin className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                  <input
+                    ref={stopNameInputRef}
+                    value={stopCity}
+                    onChange={(e) => setStopCity(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onUpdateStop({ city: stopCity.trim() || stop.city, state: stopState.trim() || undefined })
+                        setEditingStopName(false)
+                      }
+                      if (e.key === 'Escape') {
+                        setStopCity(stop.city)
+                        setStopState(stop.state ?? '')
+                        setEditingStopName(false)
+                      }
+                    }}
+                    onBlur={() => {
+                      onUpdateStop({ city: stopCity.trim() || stop.city, state: stopState.trim() || undefined })
+                      setEditingStopName(false)
+                    }}
+                    className="text-sm font-bold bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-slate-100 w-full focus:outline-none focus:border-blue-500"
+                    placeholder="Bynavn"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <MapPin className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                  <button
+                    onClick={() => { setEditingStopName(true); setTimeout(() => stopNameInputRef.current?.focus(), 0) }}
+                    className="text-sm font-bold text-slate-100 truncate hover:text-blue-300 transition-colors text-left"
+                    title="Klikk for å redigere stedsnavn"
+                  >
+                    {stopCity}
+                    {stopState && <span className="text-slate-400 font-normal">, {stopState}</span>}
+                  </button>
+                </div>
+              )}
               <p className="text-xs text-slate-500 capitalize ml-5">{dayLabel}</p>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">

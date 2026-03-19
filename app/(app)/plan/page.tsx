@@ -171,9 +171,12 @@ export default function PlanPage() {
     addActivity: (stopId, name, website, lat, lng) => addActivity(stopId, { name, url: website ?? undefined, map_lat: lat, map_lng: lng }),
     addDining: (stopId, name, website, lat, lng) => addDining(stopId, { name, url: website ?? undefined, map_lat: lat, map_lng: lng }),
     addPossible: (stopId, name, website) => addPossibleActivity(stopId, { description: name, url: website ?? undefined }),
-    saveHotel: (stopId, name, address, website) => saveHotel(stopId, { name, address, url: website }),
+    saveHotel: (stopId, name, address, website, lat, lng) => {
+      saveHotel(stopId, { name, address, url: website })
+      if (lat != null && lng != null) updateStop(stopId, { lat, lng })
+    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [updateActivity, updateDining, addActivity, addDining, addPossibleActivity, saveHotel])
+  }), [updateActivity, updateDining, addActivity, addDining, addPossibleActivity, saveHotel, updateStop])
 
   function handleAddStop(stop: Stop) {
     if (!currentTrip) return
@@ -360,7 +363,10 @@ export default function PlanPage() {
               selectedDate={selectedDate}
               tripDateFrom={currentTrip?.date_from ?? ''}
               onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
-              onSaveHotel={(updates) => saveHotel(selectedStop.id, updates)}
+              onSaveHotel={(updates, lat, lng) => {
+                saveHotel(selectedStop.id, updates)
+                if (lat != null && lng != null) updateStop(selectedStop.id, { lat, lng })
+              }}
               onAddActivity={(data) => addActivity(selectedStop.id, data)}
               onRemoveActivity={removeActivity}
               onUpdateActivity={updateActivity}

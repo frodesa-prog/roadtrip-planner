@@ -579,7 +579,10 @@ export default function SummaryPage() {
               selectedDate={selectedDate}
               stopIndex={selectedStopIndex}
               onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
-              onSaveHotel={(updates) => saveHotel(selectedStop.id, updates)}
+              onSaveHotel={(updates, lat, lng) => {
+                saveHotel(selectedStop.id, updates)
+                if (lat != null && lng != null) updateStop(selectedStop.id, { lat, lng })
+              }}
               onAddActivity={(data) => addActivity(selectedStop.id, data)}
               onRemoveActivity={removeActivity}
               onUpdateActivity={updateActivity}
