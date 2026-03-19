@@ -5,6 +5,7 @@ import {
   Users, Map, Activity, MessageSquare, FileText, CheckSquare,
   Trash2, RefreshCw, AlertTriangle, TrendingUp, Hotel,
   Plane, Package, Camera, FolderOpen, Loader2, ShieldCheck,
+  Terminal, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -48,6 +49,18 @@ interface AdminStats {
     created_at: string
     user_id: string
   }[]
+}
+
+interface DevLogEntry {
+  id: string
+  prompt: string
+  created_at: string
+  deploy_status: 'pending' | 'success' | 'failed' | 'none'
+  commit_hash: string | null
+  commit_message: string | null
+  deployed_at: string | null
+  project: string
+  session_id: string | null
 }
 
 interface AdminUser {
@@ -177,7 +190,11 @@ export default function AdminTab() {
   const [usersLoading, setUsersLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<AdminUser | null>(null)
-  const [activeView, setActiveView] = useState<'oversikt' | 'brukere'>('oversikt')
+  const [activeView, setActiveView] = useState<'oversikt' | 'brukere' | 'devlog'>('oversikt')
+  const [devLog, setDevLog] = useState<DevLogEntry[]>([])
+  const [devLogLoading, setDevLogLoading] = useState(false)
+  const [expandedEntry, setExpandedEntry] = useState<string | null>(null)
+  const [deletingLogId, setDeletingLogId] = useState<string | null>(null)
 
   const fetchStats = useCallback(async () => {
     setLoading(true)
@@ -206,8 +223,40 @@ export default function AdminTab() {
     }
   }, [])
 
+  const fetchDevLog = useCallback(async () => {
+    setDevLogLoading(true)
+    try {
+      const res = await fetch('/api/admin/dev-log')
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setDevLog(data.entries ?? [])
+    } catch {
+      toast.error('Kunne ikke laste dev-logg')
+    } finally {
+      setDevLogLoading(false)
+    }
+  }, [])
+
+  async function handleDeleteLogEntry(id: string) {
+    setDeletingLogId(id)
+    try {
+      const res = await fetch('/api/admin/dev-log', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) throw new Error()
+      setDevLog((prev) => prev.filter((e) => e.id !== id))
+    } catch {
+      toast.error('Kunne ikke slette loggoppføring')
+    } finally {
+      setDeletingLogId(null)
+    }
+  }
+
   useEffect(() => { fetchStats() }, [fetchStats])
   useEffect(() => { if (activeView === 'brukere') fetchUsers() }, [activeView, fetchUsers])
+  useEffect(() => { if (activeView === 'devlog') fetchDevLog() }, [activeView, fetchDevLog])
 
   async function handleDeleteUser() {
     if (!confirmDelete) return
@@ -244,7 +293,7 @@ export default function AdminTab() {
           </div>
         </div>
         <button
-          onClick={() => { fetchStats(); if (activeView === 'brukere') fetchUsers() }}
+          onClick={() => { fetchStats(); if (activeView === 'brukere') fetchUsers(); if (activeView === 'devlog') fetchDevLog() }}
           className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
         >
           <RefreshCw className="w-3.5 h-3.5" />
@@ -254,15 +303,19 @@ export default function AdminTab() {
 
       {/* Sub-nav */}
       <div className="flex gap-1 bg-slate-800/50 rounded-lg p-1 w-fit">
-        {(['oversikt', 'brukere'] as const).map((v) => (
+        {([
+          { id: 'oversikt', label: 'Oversikt' },
+          { id: 'brukere',  label: 'Brukere' },
+          { id: 'devlog',   label: 'Dev-logg' },
+        ] as { id: 'oversikt' | 'brukere' | 'devlog'; label: string }[]).map(({ id, label }) => (
           <button
-            key={v}
-            onClick={() => setActiveView(v)}
-            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors capitalize ${
-              activeView === v ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'
+            key={id}
+            onClick={() => setActiveView(id)}
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activeView === id ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'
             }`}
           >
-            {v === 'oversikt' ? 'Oversikt' : 'Brukere'}
+            {label}
           </button>
         ))}
       </div>
@@ -495,6 +548,120 @@ export default function AdminTab() {
                 ))}
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {/* ── DEV-LOGG ─────────────────────────────────────────────────────────── */}
+      {activeView === 'devlog' && (
+        <div className="space-y-4">
+          {devLogLoading ? (
+            <div className="flex items-center gap-2 text-slate-500 py-8">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">Laster logg…</span>
+            </div>
+          ) : devLog.length === 0 ? (
+            <div className="text-center py-12 text-slate-500">
+              <Terminal className="w-8 h-8 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Ingen loggoppføringer ennå.</p>
+              <p className="text-xs mt-1 text-slate-600">Prompts logges automatisk fra Claude Code når dev-serveren kjører.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {devLog.map((entry) => {
+                const isExpanded = expandedEntry === entry.id
+                const statusIcon =
+                  entry.deploy_status === 'success' ? <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" /> :
+                  entry.deploy_status === 'failed'  ? <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" /> :
+                  entry.deploy_status === 'pending' ? <Clock className="w-4 h-4 text-amber-400 flex-shrink-0 animate-pulse" /> :
+                  <Terminal className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                const statusLabel =
+                  entry.deploy_status === 'success' ? 'Deployet' :
+                  entry.deploy_status === 'failed'  ? 'Deploy feilet' :
+                  entry.deploy_status === 'pending' ? 'Venter på deploy' : 'Ingen deploy'
+                const statusColor =
+                  entry.deploy_status === 'success' ? 'text-green-400' :
+                  entry.deploy_status === 'failed'  ? 'text-red-400' :
+                  entry.deploy_status === 'pending' ? 'text-amber-400' : 'text-slate-500'
+
+                return (
+                  <div key={entry.id} className="bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden">
+                    {/* Summary row */}
+                    <div
+                      className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-slate-800/80 transition-colors"
+                      onClick={() => setExpandedEntry(isExpanded ? null : entry.id)}
+                    >
+                      {statusIcon}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-200 line-clamp-2 leading-relaxed">
+                          {entry.prompt}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                          <span className="text-[10px] text-slate-500">
+                            {new Date(entry.created_at).toLocaleString('nb-NO', {
+                              day: '2-digit', month: 'short', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit',
+                            })}
+                          </span>
+                          <span className={`text-[10px] font-medium ${statusColor}`}>{statusLabel}</span>
+                          {entry.commit_hash && (
+                            <span className="text-[10px] text-slate-600 font-mono">{entry.commit_hash}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteLogEntry(entry.id) }}
+                          disabled={deletingLogId === entry.id}
+                          className="p-1 rounded text-slate-600 hover:text-red-400 transition-colors"
+                          title="Slett oppføring"
+                        >
+                          {deletingLogId === entry.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                        {isExpanded
+                          ? <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
+                          : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />}
+                      </div>
+                    </div>
+
+                    {/* Expanded detail */}
+                    {isExpanded && (
+                      <div className="border-t border-slate-700/50 px-4 py-3 space-y-3 bg-slate-900/40">
+                        <div>
+                          <p className="text-[10px] text-slate-500 mb-1.5 uppercase tracking-wide">Prompt</p>
+                          <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
+                            {entry.prompt}
+                          </p>
+                        </div>
+                        {entry.commit_message && (
+                          <div>
+                            <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wide">Commit-melding</p>
+                            <p className="text-xs text-slate-400 font-mono leading-relaxed">{entry.commit_message}</p>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-4 text-[10px] text-slate-500">
+                          {entry.commit_hash && (
+                            <span>Hash: <span className="font-mono text-slate-400">{entry.commit_hash}</span></span>
+                          )}
+                          {entry.deployed_at && (
+                            <span>Deployet: <span className="text-slate-400">
+                              {new Date(entry.deployed_at).toLocaleString('nb-NO', {
+                                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                              })}
+                            </span></span>
+                          )}
+                          {entry.session_id && (
+                            <span>Sesjon: <span className="font-mono text-slate-400">{entry.session_id.slice(0, 8)}…</span></span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
       )}
