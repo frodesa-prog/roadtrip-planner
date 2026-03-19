@@ -7,6 +7,7 @@ import {
   Map,
   MapMouseEvent,
   useMap,
+  useMapsLibrary,
 } from '@vis.gl/react-google-maps'
 import { Activity, Dining, Hotel, RouteLeg, Stop } from '@/types'
 import RoutePolyline, { LegWaypoints } from './RoutePolyline'
@@ -61,34 +62,65 @@ interface PlanningMapProps {
 
 // ─── POI layer definitions ─────────────────────────────────────────────────────
 
+type LayerKind = 'places' | 'style'
+
 interface PoiLayer {
   id: string
   label: string
   sublabel: string
   icon: string
-  featureType: string
+  kind: LayerKind
+  /** For 'style' layers: Google Maps featureType to hide */
+  featureType?: string
+  /** For 'places' layers: Google Places type to query */
+  placeType?: string
+  /** Group header shown above this item */
+  group?: string
 }
 
 const POI_LAYERS: PoiLayer[] = [
+  // ── Business sub-types (Places API) ──────────────────────────────────────────
   {
-    id: 'business',
-    label: 'Forretninger',
-    sublabel: 'Restauranter, hotell, bensinstasjoner m.m.',
+    id: 'restaurant',
+    label: 'Restauranter & kafeer',
+    sublabel: 'Serveringssteder og spisesteder',
     icon: '🍽️',
-    featureType: 'poi.business',
+    kind: 'places',
+    placeType: 'restaurant',
+    group: 'Forretninger',
   },
+  {
+    id: 'lodging',
+    label: 'Hoteller & overnatting',
+    sublabel: 'Hotell, pensjonat og B&B',
+    icon: '🏨',
+    kind: 'places',
+    placeType: 'lodging',
+  },
+  {
+    id: 'gas_station',
+    label: 'Bensinstasjoner',
+    sublabel: 'Drivstoff, lading og service',
+    icon: '⛽',
+    kind: 'places',
+    placeType: 'gas_station',
+  },
+  // ── Style-based layers ────────────────────────────────────────────────────────
   {
     id: 'attraction',
     label: 'Severdigheter',
     sublabel: 'Turistattraksjoner og opplevelser',
     icon: '🏛️',
+    kind: 'style',
     featureType: 'poi.attraction',
+    group: 'Annet',
   },
   {
     id: 'park',
     label: 'Parker & natur',
     sublabel: 'Parker, grøntområder og naturreservater',
     icon: '🌿',
+    kind: 'style',
     featureType: 'poi.park',
   },
   {
@@ -96,6 +128,7 @@ const POI_LAYERS: PoiLayer[] = [
     label: 'Kollektivtransport',
     sublabel: 'Bussholdeplasser, t-bane, jernbane',
     icon: '🚌',
+    kind: 'style',
     featureType: 'transit',
   },
   {
@@ -103,6 +136,7 @@ const POI_LAYERS: PoiLayer[] = [
     label: 'Helse',
     sublabel: 'Sykehus, apotek og klinikker',
     icon: '🏥',
+    kind: 'style',
     featureType: 'poi.medical',
   },
   {
@@ -110,12 +144,113 @@ const POI_LAYERS: PoiLayer[] = [
     label: 'Tros- og kultursteder',
     sublabel: 'Kirker, moskeer, templer m.m.',
     icon: '⛪',
+    kind: 'style',
     featureType: 'poi.place_of_worship',
   },
 ]
 
+const ALL_LAYER_IDS = POI_LAYERS.map((l) => l.id)
+
 function lsKey(tripId: string | undefined) {
   return tripId ? `map-layers-${tripId}` : null
+}
+
+// ─── Emoji marker icon factory ─────────────────────────────────────────────────
+
+function makeEmojiIcon(emoji: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"><text y="22" font-size="20">${emoji}</text></svg>`
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
+}
+
+// ─── Places layer renderer (one per places-type layer) ────────────────────────
+
+function PlacesLayerRenderer({
+  placeType,
+  icon,
+  enabled,
+}: {
+  placeType: string
+  icon: string
+  enabled: boolean
+}) {
+  const map = useMap()
+  const placesLib = useMapsLibrary('places')
+  const markersRef = useRef<google.maps.Marker[]>([])
+  const listenerRef = useRef<google.maps.MapsEventListener | null>(null)
+  const lastCenterRef = useRef<{ lat: number; lng: number } | null>(null)
+
+  useEffect(() => {
+    // Clear markers and listener whenever disabled or deps change
+    markersRef.current.forEach((m) => m.setMap(null))
+    markersRef.current = []
+    if (listenerRef.current) {
+      google.maps.event.removeListener(listenerRef.current)
+      listenerRef.current = null
+    }
+    if (!map || !placesLib || !enabled) return
+
+    const service = new placesLib.PlacesService(map)
+    const iconUrl = makeEmojiIcon(icon)
+
+    function fetchPlaces() {
+      const center = map!.getCenter()
+      if (!center) return
+
+      // Only re-fetch if map center moved > ~2 km
+      const newC = { lat: center.lat(), lng: center.lng() }
+      if (lastCenterRef.current) {
+        const dLat = (newC.lat - lastCenterRef.current.lat) * 111
+        const dLng = (newC.lng - lastCenterRef.current.lng) * 111 * Math.cos(newC.lat * Math.PI / 180)
+        if (Math.sqrt(dLat * dLat + dLng * dLng) < 2) return
+      }
+      lastCenterRef.current = newC
+
+      // Derive radius from zoom (z12 ≈ 3 km, z10 ≈ 12 km, clamped 1–25 km)
+      const zoom = map!.getZoom() ?? 12
+      const radius = Math.max(1000, Math.min(25000, 200000 / Math.pow(2, zoom - 8)))
+
+      // Clear old markers before new batch
+      markersRef.current.forEach((m) => m.setMap(null))
+      markersRef.current = []
+
+      service.nearbySearch(
+        { location: center, radius, type: placeType },
+        (results, status) => {
+          if (!placesLib || status !== placesLib.PlacesServiceStatus.OK || !results) return
+          results.slice(0, 25).forEach((place) => {
+            if (!place.geometry?.location) return
+            const marker = new google.maps.Marker({
+              position: place.geometry.location,
+              map: map!,
+              title: place.name,
+              icon: {
+                url: iconUrl,
+                scaledSize: new google.maps.Size(28, 28),
+                anchor: new google.maps.Point(14, 14),
+              },
+              zIndex: 1,
+            })
+            markersRef.current.push(marker)
+          })
+        }
+      )
+    }
+
+    fetchPlaces()
+    listenerRef.current = map.addListener('idle', fetchPlaces)
+
+    return () => {
+      markersRef.current.forEach((m) => m.setMap(null))
+      markersRef.current = []
+      if (listenerRef.current) {
+        google.maps.event.removeListener(listenerRef.current)
+        listenerRef.current = null
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, placesLib, enabled, placeType])
+
+  return null
 }
 
 // ─── Layer toggle panel ────────────────────────────────────────────────────────
@@ -133,7 +268,7 @@ function MapLayerToggle({ tripId }: { tripId?: string }) {
   })
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // When tripId changes, load that trip's saved layers
+  // When tripId changes, reload saved layers for that trip
   useEffect(() => {
     const key = lsKey(tripId)
     if (!key) { setHiddenLayers(new Set()); return }
@@ -143,20 +278,23 @@ function MapLayerToggle({ tripId }: { tripId?: string }) {
     } catch { setHiddenLayers(new Set()) }
   }, [tripId])
 
-  // Apply styles to map whenever hiddenLayers changes
+  // Apply map styles for 'style' layers + always hide poi.business
   useEffect(() => {
     if (!map) return
-    const styles: google.maps.MapTypeStyle[] = []
+    const styles: google.maps.MapTypeStyle[] = [
+      // Always hide Google's generic business icons; we use our own Places markers instead
+      { featureType: 'poi.business', elementType: 'all', stylers: [{ visibility: 'off' }] },
+    ]
     hiddenLayers.forEach((id) => {
-      const layer = POI_LAYERS.find((l) => l.id === id)
-      if (layer) {
+      const layer = POI_LAYERS.find((l) => l.id === id && l.kind === 'style')
+      if (layer?.featureType) {
         styles.push({ featureType: layer.featureType, elementType: 'all', stylers: [{ visibility: 'off' }] })
       }
     })
     map.setOptions({ styles })
   }, [map, hiddenLayers])
 
-  // Save to localStorage whenever hiddenLayers changes
+  // Persist to localStorage
   useEffect(() => {
     const key = lsKey(tripId)
     if (!key) return
@@ -182,69 +320,102 @@ function MapLayerToggle({ tripId }: { tripId?: string }) {
 
   const panel = 'bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-lg shadow-lg'
   const hiddenCount = hiddenLayers.size
+  const allHidden = hiddenCount === ALL_LAYER_IDS.length
+
+  // Render group headers
+  let lastGroup: string | undefined = undefined
 
   return (
-    <div ref={containerRef} className="absolute top-[46px] left-2.5 z-10 pointer-events-auto">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        title="Kartlag"
-        className={`${panel} flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
-          hiddenCount > 0 ? 'text-amber-300' : 'text-slate-200 hover:bg-slate-800'
-        }`}
-      >
-        <Layers3 className="w-3.5 h-3.5 flex-shrink-0" />
-        Lag
-        {hiddenCount > 0 && (
-          <span className="bg-amber-500 text-black text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
-            {hiddenCount}
-          </span>
-        )}
-        <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className={`${panel} absolute top-full left-0 mt-1 w-64 overflow-hidden`}>
-          <div className="px-3 pt-2.5 pb-1">
-            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">Vis / skjul kartlag</p>
-          </div>
-          {POI_LAYERS.map((layer) => {
-            const isVisible = !hiddenLayers.has(layer.id)
-            return (
-              <button
-                key={layer.id}
-                onClick={() => toggle(layer.id)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-slate-800 transition-colors"
-              >
-                {/* Checkbox */}
-                <span
-                  className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center ${
-                    isVisible ? 'border-blue-400 bg-blue-500' : 'border-slate-600 bg-transparent'
-                  }`}
-                >
-                  {isVisible && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
-                </span>
-                <span className="text-base flex-shrink-0">{layer.icon}</span>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-slate-200">{layer.label}</p>
-                  <p className="text-[9px] text-slate-500 truncate">{layer.sublabel}</p>
-                </div>
-              </button>
-            )
-          })}
+    <>
+      {/* ── Layer toggle UI ──────────────────────────────────────────────── */}
+      <div ref={containerRef} className="absolute top-[46px] left-2.5 z-10 pointer-events-auto">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          title="Kartlag"
+          className={`${panel} flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+            hiddenCount > 0 ? 'text-amber-300' : 'text-slate-200 hover:bg-slate-800'
+          }`}
+        >
+          <Layers3 className="w-3.5 h-3.5 flex-shrink-0" />
+          Lag
           {hiddenCount > 0 && (
-            <>
-              <div className="border-t border-slate-700/60 mx-0 mt-1" />
+            <span className="bg-amber-500 text-black text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
+              {hiddenCount}
+            </span>
+          )}
+          <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+
+        {open && (
+          <div className={`${panel} absolute top-full left-0 mt-1 w-64 overflow-hidden`}>
+            <div className="px-3 pt-2.5 pb-1">
+              <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">Vis / skjul kartlag</p>
+            </div>
+
+            {POI_LAYERS.map((layer) => {
+              const isVisible = !hiddenLayers.has(layer.id)
+              const showHeader = layer.group && layer.group !== lastGroup
+              if (showHeader) lastGroup = layer.group
+              return (
+                <div key={layer.id}>
+                  {showHeader && (
+                    <p className="px-3 pt-2 pb-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+                      {layer.group}
+                    </p>
+                  )}
+                  <button
+                    onClick={() => toggle(layer.id)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-slate-800 transition-colors"
+                  >
+                    <span
+                      className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center ${
+                        isVisible ? 'border-blue-400 bg-blue-500' : 'border-slate-600 bg-transparent'
+                      }`}
+                    >
+                      {isVisible && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                    </span>
+                    <span className="text-base flex-shrink-0">{layer.icon}</span>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium text-slate-200">{layer.label}</p>
+                      <p className="text-[9px] text-slate-500 truncate">{layer.sublabel}</p>
+                    </div>
+                  </button>
+                </div>
+              )
+            })}
+
+            {/* Footer actions */}
+            <div className="border-t border-slate-700/60 mt-1 flex">
+              <button
+                onClick={() => setHiddenLayers(new Set(ALL_LAYER_IDS))}
+                disabled={allHidden}
+                className="flex-1 px-3 py-2 text-[11px] text-slate-400 hover:text-red-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-center"
+              >
+                Fjern alle lag
+              </button>
+              <div className="w-px bg-slate-700/60" />
               <button
                 onClick={() => setHiddenLayers(new Set())}
-                className="w-full px-3 py-2 text-[11px] text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors text-left"
+                disabled={hiddenCount === 0}
+                className="flex-1 px-3 py-2 text-[11px] text-slate-400 hover:text-green-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-center"
               >
                 Vis alle lag
               </button>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Places API renderers (no DOM output) ────────────────────────── */}
+      {POI_LAYERS.filter((l) => l.kind === 'places').map((layer) => (
+        <PlacesLayerRenderer
+          key={layer.id}
+          placeType={layer.placeType!}
+          icon={layer.icon}
+          enabled={!hiddenLayers.has(layer.id)}
+        />
+      ))}
+    </>
   )
 }
 
