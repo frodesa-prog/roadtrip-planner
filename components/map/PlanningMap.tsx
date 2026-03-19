@@ -177,7 +177,7 @@ function PlacesLayerRenderer({
   const placesLib = useMapsLibrary('places')
   const markersRef = useRef<google.maps.Marker[]>([])
   const listenerRef = useRef<google.maps.MapsEventListener | null>(null)
-  const lastCenterRef = useRef<{ lat: number; lng: number } | null>(null)
+  const lastFetchStateRef = useRef<{ lat: number; lng: number; zoom: number } | null>(null)
 
   useEffect(() => {
     // Clear markers and listener whenever disabled or deps change
@@ -196,18 +196,22 @@ function PlacesLayerRenderer({
       const center = map!.getCenter()
       if (!center) return
 
-      // Only re-fetch if map center moved > ~2 km
-      const newC = { lat: center.lat(), lng: center.lng() }
-      if (lastCenterRef.current) {
-        const dLat = (newC.lat - lastCenterRef.current.lat) * 111
-        const dLng = (newC.lng - lastCenterRef.current.lng) * 111 * Math.cos(newC.lat * Math.PI / 180)
-        if (Math.sqrt(dLat * dLat + dLng * dLng) < 2) return
-      }
-      lastCenterRef.current = newC
-
       // Derive radius from zoom (z12 ≈ 3 km, z10 ≈ 12 km, clamped 1–25 km)
       const zoom = map!.getZoom() ?? 12
       const radius = Math.max(1000, Math.min(25000, 200000 / Math.pow(2, zoom - 8)))
+
+      // Skip re-fetch if zoom AND center are nearly unchanged
+      const newLat = center.lat(), newLng = center.lng()
+      if (lastFetchStateRef.current) {
+        const { lat, lng, zoom: prevZoom } = lastFetchStateRef.current
+        const dLat = (newLat - lat) * 111
+        const dLng = (newLng - lng) * 111 * Math.cos(newLat * Math.PI / 180)
+        const distKm = Math.sqrt(dLat * dLat + dLng * dLng)
+        const zoomChanged = Math.abs(zoom - prevZoom) >= 1
+        // Re-fetch if zoom changed OR if centre moved more than 40% of search radius
+        if (!zoomChanged && distKm < (radius / 1000) * 0.4) return
+      }
+      lastFetchStateRef.current = { lat: newLat, lng: newLng, zoom }
 
       // Clear old markers before new batch
       markersRef.current.forEach((m) => m.setMap(null))
