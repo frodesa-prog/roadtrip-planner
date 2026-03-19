@@ -18,6 +18,7 @@ import {
   ActivityTypeIcon,
 } from '@/lib/activityTypes'
 import ActivityLocationSearch from '@/components/map/ActivityLocationSearch'
+import InlineLocationPicker from '@/components/map/InlineLocationPicker'
 import NoteModal from '@/components/planning/NoteModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
@@ -98,6 +99,11 @@ export default function StopDetailPanel({
   const [typePickerForId, setTypePickerForId]       = useState<string | null>(null)
   const [pinningActivityId, setPinningActivityId]   = useState<string | null>(null)
   const [editingStopLocation, setEditingStopLocation] = useState(false)
+
+  // Inline location state for new-item forms
+  const [newActLocation, setNewActLocation] = useState<{ lat: number; lng: number; name: string } | null>(null)
+  const [newDiningLocation, setNewDiningLocation] = useState<{ lat: number; lng: number; name: string } | null>(null)
+  const [newPossibleLocation, setNewPossibleLocation] = useState<{ lat: number; lng: number; name: string } | null>(null)
 
   // Confirm-dialog state
   const [confirm, setConfirm] = useState<{ message: string; action: () => void } | null>(null)
@@ -232,9 +238,12 @@ export default function StopDetailPanel({
       url: newDiningUrl.trim() || undefined,
       booking_date: newDiningDate || undefined,
       booking_time: newDiningTime.trim() || undefined,
+      map_lat: newDiningLocation?.lat ?? undefined,
+      map_lng: newDiningLocation?.lng ?? undefined,
     })
     setNewDiningName(''); setNewDiningUrl('')
     setNewDiningDate(selectedDate || tripDateFrom); setNewDiningTime('')
+    setNewDiningLocation(null)
     setShowAddDining(false)
   }
 
@@ -313,11 +322,14 @@ export default function StopDetailPanel({
       section:  newActSection.trim()  || undefined,
       seat_row: newActRow.trim()      || undefined,
       seat:     newActSeat.trim()     || undefined,
+      map_lat:  newActLocation?.lat   ?? undefined,
+      map_lng:  newActLocation?.lng   ?? undefined,
     })
     setNewActName(''); setNewActUrl(''); setNewActCost('')
     setNewActDate(selectedDate || tripDateFrom); setNewActTime('')
     setNewActType(null); setCustomTypeInput(''); setShowCustomType(false); setShowAddActivity(false)
     setNewActStadium(''); setNewActSection(''); setNewActRow(''); setNewActSeat('')
+    setNewActLocation(null)
   }
 
   function handleCancelAddActivity() {
@@ -326,6 +338,7 @@ export default function StopDetailPanel({
     setNewActDate(selectedDate || tripDateFrom); setNewActTime('')
     setNewActType(null); setCustomTypeInput(''); setShowCustomType(false)
     setNewActStadium(''); setNewActSection(''); setNewActRow(''); setNewActSeat('')
+    setNewActLocation(null)
   }
 
   const pinningDining = pinningDiningId
@@ -825,6 +838,13 @@ export default function StopDetailPanel({
                   </div>
                 )}
 
+                <InlineLocationPicker
+                  selected={newActLocation}
+                  onSelect={(lat, lng, name) => setNewActLocation({ lat, lng, name })}
+                  onClear={() => setNewActLocation(null)}
+                  accentColor="purple"
+                />
+
                 <div className="flex gap-1.5">
                   <button type="submit" disabled={!newActName.trim()}
                     className="flex-1 h-7 rounded-md bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
@@ -982,12 +1002,19 @@ export default function StopDetailPanel({
                     </div>
                   </div>
                 )}
+                <InlineLocationPicker
+                  selected={newDiningLocation}
+                  onSelect={(lat, lng, name) => setNewDiningLocation({ lat, lng, name })}
+                  onClear={() => setNewDiningLocation(null)}
+                  accentColor="red"
+                />
+
                 <div className="flex gap-1.5">
                   <button type="submit" disabled={!newDiningName.trim()}
                     className="flex-1 h-7 rounded-md bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
                     Legg til
                   </button>
-                  <button type="button" onClick={() => { setShowAddDining(false); setNewDiningName(''); setNewDiningUrl(''); setNewDiningTime(''); setNewDiningDate(selectedDate || tripDateFrom) }}
+                  <button type="button" onClick={() => { setShowAddDining(false); setNewDiningName(''); setNewDiningUrl(''); setNewDiningTime(''); setNewDiningDate(selectedDate || tripDateFrom); setNewDiningLocation(null) }}
                     className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
                     Avbryt
                   </button>
