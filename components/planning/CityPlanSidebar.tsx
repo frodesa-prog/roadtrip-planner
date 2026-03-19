@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   ChevronDown, ChevronRight, Hotel as HotelIcon, MapPin,
   UtensilsCrossed, Plus, Moon, ExternalLink, Navigation, Loader2, LayoutList,
+  Pencil, Check, X,
 } from 'lucide-react'
 import { Trip, Stop, Activity, Dining, PossibleActivity, NewTripData } from '@/types'
 import TripManager from './TripManager'
@@ -183,6 +184,7 @@ function DayRow({
   activities,
   dining,
   isSelected,
+  isCheckout,
   onToggle,
 }: {
   dateStr: string
@@ -190,24 +192,36 @@ function DayRow({
   activities: Activity[]
   dining: Dining[]
   isSelected: boolean
+  isCheckout?: boolean
   onToggle: () => void
 }) {
   const hasItems = activities.length > 0 || dining.length > 0
+
+  const dayLabel = isCheckout
+    ? (() => {
+        const d = new Date(dateStr + 'T12:00:00')
+        const weekdays = ['Søn', 'Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør']
+        const months = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des']
+        return `Utreise – ${weekdays[d.getDay()]} ${d.getDate()}. ${months[d.getMonth()]}`
+      })()
+    : formatDayHeader(dateStr, index)
 
   return (
     <div className="border-b border-slate-800/60 last:border-0">
       <button
         onClick={onToggle}
         className={`w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors ${
-          isSelected ? 'bg-blue-900/20 border-l-2 border-blue-500' : 'hover:bg-slate-800/40'
+          isSelected ? 'bg-blue-900/20 border-l-2 border-blue-500'
+          : isCheckout ? 'hover:bg-slate-800/40 opacity-70'
+          : 'hover:bg-slate-800/40'
         }`}
       >
         {isSelected ? (
           <ChevronDown className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
         ) : (
-          <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+          <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 ${isCheckout ? 'text-slate-600' : 'text-slate-500'}`} />
         )}
-        <span className="text-sm text-slate-200 font-medium flex-1">{formatDayHeader(dateStr, index)}</span>
+        <span className={`text-sm font-medium flex-1 ${isCheckout ? 'text-slate-400 italic' : 'text-slate-200'}`}>{dayLabel}</span>
         {hasItems && (
           <span className="text-[10px] text-slate-500 flex-shrink-0">
             {activities.length > 0 && `${activities.length} akt.`}
@@ -267,6 +281,7 @@ interface CityPlanSidebarProps {
   onZoomToCity?: () => void
   onUpdateGroupDescription?: (desc: string) => void
   onOpenOverview?: () => void
+  onUpdateTripDates?: (dateFrom: string, dateTo: string) => void
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -280,9 +295,32 @@ export default function CityPlanSidebar({
   onZoomToCity,
   onUpdateGroupDescription,
   onOpenOverview,
+  onUpdateTripDates,
 }: CityPlanSidebarProps) {
   const [showWizard, setShowWizard] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
+
+  // ── Edit dates state ───────────────────────────────────────────────────────
+  const [editingDates, setEditingDates] = useState(false)
+  const [editDateFrom, setEditDateFrom] = useState('')
+  const [editDateTo, setEditDateTo] = useState('')
+
+  function openEditDates() {
+    setEditDateFrom(currentTrip.date_from ?? '')
+    setEditDateTo(currentTrip.date_to ?? '')
+    setEditingDates(true)
+  }
+
+  function cancelEditDates() {
+    setEditingDates(false)
+  }
+
+  function saveEditDates() {
+    if (editDateFrom && editDateTo && editDateFrom <= editDateTo) {
+      onUpdateTripDates?.(editDateFrom, editDateTo)
+    }
+    setEditingDates(false)
+  }
 
   // Derive days from date_from / date_to
   const days: string[] = []
@@ -290,7 +328,8 @@ export default function CityPlanSidebar({
     const from = new Date(currentTrip.date_from + 'T12:00:00')
     const to = new Date(currentTrip.date_to + 'T12:00:00')
     const count = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86_400_000))
-    for (let i = 0; i < count; i++) {
+    // i <= count: inkluderer siste dag (utreisedag / checkout)
+    for (let i = 0; i <= count; i++) {
       days.push(addDays(currentTrip.date_from, i))
     }
   }
@@ -335,33 +374,91 @@ export default function CityPlanSidebar({
         />
       )}
 
-      {/* Stats row */}
-      <div className="px-4 py-2 border-b border-slate-800 bg-slate-800/30 flex items-center gap-4 flex-shrink-0">
-        <div className="flex items-center gap-1.5">
-          <MapPin className="w-3.5 h-3.5 text-blue-400" />
-          <span className="text-xs text-slate-400">
-            <span className="text-white font-semibold">{totalActivities}</span> aktiviteter
-          </span>
+      {/* Stats row + edit dates */}
+      {editingDates ? (
+        <div className="px-4 py-2.5 border-b border-slate-800 bg-slate-800/40 flex-shrink-0 space-y-2">
+          <p className="text-[11px] font-medium text-slate-300">Rediger datoer</p>
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <label className="text-[10px] text-slate-500 mb-0.5 block">Fra</label>
+              <input
+                type="date"
+                value={editDateFrom}
+                onChange={(e) => {
+                  setEditDateFrom(e.target.value)
+                  if (editDateTo && e.target.value > editDateTo) setEditDateTo('')
+                }}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] text-slate-500 mb-0.5 block">Til</label>
+              <input
+                type="date"
+                value={editDateTo}
+                min={editDateFrom || undefined}
+                onChange={(e) => setEditDateTo(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+          {editDateFrom && editDateTo && (
+            <p className="text-[10px] text-slate-500">
+              {Math.max(0, Math.round((new Date(editDateTo + 'T12:00:00').getTime() - new Date(editDateFrom + 'T12:00:00').getTime()) / 86_400_000))} netter
+            </p>
+          )}
+          <div className="flex gap-2 pt-0.5">
+            <button
+              onClick={saveEditDates}
+              disabled={!editDateFrom || !editDateTo || editDateFrom > editDateTo}
+              className="flex items-center gap-1 text-xs px-3 py-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded transition-colors"
+            >
+              <Check className="w-3 h-3" /> Lagre
+            </button>
+            <button
+              onClick={cancelEditDates}
+              className="flex items-center gap-1 text-xs px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
+            >
+              <X className="w-3 h-3" /> Avbryt
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Moon className="w-3.5 h-3.5 text-purple-400" />
-          <span className="text-xs text-slate-400">
-            <span className="text-white font-semibold">{nights}</span> netter
-          </span>
-        </div>
-        {(currentTrip.destination_city || currentTrip.destination_country) && (
+      ) : (
+        <div className="px-4 py-2 border-b border-slate-800 bg-slate-800/30 flex items-center gap-4 flex-shrink-0">
+          <div className="flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-blue-400" />
+            <span className="text-xs text-slate-400">
+              <span className="text-white font-semibold">{totalActivities}</span> aktiviteter
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Moon className="w-3.5 h-3.5 text-purple-400" />
+            <span className="text-xs text-slate-400">
+              <span className="text-white font-semibold">{nights}</span> netter
+            </span>
+          </div>
+          {(currentTrip.destination_city || currentTrip.destination_country) && (
+            <button
+              onClick={onZoomToCity}
+              title="Zoom til destinasjon i kartet"
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-400 transition-colors"
+            >
+              <Navigation className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate max-w-[80px]">
+                {[currentTrip.destination_city, currentTrip.destination_country].filter(Boolean).join(', ')}
+              </span>
+            </button>
+          )}
           <button
-            onClick={onZoomToCity}
-            title="Zoom til destinasjon i kartet"
+            onClick={openEditDates}
+            title="Rediger datoer"
             className="ml-auto flex items-center gap-1 text-xs text-slate-500 hover:text-blue-400 transition-colors"
           >
-            <Navigation className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate max-w-[100px]">
-              {[currentTrip.destination_city, currentTrip.destination_country].filter(Boolean).join(', ')}
-            </span>
+            <Pencil className="w-3 h-3" />
+            Datoer
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Day list */}
       <div className="flex-1 overflow-y-auto">
@@ -380,6 +477,7 @@ export default function CityPlanSidebar({
               activities={activities.filter(a => a.activity_date === dateStr)}
               dining={dining.filter(d => d.booking_date === dateStr)}
               isSelected={selectedDayStr === dateStr}
+              isCheckout={i === days.length - 1}
               onToggle={() => onSelectDay(selectedDayStr === dateStr ? null : dateStr)}
             />
           ))

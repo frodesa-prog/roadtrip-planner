@@ -110,8 +110,15 @@ export default function SummaryPage() {
         map[toISO(d)] = stop
       }
     })
+    // Siste dag (date_to / utreisedag) merkes med siste stopp
+    if (currentTrip?.date_to) {
+      const lastStop = stops.filter((s) => s.arrival_date).at(-1)
+      if (lastStop && !map[currentTrip.date_to]) {
+        map[currentTrip.date_to] = lastStop
+      }
+    }
     return map
-  }, [stops])
+  }, [stops, currentTrip?.date_to])
 
   // Set of arrival dates
   const arrivalDates = useMemo(

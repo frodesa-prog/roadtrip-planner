@@ -313,6 +313,16 @@ export default function PlanPage() {
               onUpdateGroupDescription={(desc) =>
                 currentTrip && updateTrip(currentTrip.id, { group_description: desc })
               }
+              onUpdateTripDates={(dateFrom, dateTo) => {
+                if (!currentTrip) return
+                const year = new Date(dateFrom + 'T00:00:00').getFullYear()
+                updateTrip(currentTrip.id, { date_from: dateFrom, date_to: dateTo, year })
+                // Oppdater også stop (nights) for city/resort-turer
+                const nights = Math.max(0, Math.round(
+                  (new Date(dateTo + 'T00:00:00').getTime() - new Date(dateFrom + 'T00:00:00').getTime()) / 86_400_000
+                ))
+                if (stops[0]) updateStop(stops[0].id, { arrival_date: dateFrom, nights })
+              }}
               onOpenOverview={() => setShowCityOverview(true)}
             />
           )}

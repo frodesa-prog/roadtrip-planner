@@ -211,7 +211,7 @@ export function useTrips() {
   )
 
   const updateTrip = useCallback(
-    async (tripId: string, data: Partial<Pick<Trip, 'group_description'>>) => {
+    async (tripId: string, data: Partial<Pick<Trip, 'group_description' | 'date_from' | 'date_to' | 'year'>>) => {
       setTrips((prev) => prev.map((t) => (t.id === tripId ? { ...t, ...data } : t)))
       // Oppdater currentTrip i state (ID endres ikke, localStorage trenger ikke oppdateres)
       setCurrentTripState((prev) => (prev?.id === tripId ? { ...prev, ...data } : prev))
