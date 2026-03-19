@@ -7,7 +7,6 @@ import {
   Map,
   MapMouseEvent,
   useMap,
-  useMapsLibrary,
 } from '@vis.gl/react-google-maps'
 import { Activity, Dining, Hotel, RouteLeg, Stop } from '@/types'
 import RoutePolyline, { LegWaypoints } from './RoutePolyline'
@@ -162,7 +161,15 @@ function makeEmojiIcon(emoji: string): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 }
 
-// ─── Places layer renderer (one per places-type layer) ────────────────────────
+// ─── Overpass API POI filter per type ─────────────────────────────────────────
+
+const OVERPASS_FILTER: Record<string, string> = {
+  restaurant: '["amenity"~"^(restaurant|cafe|fast_food|bar|pub|bistro)$"]',
+  lodging:    '["tourism"~"^(hotel|hostel|guest_house|motel|apartment|chalet)$"]',
+  gas_station:'["amenity"="fuel"]',
+}
+
+// ─── Overpass-based POI renderer (one per places-type layer) ──────────────────
 
 function PlacesLayerRenderer({
   placeType,
@@ -174,70 +181,79 @@ function PlacesLayerRenderer({
   enabled: boolean
 }) {
   const map = useMap()
-  const placesLib = useMapsLibrary('places')
-  const markersRef = useRef<google.maps.Marker[]>([])
-  const listenerRef = useRef<google.maps.MapsEventListener | null>(null)
-  const lastFetchStateRef = useRef<{ lat: number; lng: number; zoom: number } | null>(null)
+  const markersRef    = useRef<google.maps.Marker[]>([])
+  const listenerRef   = useRef<google.maps.MapsEventListener | null>(null)
+  const abortRef      = useRef<AbortController | null>(null)
+  const lastBboxRef   = useRef<string>('')
+  const lastZoomRef   = useRef<number>(-1)
 
   useEffect(() => {
-    // Clear markers and listener whenever disabled or deps change
+    // Clear everything on dep change or disable
     markersRef.current.forEach((m) => m.setMap(null))
     markersRef.current = []
     if (listenerRef.current) {
       google.maps.event.removeListener(listenerRef.current)
       listenerRef.current = null
     }
-    if (!map || !placesLib || !enabled) return
+    abortRef.current?.abort()
+    lastBboxRef.current = ''
+    lastZoomRef.current = -1
 
-    const service = new placesLib.PlacesService(map)
+    if (!map || !enabled) return
+
     const iconUrl = makeEmojiIcon(icon)
 
-    function fetchPlaces() {
-      const center = map!.getCenter()
-      if (!center) return
+    async function fetchPlaces() {
+      const bounds = map!.getBounds()
+      const zoom   = map!.getZoom() ?? 12
+      if (!bounds) return
 
-      // Derive radius from zoom (z12 ≈ 3 km, z10 ≈ 12 km, clamped 1–25 km)
-      const zoom = map!.getZoom() ?? 12
-      const radius = Math.max(1000, Math.min(25000, 200000 / Math.pow(2, zoom - 8)))
+      const sw  = bounds.getSouthWest()
+      const ne  = bounds.getNorthEast()
+      const bbox = `${sw.lat().toFixed(3)},${sw.lng().toFixed(3)},${ne.lat().toFixed(3)},${ne.lng().toFixed(3)}`
 
-      // Skip re-fetch if zoom AND center are nearly unchanged
-      const newLat = center.lat(), newLng = center.lng()
-      if (lastFetchStateRef.current) {
-        const { lat, lng, zoom: prevZoom } = lastFetchStateRef.current
-        const dLat = (newLat - lat) * 111
-        const dLng = (newLng - lng) * 111 * Math.cos(newLat * Math.PI / 180)
-        const distKm = Math.sqrt(dLat * dLat + dLng * dLng)
-        const zoomChanged = Math.abs(zoom - prevZoom) >= 1
-        // Re-fetch if zoom changed OR if centre moved more than 40% of search radius
-        if (!zoomChanged && distKm < (radius / 1000) * 0.4) return
-      }
-      lastFetchStateRef.current = { lat: newLat, lng: newLng, zoom }
+      // Skip if bbox AND zoom are unchanged
+      if (bbox === lastBboxRef.current && Math.abs(zoom - lastZoomRef.current) < 1) return
+      lastBboxRef.current = bbox
+      lastZoomRef.current = zoom
 
-      // Clear old markers before new batch
-      markersRef.current.forEach((m) => m.setMap(null))
-      markersRef.current = []
+      abortRef.current?.abort()
+      const ctrl = new AbortController()
+      abortRef.current = ctrl
 
-      service.nearbySearch(
-        { location: center, radius, type: placeType },
-        (results, status) => {
-          if (!placesLib || status !== placesLib.PlacesServiceStatus.OK || !results) return
-          results.slice(0, 25).forEach((place) => {
-            if (!place.geometry?.location) return
-            const marker = new google.maps.Marker({
-              position: place.geometry.location,
-              map: map!,
-              title: place.name,
-              icon: {
-                url: iconUrl,
-                scaledSize: new google.maps.Size(28, 28),
-                anchor: new google.maps.Point(14, 14),
-              },
-              zIndex: 1,
-            })
-            markersRef.current.push(marker)
+      const filter = OVERPASS_FILTER[placeType] ?? `["amenity"="${placeType}"]`
+      const query  = `[out:json][timeout:15];(node${filter}(${bbox});way${filter}(${bbox}););out center 30;`
+
+      try {
+        const res  = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST', body: query, signal: ctrl.signal,
+        })
+        const data = await res.json()
+
+        // Clear old markers before placing new batch
+        markersRef.current.forEach((m) => m.setMap(null))
+        markersRef.current = []
+
+        ;(data.elements as any[]).slice(0, 30).forEach((el) => {
+          const lat = el.lat ?? el.center?.lat
+          const lng = el.lon ?? el.center?.lon
+          if (!lat || !lng) return
+          const marker = new google.maps.Marker({
+            position: { lat, lng },
+            map: map!,
+            title: el.tags?.name ?? undefined,
+            icon: {
+              url: iconUrl,
+              scaledSize: new google.maps.Size(28, 28),
+              anchor:     new google.maps.Point(14, 14),
+            },
+            zIndex: 1,
           })
-        }
-      )
+          markersRef.current.push(marker)
+        })
+      } catch (e) {
+        if ((e as Error).name !== 'AbortError') console.error('[POI layer] Overpass error:', e)
+      }
     }
 
     fetchPlaces()
@@ -250,9 +266,9 @@ function PlacesLayerRenderer({
         google.maps.event.removeListener(listenerRef.current)
         listenerRef.current = null
       }
+      abortRef.current?.abort()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, placesLib, enabled, placeType])
+  }, [map, enabled, placeType, icon])
 
   return null
 }
