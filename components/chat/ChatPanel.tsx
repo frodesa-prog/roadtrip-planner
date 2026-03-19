@@ -469,7 +469,7 @@ export default function ChatPanel() {
   return (
     <>
     <div
-      className={`fixed right-0 top-11 bottom-0 z-30 flex flex-col w-full md:w-[370px]
+      className={`fixed right-0 top-11 bottom-16 md:bottom-0 z-30 flex flex-col w-full md:w-[370px]
         bg-slate-900 border-l border-slate-800 shadow-2xl
         transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
