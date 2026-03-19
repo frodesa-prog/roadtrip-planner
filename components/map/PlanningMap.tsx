@@ -55,6 +55,197 @@ interface PlanningMapProps {
   onCityMapClick?: (lat: number, lng: number) => void
   /** When true, marks the first stop pin with a hotel bed icon instead of a number */
   cityTripMode?: boolean
+  /** Trip ID used to persist layer-visibility preferences per trip */
+  tripId?: string
+}
+
+// ─── POI layer definitions ─────────────────────────────────────────────────────
+
+interface PoiLayer {
+  id: string
+  label: string
+  sublabel: string
+  icon: string
+  featureType: string
+}
+
+const POI_LAYERS: PoiLayer[] = [
+  {
+    id: 'business',
+    label: 'Forretninger',
+    sublabel: 'Restauranter, hotell, bensinstasjoner m.m.',
+    icon: '🍽️',
+    featureType: 'poi.business',
+  },
+  {
+    id: 'attraction',
+    label: 'Severdigheter',
+    sublabel: 'Turistattraksjoner og opplevelser',
+    icon: '🏛️',
+    featureType: 'poi.attraction',
+  },
+  {
+    id: 'park',
+    label: 'Parker & natur',
+    sublabel: 'Parker, grøntområder og naturreservater',
+    icon: '🌿',
+    featureType: 'poi.park',
+  },
+  {
+    id: 'transit',
+    label: 'Kollektivtransport',
+    sublabel: 'Bussholdeplasser, t-bane, jernbane',
+    icon: '🚌',
+    featureType: 'transit',
+  },
+  {
+    id: 'medical',
+    label: 'Helse',
+    sublabel: 'Sykehus, apotek og klinikker',
+    icon: '🏥',
+    featureType: 'poi.medical',
+  },
+  {
+    id: 'worship',
+    label: 'Tros- og kultursteder',
+    sublabel: 'Kirker, moskeer, templer m.m.',
+    icon: '⛪',
+    featureType: 'poi.place_of_worship',
+  },
+]
+
+function lsKey(tripId: string | undefined) {
+  return tripId ? `map-layers-${tripId}` : null
+}
+
+// ─── Layer toggle panel ────────────────────────────────────────────────────────
+
+function MapLayerToggle({ tripId }: { tripId?: string }) {
+  const map = useMap()
+  const [open, setOpen] = useState(false)
+  const [hiddenLayers, setHiddenLayers] = useState<Set<string>>(() => {
+    const key = lsKey(tripId)
+    if (!key) return new Set()
+    try {
+      const saved = localStorage.getItem(key)
+      return saved ? new Set(JSON.parse(saved) as string[]) : new Set()
+    } catch { return new Set() }
+  })
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // When tripId changes, load that trip's saved layers
+  useEffect(() => {
+    const key = lsKey(tripId)
+    if (!key) { setHiddenLayers(new Set()); return }
+    try {
+      const saved = localStorage.getItem(key)
+      setHiddenLayers(saved ? new Set(JSON.parse(saved) as string[]) : new Set())
+    } catch { setHiddenLayers(new Set()) }
+  }, [tripId])
+
+  // Apply styles to map whenever hiddenLayers changes
+  useEffect(() => {
+    if (!map) return
+    const styles: google.maps.MapTypeStyle[] = []
+    hiddenLayers.forEach((id) => {
+      const layer = POI_LAYERS.find((l) => l.id === id)
+      if (layer) {
+        styles.push({ featureType: layer.featureType, elementType: 'all', stylers: [{ visibility: 'off' }] })
+      }
+    })
+    map.setOptions({ styles })
+  }, [map, hiddenLayers])
+
+  // Save to localStorage whenever hiddenLayers changes
+  useEffect(() => {
+    const key = lsKey(tripId)
+    if (!key) return
+    localStorage.setItem(key, JSON.stringify([...hiddenLayers]))
+  }, [hiddenLayers, tripId])
+
+  // Close on outside click
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  function toggle(id: string) {
+    setHiddenLayers((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const panel = 'bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-lg shadow-lg'
+  const hiddenCount = hiddenLayers.size
+
+  return (
+    <div ref={containerRef} className="absolute top-[46px] left-2.5 z-10 pointer-events-auto">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="Kartlag"
+        className={`${panel} flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+          hiddenCount > 0 ? 'text-amber-300' : 'text-slate-200 hover:bg-slate-800'
+        }`}
+      >
+        <Layers3 className="w-3.5 h-3.5 flex-shrink-0" />
+        Lag
+        {hiddenCount > 0 && (
+          <span className="bg-amber-500 text-black text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
+            {hiddenCount}
+          </span>
+        )}
+        <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className={`${panel} absolute top-full left-0 mt-1 w-64 overflow-hidden`}>
+          <div className="px-3 pt-2.5 pb-1">
+            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">Vis / skjul kartlag</p>
+          </div>
+          {POI_LAYERS.map((layer) => {
+            const isVisible = !hiddenLayers.has(layer.id)
+            return (
+              <button
+                key={layer.id}
+                onClick={() => toggle(layer.id)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-slate-800 transition-colors"
+              >
+                {/* Checkbox */}
+                <span
+                  className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center ${
+                    isVisible ? 'border-blue-400 bg-blue-500' : 'border-slate-600 bg-transparent'
+                  }`}
+                >
+                  {isVisible && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                </span>
+                <span className="text-base flex-shrink-0">{layer.icon}</span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium text-slate-200">{layer.label}</p>
+                  <p className="text-[9px] text-slate-500 truncate">{layer.sublabel}</p>
+                </div>
+              </button>
+            )
+          })}
+          {hiddenCount > 0 && (
+            <>
+              <div className="border-t border-slate-700/60 mx-0 mt-1" />
+              <button
+                onClick={() => setHiddenLayers(new Set())}
+                className="w-full px-3 py-2 text-[11px] text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors text-left"
+              >
+                Vis alle lag
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 interface PendingStop {
@@ -610,6 +801,7 @@ export default function PlanningMap({
   onCitySearch,
   onCityMapClick,
   cityTripMode = false,
+  tripId,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
   const activeToolRef = useRef(false)
@@ -762,6 +954,9 @@ export default function PlanningMap({
 
         {/* Egendefinerte kartkontroller */}
         <MapControls />
+
+        {/* Kartlag-toggle */}
+        <MapLayerToggle tripId={tripId} />
 
         {/* Kartverktøy */}
         <MapTools onActiveChange={handleToolActive} />
