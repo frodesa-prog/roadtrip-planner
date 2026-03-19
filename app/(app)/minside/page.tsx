@@ -14,6 +14,7 @@ import { usePreferenceAccess } from '@/hooks/usePreferenceAccess'
 import { TRAVEL_INTERESTS, parseInterests, serializeInterests } from '@/lib/travelInterests'
 import { PackingCategory, DocumentType, ActivityLogEntry } from '@/types'
 import { toast } from 'sonner'
+import AdminTab from '@/components/admin/AdminTab'
 import {
   User,
   Share2,
@@ -22,6 +23,7 @@ import {
   FolderOpen,
   Luggage,
   Settings2,
+  ShieldCheck,
   Eye,
   EyeOff,
   Plus,
@@ -71,7 +73,7 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
 
-const tabs = [
+const BASE_TABS = [
   { id: 'profil',       label: 'Profil',            icon: User },
   { id: 'del',          label: 'Del ferie',          icon: Share2 },
   { id: 'logg',         label: 'Endringslogg',       icon: ClipboardList },
@@ -81,7 +83,10 @@ const tabs = [
   { id: 'preferanser',  label: 'Preferanser',        icon: Settings2 },
 ] as const
 
-type TabId = typeof tabs[number]['id']
+const ADMIN_TAB = { id: 'admin', label: 'Admin', icon: ShieldCheck } as const
+
+type BaseTabId = typeof BASE_TABS[number]['id']
+type TabId = BaseTabId | 'admin'
 
 // ── Profil-tab ─────────────────────────────────────────────────────────────────
 
@@ -1393,11 +1398,24 @@ function PreferanserTab() {
 export default function MinSidePage() {
   const [activeTab, setActiveTab] = useState<TabId>('profil')
   const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      setUser(user)
+      if (user) {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('is_admin')
+          .eq('user_id', user.id)
+          .single()
+        setIsAdmin(data?.is_admin === true)
+      }
+    })
   }, [supabase])
+
+  const tabs = isAdmin ? [...BASE_TABS, ADMIN_TAB] : BASE_TABS
 
   const renderContent = () => {
     switch (activeTab) {
@@ -1408,6 +1426,7 @@ export default function MinSidePage() {
       case 'dokumenter':  return <DokumentTab />
       case 'pakkeliste':  return <PakkelisteTab />
       case 'preferanser': return <PreferanserTab />
+      case 'admin':       return isAdmin ? <AdminTab /> : null
     }
   }
 
@@ -1431,11 +1450,15 @@ export default function MinSidePage() {
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => setActiveTab(id as TabId)}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${
                 activeTab === id
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                  ? id === 'admin'
+                    ? 'bg-rose-500/10 text-rose-300'
+                    : 'bg-slate-800 text-white'
+                  : id === 'admin'
+                    ? 'text-rose-400/70 hover:bg-rose-500/5 hover:text-rose-300'
+                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
               }`}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
@@ -1450,10 +1473,12 @@ export default function MinSidePage() {
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveTab(id)}
+            onClick={() => setActiveTab(id as TabId)}
             className={`flex-shrink-0 flex flex-col items-center gap-1 px-3 py-2.5 text-[10px] font-medium transition-colors border-b-2 ${
               activeTab === id
-                ? 'border-blue-500 text-blue-400'
+                ? id === 'admin'
+                  ? 'border-rose-500 text-rose-400'
+                  : 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-500'
             }`}
           >
