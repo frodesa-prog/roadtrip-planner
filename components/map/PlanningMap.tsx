@@ -17,6 +17,10 @@ import MapSearchBox from './MapSearchBox'
 import ActivityMarker from './ActivityMarker'
 import DiningMarker from './DiningMarker'
 import ActivityRoutePolyline, { RouteInfo } from './ActivityRoutePolyline'
+import { AddActivityData } from '@/hooks/useActivities'
+import { AddDiningData } from '@/hooks/useDining'
+import { AddPossibleActivityData } from '@/hooks/usePossibleActivities'
+import { ACTIVITY_TYPE_PRESETS, ActivityTypeIcon } from '@/lib/activityTypes'
 
 interface ActivityRoute {
   fromLat: number
@@ -101,13 +105,24 @@ interface PoiDetails {
 export interface PoiActionCallbacks {
   linkActivity: (activityId: string, lat: number, lng: number) => void
   linkDining: (diningId: string, lat: number, lng: number) => void
-  addActivity: (stopId: string, name: string, website: string | null, lat: number, lng: number) => void
-  addDining: (stopId: string, name: string, website: string | null, lat: number, lng: number) => void
-  addPossible: (stopId: string, name: string, website: string | null) => void
+  addActivity: (stopId: string, data: AddActivityData) => void
+  addDining: (stopId: string, data: AddDiningData) => void
+  addPossible: (stopId: string, data: AddPossibleActivityData) => void
   saveHotel: (stopId: string, name: string, address: string | null, website: string | null, lat: number | null, lng: number | null) => void
 }
 
 type PoiTab = 'aktivitet' | 'spisested' | 'mulig' | 'hotell'
+
+function getStopDates(stop: Stop): string[] {
+  if (!stop.arrival_date) return []
+  const dates: string[] = []
+  for (let n = 0; n <= stop.nights; n++) {
+    const d = new Date(stop.arrival_date + 'T12:00:00')
+    d.setDate(d.getDate() + n)
+    dates.push(d.toISOString().split('T')[0])
+  }
+  return dates
+}
 
 function PoiInfoBox({
   placeId,
@@ -118,6 +133,7 @@ function PoiInfoBox({
   possibleActivities = [],
   hotels = [],
   onPoiAction,
+  activeStopId,
 }: {
   placeId: string
   onClose: () => void
@@ -127,6 +143,7 @@ function PoiInfoBox({
   possibleActivities?: PossibleActivity[]
   hotels?: Hotel[]
   onPoiAction?: PoiActionCallbacks
+  activeStopId?: string | null
 }) {
   const map = useMap()
   const placesLib = useMapsLibrary('places')
@@ -140,12 +157,119 @@ function PoiInfoBox({
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
   const [savedMsg, setSavedMsg] = useState<string | null>(null)
 
-  // Auto-select stop when stops become available
+  // Auto-select stop when stops become available, prefer activeStopId
   useEffect(() => {
     if (stops.length > 0 && !selectedStopId) {
-      setSelectedStopId(stops[0].id)
+      const preferred = activeStopId && stops.some((s) => s.id === activeStopId) ? activeStopId : stops[0].id
+      setSelectedStopId(preferred)
     }
-  }, [stops, selectedStopId])
+  }, [stops, selectedStopId, activeStopId])
+
+  // Activity form state
+  const [showActForm, setShowActForm] = useState(false)
+  const [poiActName, setPoiActName] = useState('')
+  const [poiActUrl, setPoiActUrl] = useState('')
+  const [poiActCost, setPoiActCost] = useState('')
+  const [poiActTime, setPoiActTime] = useState('')
+  const [poiActDate, setPoiActDate] = useState<string | null>(null)
+  const [poiActType, setPoiActType] = useState<string | null>(null)
+  const [poiActCustomType, setPoiActCustomType] = useState('')
+  const [poiActShowCustom, setPoiActShowCustom] = useState(false)
+  const [poiActStadium, setPoiActStadium] = useState('')
+  const [poiActSection, setPoiActSection] = useState('')
+  const [poiActRow, setPoiActRow] = useState('')
+  const [poiActSeat, setPoiActSeat] = useState('')
+
+  // Dining form state
+  const [showDinForm, setShowDinForm] = useState(false)
+  const [poiDinName, setPoiDinName] = useState('')
+  const [poiDinUrl, setPoiDinUrl] = useState('')
+  const [poiDinTime, setPoiDinTime] = useState('')
+  const [poiDinDate, setPoiDinDate] = useState<string | null>(null)
+
+  // Possible form state
+  const [showPossForm, setShowPossForm] = useState(false)
+  const [poiPossDesc, setPoiPossDesc] = useState('')
+  const [poiPossUrl, setPoiPossUrl] = useState('')
+  const [poiPossCategory, setPoiPossCategory] = useState<string | null>(null)
+
+  // Derive stop dates for the currently selected stop
+  const selectedStopObj = stops.find((s) => s.id === selectedStopId) ?? null
+  const poiStopDates = selectedStopObj ? getStopDates(selectedStopObj) : []
+
+  function openActForm() {
+    setPoiActName(info?.name ?? '')
+    setPoiActUrl(info?.website ?? '')
+    setPoiActCost(''); setPoiActTime(''); setPoiActDate(null)
+    setPoiActType(null); setPoiActCustomType(''); setPoiActShowCustom(false)
+    setPoiActStadium(''); setPoiActSection(''); setPoiActRow(''); setPoiActSeat('')
+    setShowActForm(true)
+  }
+
+  function openDinForm() {
+    setPoiDinName(info?.name ?? '')
+    setPoiDinUrl(info?.website ?? '')
+    setPoiDinTime(''); setPoiDinDate(null)
+    setShowDinForm(true)
+  }
+
+  function openPossForm() {
+    setPoiPossDesc(info?.name ?? '')
+    setPoiPossUrl(info?.website ?? '')
+    setPoiPossCategory(null)
+    setShowPossForm(true)
+  }
+
+  function handleSubmitActivity(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedStopId || !poiActName.trim()) return
+    const data: AddActivityData = {
+      name: poiActName.trim(),
+      url: poiActUrl.trim() || undefined,
+      cost: poiActCost ? parseFloat(poiActCost) : undefined,
+      activity_time: poiActTime || undefined,
+      activity_date: poiActDate ?? undefined,
+      activity_type: poiActType ?? undefined,
+      stadium: poiActStadium.trim() || undefined,
+      section: poiActSection.trim() || undefined,
+      seat_row: poiActRow.trim() || undefined,
+      seat: poiActSeat.trim() || undefined,
+      map_lat: info?.lat ?? undefined,
+      map_lng: info?.lng ?? undefined,
+    }
+    onPoiAction?.addActivity(selectedStopId, data)
+    setShowActForm(false)
+    showSaved('Ny aktivitet opprettet!')
+  }
+
+  function handleSubmitDining(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedStopId || !poiDinName.trim()) return
+    const data: AddDiningData = {
+      name: poiDinName.trim(),
+      url: poiDinUrl.trim() || undefined,
+      booking_time: poiDinTime || undefined,
+      booking_date: poiDinDate ?? undefined,
+      map_lat: info?.lat ?? undefined,
+      map_lng: info?.lng ?? undefined,
+    }
+    onPoiAction?.addDining(selectedStopId, data)
+    setShowDinForm(false)
+    showSaved('Nytt spisested opprettet!')
+  }
+
+  function handleSubmitPossible(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedStopId || !poiPossDesc.trim()) return
+    const data: AddPossibleActivityData = {
+      description: poiPossDesc.trim(),
+      url: poiPossUrl.trim() || undefined,
+      category: poiPossCategory ?? undefined,
+    }
+    onPoiAction?.addPossible(selectedStopId, data)
+    setShowPossForm(false)
+    showSaved('Mulig aktivitet lagt til!')
+  }
 
   function showSaved(msg: string) {
     setSavedMsg(msg)
@@ -218,24 +342,6 @@ function PoiInfoBox({
     showSaved('Koblet til spisested!')
   }
 
-  function handleAddActivity() {
-    if (!selectedStopId || !info?.name || !info?.lat || !info?.lng) return
-    onPoiAction?.addActivity(selectedStopId, info.name, info.website, info.lat, info.lng)
-    showSaved('Ny aktivitet opprettet!')
-  }
-
-  function handleAddDining() {
-    if (!selectedStopId || !info?.name || !info?.lat || !info?.lng) return
-    onPoiAction?.addDining(selectedStopId, info.name, info.website, info.lat, info.lng)
-    showSaved('Nytt spisested opprettet!')
-  }
-
-  function handleAddPossible() {
-    if (!selectedStopId || !info?.name) return
-    onPoiAction?.addPossible(selectedStopId, info.name, info.website)
-    showSaved('Mulig aktivitet lagt til!')
-  }
-
   function handleSaveHotel() {
     if (!selectedStopId || !info?.name) return
     onPoiAction?.saveHotel(selectedStopId, info.name, info.address, info.website, info.lat, info.lng)
@@ -246,7 +352,7 @@ function PoiInfoBox({
 
   return (
     <div className="absolute bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-auto w-[340px] max-w-[calc(100vw-2rem)]">
-      <div className="bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-2xl shadow-2xl overflow-y-auto max-h-[85vh]">
         {/* Header */}
         <div className="flex items-start justify-between px-4 pt-3.5 pb-2 border-b border-slate-800">
           <div className="min-w-0 pr-2">
@@ -444,11 +550,96 @@ function PoiInfoBox({
                         )}
                       </div>
                     )}
-                    {(!info.lat || !info.lng) ? (
-                      <p className="text-[10px] text-slate-600 italic">Ingen kartkoordinater tilgjengelig for dette stedet.</p>
+                    {showActForm ? (
+                      <form onSubmit={handleSubmitActivity} className="space-y-1.5 bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/50">
+                        <input value={poiActName} onChange={(e) => setPoiActName(e.target.value)}
+                          placeholder="Aktivitetsnavn" autoFocus
+                          className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors" />
+                        <div className="flex gap-1.5">
+                          <input value={poiActUrl} onChange={(e) => setPoiActUrl(e.target.value)} placeholder="https://..."
+                            className="h-7 text-xs flex-1 bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors" />
+                          <input type="number" min={0} value={poiActCost} onChange={(e) => setPoiActCost(e.target.value)}
+                            placeholder="Pris" className="h-7 text-xs w-16 bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors" />
+                          <span className="text-xs text-slate-500 self-center flex-shrink-0">kr</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input type="time" value={poiActTime} onChange={(e) => setPoiActTime(e.target.value)}
+                            className="h-7 text-xs w-28 bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 outline-none focus:border-purple-500 transition-colors" />
+                          <span className="text-[10px] text-slate-500">Klokkeslett</span>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 mb-1">Type</p>
+                          <div className="flex flex-wrap gap-1">
+                            {ACTIVITY_TYPE_PRESETS.map((p) => (
+                              <button key={p.value} type="button"
+                                onClick={() => { if (poiActType === p.value) { setPoiActType(null) } else { setPoiActType(p.value); setPoiActShowCustom(false); setPoiActCustomType('') } }}
+                                className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                  poiActType === p.value ? 'bg-purple-700 border-purple-600 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                                }`}>
+                                <ActivityTypeIcon type={p.value} size={11} />
+                                <span>{p.label}</span>
+                              </button>
+                            ))}
+                            <button type="button"
+                              onClick={() => { setPoiActShowCustom(!poiActShowCustom); if (!poiActShowCustom) setPoiActType(null) }}
+                              className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                poiActShowCustom ? 'border-slate-600 text-slate-300 bg-slate-700' : 'border-dashed border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300'
+                              }`}>
+                              + Annen
+                            </button>
+                          </div>
+                          {poiActShowCustom && (
+                            <input value={poiActCustomType}
+                              onChange={(e) => { setPoiActCustomType(e.target.value); setPoiActType(e.target.value.trim() || null) }}
+                              placeholder="Skriv inn type…"
+                              className="mt-1 h-7 text-xs w-full bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors" />
+                          )}
+                        </div>
+                        {poiStopDates.length > 0 && (
+                          <div>
+                            <p className="text-[10px] text-slate-500 mb-1">Dato</p>
+                            <div className="flex flex-wrap gap-1">
+                              {poiStopDates.map((d) => (
+                                <button key={d} type="button" onClick={() => setPoiActDate(poiActDate === d ? null : d)}
+                                  className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                    d === poiActDate ? 'bg-purple-700 border-purple-600 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                                  }`}>
+                                  {new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {poiActType === 'baseball' && (
+                          <div className="space-y-1.5 pt-0.5">
+                            <p className="text-[10px] text-orange-400/80">⚾ Baseballdetaljer</p>
+                            <input value={poiActStadium} onChange={(e) => setPoiActStadium(e.target.value)}
+                              placeholder="Stadion"
+                              className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-orange-500 transition-colors" />
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <input value={poiActSection} onChange={(e) => setPoiActSection(e.target.value)} placeholder="Felt"
+                                className="h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-orange-500 transition-colors" />
+                              <input value={poiActRow} onChange={(e) => setPoiActRow(e.target.value)} placeholder="Rad"
+                                className="h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-orange-500 transition-colors" />
+                              <input value={poiActSeat} onChange={(e) => setPoiActSeat(e.target.value)} placeholder="Sete"
+                                className="h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-orange-500 transition-colors" />
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex gap-1.5">
+                          <button type="submit" disabled={!poiActName.trim()}
+                            className="flex-1 h-7 rounded-md bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
+                            Legg til
+                          </button>
+                          <button type="button" onClick={() => setShowActForm(false)}
+                            className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
+                            Avbryt
+                          </button>
+                        </div>
+                      </form>
                     ) : (
                       <button
-                        onClick={handleAddActivity}
+                        onClick={openActForm}
                         className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-[11px] transition-colors"
                       >
                         <Plus className="w-3 h-3" /> Opprett ny aktivitet
@@ -488,11 +679,47 @@ function PoiInfoBox({
                         )}
                       </div>
                     )}
-                    {(!info.lat || !info.lng) ? (
-                      <p className="text-[10px] text-slate-600 italic">Ingen kartkoordinater tilgjengelig for dette stedet.</p>
+                    {showDinForm ? (
+                      <form onSubmit={handleSubmitDining} className="space-y-1.5 bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/50">
+                        <input value={poiDinName} onChange={(e) => setPoiDinName(e.target.value)}
+                          placeholder="Navn på spisested" autoFocus
+                          className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-red-500 transition-colors" />
+                        <input value={poiDinUrl} onChange={(e) => setPoiDinUrl(e.target.value)} placeholder="https://..."
+                          className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-red-500 transition-colors" />
+                        <div className="flex items-center gap-1.5">
+                          <input type="time" value={poiDinTime} onChange={(e) => setPoiDinTime(e.target.value)}
+                            className="h-7 text-xs w-28 bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 outline-none focus:border-red-500 transition-colors" />
+                          <span className="text-[10px] text-slate-500">Bookingklokkeslett</span>
+                        </div>
+                        {poiStopDates.length > 0 && (
+                          <div>
+                            <p className="text-[10px] text-slate-500 mb-1">Dato</p>
+                            <div className="flex flex-wrap gap-1">
+                              {poiStopDates.map((d) => (
+                                <button key={d} type="button" onClick={() => setPoiDinDate(poiDinDate === d ? null : d)}
+                                  className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                    d === poiDinDate ? 'bg-red-700 border-red-600 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                                  }`}>
+                                  {new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex gap-1.5">
+                          <button type="submit" disabled={!poiDinName.trim()}
+                            className="flex-1 h-7 rounded-md bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
+                            Legg til
+                          </button>
+                          <button type="button" onClick={() => setShowDinForm(false)}
+                            className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
+                            Avbryt
+                          </button>
+                        </div>
+                      </form>
                     ) : (
                       <button
-                        onClick={handleAddDining}
+                        onClick={openDinForm}
                         className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-[11px] transition-colors"
                       >
                         <Plus className="w-3 h-3" /> Opprett nytt spisested
@@ -517,12 +744,47 @@ function PoiInfoBox({
                         )}
                       </div>
                     )}
-                    <button
-                      onClick={handleAddPossible}
-                      className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-[11px] transition-colors"
-                    >
-                      <Plus className="w-3 h-3" /> Legg til som mulig aktivitet
-                    </button>
+                    {showPossForm ? (
+                      <form onSubmit={handleSubmitPossible} className="space-y-1.5 bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/50">
+                        <input value={poiPossDesc} onChange={(e) => setPoiPossDesc(e.target.value)}
+                          placeholder="Beskrivelse av aktivitet" autoFocus
+                          className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-teal-500 transition-colors" />
+                        <input value={poiPossUrl} onChange={(e) => setPoiPossUrl(e.target.value)} placeholder="https://..."
+                          className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-teal-500 transition-colors" />
+                        <div>
+                          <p className="text-[10px] text-slate-500 mb-1">Kategori</p>
+                          <div className="flex flex-wrap gap-1">
+                            {ACTIVITY_TYPE_PRESETS.map((p) => (
+                              <button key={p.value} type="button"
+                                onClick={() => setPoiPossCategory(poiPossCategory === p.value ? null : p.value)}
+                                className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                  poiPossCategory === p.value ? 'bg-teal-700 border-teal-600 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                                }`}>
+                                <ActivityTypeIcon type={p.value} size={11} />
+                                <span>{p.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <button type="submit" disabled={!poiPossDesc.trim()}
+                            className="flex-1 h-7 rounded-md bg-teal-700 hover:bg-teal-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
+                            Legg til
+                          </button>
+                          <button type="button" onClick={() => setShowPossForm(false)}
+                            className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
+                            Avbryt
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={openPossForm}
+                        className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-[11px] transition-colors"
+                      >
+                        <Plus className="w-3 h-3" /> Legg til som mulig aktivitet
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -1290,6 +1552,7 @@ export default function PlanningMap({
             possibleActivities={possibleActivities}
             hotels={hotels}
             onPoiAction={onPoiAction}
+            activeStopId={selectedStopId}
           />
         )}
 

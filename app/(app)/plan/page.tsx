@@ -168,9 +168,9 @@ export default function PlanPage() {
   const poiAction = useCallback((): PoiActionCallbacks => ({
     linkActivity: (activityId, lat, lng) => updateActivity(activityId, { map_lat: lat, map_lng: lng }),
     linkDining: (diningId, lat, lng) => updateDining(diningId, { map_lat: lat, map_lng: lng }),
-    addActivity: (stopId, name, website, lat, lng) => addActivity(stopId, { name, url: website ?? undefined, map_lat: lat, map_lng: lng }),
-    addDining: (stopId, name, website, lat, lng) => addDining(stopId, { name, url: website ?? undefined, map_lat: lat, map_lng: lng }),
-    addPossible: (stopId, name, website) => addPossibleActivity(stopId, { description: name, url: website ?? undefined }),
+    addActivity: (stopId, data) => addActivity(stopId, data),
+    addDining: (stopId, data) => addDining(stopId, data),
+    addPossible: (stopId, data) => addPossibleActivity(stopId, data),
     saveHotel: (stopId, name, address, website, lat, lng) => {
       saveHotel(stopId, { name, address, url: website })
       if (lat != null && lng != null) updateStop(stopId, { lat, lng })
