@@ -431,7 +431,6 @@ export default function PlanPage() {
               onCitySearch={({ lat, lng }) => setCitySearchCenter({ lat, lng })}
               onCityMapClick={(lat, lng) => setCityMapPinPending({ lat, lng })}
               cityTripMode
-              tripId={currentTrip?.id}
             />
           ) : (
             <PlanningMap
@@ -446,7 +445,6 @@ export default function PlanPage() {
               routeLegsLoaded={routeLegsLoaded}
               onRouteLegsChange={handleRouteLegsChange}
               onRouteStatesChange={setRouteStates}
-              tripId={currentTrip?.id}
             />
           )}
         </div>
