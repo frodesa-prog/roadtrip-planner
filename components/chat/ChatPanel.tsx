@@ -333,41 +333,70 @@ export default function ChatPanel() {
     const dateStr = now.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
     const title = `Chat ${dateStr} – ${noteDescription.trim()}`
 
-    // Build note content as readable markdown
+    // Collect image messages so we can embed them as note_images later
+    const imageMessages: TripGroupMessage[] = []
+
+    // Build note content as readable plain text
     const lines: string[] = []
     for (const { date, msgs } of groupByDate(messages)) {
       const dayLabel = new Date(date).toLocaleDateString('nb-NO', {
         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
       })
-      lines.push(`## ${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)}`)
+      lines.push(`== ${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)} ==`)
       lines.push('')
       for (const msg of msgs as TripGroupMessage[]) {
         const time = formatTime(msg.created_at)
-        lines.push(`**${msg.sender_name}** · ${time}`)
+        lines.push(`${msg.sender_name} · ${time}`)
         if (msg.content) lines.push(msg.content)
         if (msg.attachment_url) {
           const name = msg.attachment_name ?? 'Vedlegg'
-          lines.push(
-            msg.attachment_type === 'image'
-              ? `![${name}](${msg.attachment_url})`
-              : `📎 [${name}](${msg.attachment_url})`
-          )
+          if (msg.attachment_type === 'image') {
+            lines.push(`📷 ${name}`)
+            imageMessages.push(msg)
+          } else {
+            lines.push(`📎 ${name}: ${msg.attachment_url}`)
+          }
         }
         lines.push('')
       }
     }
 
-    const { error } = await supabase
+    // Insert the note and get back its ID
+    const { data: noteRow, error } = await supabase
       .from('notes')
       .insert({ trip_id: currentTripId, title, content: lines.join('\n'), stop_id: null, note_date: null })
+      .select('id')
+      .single()
+
+    if (error || !noteRow) {
+      setSavingNote(false)
+      setSaveNoteError('Noe gikk galt. Prøv igjen.')
+      return
+    }
+
+    const noteId = (noteRow as { id: string }).id
+
+    // Copy chat images into note-images (fetch → re-upload → insert note_images row)
+    await Promise.allSettled(
+      imageMessages.map(async (msg) => {
+        if (!msg.attachment_url) return
+        try {
+          const res = await fetch(msg.attachment_url)
+          const blob = await res.blob()
+          const ext = (msg.attachment_name ?? 'img').split('.').pop() ?? 'jpg'
+          const path = `${noteId}/${crypto.randomUUID()}.${ext}`
+          const { error: uploadErr } = await supabase.storage
+            .from('note-images')
+            .upload(path, blob, { contentType: blob.type })
+          if (uploadErr) return
+          await supabase.from('note_images').insert({ note_id: noteId, storage_path: path })
+        } catch { /* skip individual failures silently */ }
+      })
+    )
 
     setSavingNote(false)
-    if (error) {
-      setSaveNoteError('Noe gikk galt. Prøv igjen.')
-    } else {
-      setShowSaveNoteDialog(false)
-      setNoteDescription('')
-    }
+    setShowSaveNoteDialog(false)
+    setNoteDescription('')
   }
 
   // ── Download attachment (cross-origin safe) ──────────────────────────────
