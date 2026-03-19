@@ -1,12 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, Check, Ruler, Images, X, RotateCcw, RotateCw, Layers3 } from 'lucide-react'
+import { ChevronDown, Check, Ruler, Images, X, RotateCcw, RotateCw, Layers3, ExternalLink, Phone, Globe, Star, Clock, Loader2 } from 'lucide-react'
 import {
   APIProvider,
   Map,
   MapMouseEvent,
   useMap,
+  useMapsLibrary,
 } from '@vis.gl/react-google-maps'
 import { Activity, Dining, Hotel, RouteLeg, Stop } from '@/types'
 import RoutePolyline, { LegWaypoints } from './RoutePolyline'
@@ -57,6 +58,216 @@ interface PlanningMapProps {
   cityTripMode?: boolean
 }
 
+
+// ─── POI info popup ────────────────────────────────────────────────────────────
+
+const POI_TYPE_LABEL: Record<string, string> = {
+  restaurant: 'Restaurant', cafe: 'Kafé', bar: 'Bar', pub: 'Pub',
+  bakery: 'Bakeri', meal_takeaway: 'Take-away', food: 'Matsted',
+  lodging: 'Overnatting', hotel: 'Hotell',
+  gas_station: 'Bensinstasjon', car_repair: 'Bilverksted',
+  museum: 'Museum', art_gallery: 'Kunstgalleri', tourist_attraction: 'Attraksjon',
+  amusement_park: 'Fornøyelsespark', zoo: 'Dyrepark',
+  park: 'Park', natural_feature: 'Natur',
+  church: 'Kirke', mosque: 'Moské', place_of_worship: 'Trossted',
+  hospital: 'Sykehus', pharmacy: 'Apotek', doctor: 'Lege',
+  supermarket: 'Supermarked', grocery_or_supermarket: 'Dagligvare',
+  store: 'Butikk', shopping_mall: 'Kjøpesenter', clothing_store: 'Klesbutikk',
+  bank: 'Bank', atm: 'Minibank',
+  train_station: 'Jernbanestasjon', bus_station: 'Bussterminal', airport: 'Flyplass',
+  movie_theater: 'Kino', gym: 'Treningssenter', spa: 'Spa',
+  school: 'Skole', library: 'Bibliotek',
+}
+
+const PRICE_LABEL = ['Gratis', 'Rimelig', 'Moderat', 'Dyr', 'Eksklusiv']
+
+interface PoiDetails {
+  name: string
+  address: string | null
+  phone: string | null
+  website: string | null
+  rating: number | null
+  ratingCount: number | null
+  openNow: boolean | null
+  googleUrl: string
+  types: string[]
+  priceLevel: number | null
+}
+
+function PoiInfoBox({
+  placeId,
+  onClose,
+}: {
+  placeId: string
+  onClose: () => void
+}) {
+  const map = useMap()
+  const placesLib = useMapsLibrary('places')
+  const [info, setInfo] = useState<PoiDetails | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setInfo(null)
+    setLoading(true)
+    setFailed(false)
+
+    if (!map || !placesLib) {
+      setLoading(false)
+      setFailed(true)
+      return
+    }
+
+    const service = new placesLib.PlacesService(map)
+    service.getDetails(
+      {
+        placeId,
+        fields: [
+          'name', 'formatted_address', 'formatted_phone_number',
+          'website', 'rating', 'user_ratings_total',
+          'opening_hours', 'url', 'types', 'price_level',
+        ],
+      },
+      (result, status) => {
+        setLoading(false)
+        if (status === placesLib.PlacesServiceStatus.OK && result) {
+          setInfo({
+            name: result.name ?? '',
+            address: result.formatted_address ?? null,
+            phone: result.formatted_phone_number ?? null,
+            website: result.website ?? null,
+            rating: result.rating ?? null,
+            ratingCount: result.user_ratings_total ?? null,
+            openNow: result.opening_hours?.isOpen?.() ?? null,
+            googleUrl: result.url ?? `https://www.google.com/maps/place/?q=place_id:${placeId}`,
+            types: (result.types ?? [])
+              .filter((t) => t !== 'point_of_interest' && t !== 'establishment')
+              .slice(0, 3),
+            priceLevel: result.price_level ?? null,
+          })
+        } else {
+          setFailed(true)
+        }
+      }
+    )
+  }, [map, placesLib, placeId])
+
+  const fallbackUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`
+
+  return (
+    <div className="absolute bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-auto w-[320px] max-w-[calc(100vw-2rem)]">
+      <div className="bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-start justify-between px-4 pt-3.5 pb-2 border-b border-slate-800">
+          <div className="min-w-0 pr-2">
+            {loading ? (
+              <div className="flex items-center gap-2 text-slate-400">
+                <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                <span className="text-sm">Henter informasjon…</span>
+              </div>
+            ) : (
+              <p className="text-sm font-semibold text-white leading-tight truncate">
+                {info?.name ?? 'Ukjent sted'}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-slate-500 hover:text-white hover:bg-slate-700 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        {!loading && info && (
+          <div className="px-4 py-3 space-y-2.5">
+            {/* Types + price */}
+            <div className="flex flex-wrap gap-1">
+              {info.types.map((t) => (
+                <span key={t} className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 rounded-full px-2 py-0.5">
+                  {POI_TYPE_LABEL[t] ?? t.replace(/_/g, ' ')}
+                </span>
+              ))}
+              {info.priceLevel != null && (
+                <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 rounded-full px-2 py-0.5">
+                  {PRICE_LABEL[info.priceLevel] ?? ''}
+                </span>
+              )}
+            </div>
+
+            {/* Rating + open */}
+            <div className="flex items-center gap-3">
+              {info.rating != null && (
+                <div className="flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  <span className="text-xs font-semibold text-white">{info.rating.toFixed(1)}</span>
+                  {info.ratingCount != null && (
+                    <span className="text-[10px] text-slate-500">({info.ratingCount.toLocaleString('nb-NO')})</span>
+                  )}
+                </div>
+              )}
+              {info.openNow != null && (
+                <div className="flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-slate-500" />
+                  <span className={`text-[11px] font-medium ${info.openNow ? 'text-green-400' : 'text-red-400'}`}>
+                    {info.openNow ? 'Åpent nå' : 'Stengt nå'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Address */}
+            {info.address && (
+              <p className="text-[11px] text-slate-400 leading-snug">{info.address}</p>
+            )}
+
+            {/* Phone */}
+            {info.phone && (
+              <a href={`tel:${info.phone}`} className="flex items-center gap-1.5 text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
+                <Phone className="w-3 h-3" />
+                {info.phone}
+              </a>
+            )}
+
+            {/* Website */}
+            {info.website && (
+              <a
+                href={info.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-[11px] text-blue-400 hover:text-blue-300 transition-colors truncate"
+              >
+                <Globe className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{info.website.replace(/^https?:\/\/(www\.)?/, '')}</span>
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Failed fallback */}
+        {!loading && failed && (
+          <p className="px-4 py-3 text-xs text-slate-500">Kunne ikke hente detaljer for dette stedet.</p>
+        )}
+
+        {/* Footer – Google Maps link */}
+        <div className="px-4 py-2.5 border-t border-slate-800">
+          <a
+            href={info?.googleUrl ?? fallbackUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-white transition-colors"
+          >
+            <ExternalLink className="w-3 h-3" />
+            Åpne i Google Maps
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 
 interface PendingStop {
   lat: number
@@ -613,6 +824,7 @@ export default function PlanningMap({
   cityTripMode = false,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
+  const [poiPlaceId, setPoiPlaceId] = useState<string | null>(null)
   const activeToolRef = useRef(false)
 
   const handleToolActive = useCallback((active: boolean) => {
@@ -620,7 +832,18 @@ export default function PlanningMap({
   }, [])
 
   const handleMapClick = useCallback((e: MapMouseEvent) => {
-    if (disabled || !e.detail.latLng || activeToolRef.current) return
+    if (disabled || activeToolRef.current) return
+
+    // POI icon clicked – show info popup
+    if (e.detail.placeId) {
+      e.stop() // prevent Google's default info window
+      setPoiPlaceId(e.detail.placeId)
+      return
+    }
+
+    if (!e.detail.latLng) return
+    setPoiPlaceId(null)
+
     if (readOnly) {
       if (onCityMapClick) onCityMapClick(e.detail.latLng.lat, e.detail.latLng.lng)
       return
@@ -766,6 +989,15 @@ export default function PlanningMap({
 
         {/* Kartverktøy */}
         <MapTools onActiveChange={handleToolActive} />
+
+        {/* POI info popup */}
+        {poiPlaceId && (
+          <PoiInfoBox
+            key={poiPlaceId}
+            placeId={poiPlaceId}
+            onClose={() => setPoiPlaceId(null)}
+          />
+        )}
 
         {/* Popup for å bekrefte nytt stopp */}
         {pendingStop && !readOnly && (
