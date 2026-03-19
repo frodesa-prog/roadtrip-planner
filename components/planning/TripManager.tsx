@@ -24,6 +24,20 @@ const TRIP_TYPE_EMOJI: Record<string, string> = {
   resort: '🌴',
 }
 
+/** Returns "yyyy: dd.mm – dd.mm" if both dates exist, else just the year number */
+function formatTripDateLabel(trip: Trip): string {
+  if (trip.date_from && trip.date_to) {
+    const from = new Date(trip.date_from + 'T00:00:00')
+    const to   = new Date(trip.date_to   + 'T00:00:00')
+    const pad  = (n: number) => String(n).padStart(2, '0')
+    const year = from.getFullYear()
+    const fromStr = `${pad(from.getDate())}.${pad(from.getMonth() + 1)}`
+    const toStr   = `${pad(to.getDate())}.${pad(to.getMonth() + 1)}`
+    return `${year}: ${fromStr} – ${toStr}`
+  }
+  return String(trip.year)
+}
+
 function getDaysUntil(dateStr: string): number {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -94,7 +108,7 @@ export default function TripManager({
                   return null
                 })()}
               </div>
-              <p className="text-blue-200/60 text-xs">{currentTrip.year}</p>
+              <p className="text-blue-200/60 text-xs">{formatTripDateLabel(currentTrip)}</p>
             </>
           ) : (
             <p className="text-blue-200/80 text-sm font-medium">Velg eller opprett en tur</p>
@@ -134,7 +148,7 @@ export default function TripManager({
                             </span>
                           )}
                         </p>
-                        <p className="text-xs text-slate-500">{trip.year}</p>
+                        <p className="text-xs text-slate-500">{formatTripDateLabel(trip)}</p>
                       </div>
                     </button>
                     {!isShared && (
