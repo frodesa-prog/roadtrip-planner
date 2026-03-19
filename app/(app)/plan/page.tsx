@@ -286,6 +286,12 @@ export default function PlanPage() {
               onUpdateGroupDescription={(desc) =>
                 currentTrip && updateTrip(currentTrip.id, { group_description: desc })
               }
+              onUpdateTripDates={(dateFrom, dateTo) => {
+                if (!currentTrip) return
+                const year = new Date(dateFrom + 'T00:00:00').getFullYear()
+                updateTrip(currentTrip.id, { date_from: dateFrom, date_to: dateTo, year })
+                // Road trip: stopp røres ikke
+              }}
             />
           ) : (
             <CityPlanSidebar

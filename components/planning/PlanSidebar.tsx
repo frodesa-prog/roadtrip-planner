@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MapPin, Loader2, Car, CalendarDays, List } from 'lucide-react'
+import { MapPin, Loader2, Car, CalendarDays, List, Check, X } from 'lucide-react'
 import { Stop, Trip, Hotel, Activity, RouteLeg, NewTripData } from '@/types'
 import StopCard from './StopCard'
 import CalendarView from './CalendarView'
@@ -31,6 +31,7 @@ interface PlanSidebarProps {
   routeLegs?: RouteLeg[]
   routeStates?: string[]
   onUpdateGroupDescription?: (desc: string) => void
+  onUpdateTripDates?: (dateFrom: string, dateTo: string) => void
 }
 
 export default function PlanSidebar({
@@ -44,11 +45,32 @@ export default function PlanSidebar({
   routeLegs,
   routeStates,
   onUpdateGroupDescription,
+  onUpdateTripDates,
 }: PlanSidebarProps) {
   const [departureTimes, setDepartureTimes] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
+
+  // ── Edit dates state (road trip – ingen stopp-oppdatering) ──────────────────
+  const [editingDates, setEditingDates] = useState(false)
+  const [editDateFrom, setEditDateFrom] = useState('')
+  const [editDateTo, setEditDateTo] = useState('')
+
+  function openEditDates() {
+    setEditDateFrom(currentTrip?.date_from ?? '')
+    setEditDateTo(currentTrip?.date_to ?? '')
+    setEditingDates(true)
+  }
+
+  function cancelEditDates() { setEditingDates(false) }
+
+  function saveEditDates() {
+    if (editDateFrom && editDateTo && editDateFrom <= editDateTo) {
+      onUpdateTripDates?.(editDateFrom, editDateTo)
+    }
+    setEditingDates(false)
+  }
   const drivingLegs = useDrivingInfo(stops, routeLegs)
 
   // ── Auto-cascade arrival dates ──────────────────────────────────────────────
@@ -110,7 +132,61 @@ export default function PlanSidebar({
           const name = trips.find((t) => t.id === id)?.name ?? 'denne turen'
           setConfirmDelete({ id, name })
         }}
+        onEditDates={onUpdateTripDates ? openEditDates : undefined}
       />
+
+      {/* Inline datoeditor for road trip */}
+      {editingDates && currentTrip && (
+        <div className="px-4 py-2.5 border-b border-slate-800 bg-slate-800/40 flex-shrink-0 space-y-2">
+          <p className="text-[11px] font-medium text-slate-300">Rediger datoer</p>
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <label className="text-[10px] text-slate-500 mb-0.5 block">Fra</label>
+              <input
+                type="date"
+                value={editDateFrom}
+                onChange={(e) => {
+                  setEditDateFrom(e.target.value)
+                  if (editDateTo && e.target.value > editDateTo) setEditDateTo('')
+                }}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] text-slate-500 mb-0.5 block">Til</label>
+              <input
+                type="date"
+                value={editDateTo}
+                min={editDateFrom || undefined}
+                onChange={(e) => setEditDateTo(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+          {editDateFrom && editDateTo && (
+            <p className="text-[10px] text-slate-500">
+              {Math.max(0, Math.round(
+                (new Date(editDateTo + 'T12:00:00').getTime() - new Date(editDateFrom + 'T12:00:00').getTime()) / 86_400_000
+              ))} netter
+            </p>
+          )}
+          <div className="flex gap-2 pt-0.5">
+            <button
+              onClick={saveEditDates}
+              disabled={!editDateFrom || !editDateTo || editDateFrom > editDateTo}
+              className="flex items-center gap-1 text-xs px-3 py-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded transition-colors"
+            >
+              <Check className="w-3 h-3" /> Lagre
+            </button>
+            <button
+              onClick={cancelEditDates}
+              className="flex items-center gap-1 text-xs px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors"
+            >
+              <X className="w-3 h-3" /> Avbryt
+            </button>
+          </div>
+        </div>
+      )}
 
       <NewTripWizard
         open={showWizard}
