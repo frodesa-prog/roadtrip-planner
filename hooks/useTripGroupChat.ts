@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { TripGroupMessage } from '@/types'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 // userId → ISO-tidsstempel for siste lesing
 export type ReadReceipts = Record<string, string>
@@ -17,6 +18,9 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
   // Keep a stable ref to supabase to avoid re-subscribing
   const supabaseRef = useRef(supabase)
   supabaseRef.current = supabase
+
+  // Ref to the active chat channel so clearChat/archiveAndClear can broadcast on it
+  const chatChannelRef = useRef<RealtimeChannel | null>(null)
 
   // ── Load message history ─────────────────────────────────────────────────
   useEffect(() => {
@@ -39,7 +43,7 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
     return () => { cancelled = true }
   }, [tripId, supabase])
 
-  // ── Real-time: nye og slettede meldinger ────────────────────────────────
+  // ── Real-time: nye og slettede meldinger + broadcast chat-cleared ─────────
   useEffect(() => {
     if (!tripId) return
     const channel = supabase
@@ -73,10 +77,17 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
           setMessages((prev) => prev.filter((m) => m.id !== deletedId))
         }
       )
+      // ── Broadcast: another participant cleared/archived the chat ──────────
+      .on('broadcast', { event: 'chat-cleared' }, () => {
+        setMessages([])
+      })
       .subscribe()
+
+    chatChannelRef.current = channel
 
     return () => {
       supabase.removeChannel(channel)
+      chatChannelRef.current = null
     }
   }, [tripId, supabase])
 
@@ -298,6 +309,12 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
         .eq('trip_id', tripId)
       if (error) return false
       setMessages([])
+      // Notify all other participants immediately via broadcast
+      chatChannelRef.current?.send({
+        type: 'broadcast',
+        event: 'chat-cleared',
+        payload: {},
+      })
       return true
     },
     [tripId, userId]
@@ -350,6 +367,14 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
 
       // 4. Clear local state
       setMessages([])
+
+      // 5. Notify all other participants immediately via broadcast
+      chatChannelRef.current?.send({
+        type: 'broadcast',
+        event: 'chat-cleared',
+        payload: {},
+      })
+
       return true
     },
     [tripId, userId, messages]
