@@ -282,6 +282,7 @@ export default function StopDetailPanel({
 
   useEffect(() => { setNights(stop.nights) }, [stop.nights])
   useEffect(() => { setArrivalDate(stop.arrival_date ?? '') }, [stop.arrival_date])
+  useEffect(() => { setStopCity(stop.city); setStopState(stop.state ?? '') }, [stop.id])
   useEffect(() => { setNewActDate(selectedDate || tripDateFrom) }, [selectedDate, tripDateFrom])
   useEffect(() => { setNewDiningDate(selectedDate || tripDateFrom) }, [selectedDate, tripDateFrom])
 
@@ -396,30 +397,48 @@ export default function StopDetailPanel({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               {editingStopName ? (
-                <div className="flex items-center gap-1 mb-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-                  <input
-                    ref={stopNameInputRef}
-                    value={stopCity}
-                    onChange={(e) => setStopCity(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        onUpdateStop({ city: stopCity.trim() || stop.city, state: stopState.trim() || undefined })
-                        setEditingStopName(false)
-                      }
-                      if (e.key === 'Escape') {
-                        setStopCity(stop.city)
-                        setStopState(stop.state ?? '')
-                        setEditingStopName(false)
-                      }
-                    }}
-                    onBlur={() => {
-                      onUpdateStop({ city: stopCity.trim() || stop.city, state: stopState.trim() || undefined })
-                      setEditingStopName(false)
-                    }}
-                    className="text-sm font-bold bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-slate-100 w-full focus:outline-none focus:border-blue-500"
-                    placeholder="Bynavn"
-                  />
+                <div className="mb-0.5">
+                  <div className="flex items-center gap-1 mb-1">
+                    <MapPin className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                    <div className="flex gap-1 flex-1">
+                      <input
+                        ref={stopNameInputRef}
+                        value={stopCity}
+                        onChange={(e) => setStopCity(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            setStopCity(stop.city)
+                            setStopState(stop.state ?? '')
+                            setEditingStopName(false)
+                          }
+                        }}
+                        className="text-sm font-bold bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-slate-100 flex-1 min-w-0 focus:outline-none focus:border-blue-500"
+                        placeholder="By"
+                      />
+                      <input
+                        value={stopState}
+                        onChange={(e) => setStopState(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            setStopCity(stop.city)
+                            setStopState(stop.state ?? '')
+                            setEditingStopName(false)
+                          }
+                        }}
+                        className="text-sm bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-slate-400 w-16 focus:outline-none focus:border-blue-500"
+                        placeholder="Stat"
+                      />
+                      <button
+                        onClick={() => {
+                          onUpdateStop({ city: stopCity.trim() || stop.city, state: stopState.trim() || undefined })
+                          setEditingStopName(false)
+                        }}
+                        className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded transition-colors"
+                      >
+                        OK
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 mb-0.5">
