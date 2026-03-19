@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   ChevronDown, ChevronRight, Hotel as HotelIcon, MapPin,
   UtensilsCrossed, Plus, Moon, ExternalLink, Navigation, Loader2, LayoutList,
-  Pencil, Check, X,
+  Check, X,
 } from 'lucide-react'
 import { Trip, Stop, Activity, Dining, PossibleActivity, NewTripData } from '@/types'
 import TripManager from './TripManager'
@@ -354,6 +354,7 @@ export default function CityPlanSidebar({
           const name = trips.find((t) => t.id === id)?.name ?? 'denne turen'
           setConfirmDelete({ id, name })
         }}
+        onEditDates={openEditDates}
       />
       <NewTripWizard open={showWizard} onClose={() => setShowWizard(false)} onCreateTrip={onCreateTrip} />
 
@@ -441,7 +442,7 @@ export default function CityPlanSidebar({
             <button
               onClick={onZoomToCity}
               title="Zoom til destinasjon i kartet"
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-400 transition-colors"
+              className="ml-auto flex items-center gap-1 text-xs text-slate-500 hover:text-blue-400 transition-colors"
             >
               <Navigation className="w-3 h-3 flex-shrink-0" />
               <span className="truncate max-w-[80px]">
@@ -449,14 +450,6 @@ export default function CityPlanSidebar({
               </span>
             </button>
           )}
-          <button
-            onClick={openEditDates}
-            title="Rediger datoer"
-            className="ml-auto flex items-center gap-1 text-xs text-slate-500 hover:text-blue-400 transition-colors"
-          >
-            <Pencil className="w-3 h-3" />
-            Datoer
-          </button>
         </div>
       )}
 

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   ChevronDown, Plus, Check, Route,
-  Loader2, Trash2, Share2,
+  Loader2, Trash2, Share2, Pencil,
 } from 'lucide-react'
 import { Trip } from '@/types'
 
@@ -16,6 +16,7 @@ interface TripManagerProps {
   onSelectTrip: (trip: Trip) => void
   onRequestCreate: () => void
   onDeleteTrip: (id: string) => void
+  onEditDates?: () => void
 }
 
 const TRIP_TYPE_EMOJI: Record<string, string> = {
@@ -54,6 +55,7 @@ export default function TripManager({
   onSelectTrip,
   onRequestCreate,
   onDeleteTrip,
+  onEditDates,
 }: TripManagerProps) {
   const [open, setOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -108,7 +110,18 @@ export default function TripManager({
                   return null
                 })()}
               </div>
-              <p className="text-blue-200/60 text-xs">{formatTripDateLabel(currentTrip)}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-blue-200/60 text-xs">{formatTripDateLabel(currentTrip)}</p>
+                {onEditDates && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEditDates() }}
+                    title="Rediger datoer"
+                    className="p-0.5 rounded text-blue-300/40 hover:text-blue-200 hover:bg-white/10 transition-colors"
+                  >
+                    <Pencil className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
             </>
           ) : (
             <p className="text-blue-200/80 text-sm font-medium">Velg eller opprett en tur</p>
