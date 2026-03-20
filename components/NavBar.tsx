@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
 import { useChat } from '@/components/chat/ChatContext'
@@ -16,6 +16,7 @@ const links = [
   { href: '/kostnader', label: 'Kostnader', icon: Receipt },
   { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
   { href: '/notes', label: 'Notater', icon: FileText },
+  { href: '/hjelp', label: 'Hjelp', icon: HelpCircle },
 ]
 
 // Vises i bottom tab bar på mobil
