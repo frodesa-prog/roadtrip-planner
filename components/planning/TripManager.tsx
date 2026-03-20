@@ -6,6 +6,7 @@ import {
   Loader2, Trash2, Share2, Pencil,
 } from 'lucide-react'
 import { Trip } from '@/types'
+import { useAppTheme, ThemeName } from '@/contexts/ThemeContext'
 
 interface TripManagerProps {
   trips: Trip[]
@@ -17,6 +18,15 @@ interface TripManagerProps {
   onRequestCreate: () => void
   onDeleteTrip: (id: string) => void
   onEditDates?: () => void
+}
+
+const THEME_GRADIENT: Record<ThemeName, string> = {
+  'default':        'bg-gradient-to-r from-blue-700    to-blue-800    hover:from-blue-800    hover:to-blue-900',
+  'light-white':    'bg-gradient-to-r from-indigo-600  to-indigo-700  hover:from-indigo-700  hover:to-indigo-800',
+  'light-ocean':    'bg-gradient-to-r from-cyan-700    to-cyan-800    hover:from-cyan-800    hover:to-cyan-900',
+  'light-sunset':   'bg-gradient-to-r from-orange-600  to-orange-700  hover:from-orange-700  hover:to-orange-800',
+  'dark-forest':    'bg-gradient-to-r from-emerald-800 to-emerald-900 hover:from-emerald-900 hover:to-green-950',
+  'dark-midnight':  'bg-gradient-to-r from-violet-800  to-violet-900  hover:from-violet-900  hover:to-purple-950',
 }
 
 const TRIP_TYPE_EMOJI: Record<string, string> = {
@@ -59,6 +69,8 @@ export default function TripManager({
 }: TripManagerProps) {
   const [open, setOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const { theme } = useAppTheme()
+  const gradientClass = THEME_GRADIENT[theme] ?? THEME_GRADIENT['default']
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -78,7 +90,7 @@ export default function TripManager({
       {/* Trigger */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 px-5 py-4 bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 transition-colors"
+        className={`w-full flex items-center gap-2 px-5 py-4 transition-colors ${gradientClass}`}
       >
         <Route className="w-5 h-5 text-white/80 flex-shrink-0" />
         <div className="flex-1 text-left min-w-0">
