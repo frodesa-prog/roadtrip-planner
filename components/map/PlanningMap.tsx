@@ -21,6 +21,7 @@ import { AddActivityData } from '@/hooks/useActivities'
 import { AddDiningData } from '@/hooks/useDining'
 import { AddPossibleActivityData } from '@/hooks/usePossibleActivities'
 import { ACTIVITY_TYPE_PRESETS, ActivityTypeIcon } from '@/lib/activityTypes'
+import { useAppTheme } from '@/contexts/ThemeContext'
 
 interface ActivityRoute {
   fromLat: number
@@ -841,8 +842,16 @@ const MAP_TYPES: { id: BaseMapType; label: string }[] = [
 
 function MapControls() {
   const map = useMap()
-  // 'satellite' base + showLabels=true → Google 'hybrid'; showLabels=false → 'satellite'
-  const [baseType, setBaseType] = useState<BaseMapType>('satellite')
+  const { isDark } = useAppTheme()
+
+  // Light themes default to roadmap; dark themes default to satellite
+  const [baseType, setBaseType] = useState<BaseMapType>(() =>
+    typeof window !== 'undefined'
+      ? (document.documentElement.getAttribute('data-theme') ?? 'default').startsWith('light')
+        ? 'roadmap'
+        : 'satellite'
+      : 'satellite'
+  )
   const [showLabels, setShowLabels] = useState(true)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [tilted, setTilted] = useState(false)
@@ -871,6 +880,11 @@ function MapControls() {
     if (!map) return
     map.setHeading(heading)
   }, [map, heading])
+
+  // Switch map type automatically when theme changes
+  useEffect(() => {
+    setBaseType(isDark ? 'satellite' : 'roadmap')
+  }, [isDark])
 
   // Close dropdown on outside click
   useEffect(() => {
