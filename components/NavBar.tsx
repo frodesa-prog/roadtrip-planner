@@ -2,10 +2,116 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronRight, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useChat } from '@/components/chat/ChatContext'
+import { Trip } from '@/types'
+
+const SELECTED_TRIP_KEY = 'selected_trip_id'
+
+const TRIP_TYPE_EMOJI: Record<string, string> = {
+  road_trip: '🚗',
+  storbytur: '🏙️',
+  resort: '🌴',
+}
+
+function formatTripDates(trip: Trip): string {
+  if (trip.date_from && trip.date_to) {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const from = new Date(trip.date_from + 'T00:00:00')
+    const to   = new Date(trip.date_to   + 'T00:00:00')
+    return `${pad(from.getDate())}.${pad(from.getMonth()+1)} – ${pad(to.getDate())}.${pad(to.getMonth()+1)} ${to.getFullYear()}`
+  }
+  return String(trip.year)
+}
+
+function TripPickerPopover({ onClose }: { onClose: () => void }) {
+  const router = useRouter()
+  const [trips, setTrips] = useState<Trip[]>([])
+  const [loading, setLoading] = useState(true)
+  const [currentId, setCurrentId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setCurrentId(typeof window !== 'undefined' ? localStorage.getItem(SELECTED_TRIP_KEY) : null)
+    const supabase = createClient()
+    supabase.from('trips').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) setTrips(data as Trip[])
+        setLoading(false)
+      })
+  }, [])
+
+  const selectTrip = useCallback((trip: Trip) => {
+    localStorage.setItem(SELECTED_TRIP_KEY, trip.id)
+    window.dispatchEvent(new CustomEvent('trip-changed', { detail: { trip } }))
+    onClose()
+    router.push('/plan')
+  }, [router, onClose])
+
+  return (
+    <div className="absolute top-full left-0 mt-1.5 w-80 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl shadow-black/50 z-50 overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-slate-800">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Dine reiser</p>
+      </div>
+
+      {/* Trip list */}
+      <div className="max-h-80 overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : trips.length === 0 ? (
+          <p className="text-sm text-slate-500 text-center py-8">Ingen reiser registrert ennå</p>
+        ) : (
+          trips.map((trip) => {
+            const isActive = trip.id === currentId
+            return (
+              <button
+                key={trip.id}
+                onClick={() => selectTrip(trip)}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors group
+                  ${isActive ? 'bg-blue-600/15' : 'hover:bg-slate-800'}`}
+              >
+                {/* Emoji */}
+                <span className="text-xl flex-shrink-0 leading-none">
+                  {TRIP_TYPE_EMOJI[trip.trip_type ?? 'road_trip'] ?? '🗺️'}
+                </span>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold truncate ${isActive ? 'text-blue-300' : 'text-slate-100'}`}>
+                    {trip.name}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">{formatTripDates(trip)}</p>
+                </div>
+
+                {/* Active check / arrow */}
+                {isActive ? (
+                  <Check className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 flex-shrink-0 transition-colors" />
+                )}
+              </button>
+            )
+          })
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="border-t border-slate-800 px-4 py-2.5">
+        <Link
+          href="/minside"
+          onClick={onClose}
+          className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+        >
+          + Opprett ny reise på Min side
+        </Link>
+      </div>
+    </div>
+  )
+}
 
 const links = [
   { href: '/plan', label: 'Planlegg', icon: Map },
@@ -32,7 +138,21 @@ export default function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [tripPickerOpen, setTripPickerOpen] = useState(false)
+  const logoRef = useRef<HTMLDivElement>(null)
   const { toggle: toggleChat, unreadCount } = useChat()
+
+  // Close trip picker on outside click
+  useEffect(() => {
+    if (!tripPickerOpen) return
+    function handleClick(e: MouseEvent) {
+      if (logoRef.current && !logoRef.current.contains(e.target as Node)) {
+        setTripPickerOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [tripPickerOpen])
 
   async function handleLogout() {
     const supabase = createClient()
@@ -54,11 +174,22 @@ export default function NavBar() {
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Logo */}
-        <span className="text-sm font-bold text-white mr-4 flex items-center gap-2 select-none">
-          <span className="text-base">🗺️</span>
-          <span className="text-slate-200">Ferieplanlegger</span>
-        </span>
+        {/* Logo – klikk for å velge tur */}
+        <div ref={logoRef} className="relative mr-4">
+          <button
+            onClick={() => setTripPickerOpen((o) => !o)}
+            className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-slate-800 transition-colors group"
+            title="Velg reise"
+          >
+            <span className="text-base">🗺️</span>
+            <span className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">
+              Ferieplanlegger
+            </span>
+          </button>
+          {tripPickerOpen && (
+            <TripPickerPopover onClose={() => setTripPickerOpen(false)} />
+          )}
+        </div>
 
         {/* Nav links – kun synlig på desktop */}
         <div className="hidden md:flex items-center gap-1 flex-1">
