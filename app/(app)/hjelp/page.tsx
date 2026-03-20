@@ -273,7 +273,7 @@ export default function HelpPage() {
     : SECTIONS
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-950">
+    <div className="h-full overflow-y-auto bg-slate-950">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur border-b border-slate-800 px-4 sm:px-6 py-4">
         <div className="max-w-2xl mx-auto">
