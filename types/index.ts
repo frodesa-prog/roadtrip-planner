@@ -365,3 +365,13 @@ export interface ChatArchiveMessage {
   attachment_type: 'image' | 'document' | null
   original_created_at: string
 }
+
+export interface MessageReaction {
+  id: string
+  message_id: string
+  trip_id: string
+  user_id: string
+  sender_name: string
+  emoji: string
+  created_at: string
+}

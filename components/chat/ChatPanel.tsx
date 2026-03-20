@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { useChat } from '@/components/chat/ChatContext'
 import { createClient } from '@/lib/supabase/client'
-import { TripGroupMessage, ChatArchive, ChatArchiveMessage } from '@/types'
+import { TripGroupMessage, ChatArchive, ChatArchiveMessage, MessageReaction } from '@/types'
 
 // ─── URL helpers ──────────────────────────────────────────────────────────────
 
@@ -73,6 +73,10 @@ const ACCEPTED_TYPES = [
 // ─── Lightbox item type ───────────────────────────────────────────────────────
 
 interface LightboxItem { url: string; name: string | null; type: string | null }
+
+// ─── Quick emoji reactions ────────────────────────────────────────────────────
+
+const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
 
 // ─── Attachment renderer (shared between live and archived messages) ──────────
 
@@ -174,6 +178,10 @@ export default function ChatPanel() {
   // ── Message delete ──────────────────────────────────────────────────────
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
+  // ── Emoji reactions ─────────────────────────────────────────────────────
+  const [reactions, setReactions] = useState<Record<string, MessageReaction[]>>({})
+  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null)
+
   // ── Input / file upload ─────────────────────────────────────────────────
   const [inputValue, setInputValue] = useState('')
   const [sending, setSending] = useState(false)
@@ -240,6 +248,134 @@ export default function ChatPanel() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [lightbox])
+
+  // ── Reaction helpers ─────────────────────────────────────────────────────
+
+  // Derive current user's display name from their own messages
+  const myName = useMemo(
+    () => messages.find(m => m.user_id === userId)?.sender_name ?? '',
+    [messages, userId]
+  )
+
+  function hasUserReacted(messageId: string, emoji: string): boolean {
+    return (reactions[messageId] ?? []).some(r => r.user_id === userId && r.emoji === emoji)
+  }
+
+  function groupReactions(msgReactions: MessageReaction[]) {
+    const map = new Map<string, { count: number; hasOwn: boolean }>()
+    for (const r of msgReactions) {
+      const entry = map.get(r.emoji)
+      if (entry) { entry.count++; if (r.user_id === userId) entry.hasOwn = true }
+      else map.set(r.emoji, { count: 1, hasOwn: r.user_id === userId })
+    }
+    // Show in QUICK_EMOJIS order, then any extras not in the list
+    const ordered = QUICK_EMOJIS.filter(e => map.has(e))
+    const extras = [...map.keys()].filter(e => !QUICK_EMOJIS.includes(e))
+    return [...ordered, ...extras].map(e => ({ emoji: e, ...map.get(e)! }))
+  }
+
+  // ── Load reactions whenever messages change ───────────────────────────────
+  useEffect(() => {
+    if (!currentTripId || !isOpen || messages.length === 0) return
+    const ids = messages.map(m => m.id)
+    supabase
+      .from('trip_message_reactions')
+      .select('*')
+      .in('message_id', ids)
+      .then(({ data }) => {
+        if (!data) return
+        const grouped: Record<string, MessageReaction[]> = {}
+        for (const r of data as MessageReaction[]) {
+          if (!grouped[r.message_id]) grouped[r.message_id] = []
+          grouped[r.message_id].push(r)
+        }
+        setReactions(grouped)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTripId, isOpen, messages.length])
+
+  // ── Realtime: reaction inserts / deletes ──────────────────────────────────
+  useEffect(() => {
+    if (!currentTripId || !isOpen) return
+    const channel = supabase
+      .channel(`trip-reactions-${currentTripId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'trip_message_reactions',
+          filter: `trip_id=eq.${currentTripId}` },
+        (payload) => {
+          const r = payload.new as MessageReaction
+          setReactions(prev => ({
+            ...prev,
+            // Replace any optimistic temp entry with the real row
+            [r.message_id]: [
+              ...(prev[r.message_id] ?? []).filter(
+                x => !(x.user_id === r.user_id && x.emoji === r.emoji && x.id.startsWith('temp-'))
+              ),
+              r,
+            ],
+          }))
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'trip_message_reactions',
+          filter: `trip_id=eq.${currentTripId}` },
+        (payload) => {
+          const del = payload.old as { id: string; message_id: string }
+          setReactions(prev => {
+            const existing = prev[del.message_id]
+            if (!existing) return prev
+            return { ...prev, [del.message_id]: existing.filter(r => r.id !== del.id) }
+          })
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [currentTripId, isOpen, supabase])
+
+  // ── Toggle reaction (optimistic) ──────────────────────────────────────────
+  async function toggleReaction(messageId: string, emoji: string) {
+    if (!userId || !currentTripId) return
+    const existing = (reactions[messageId] ?? []).find(
+      r => r.user_id === userId && r.emoji === emoji
+    )
+    if (existing) {
+      // Optimistic delete
+      setReactions(prev => ({
+        ...prev,
+        [messageId]: (prev[messageId] ?? []).filter(r => r.id !== existing.id),
+      }))
+      await supabase.from('trip_message_reactions').delete().eq('id', existing.id)
+    } else {
+      // Optimistic insert
+      const tempId = `temp-${Date.now()}`
+      const newR: MessageReaction = {
+        id: tempId, message_id: messageId, trip_id: currentTripId,
+        user_id: userId, sender_name: myName, emoji, created_at: new Date().toISOString(),
+      }
+      setReactions(prev => ({
+        ...prev,
+        [messageId]: [...(prev[messageId] ?? []), newR],
+      }))
+      const { data } = await supabase
+        .from('trip_message_reactions')
+        .insert({ message_id: messageId, trip_id: currentTripId, user_id: userId, sender_name: myName, emoji })
+        .select().single()
+      if (data) {
+        setReactions(prev => ({
+          ...prev,
+          [messageId]: (prev[messageId] ?? []).map(r => r.id === tempId ? data as MessageReaction : r),
+        }))
+      } else {
+        // Rollback on error
+        setReactions(prev => ({
+          ...prev,
+          [messageId]: (prev[messageId] ?? []).filter(r => r.id !== tempId),
+        }))
+      }
+    }
+  }
 
   // ── Archive list loader ─────────────────────────────────────────────────
   async function openArchiveList() {
@@ -608,12 +744,41 @@ export default function ChatPanel() {
                   const showSender = !isOwn && (!prevMsg || prevMsg.user_id !== msg.user_id)
                   const isPendingDelete = pendingDeleteId === msg.id
 
+                  const msgReactions = reactions[msg.id] ?? []
+                  const reactionGroups = groupReactions(msgReactions)
+
                   return (
                     <div key={msg.id} className={`flex flex-col mb-1 ${isOwn ? 'items-end' : 'items-start'}`}
-                      onMouseLeave={() => { if (pendingDeleteId === msg.id) setPendingDeleteId(null) }}
+                      onMouseEnter={() => setHoveredMsgId(msg.id)}
+                      onMouseLeave={() => {
+                        if (pendingDeleteId === msg.id) setPendingDeleteId(null)
+                        setHoveredMsgId(null)
+                      }}
                     >
                       {showSender && (
                         <span className="text-[10px] text-slate-500 mb-0.5 px-1">{msg.sender_name}</span>
+                      )}
+
+                      {/* ── Emoji picker bar (visible on hover) ─────────── */}
+                      {hoveredMsgId === msg.id && (
+                        <div className={`flex items-center gap-0.5 px-2 py-1.5 mb-1 rounded-2xl
+                          bg-slate-800 border border-slate-700 shadow-lg shadow-black/30 z-10`}>
+                          {QUICK_EMOJIS.map(emoji => (
+                            <button
+                              key={emoji}
+                              onClick={() => toggleReaction(msg.id, emoji)}
+                              title={emoji}
+                              className={`text-base leading-none p-1 rounded-lg transition-transform
+                                hover:scale-125 active:scale-110
+                                ${hasUserReacted(msg.id, emoji)
+                                  ? 'bg-blue-600/30 scale-110'
+                                  : 'hover:bg-slate-700'
+                                }`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                       )}
 
                       <div className={`flex items-start gap-1.5 w-full ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -659,6 +824,33 @@ export default function ChatPanel() {
                           )
                         )}
                       </div>
+
+                      {/* ── Existing reactions ───────────────────────────── */}
+                      {reactionGroups.length > 0 && (
+                        <div className={`flex flex-wrap gap-1 mt-1 px-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                          {reactionGroups.map(({ emoji, count, hasOwn }) => (
+                            <button
+                              key={emoji}
+                              onClick={() => toggleReaction(msg.id, emoji)}
+                              title={hasOwn ? `Du og ${count - 1} andre` : `${count} reaksjon${count > 1 ? 'er' : ''}`}
+                              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border
+                                transition-colors select-none
+                                ${hasOwn
+                                  ? 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35'
+                                  : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-700'
+                                }`}
+                            >
+                              <span>{emoji}</span>
+                              {count > 1 && (
+                                <span className={`text-[11px] font-semibold tabular-nums leading-none
+                                  ${hasOwn ? 'text-blue-300' : 'text-slate-400'}`}>
+                                  {count}
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
                       <span className="text-[10px] text-slate-600 mt-0.5 px-1">{formatTime(msg.created_at)}</span>
                       {isOwn && readReceiptMap[msg.id] && (
