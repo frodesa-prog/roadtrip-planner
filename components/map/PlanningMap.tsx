@@ -37,6 +37,8 @@ interface PlanningMapProps {
   onSelectStop: (id: string) => void
   disabled?: boolean
   readOnly?: boolean
+  /** Trip start date — auto-filled as arrival_date on the first stop */
+  tripDateFrom?: string | null
   activities?: Activity[]
   selectedActivityId?: string | null
   onSelectActivity?: (id: string) => void
@@ -1372,6 +1374,7 @@ export default function PlanningMap({
   onCitySearch,
   onCityMapClick,
   cityTripMode = false,
+  tripDateFrom = null,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
   const [poiPlaceId, setPoiPlaceId] = useState<string | null>(null)
@@ -1410,6 +1413,7 @@ export default function PlanningMap({
 
   function handleConfirmStop(city: string, state: string) {
     if (!pendingStop) return
+    const isFirst = stops.length === 0
     const newStop: Stop = {
       id: crypto.randomUUID(),
       trip_id: 'local',
@@ -1418,7 +1422,7 @@ export default function PlanningMap({
       lat: pendingStop.lat,
       lng: pendingStop.lng,
       order: stops.length,
-      arrival_date: null,
+      arrival_date: isFirst && tripDateFrom ? tripDateFrom : null,
       nights: 1,
       notes: null,
       created_at: new Date().toISOString(),

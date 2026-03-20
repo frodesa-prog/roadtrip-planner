@@ -457,6 +457,7 @@ export default function PlanPage() {
               onAddStop={handleAddStop}
               onSelectStop={handleSelectStop}
               disabled={!currentTrip}
+              tripDateFrom={currentTrip?.date_from ?? null}
               hotels={hotels}
               activities={activities}
               dining={dining}
