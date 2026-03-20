@@ -248,6 +248,20 @@ export function useTrips() {
     loadTrips()
   }, [loadTrips])
 
+  // Lytt på trip-changed fra andre kilder (f.eks. NavBar-modal)
+  // og oppdater currentTrip-state umiddelbart uten side-reload
+  useEffect(() => {
+    function onExternalTripChange(e: Event) {
+      const trip = (e as CustomEvent<{ trip: Trip }>).detail?.trip
+      if (trip) {
+        setCurrentTripState(trip)
+        saveSelectedTripId(trip.id)
+      }
+    }
+    window.addEventListener('trip-changed', onExternalTripChange)
+    return () => window.removeEventListener('trip-changed', onExternalTripChange)
+  }, [])
+
   return {
     trips,
     currentTrip,

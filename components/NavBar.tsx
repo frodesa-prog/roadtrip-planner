@@ -27,7 +27,6 @@ function formatTripDates(trip: Trip): string {
 }
 
 function TripPickerModal({ onClose }: { onClose: () => void }) {
-  const router = useRouter()
   const [trips, setTrips] = useState<Trip[]>([])
   const [loading, setLoading] = useState(true)
   const [currentId, setCurrentId] = useState<string | null>(null)
@@ -53,8 +52,7 @@ function TripPickerModal({ onClose }: { onClose: () => void }) {
     localStorage.setItem(SELECTED_TRIP_KEY, trip.id)
     window.dispatchEvent(new CustomEvent('trip-changed', { detail: { trip } }))
     onClose()
-    router.push('/plan')
-  }, [router, onClose])
+  }, [onClose])
 
   return (
     /* Mørk overlay – klikk utenfor for å lukke */
