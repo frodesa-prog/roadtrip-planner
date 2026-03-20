@@ -12,6 +12,7 @@ export type ThemeName =
   | 'light-steel'
   | 'dark-forest'
   | 'dark-midnight'
+  | 'dark-dodgers'
 
 export interface ThemeConfig {
   id: ThemeName
@@ -69,9 +70,15 @@ export const THEMES: ThemeConfig[] = [
     type: 'dark',
     preview: { bg: '#08060f', card: '#110b1e', primary: '#a78bfa', text: '#ede8ff', accent: '#3b1f7a' },
   },
+  {
+    id: 'dark-dodgers',
+    name: '⚾ Dodgers',
+    type: 'dark',
+    preview: { bg: '#010d1f', card: '#021630', primary: '#1a6fc4', text: '#e8f0fc', accent: '#003087' },
+  },
 ]
 
-const DARK_THEMES: ThemeName[] = ['default', 'dark-forest', 'dark-midnight']
+const DARK_THEMES: ThemeName[] = ['default', 'dark-forest', 'dark-midnight', 'dark-dodgers']
 const STORAGE_KEY = 'app_theme'
 
 // ── Context ───────────────────────────────────────────────────────────────────

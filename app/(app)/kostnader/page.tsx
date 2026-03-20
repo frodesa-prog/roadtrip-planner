@@ -34,6 +34,7 @@ const THEME_ACCENT: Record<ThemeName, string> = {
   'light-steel':   'text-blue-600',
   'dark-forest':   'text-green-400',
   'dark-midnight': 'text-violet-400',
+  'dark-dodgers':  'text-blue-400',
 }
 
 // ── Formattering ─────────────────────────────────────────────────────────────
