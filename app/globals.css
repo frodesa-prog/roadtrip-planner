@@ -512,6 +512,7 @@
 
 /* backgrounds — steel powder blue scale */
 [data-theme="light-steel"] .bg-slate-950 { background-color: hsl(218 32% 88%); }
+[data-theme="light-steel"] .bg-slate-950\/95 { background-color: hsl(218 32% 88% / 0.97); }
 [data-theme="light-steel"] .bg-slate-900 { background-color: hsl(218 40% 98%); }
 [data-theme="light-steel"] .bg-slate-800 { background-color: hsl(217 35% 92%); }
 [data-theme="light-steel"] .bg-slate-700 { background-color: hsl(217 30% 86%); }
