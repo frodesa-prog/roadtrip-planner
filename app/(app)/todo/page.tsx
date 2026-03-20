@@ -130,8 +130,8 @@ export default function TodoPage() {
                     🚗
                   </span>
                 </div>
-                {/* Progress bar */}
-                <div className="w-full bg-slate-800 rounded-full h-2">
+                {/* Progress bar — bg-slate-600 gives visible track in both dark and light themes */}
+                <div className="w-full bg-slate-600 rounded-full h-2">
                   <div
                     className="bg-blue-600 rounded-full h-2 transition-all duration-500"
                     style={{ width: `${pct}%` }}

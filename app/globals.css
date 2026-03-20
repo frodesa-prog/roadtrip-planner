@@ -232,12 +232,23 @@
 [data-theme="light-white"] .text-white                  { color: hsl(222 47% 10%); }
 [data-theme="light-white"] .hover\:text-white:hover     { color: hsl(222 47% 10%); }
 
-/* text */
+/* text — slate-500 set to 40% lightness for WCAG AA contrast on white */
 [data-theme="light-white"] .text-slate-100 { color: hsl(222 47% 10%); }
 [data-theme="light-white"] .text-slate-200 { color: hsl(215 35% 18%); }
 [data-theme="light-white"] .text-slate-300 { color: hsl(215 28% 30%); }
-[data-theme="light-white"] .text-slate-400 { color: hsl(215 20% 42%); }
-[data-theme="light-white"] .text-slate-500 { color: hsl(215 15% 54%); }
+[data-theme="light-white"] .text-slate-400 { color: hsl(215 20% 38%); }
+[data-theme="light-white"] .text-slate-500 { color: hsl(215 18% 40%); }
+
+/* green accents — confirmed hotel, booked status */
+[data-theme="light-white"] .text-green-400           { color: hsl(142 62% 28%); }
+[data-theme="light-white"] .hover\:text-green-400:hover { color: hsl(142 62% 22%); }
+[data-theme="light-white"] .bg-green-900\/50          { background-color: hsl(142 50% 90%); }
+[data-theme="light-white"] .bg-green-900\/70          { background-color: hsl(142 50% 84%); }
+[data-theme="light-white"] .border-green-700\/50      { border-color: hsl(142 55% 38% / 0.5); }
+
+/* extra opacity variants — todo completed items etc. */
+[data-theme="light-white"] .bg-slate-900\/20    { background-color: hsl(0 0% 100% / 0.2); }
+[data-theme="light-white"] .border-slate-800\/40 { border-color: hsl(214 25% 84% / 0.45); }
 
 /* borders */
 [data-theme="light-white"] .border-slate-900 { border-color: hsl(214 28% 86%); }
@@ -291,8 +302,19 @@
 [data-theme="light-ocean"] .text-slate-100 { color: hsl(202 70% 12%); }
 [data-theme="light-ocean"] .text-slate-200 { color: hsl(202 60% 18%); }
 [data-theme="light-ocean"] .text-slate-300 { color: hsl(202 50% 28%); }
-[data-theme="light-ocean"] .text-slate-400 { color: hsl(200 40% 38%); }
-[data-theme="light-ocean"] .text-slate-500 { color: hsl(200 30% 50%); }
+[data-theme="light-ocean"] .text-slate-400 { color: hsl(200 40% 36%); }
+[data-theme="light-ocean"] .text-slate-500 { color: hsl(200 35% 38%); }
+
+/* green accents */
+[data-theme="light-ocean"] .text-green-400           { color: hsl(142 58% 26%); }
+[data-theme="light-ocean"] .hover\:text-green-400:hover { color: hsl(142 58% 20%); }
+[data-theme="light-ocean"] .bg-green-900\/50          { background-color: hsl(142 45% 88%); }
+[data-theme="light-ocean"] .bg-green-900\/70          { background-color: hsl(142 45% 82%); }
+[data-theme="light-ocean"] .border-green-700\/50      { border-color: hsl(142 50% 36% / 0.5); }
+
+/* extra opacity variants */
+[data-theme="light-ocean"] .bg-slate-900\/20    { background-color: hsl(200 55% 97% / 0.2); }
+[data-theme="light-ocean"] .border-slate-800\/40 { border-color: hsl(198 38% 78% / 0.45); }
 
 [data-theme="light-ocean"] .border-slate-900 { border-color: hsl(198 40% 82%); }
 [data-theme="light-ocean"] .border-slate-800 { border-color: hsl(198 38% 78%); }
@@ -343,8 +365,19 @@
 [data-theme="light-sunset"] .text-slate-100 { color: hsl(20 60% 12%); }
 [data-theme="light-sunset"] .text-slate-200 { color: hsl(20 50% 20%); }
 [data-theme="light-sunset"] .text-slate-300 { color: hsl(20 42% 30%); }
-[data-theme="light-sunset"] .text-slate-400 { color: hsl(20 32% 44%); }
-[data-theme="light-sunset"] .text-slate-500 { color: hsl(20 22% 58%); }
+[data-theme="light-sunset"] .text-slate-400 { color: hsl(20 32% 38%); }
+[data-theme="light-sunset"] .text-slate-500 { color: hsl(20 25% 40%); }
+
+/* green accents */
+[data-theme="light-sunset"] .text-green-400           { color: hsl(142 55% 26%); }
+[data-theme="light-sunset"] .hover\:text-green-400:hover { color: hsl(142 55% 20%); }
+[data-theme="light-sunset"] .bg-green-900\/50          { background-color: hsl(142 40% 88%); }
+[data-theme="light-sunset"] .bg-green-900\/70          { background-color: hsl(142 40% 82%); }
+[data-theme="light-sunset"] .border-green-700\/50      { border-color: hsl(142 48% 34% / 0.5); }
+
+/* extra opacity variants */
+[data-theme="light-sunset"] .bg-slate-900\/20    { background-color: hsl(36 90% 97% / 0.2); }
+[data-theme="light-sunset"] .border-slate-800\/40 { border-color: hsl(35 34% 78% / 0.45); }
 
 [data-theme="light-sunset"] .border-slate-900 { border-color: hsl(35 38% 82%); }
 [data-theme="light-sunset"] .border-slate-800 { border-color: hsl(35 34% 78%); }
