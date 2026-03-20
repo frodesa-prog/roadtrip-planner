@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
+import { useAppTheme, ThemeName } from '@/contexts/ThemeContext'
 import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
@@ -23,6 +24,17 @@ import {
   calcStopoverMinutes,
   formatDuration,
 } from '@/data/airports'
+
+// ── Fargeaksent per tema ──────────────────────────────────────────────────────
+const THEME_ACCENT: Record<ThemeName, string> = {
+  'default':       'text-green-400',
+  'light-white':   'text-blue-500',
+  'light-ocean':   'text-cyan-700',
+  'light-sunset':  'text-orange-600',
+  'light-steel':   'text-blue-600',
+  'dark-forest':   'text-green-400',
+  'dark-midnight': 'text-violet-400',
+}
 
 // ── Formattering ─────────────────────────────────────────────────────────────
 function fmt(n: number): string {
@@ -755,6 +767,8 @@ function ParkingModal({
 
 // ══════════════════════════════════════════════════════════════════════════════
 export default function KostnaderPage() {
+  const { theme } = useAppTheme()
+  const accentClass = THEME_ACCENT[theme] ?? 'text-green-400'
   const { trips, currentTrip, loading: tripsLoading, setCurrentTrip } = useTrips()
   const { stops, loading: stopsLoading } = useStops(currentTrip?.id ?? null)
 
@@ -848,13 +862,13 @@ export default function KostnaderPage() {
       {/* ── Toppbar ──────────────────────────────────────────────────────── */}
       <div className="flex-shrink-0 border-b border-slate-800 bg-slate-900 px-4 py-2 flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <Receipt className="w-4 h-4 text-green-400" />
+          <Receipt className={`w-4 h-4 ${accentClass}`} />
           <h1 className="text-sm font-bold text-white">Kostnader</h1>
         </div>
 
         {currentTrip && !loading && (
           <div className="flex items-center gap-2 ml-1">
-            <span className="text-sm font-extrabold text-green-400 tabular-nums">
+            <span className={`text-sm font-extrabold tabular-nums ${accentClass}`}>
               {fmt(grandTotal)} kr
             </span>
             {grandRemaining > 0 && (
