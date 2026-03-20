@@ -215,9 +215,22 @@
 [data-theme="light-white"] .bg-slate-600 { background-color: hsl(215 20% 86%); }
 [data-theme="light-white"] .bg-slate-500 { background-color: hsl(215 15% 80%); }
 [data-theme="light-white"] .bg-slate-400 { background-color: hsl(215 12% 72%); }
-/* opacity variants */
-[data-theme="light-white"] .bg-slate-900\/50 { background-color: hsl(0 0% 100% / 0.6); }
-[data-theme="light-white"] .bg-slate-800\/50 { background-color: hsl(210 20% 97% / 0.7); }
+/* opacity variants — all slate-900 → white, slate-800 → off-white */
+[data-theme="light-white"] .bg-slate-900\/95 { background-color: hsl(0 0% 100% / 0.97); }
+[data-theme="light-white"] .bg-slate-900\/80 { background-color: hsl(0 0% 100% / 0.85); }
+[data-theme="light-white"] .bg-slate-900\/60 { background-color: hsl(0 0% 100% / 0.65); }
+[data-theme="light-white"] .bg-slate-900\/50 { background-color: hsl(0 0% 100% / 0.60); }
+[data-theme="light-white"] .bg-slate-800\/80 { background-color: hsl(210 20% 97% / 0.85); }
+[data-theme="light-white"] .bg-slate-800\/70 { background-color: hsl(210 20% 97% / 0.75); }
+[data-theme="light-white"] .bg-slate-800\/60 { background-color: hsl(210 20% 97% / 0.65); }
+[data-theme="light-white"] .bg-slate-800\/50 { background-color: hsl(210 20% 97% / 0.60); }
+[data-theme="light-white"] .bg-slate-800\/40 { background-color: hsl(210 20% 97% / 0.45); }
+[data-theme="light-white"] .bg-slate-800\/30 { background-color: hsl(210 20% 97% / 0.35); }
+[data-theme="light-white"] .bg-slate-700\/60 { background-color: hsl(214 25% 92% / 0.65); }
+[data-theme="light-white"] .bg-slate-700\/50 { background-color: hsl(214 25% 92% / 0.55); }
+/* text-white → dark in light themes */
+[data-theme="light-white"] .text-white                  { color: hsl(222 47% 10%); }
+[data-theme="light-white"] .hover\:text-white:hover     { color: hsl(222 47% 10%); }
 
 /* text */
 [data-theme="light-white"] .text-slate-100 { color: hsl(222 47% 10%); }
@@ -231,6 +244,8 @@
 [data-theme="light-white"] .border-slate-800 { border-color: hsl(214 25% 84%); }
 [data-theme="light-white"] .border-slate-700 { border-color: hsl(214 22% 78%); }
 [data-theme="light-white"] .border-slate-600 { border-color: hsl(214 18% 70%); }
+[data-theme="light-white"] .border-slate-700\/50 { border-color: hsl(214 22% 78% / 0.6); }
+[data-theme="light-white"] .border-slate-700\/60 { border-color: hsl(214 22% 78% / 0.7); }
 
 /* hover states */
 [data-theme="light-white"] .hover\:bg-slate-900:hover { background-color: hsl(210 20% 98%); }
@@ -258,8 +273,20 @@
 [data-theme="light-ocean"] .bg-slate-700 { background-color: hsl(197 50% 91%); }
 [data-theme="light-ocean"] .bg-slate-600 { background-color: hsl(197 40% 84%); }
 [data-theme="light-ocean"] .bg-slate-500 { background-color: hsl(198 35% 77%); }
-[data-theme="light-ocean"] .bg-slate-900\/50 { background-color: hsl(200 55% 97% / 0.6); }
-[data-theme="light-ocean"] .bg-slate-800\/50 { background-color: hsl(198 60% 98% / 0.7); }
+[data-theme="light-ocean"] .bg-slate-900\/95 { background-color: hsl(200 55% 97% / 0.97); }
+[data-theme="light-ocean"] .bg-slate-900\/80 { background-color: hsl(200 55% 97% / 0.85); }
+[data-theme="light-ocean"] .bg-slate-900\/60 { background-color: hsl(200 55% 97% / 0.65); }
+[data-theme="light-ocean"] .bg-slate-900\/50 { background-color: hsl(200 55% 97% / 0.60); }
+[data-theme="light-ocean"] .bg-slate-800\/80 { background-color: hsl(198 60% 98% / 0.85); }
+[data-theme="light-ocean"] .bg-slate-800\/70 { background-color: hsl(198 60% 98% / 0.75); }
+[data-theme="light-ocean"] .bg-slate-800\/60 { background-color: hsl(198 60% 98% / 0.65); }
+[data-theme="light-ocean"] .bg-slate-800\/50 { background-color: hsl(198 60% 98% / 0.60); }
+[data-theme="light-ocean"] .bg-slate-800\/40 { background-color: hsl(198 60% 98% / 0.45); }
+[data-theme="light-ocean"] .bg-slate-800\/30 { background-color: hsl(198 60% 98% / 0.35); }
+[data-theme="light-ocean"] .bg-slate-700\/60 { background-color: hsl(197 50% 91% / 0.65); }
+[data-theme="light-ocean"] .bg-slate-700\/50 { background-color: hsl(197 50% 91% / 0.55); }
+[data-theme="light-ocean"] .text-white                { color: hsl(202 70% 12%); }
+[data-theme="light-ocean"] .hover\:text-white:hover   { color: hsl(202 70% 12%); }
 
 [data-theme="light-ocean"] .text-slate-100 { color: hsl(202 70% 12%); }
 [data-theme="light-ocean"] .text-slate-200 { color: hsl(202 60% 18%); }
@@ -271,6 +298,8 @@
 [data-theme="light-ocean"] .border-slate-800 { border-color: hsl(198 38% 78%); }
 [data-theme="light-ocean"] .border-slate-700 { border-color: hsl(198 35% 72%); }
 [data-theme="light-ocean"] .border-slate-600 { border-color: hsl(198 30% 65%); }
+[data-theme="light-ocean"] .border-slate-700\/50 { border-color: hsl(198 35% 72% / 0.6); }
+[data-theme="light-ocean"] .border-slate-700\/60 { border-color: hsl(198 35% 72% / 0.7); }
 
 [data-theme="light-ocean"] .hover\:bg-slate-900:hover { background-color: hsl(200 55% 96%); }
 [data-theme="light-ocean"] .hover\:bg-slate-800:hover { background-color: hsl(198 55% 94%); }
@@ -296,8 +325,20 @@
 [data-theme="light-sunset"] .bg-slate-700 { background-color: hsl(35 60% 91%); }
 [data-theme="light-sunset"] .bg-slate-600 { background-color: hsl(35 50% 84%); }
 [data-theme="light-sunset"] .bg-slate-500 { background-color: hsl(35 40% 77%); }
-[data-theme="light-sunset"] .bg-slate-900\/50 { background-color: hsl(36 90% 97% / 0.6); }
-[data-theme="light-sunset"] .bg-slate-800\/50 { background-color: hsl(36 80% 98% / 0.7); }
+[data-theme="light-sunset"] .bg-slate-900\/95 { background-color: hsl(36 90% 97% / 0.97); }
+[data-theme="light-sunset"] .bg-slate-900\/80 { background-color: hsl(36 90% 97% / 0.85); }
+[data-theme="light-sunset"] .bg-slate-900\/60 { background-color: hsl(36 90% 97% / 0.65); }
+[data-theme="light-sunset"] .bg-slate-900\/50 { background-color: hsl(36 90% 97% / 0.60); }
+[data-theme="light-sunset"] .bg-slate-800\/80 { background-color: hsl(36 80% 98% / 0.85); }
+[data-theme="light-sunset"] .bg-slate-800\/70 { background-color: hsl(36 80% 98% / 0.75); }
+[data-theme="light-sunset"] .bg-slate-800\/60 { background-color: hsl(36 80% 98% / 0.65); }
+[data-theme="light-sunset"] .bg-slate-800\/50 { background-color: hsl(36 80% 98% / 0.60); }
+[data-theme="light-sunset"] .bg-slate-800\/40 { background-color: hsl(36 80% 98% / 0.45); }
+[data-theme="light-sunset"] .bg-slate-800\/30 { background-color: hsl(36 80% 98% / 0.35); }
+[data-theme="light-sunset"] .bg-slate-700\/60 { background-color: hsl(35 60% 91% / 0.65); }
+[data-theme="light-sunset"] .bg-slate-700\/50 { background-color: hsl(35 60% 91% / 0.55); }
+[data-theme="light-sunset"] .text-white                { color: hsl(20 60% 12%); }
+[data-theme="light-sunset"] .hover\:text-white:hover   { color: hsl(20 60% 12%); }
 
 [data-theme="light-sunset"] .text-slate-100 { color: hsl(20 60% 12%); }
 [data-theme="light-sunset"] .text-slate-200 { color: hsl(20 50% 20%); }
@@ -309,6 +350,8 @@
 [data-theme="light-sunset"] .border-slate-800 { border-color: hsl(35 34% 78%); }
 [data-theme="light-sunset"] .border-slate-700 { border-color: hsl(35 28% 72%); }
 [data-theme="light-sunset"] .border-slate-600 { border-color: hsl(35 24% 65%); }
+[data-theme="light-sunset"] .border-slate-700\/50 { border-color: hsl(35 28% 72% / 0.6); }
+[data-theme="light-sunset"] .border-slate-700\/60 { border-color: hsl(35 28% 72% / 0.7); }
 
 [data-theme="light-sunset"] .hover\:bg-slate-900:hover { background-color: hsl(36 85% 96%); }
 [data-theme="light-sunset"] .hover\:bg-slate-800:hover { background-color: hsl(36 75% 94%); }
@@ -334,8 +377,20 @@
 [data-theme="dark-forest"] .bg-slate-700 { background-color: hsl(150 28% 14%); }
 [data-theme="dark-forest"] .bg-slate-600 { background-color: hsl(150 22% 20%); }
 [data-theme="dark-forest"] .bg-slate-500 { background-color: hsl(148 18% 28%); }
-[data-theme="dark-forest"] .bg-slate-900\/50 { background-color: hsl(155 40% 7% / 0.5); }
-[data-theme="dark-forest"] .bg-slate-800\/50 { background-color: hsl(153 35% 10% / 0.5); }
+[data-theme="dark-forest"] .bg-slate-900\/95 { background-color: hsl(155 40% 7% / 0.97); }
+[data-theme="dark-forest"] .bg-slate-900\/80 { background-color: hsl(155 40% 7% / 0.85); }
+[data-theme="dark-forest"] .bg-slate-900\/60 { background-color: hsl(155 40% 7% / 0.65); }
+[data-theme="dark-forest"] .bg-slate-900\/50 { background-color: hsl(155 40% 7% / 0.55); }
+[data-theme="dark-forest"] .bg-slate-800\/80 { background-color: hsl(153 35% 10% / 0.85); }
+[data-theme="dark-forest"] .bg-slate-800\/70 { background-color: hsl(153 35% 10% / 0.75); }
+[data-theme="dark-forest"] .bg-slate-800\/60 { background-color: hsl(153 35% 10% / 0.65); }
+[data-theme="dark-forest"] .bg-slate-800\/50 { background-color: hsl(153 35% 10% / 0.55); }
+[data-theme="dark-forest"] .bg-slate-800\/40 { background-color: hsl(153 35% 10% / 0.45); }
+[data-theme="dark-forest"] .bg-slate-800\/30 { background-color: hsl(153 35% 10% / 0.35); }
+[data-theme="dark-forest"] .bg-slate-700\/60 { background-color: hsl(150 28% 14% / 0.65); }
+[data-theme="dark-forest"] .bg-slate-700\/50 { background-color: hsl(150 28% 14% / 0.55); }
+[data-theme="dark-forest"] .border-slate-700\/50 { border-color: hsl(150 25% 18% / 0.6); }
+[data-theme="dark-forest"] .border-slate-700\/60 { border-color: hsl(150 25% 18% / 0.7); }
 
 [data-theme="dark-forest"] .text-slate-100 { color: hsl(140 20% 92%); }
 [data-theme="dark-forest"] .text-slate-200 { color: hsl(140 16% 84%); }
@@ -375,8 +430,20 @@
 [data-theme="dark-midnight"] .bg-slate-700 { background-color: hsl(262 32% 15%); }
 [data-theme="dark-midnight"] .bg-slate-600 { background-color: hsl(260 25% 22%); }
 [data-theme="dark-midnight"] .bg-slate-500 { background-color: hsl(258 20% 30%); }
-[data-theme="dark-midnight"] .bg-slate-900\/50 { background-color: hsl(265 45% 7% / 0.5); }
-[data-theme="dark-midnight"] .bg-slate-800\/50 { background-color: hsl(265 40% 10% / 0.5); }
+[data-theme="dark-midnight"] .bg-slate-900\/95 { background-color: hsl(265 45% 7% / 0.97); }
+[data-theme="dark-midnight"] .bg-slate-900\/80 { background-color: hsl(265 45% 7% / 0.85); }
+[data-theme="dark-midnight"] .bg-slate-900\/60 { background-color: hsl(265 45% 7% / 0.65); }
+[data-theme="dark-midnight"] .bg-slate-900\/50 { background-color: hsl(265 45% 7% / 0.55); }
+[data-theme="dark-midnight"] .bg-slate-800\/80 { background-color: hsl(265 40% 10% / 0.85); }
+[data-theme="dark-midnight"] .bg-slate-800\/70 { background-color: hsl(265 40% 10% / 0.75); }
+[data-theme="dark-midnight"] .bg-slate-800\/60 { background-color: hsl(265 40% 10% / 0.65); }
+[data-theme="dark-midnight"] .bg-slate-800\/50 { background-color: hsl(265 40% 10% / 0.55); }
+[data-theme="dark-midnight"] .bg-slate-800\/40 { background-color: hsl(265 40% 10% / 0.45); }
+[data-theme="dark-midnight"] .bg-slate-800\/30 { background-color: hsl(265 40% 10% / 0.35); }
+[data-theme="dark-midnight"] .bg-slate-700\/60 { background-color: hsl(262 32% 15% / 0.65); }
+[data-theme="dark-midnight"] .bg-slate-700\/50 { background-color: hsl(262 32% 15% / 0.55); }
+[data-theme="dark-midnight"] .border-slate-700\/50 { border-color: hsl(260 28% 21% / 0.6); }
+[data-theme="dark-midnight"] .border-slate-700\/60 { border-color: hsl(260 28% 21% / 0.7); }
 
 [data-theme="dark-midnight"] .text-slate-100 { color: hsl(260 20% 94%); }
 [data-theme="dark-midnight"] .text-slate-200 { color: hsl(260 16% 86%); }
