@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id: data.id })
 }
 
-// ── PATCH – update deploy status (hook token OR admin session) ────────────────
+// ── PATCH – update deploy status and/or summary (hook token OR admin session) ─
 
 export async function PATCH(req: NextRequest) {
   const isHook = verifyToken(req)
@@ -85,13 +85,15 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json() as {
     id?: string
     session_id?: string
-    deploy_status: 'success' | 'failed' | 'none'
+    deploy_status?: 'success' | 'failed' | 'none'
     commit_hash?: string
     commit_message?: string
+    summary?: string
   }
 
-  if (!body.deploy_status) {
-    return NextResponse.json({ error: 'Missing deploy_status' }, { status: 400 })
+  // At least one update field must be present
+  if (!body.deploy_status && !body.summary) {
+    return NextResponse.json({ error: 'Missing deploy_status or summary' }, { status: 400 })
   }
 
   const admin = adminClient()
@@ -99,25 +101,34 @@ export async function PATCH(req: NextRequest) {
   // Find the entry: by id directly, or by most-recent entry for this session
   let entryId = body.id
   if (!entryId && body.session_id) {
-    const { data } = await admin
+    // For deploy status updates, prefer pending entries; for summary-only, accept any status
+    const query = admin
       .from('dev_log')
       .select('id')
       .eq('session_id', body.session_id)
-      .eq('deploy_status', 'pending')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+
+    if (body.deploy_status) {
+      // Only attach to a pending entry when updating deploy status
+      query.eq('deploy_status', 'pending')
+    }
+
+    const { data } = await query.single()
     entryId = data?.id
   }
 
   if (!entryId) return NextResponse.json({ error: 'Entry not found' }, { status: 404 })
 
-  const updates: Record<string, unknown> = {
-    deploy_status: body.deploy_status,
-    deployed_at: new Date().toISOString(),
+  const updates: Record<string, unknown> = {}
+
+  if (body.deploy_status) {
+    updates.deploy_status = body.deploy_status
+    updates.deployed_at = new Date().toISOString()
   }
-  if (body.commit_hash) updates.commit_hash = body.commit_hash
+  if (body.commit_hash)   updates.commit_hash    = body.commit_hash
   if (body.commit_message) updates.commit_message = body.commit_message
+  if (body.summary)       updates.summary        = body.summary
 
   const { error } = await admin.from('dev_log').update(updates).eq('id', entryId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

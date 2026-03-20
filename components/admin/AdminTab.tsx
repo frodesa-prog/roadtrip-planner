@@ -54,6 +54,7 @@ interface AdminStats {
 interface DevLogEntry {
   id: string
   prompt: string
+  summary: string | null
   created_at: string
   deploy_status: 'pending' | 'success' | 'failed' | 'none'
   commit_hash: string | null
@@ -598,7 +599,7 @@ export default function AdminTab() {
                         </p>
                         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                           <span className="text-[10px] text-slate-500">
-                            {new Date(entry.created_at).toLocaleString('nb-NO', {
+                            {new Date(entry.deployed_at ?? entry.created_at).toLocaleString('nb-NO', {
                               day: '2-digit', month: 'short', year: 'numeric',
                               hour: '2-digit', minute: '2-digit',
                             })}
@@ -628,32 +629,61 @@ export default function AdminTab() {
 
                     {/* Expanded detail */}
                     {isExpanded && (
-                      <div className="border-t border-slate-700/50 px-4 py-3 space-y-3 bg-slate-900/40">
+                      <div className="border-t border-slate-700/50 px-4 py-3 space-y-4 bg-slate-900/40">
+
+                        {/* Bestilling */}
                         <div>
-                          <p className="text-[10px] text-slate-500 mb-1.5 uppercase tracking-wide">Prompt</p>
+                          <p className="text-[10px] text-slate-500 mb-1.5 uppercase tracking-wide font-semibold">
+                            📝 Bestilling
+                          </p>
                           <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
                             {entry.prompt}
                           </p>
                         </div>
-                        {entry.commit_message && (
+
+                        {/* Claudes oppsummering */}
+                        {entry.summary ? (
                           <div>
-                            <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-wide">Commit-melding</p>
-                            <p className="text-xs text-slate-400 font-mono leading-relaxed">{entry.commit_message}</p>
+                            <p className="text-[10px] text-slate-500 mb-1.5 uppercase tracking-wide font-semibold">
+                              🤖 Claudes oppsummering
+                            </p>
+                            <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
+                              {entry.summary}
+                            </p>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-[10px] text-slate-500 mb-1.5 uppercase tracking-wide font-semibold">
+                              🤖 Claudes oppsummering
+                            </p>
+                            <p className="text-xs text-slate-600 italic">Ingen oppsummering registrert ennå.</p>
                           </div>
                         )}
-                        <div className="flex flex-wrap gap-4 text-[10px] text-slate-500">
-                          {entry.commit_hash && (
-                            <span>Hash: <span className="font-mono text-slate-400">{entry.commit_hash}</span></span>
-                          )}
+
+                        {/* Tidspunkt og commit-info */}
+                        <div className="pt-1 border-t border-slate-800 space-y-1.5">
                           {entry.deployed_at && (
-                            <span>Deployet: <span className="text-slate-400">
-                              {new Date(entry.deployed_at).toLocaleString('nb-NO', {
-                                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-                              })}
-                            </span></span>
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <span className="text-slate-500">🕐 Fullført:</span>
+                              <span className="text-slate-300 font-medium">
+                                {new Date(entry.deployed_at).toLocaleString('nb-NO', {
+                                  day: '2-digit', month: 'long', year: 'numeric',
+                                  hour: '2-digit', minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
                           )}
-                          {entry.session_id && (
-                            <span>Sesjon: <span className="font-mono text-slate-400">{entry.session_id.slice(0, 8)}…</span></span>
+                          {entry.commit_message && (
+                            <div className="flex items-start gap-2 text-[11px]">
+                              <span className="text-slate-500 flex-shrink-0">📦 Commit:</span>
+                              <span className="text-slate-400 font-mono leading-relaxed">{entry.commit_message}</span>
+                            </div>
+                          )}
+                          {entry.commit_hash && (
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <span className="text-slate-500">#</span>
+                              <span className="font-mono text-slate-500">{entry.commit_hash}</span>
+                            </div>
                           )}
                         </div>
                       </div>
