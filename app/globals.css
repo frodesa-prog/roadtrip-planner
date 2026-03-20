@@ -125,6 +125,30 @@
     --page-bg: 35 55% 88%;
   }
 
+  /* ── Stålblå (light steel blue) ─────────────────────────────────────────── */
+  [data-theme="light-steel"] {
+    --background: 218 38% 96%;
+    --foreground: 220 45% 10%;
+    --card: 218 40% 98%;
+    --card-foreground: 220 45% 10%;
+    --popover: 218 38% 96%;
+    --popover-foreground: 220 45% 10%;
+    --primary: 214 62% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 216 32% 88%;
+    --secondary-foreground: 220 45% 10%;
+    --muted: 216 28% 90%;
+    --muted-foreground: 218 22% 40%;
+    --accent: 214 50% 86%;
+    --accent-foreground: 214 62% 28%;
+    --destructive: 0 75% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 216 28% 80%;
+    --input: 216 28% 80%;
+    --ring: 214 62% 38%;
+    --page-bg: 218 32% 88%;
+  }
+
   /* ── Mørk skog (dark forest) ────────────────────────────────────────────── */
   [data-theme="dark-forest"] {
     --background: 155 40% 7%;
@@ -483,6 +507,103 @@
 [data-theme="light-sunset"] .border-amber-600     { border-color: hsl(35 85% 32%); }
 [data-theme="light-sunset"] .border-amber-600\/50 { border-color: hsl(35 85% 32% / 0.55); }
 [data-theme="light-sunset"] .border-amber-700\/30 { border-color: hsl(33 80% 28% / 0.40); }
+
+/* ── light-steel ─────────────────────────────────────────────────────────── */
+
+/* backgrounds — steel powder blue scale */
+[data-theme="light-steel"] .bg-slate-950 { background-color: hsl(218 32% 88%); }
+[data-theme="light-steel"] .bg-slate-900 { background-color: hsl(218 40% 98%); }
+[data-theme="light-steel"] .bg-slate-800 { background-color: hsl(217 35% 92%); }
+[data-theme="light-steel"] .bg-slate-700 { background-color: hsl(217 30% 86%); }
+[data-theme="light-steel"] .bg-slate-600 { background-color: hsl(216 25% 79%); }
+[data-theme="light-steel"] .bg-slate-500 { background-color: hsl(216 20% 72%); }
+[data-theme="light-steel"] .bg-slate-400 { background-color: hsl(216 16% 63%); }
+/* opacity variants */
+[data-theme="light-steel"] .bg-slate-900\/95 { background-color: hsl(218 40% 98% / 0.97); }
+[data-theme="light-steel"] .bg-slate-900\/80 { background-color: hsl(218 40% 98% / 0.85); }
+[data-theme="light-steel"] .bg-slate-900\/60 { background-color: hsl(218 40% 98% / 0.65); }
+[data-theme="light-steel"] .bg-slate-900\/50 { background-color: hsl(218 40% 98% / 0.60); }
+[data-theme="light-steel"] .bg-slate-900\/20 { background-color: hsl(218 40% 98% / 0.20); }
+[data-theme="light-steel"] .bg-slate-800\/80 { background-color: hsl(217 35% 92% / 0.88); }
+[data-theme="light-steel"] .bg-slate-800\/70 { background-color: hsl(217 35% 92% / 0.80); }
+[data-theme="light-steel"] .bg-slate-800\/60 { background-color: hsl(217 35% 92% / 0.72); }
+[data-theme="light-steel"] .bg-slate-800\/50 { background-color: hsl(217 35% 92% / 0.65); }
+[data-theme="light-steel"] .bg-slate-800\/40 { background-color: hsl(217 35% 92% / 0.55); }
+[data-theme="light-steel"] .bg-slate-800\/30 { background-color: hsl(217 35% 92% / 0.40); }
+[data-theme="light-steel"] .bg-slate-700\/60 { background-color: hsl(217 30% 86% / 0.68); }
+[data-theme="light-steel"] .bg-slate-700\/50 { background-color: hsl(217 30% 86% / 0.58); }
+
+/* text — dark navy on light blue */
+[data-theme="light-steel"] .text-white                  { color: hsl(220 45% 10%); }
+[data-theme="light-steel"] .hover\:text-white:hover     { color: hsl(220 45% 10%); }
+[data-theme="light-steel"] .text-slate-100 { color: hsl(220 45% 10%); }
+[data-theme="light-steel"] .text-slate-200 { color: hsl(218 38% 17%); }
+[data-theme="light-steel"] .text-slate-300 { color: hsl(218 30% 28%); }
+[data-theme="light-steel"] .text-slate-400 { color: hsl(218 22% 38%); }
+[data-theme="light-steel"] .text-slate-500 { color: hsl(218 20% 40%); }
+
+/* hover text */
+[data-theme="light-steel"] .hover\:text-slate-100:hover { color: hsl(220 45% 8%); }
+[data-theme="light-steel"] .hover\:text-slate-200:hover { color: hsl(218 38% 14%); }
+[data-theme="light-steel"] .hover\:text-slate-300:hover { color: hsl(218 30% 24%); }
+
+/* borders */
+[data-theme="light-steel"] .border-slate-900 { border-color: hsl(217 32% 84%); }
+[data-theme="light-steel"] .border-slate-800 { border-color: hsl(217 28% 80%); }
+[data-theme="light-steel"] .border-slate-700 { border-color: hsl(216 24% 74%); }
+[data-theme="light-steel"] .border-slate-600 { border-color: hsl(216 20% 67%); }
+[data-theme="light-steel"] .border-slate-700\/50 { border-color: hsl(216 24% 74% / 0.60); }
+[data-theme="light-steel"] .border-slate-700\/60 { border-color: hsl(216 24% 74% / 0.70); }
+[data-theme="light-steel"] .border-slate-800\/40 { border-color: hsl(217 28% 80% / 0.50); }
+
+/* hover backgrounds */
+[data-theme="light-steel"] .hover\:bg-slate-900:hover { background-color: hsl(218 40% 97%); }
+[data-theme="light-steel"] .hover\:bg-slate-800:hover { background-color: hsl(217 38% 95%); }
+[data-theme="light-steel"] .hover\:bg-slate-700:hover { background-color: hsl(217 32% 89%); }
+
+/* green accents */
+[data-theme="light-steel"] .text-green-400           { color: hsl(142 60% 26%); }
+[data-theme="light-steel"] .hover\:text-green-400:hover { color: hsl(142 60% 20%); }
+[data-theme="light-steel"] .bg-green-900\/50          { background-color: hsl(142 45% 88%); }
+[data-theme="light-steel"] .bg-green-900\/70          { background-color: hsl(142 45% 82%); }
+[data-theme="light-steel"] .border-green-700\/50      { border-color: hsl(142 52% 35% / 0.50); }
+
+/* primary blue — steel blue, clearly readable on powder blue bg */
+[data-theme="light-steel"] .bg-blue-600        { background-color: hsl(214 62% 38%); }
+[data-theme="light-steel"] .bg-blue-500        { background-color: hsl(214 62% 44%); }
+[data-theme="light-steel"] .bg-blue-700        { background-color: hsl(216 62% 32%); }
+[data-theme="light-steel"] .bg-blue-950\/40    { background-color: hsl(214 62% 38% / 0.10); }
+[data-theme="light-steel"] .bg-blue-600\/30    { background-color: hsl(214 62% 38% / 0.18); }
+[data-theme="light-steel"] .bg-blue-600\/20    { background-color: hsl(214 62% 38% / 0.13); }
+[data-theme="light-steel"] .bg-blue-600\/10    { background-color: hsl(214 62% 38% / 0.08); }
+[data-theme="light-steel"] .bg-blue-500\/20    { background-color: hsl(214 62% 44% / 0.13); }
+[data-theme="light-steel"] .hover\:bg-blue-500:hover { background-color: hsl(214 62% 44%); }
+[data-theme="light-steel"] .hover\:bg-blue-600:hover { background-color: hsl(216 62% 32%); }
+/* gradient — TripManager header */
+[data-theme="light-steel"] .from-blue-700     { --tw-gradient-from: hsl(214 62% 36%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(214 62% 36% / 0) var(--tw-gradient-to-position); }
+[data-theme="light-steel"] .to-blue-800       { --tw-gradient-to: hsl(218 62% 28%) var(--tw-gradient-to-position); }
+[data-theme="light-steel"] .hover\:from-blue-800:hover { --tw-gradient-from: hsl(218 62% 28%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(218 62% 28% / 0) var(--tw-gradient-to-position); }
+[data-theme="light-steel"] .hover\:to-blue-900:hover   { --tw-gradient-to: hsl(222 60% 22%) var(--tw-gradient-to-position); }
+[data-theme="light-steel"] .text-blue-400  { color: hsl(214 62% 36%); }
+[data-theme="light-steel"] .text-blue-300  { color: hsl(214 62% 40%); }
+[data-theme="light-steel"] .text-blue-500  { color: hsl(216 62% 30%); }
+[data-theme="light-steel"] .border-blue-500      { border-color: hsl(214 62% 40%); }
+[data-theme="light-steel"] .border-blue-500\/30  { border-color: hsl(214 62% 40% / 0.50); }
+[data-theme="light-steel"] .border-blue-600\/50  { border-color: hsl(214 62% 38% / 0.60); }
+/* amber accents — cost page */
+[data-theme="light-steel"] .text-amber-300       { color: hsl(38 90% 30%); }
+[data-theme="light-steel"] .text-amber-400       { color: hsl(35 90% 32%); }
+[data-theme="light-steel"] .text-amber-500       { color: hsl(33 88% 28%); }
+[data-theme="light-steel"] .text-amber-400\/70   { color: hsl(35 90% 32% / 0.85); }
+[data-theme="light-steel"] .text-amber-400\/50   { color: hsl(35 90% 32% / 0.70); }
+[data-theme="light-steel"] .text-amber-500\/70   { color: hsl(33 88% 28% / 0.85); }
+[data-theme="light-steel"] .bg-amber-900\/20     { background-color: hsl(38 80% 92%); }
+[data-theme="light-steel"] .bg-amber-900\/40     { background-color: hsl(38 80% 88%); }
+[data-theme="light-steel"] .bg-amber-900\/60     { background-color: hsl(38 80% 82%); }
+[data-theme="light-steel"] .border-amber-500     { border-color: hsl(38 85% 40%); }
+[data-theme="light-steel"] .border-amber-600     { border-color: hsl(35 85% 34%); }
+[data-theme="light-steel"] .border-amber-600\/50 { border-color: hsl(35 85% 34% / 0.55); }
+[data-theme="light-steel"] .border-amber-700\/30 { border-color: hsl(33 80% 28% / 0.40); }
 
 /* ── dark-forest ─────────────────────────────────────────────────────────── */
 

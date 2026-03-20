@@ -25,6 +25,7 @@ const THEME_GRADIENT: Record<ThemeName, string> = {
   'light-white':    'bg-gradient-to-r from-indigo-600  to-indigo-700  hover:from-indigo-700  hover:to-indigo-800',
   'light-ocean':    'bg-gradient-to-r from-cyan-700    to-cyan-800    hover:from-cyan-800    hover:to-cyan-900',
   'light-sunset':   'bg-gradient-to-r from-orange-600  to-orange-700  hover:from-orange-700  hover:to-orange-800',
+  'light-steel':    'bg-gradient-to-r from-blue-700    to-blue-800    hover:from-blue-800    hover:to-blue-900',
   'dark-forest':    'bg-gradient-to-r from-emerald-800 to-emerald-900 hover:from-emerald-900 hover:to-green-950',
   'dark-midnight':  'bg-gradient-to-r from-violet-800  to-violet-900  hover:from-violet-900  hover:to-purple-950',
 }

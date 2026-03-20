@@ -9,6 +9,7 @@ export type ThemeName =
   | 'light-white'
   | 'light-ocean'
   | 'light-sunset'
+  | 'light-steel'
   | 'dark-forest'
   | 'dark-midnight'
 
@@ -49,6 +50,12 @@ export const THEMES: ThemeConfig[] = [
     name: 'Solnedgang',
     type: 'light',
     preview: { bg: '#fef1e2', card: '#fffaf3', primary: '#ea6c00', text: '#3b1500', accent: '#fed7aa' },
+  },
+  {
+    id: 'light-steel',
+    name: 'Stålblå',
+    type: 'light',
+    preview: { bg: '#dde6f4', card: '#f0f5fc', primary: '#2f6eb5', text: '#0d1f38', accent: '#c0d4ed' },
   },
   {
     id: 'dark-forest',
