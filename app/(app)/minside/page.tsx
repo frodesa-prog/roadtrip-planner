@@ -1459,7 +1459,7 @@ export default function MinSidePage() {
                 activeTab === id
                   ? id === 'admin'
                     ? 'bg-rose-500/10 text-rose-300'
-                    : 'bg-slate-800 text-white'
+                    : 'bg-slate-800 text-slate-100'
                   : id === 'admin'
                     ? 'text-rose-400/70 hover:bg-rose-500/5 hover:text-rose-300'
                     : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'

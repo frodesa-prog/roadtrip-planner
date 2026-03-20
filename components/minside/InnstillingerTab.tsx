@@ -28,7 +28,7 @@ function ThemeCard({
       }`}
       title={name}
     >
-      {/* Colour preview */}
+      {/* Colour preview — all inline styles to show the target theme, not the current */}
       <div
         className="w-full h-28 flex flex-col gap-1 p-2"
         style={{ backgroundColor: preview.bg }}
@@ -111,20 +111,21 @@ export default function InnstillingerTab() {
   return (
     <div className="max-w-2xl space-y-8">
       <div>
-        <h2 className="text-lg font-semibold text-slate-100 mb-0.5">Innstillinger</h2>
-        <p className="text-sm text-slate-400">Tilpass utseendet på appen etter dine preferanser.</p>
+        {/* Use CSS-variable-based classes for automatic contrast in all themes */}
+        <h2 className="text-lg font-semibold text-foreground mb-0.5">Innstillinger</h2>
+        <p className="text-sm text-muted-foreground">Tilpass utseendet på appen etter dine preferanser.</p>
       </div>
 
       {/* ── Appearance section ─────────────────────────────────────────────── */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <div className="w-px h-4 bg-primary/60 rounded-full" />
-          <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wide">Fargetema</h3>
+          <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wide">Fargetema</h3>
         </div>
 
         {/* Dark themes */}
         <div className="mb-5">
-          <p className="text-xs text-slate-500 mb-2.5 flex items-center gap-1.5">
+          <p className="text-xs text-muted-foreground mb-2.5 flex items-center gap-1.5">
             <Moon className="w-3 h-3" /> Mørke temaer
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -141,7 +142,7 @@ export default function InnstillingerTab() {
 
         {/* Light themes */}
         <div>
-          <p className="text-xs text-slate-500 mb-2.5 flex items-center gap-1.5">
+          <p className="text-xs text-muted-foreground mb-2.5 flex items-center gap-1.5">
             <Sun className="w-3 h-3" /> Lyse temaer
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -156,7 +157,7 @@ export default function InnstillingerTab() {
           </div>
         </div>
 
-        <p className="mt-4 text-xs text-slate-500">
+        <p className="mt-4 text-xs text-muted-foreground/70">
           Valgt tema lagres automatisk i nettleseren og huskes til neste besøk.
         </p>
       </section>
