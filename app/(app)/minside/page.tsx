@@ -15,6 +15,7 @@ import { TRAVEL_INTERESTS, parseInterests, serializeInterests } from '@/lib/trav
 import { PackingCategory, DocumentType, ActivityLogEntry } from '@/types'
 import { toast } from 'sonner'
 import AdminTab from '@/components/admin/AdminTab'
+import InnstillingerTab from '@/components/minside/InnstillingerTab'
 import {
   User,
   Share2,
@@ -24,6 +25,7 @@ import {
   Luggage,
   Settings2,
   ShieldCheck,
+  SlidersHorizontal,
   Eye,
   EyeOff,
   Plus,
@@ -74,13 +76,14 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
 // ── Tab definitions ────────────────────────────────────────────────────────────
 
 const BASE_TABS = [
-  { id: 'profil',       label: 'Profil',            icon: User },
-  { id: 'del',          label: 'Del ferie',          icon: Share2 },
-  { id: 'logg',         label: 'Endringslogg',       icon: ClipboardList },
-  { id: 'statistikk',   label: 'Statistikk',         icon: BarChart2 },
-  { id: 'dokumenter',   label: 'Dokumentarkiv',      icon: FolderOpen },
-  { id: 'pakkeliste',   label: 'Standard pakkeliste', icon: Luggage },
-  { id: 'preferanser',  label: 'Preferanser',        icon: Settings2 },
+  { id: 'profil',          label: 'Profil',            icon: User },
+  { id: 'del',             label: 'Del ferie',          icon: Share2 },
+  { id: 'logg',            label: 'Endringslogg',       icon: ClipboardList },
+  { id: 'statistikk',      label: 'Statistikk',         icon: BarChart2 },
+  { id: 'dokumenter',      label: 'Dokumentarkiv',      icon: FolderOpen },
+  { id: 'pakkeliste',      label: 'Standard pakkeliste', icon: Luggage },
+  { id: 'preferanser',     label: 'Preferanser',        icon: Settings2 },
+  { id: 'innstillinger',   label: 'Innstillinger',      icon: SlidersHorizontal },
 ] as const
 
 const ADMIN_TAB = { id: 'admin', label: 'Admin', icon: ShieldCheck } as const
@@ -1425,13 +1428,14 @@ export default function MinSidePage() {
       case 'statistikk':  return <StatistikkTab />
       case 'dokumenter':  return <DokumentTab />
       case 'pakkeliste':  return <PakkelisteTab />
-      case 'preferanser': return <PreferanserTab />
-      case 'admin':       return isAdmin ? <AdminTab /> : null
+      case 'preferanser':    return <PreferanserTab />
+      case 'innstillinger': return <InnstillingerTab />
+      case 'admin':          return isAdmin ? <AdminTab /> : null
     }
   }
 
   return (
-    <div className="h-full flex flex-col md:flex-row bg-slate-950">
+    <div className="h-full flex flex-col md:flex-row bg-[hsl(var(--page-bg))]">
       {/* ── Desktop Sidebar ── */}
       <aside className="hidden md:flex w-52 flex-shrink-0 border-r border-slate-800 flex-col py-4">
         <div className="px-4 mb-4">
@@ -1469,7 +1473,7 @@ export default function MinSidePage() {
       </aside>
 
       {/* ── Mobil tab-bar ── */}
-      <div className="md:hidden flex border-b border-slate-800 overflow-x-auto flex-shrink-0 bg-slate-950">
+      <div className="md:hidden flex border-b border-slate-800 overflow-x-auto flex-shrink-0 bg-[hsl(var(--page-bg))]">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
