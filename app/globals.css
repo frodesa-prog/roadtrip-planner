@@ -210,24 +210,24 @@
 /* backgrounds */
 [data-theme="light-white"] .bg-slate-950 { background-color: hsl(210 25% 94%); }
 [data-theme="light-white"] .bg-slate-900 { background-color: hsl(0 0% 100%); }
-[data-theme="light-white"] .bg-slate-800 { background-color: hsl(210 20% 97%); }
-[data-theme="light-white"] .bg-slate-700 { background-color: hsl(214 25% 92%); }
-[data-theme="light-white"] .bg-slate-600 { background-color: hsl(215 20% 86%); }
-[data-theme="light-white"] .bg-slate-500 { background-color: hsl(215 15% 80%); }
-[data-theme="light-white"] .bg-slate-400 { background-color: hsl(215 12% 72%); }
-/* opacity variants — all slate-900 → white, slate-800 → off-white */
+[data-theme="light-white"] .bg-slate-800 { background-color: hsl(214 22% 94%); }
+[data-theme="light-white"] .bg-slate-700 { background-color: hsl(214 25% 88%); }
+[data-theme="light-white"] .bg-slate-600 { background-color: hsl(215 20% 82%); }
+[data-theme="light-white"] .bg-slate-500 { background-color: hsl(215 15% 74%); }
+[data-theme="light-white"] .bg-slate-400 { background-color: hsl(215 12% 65%); }
+/* opacity variants — all slate-900 → white, slate-800 → light gray */
 [data-theme="light-white"] .bg-slate-900\/95 { background-color: hsl(0 0% 100% / 0.97); }
 [data-theme="light-white"] .bg-slate-900\/80 { background-color: hsl(0 0% 100% / 0.85); }
 [data-theme="light-white"] .bg-slate-900\/60 { background-color: hsl(0 0% 100% / 0.65); }
 [data-theme="light-white"] .bg-slate-900\/50 { background-color: hsl(0 0% 100% / 0.60); }
-[data-theme="light-white"] .bg-slate-800\/80 { background-color: hsl(210 20% 97% / 0.85); }
-[data-theme="light-white"] .bg-slate-800\/70 { background-color: hsl(210 20% 97% / 0.75); }
-[data-theme="light-white"] .bg-slate-800\/60 { background-color: hsl(210 20% 97% / 0.65); }
-[data-theme="light-white"] .bg-slate-800\/50 { background-color: hsl(210 20% 97% / 0.60); }
-[data-theme="light-white"] .bg-slate-800\/40 { background-color: hsl(210 20% 97% / 0.45); }
-[data-theme="light-white"] .bg-slate-800\/30 { background-color: hsl(210 20% 97% / 0.35); }
-[data-theme="light-white"] .bg-slate-700\/60 { background-color: hsl(214 25% 92% / 0.65); }
-[data-theme="light-white"] .bg-slate-700\/50 { background-color: hsl(214 25% 92% / 0.55); }
+[data-theme="light-white"] .bg-slate-800\/80 { background-color: hsl(214 22% 94% / 0.88); }
+[data-theme="light-white"] .bg-slate-800\/70 { background-color: hsl(214 22% 94% / 0.80); }
+[data-theme="light-white"] .bg-slate-800\/60 { background-color: hsl(214 22% 94% / 0.72); }
+[data-theme="light-white"] .bg-slate-800\/50 { background-color: hsl(214 22% 94% / 0.70); }
+[data-theme="light-white"] .bg-slate-800\/40 { background-color: hsl(214 22% 94% / 0.55); }
+[data-theme="light-white"] .bg-slate-800\/30 { background-color: hsl(214 22% 94% / 0.40); }
+[data-theme="light-white"] .bg-slate-700\/60 { background-color: hsl(214 25% 88% / 0.68); }
+[data-theme="light-white"] .bg-slate-700\/50 { background-color: hsl(214 25% 88% / 0.58); }
 /* text-white → dark in light themes */
 [data-theme="light-white"] .text-white                  { color: hsl(222 47% 10%); }
 [data-theme="light-white"] .hover\:text-white:hover     { color: hsl(222 47% 10%); }
@@ -266,34 +266,61 @@
 [data-theme="light-white"] .hover\:text-slate-200:hover { color: hsl(215 35% 16%); }
 [data-theme="light-white"] .hover\:text-slate-300:hover { color: hsl(215 28% 26%); }
 
-/* blue accents on light — keep blue but darker/stronger */
-[data-theme="light-white"] .text-blue-400  { color: hsl(221 83% 40%); }
-[data-theme="light-white"] .text-blue-300  { color: hsl(213 97% 42%); }
-[data-theme="light-white"] .text-blue-500  { color: hsl(221 78% 34%); }
-[data-theme="light-white"] .border-blue-500 { border-color: hsl(221 83% 50%); }
-[data-theme="light-white"] .border-blue-500\/30 { border-color: hsl(221 83% 50% / 0.5); }
-[data-theme="light-white"] .bg-blue-600\/20  { background-color: hsl(221 83% 48% / 0.12); }
-[data-theme="light-white"] .bg-blue-600\/10  { background-color: hsl(221 83% 48% / 0.08); }
-[data-theme="light-white"] .border-blue-500\/30 { border-color: hsl(221 83% 48% / 0.5); }
+/* blue accents on light — modern indigo-blue, clearly readable */
+[data-theme="light-white"] .bg-blue-600        { background-color: hsl(228 72% 44%); }
+[data-theme="light-white"] .bg-blue-500        { background-color: hsl(228 72% 50%); }
+[data-theme="light-white"] .bg-blue-700        { background-color: hsl(228 72% 38%); }
+[data-theme="light-white"] .bg-blue-950\/40    { background-color: hsl(228 72% 44% / 0.10); }
+[data-theme="light-white"] .bg-blue-600\/30    { background-color: hsl(228 72% 44% / 0.18); }
+[data-theme="light-white"] .bg-blue-600\/20    { background-color: hsl(228 72% 44% / 0.12); }
+[data-theme="light-white"] .bg-blue-600\/10    { background-color: hsl(228 72% 44% / 0.08); }
+[data-theme="light-white"] .bg-blue-500\/20    { background-color: hsl(228 72% 50% / 0.12); }
+[data-theme="light-white"] .hover\:bg-blue-500:hover { background-color: hsl(228 72% 50%); }
+[data-theme="light-white"] .hover\:bg-blue-600:hover { background-color: hsl(228 72% 38%); }
+/* gradient stop overrides — TripManager header */
+[data-theme="light-white"] .from-blue-700     { --tw-gradient-from: hsl(228 72% 44%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(228 72% 44% / 0) var(--tw-gradient-to-position); }
+[data-theme="light-white"] .to-blue-800       { --tw-gradient-to: hsl(234 72% 36%) var(--tw-gradient-to-position); }
+[data-theme="light-white"] .hover\:from-blue-800:hover { --tw-gradient-from: hsl(234 72% 36%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(234 72% 36% / 0) var(--tw-gradient-to-position); }
+[data-theme="light-white"] .hover\:to-blue-900:hover   { --tw-gradient-to: hsl(238 70% 28%) var(--tw-gradient-to-position); }
+[data-theme="light-white"] .text-blue-400  { color: hsl(228 72% 40%); }
+[data-theme="light-white"] .text-blue-300  { color: hsl(228 72% 44%); }
+[data-theme="light-white"] .text-blue-500  { color: hsl(228 72% 34%); }
+[data-theme="light-white"] .border-blue-500      { border-color: hsl(228 72% 44%); }
+[data-theme="light-white"] .border-blue-500\/30  { border-color: hsl(228 72% 44% / 0.5); }
+[data-theme="light-white"] .border-blue-600\/50  { border-color: hsl(228 72% 44% / 0.6); }
+/* amber accents — cost page */
+[data-theme="light-white"] .text-amber-300       { color: hsl(38 90% 30%); }
+[data-theme="light-white"] .text-amber-400       { color: hsl(35 90% 32%); }
+[data-theme="light-white"] .text-amber-500       { color: hsl(33 88% 28%); }
+[data-theme="light-white"] .text-amber-400\/70   { color: hsl(35 90% 32% / 0.85); }
+[data-theme="light-white"] .text-amber-400\/50   { color: hsl(35 90% 32% / 0.70); }
+[data-theme="light-white"] .text-amber-500\/70   { color: hsl(33 88% 28% / 0.85); }
+[data-theme="light-white"] .bg-amber-900\/20     { background-color: hsl(38 80% 92%); }
+[data-theme="light-white"] .bg-amber-900\/40     { background-color: hsl(38 80% 88%); }
+[data-theme="light-white"] .bg-amber-900\/60     { background-color: hsl(38 80% 82%); }
+[data-theme="light-white"] .border-amber-500     { border-color: hsl(38 85% 42%); }
+[data-theme="light-white"] .border-amber-600     { border-color: hsl(35 85% 36%); }
+[data-theme="light-white"] .border-amber-600\/50 { border-color: hsl(35 85% 36% / 0.55); }
+[data-theme="light-white"] .border-amber-700\/30 { border-color: hsl(33 80% 30% / 0.40); }
 
 /* ── light-ocean ─────────────────────────────────────────────────────────── */
 
 [data-theme="light-ocean"] .bg-slate-950 { background-color: hsl(200 50% 90%); }
 [data-theme="light-ocean"] .bg-slate-900 { background-color: hsl(200 55% 97%); }
-[data-theme="light-ocean"] .bg-slate-800 { background-color: hsl(198 60% 98%); }
-[data-theme="light-ocean"] .bg-slate-700 { background-color: hsl(197 50% 91%); }
-[data-theme="light-ocean"] .bg-slate-600 { background-color: hsl(197 40% 84%); }
-[data-theme="light-ocean"] .bg-slate-500 { background-color: hsl(198 35% 77%); }
+[data-theme="light-ocean"] .bg-slate-800 { background-color: hsl(198 45% 91%); }
+[data-theme="light-ocean"] .bg-slate-700 { background-color: hsl(197 50% 85%); }
+[data-theme="light-ocean"] .bg-slate-600 { background-color: hsl(197 40% 78%); }
+[data-theme="light-ocean"] .bg-slate-500 { background-color: hsl(198 35% 70%); }
 [data-theme="light-ocean"] .bg-slate-900\/95 { background-color: hsl(200 55% 97% / 0.97); }
 [data-theme="light-ocean"] .bg-slate-900\/80 { background-color: hsl(200 55% 97% / 0.85); }
 [data-theme="light-ocean"] .bg-slate-900\/60 { background-color: hsl(200 55% 97% / 0.65); }
 [data-theme="light-ocean"] .bg-slate-900\/50 { background-color: hsl(200 55% 97% / 0.60); }
-[data-theme="light-ocean"] .bg-slate-800\/80 { background-color: hsl(198 60% 98% / 0.85); }
-[data-theme="light-ocean"] .bg-slate-800\/70 { background-color: hsl(198 60% 98% / 0.75); }
-[data-theme="light-ocean"] .bg-slate-800\/60 { background-color: hsl(198 60% 98% / 0.65); }
-[data-theme="light-ocean"] .bg-slate-800\/50 { background-color: hsl(198 60% 98% / 0.60); }
-[data-theme="light-ocean"] .bg-slate-800\/40 { background-color: hsl(198 60% 98% / 0.45); }
-[data-theme="light-ocean"] .bg-slate-800\/30 { background-color: hsl(198 60% 98% / 0.35); }
+[data-theme="light-ocean"] .bg-slate-800\/80 { background-color: hsl(198 45% 91% / 0.88); }
+[data-theme="light-ocean"] .bg-slate-800\/70 { background-color: hsl(198 45% 91% / 0.80); }
+[data-theme="light-ocean"] .bg-slate-800\/60 { background-color: hsl(198 45% 91% / 0.72); }
+[data-theme="light-ocean"] .bg-slate-800\/50 { background-color: hsl(198 45% 91% / 0.70); }
+[data-theme="light-ocean"] .bg-slate-800\/40 { background-color: hsl(198 45% 91% / 0.55); }
+[data-theme="light-ocean"] .bg-slate-800\/30 { background-color: hsl(198 45% 91% / 0.40); }
 [data-theme="light-ocean"] .bg-slate-700\/60 { background-color: hsl(197 50% 91% / 0.65); }
 [data-theme="light-ocean"] .bg-slate-700\/50 { background-color: hsl(197 50% 91% / 0.55); }
 [data-theme="light-ocean"] .text-white                { color: hsl(202 70% 12%); }
@@ -331,34 +358,61 @@
 [data-theme="light-ocean"] .hover\:text-slate-300:hover { color: hsl(202 50% 24%); }
 
 /* ocean accent — teal/cyan */
-[data-theme="light-ocean"] .text-blue-400  { color: hsl(199 89% 32%); }
-[data-theme="light-ocean"] .text-blue-300  { color: hsl(199 85% 28%); }
-[data-theme="light-ocean"] .text-blue-500  { color: hsl(199 80% 27%); }
-[data-theme="light-ocean"] .border-blue-500 { border-color: hsl(199 89% 38%); }
-[data-theme="light-ocean"] .border-blue-500\/30 { border-color: hsl(199 89% 38% / 0.5); }
-[data-theme="light-ocean"] .bg-blue-600\/20  { background-color: hsl(199 89% 38% / 0.15); }
-[data-theme="light-ocean"] .bg-blue-600\/10  { background-color: hsl(199 89% 38% / 0.08); }
+[data-theme="light-ocean"] .bg-blue-600        { background-color: hsl(202 80% 36%); }
+[data-theme="light-ocean"] .bg-blue-500        { background-color: hsl(202 80% 42%); }
+[data-theme="light-ocean"] .bg-blue-700        { background-color: hsl(204 80% 30%); }
+[data-theme="light-ocean"] .bg-blue-950\/40    { background-color: hsl(202 80% 36% / 0.10); }
+[data-theme="light-ocean"] .bg-blue-600\/30    { background-color: hsl(202 80% 36% / 0.18); }
+[data-theme="light-ocean"] .bg-blue-600\/20    { background-color: hsl(202 80% 36% / 0.14); }
+[data-theme="light-ocean"] .bg-blue-600\/10    { background-color: hsl(202 80% 36% / 0.08); }
+[data-theme="light-ocean"] .hover\:bg-blue-500:hover { background-color: hsl(202 80% 42%); }
+[data-theme="light-ocean"] .hover\:bg-blue-600:hover { background-color: hsl(202 80% 30%); }
+/* gradient — TripManager header, ocean teal */
+[data-theme="light-ocean"] .from-blue-700     { --tw-gradient-from: hsl(202 80% 34%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(202 80% 34% / 0) var(--tw-gradient-to-position); }
+[data-theme="light-ocean"] .to-blue-800       { --tw-gradient-to: hsl(206 80% 26%) var(--tw-gradient-to-position); }
+[data-theme="light-ocean"] .hover\:from-blue-800:hover { --tw-gradient-from: hsl(206 80% 26%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(206 80% 26% / 0) var(--tw-gradient-to-position); }
+[data-theme="light-ocean"] .hover\:to-blue-900:hover   { --tw-gradient-to: hsl(210 78% 20%) var(--tw-gradient-to-position); }
+[data-theme="light-ocean"] .text-blue-400  { color: hsl(202 80% 34%); }
+[data-theme="light-ocean"] .text-blue-300  { color: hsl(202 80% 38%); }
+[data-theme="light-ocean"] .text-blue-500  { color: hsl(204 80% 28%); }
+[data-theme="light-ocean"] .border-blue-500      { border-color: hsl(202 80% 36%); }
+[data-theme="light-ocean"] .border-blue-500\/30  { border-color: hsl(202 80% 36% / 0.5); }
+[data-theme="light-ocean"] .border-blue-600\/50  { border-color: hsl(202 80% 36% / 0.6); }
+/* amber accents — cost page */
+[data-theme="light-ocean"] .text-amber-300       { color: hsl(38 90% 30%); }
+[data-theme="light-ocean"] .text-amber-400       { color: hsl(35 90% 32%); }
+[data-theme="light-ocean"] .text-amber-500       { color: hsl(33 88% 28%); }
+[data-theme="light-ocean"] .text-amber-400\/70   { color: hsl(35 90% 32% / 0.85); }
+[data-theme="light-ocean"] .text-amber-400\/50   { color: hsl(35 90% 32% / 0.70); }
+[data-theme="light-ocean"] .text-amber-500\/70   { color: hsl(33 88% 28% / 0.85); }
+[data-theme="light-ocean"] .bg-amber-900\/20     { background-color: hsl(38 80% 92%); }
+[data-theme="light-ocean"] .bg-amber-900\/40     { background-color: hsl(38 80% 88%); }
+[data-theme="light-ocean"] .bg-amber-900\/60     { background-color: hsl(38 80% 82%); }
+[data-theme="light-ocean"] .border-amber-500     { border-color: hsl(38 85% 42%); }
+[data-theme="light-ocean"] .border-amber-600     { border-color: hsl(35 85% 36%); }
+[data-theme="light-ocean"] .border-amber-600\/50 { border-color: hsl(35 85% 36% / 0.55); }
+[data-theme="light-ocean"] .border-amber-700\/30 { border-color: hsl(33 80% 30% / 0.40); }
 
 /* ── light-sunset ────────────────────────────────────────────────────────── */
 
 [data-theme="light-sunset"] .bg-slate-950 { background-color: hsl(35 55% 88%); }
 [data-theme="light-sunset"] .bg-slate-900 { background-color: hsl(36 90% 97%); }
-[data-theme="light-sunset"] .bg-slate-800 { background-color: hsl(36 80% 98%); }
-[data-theme="light-sunset"] .bg-slate-700 { background-color: hsl(35 60% 91%); }
+[data-theme="light-sunset"] .bg-slate-800 { background-color: hsl(35 50% 91%); }
+[data-theme="light-sunset"] .bg-slate-700 { background-color: hsl(35 55% 85%); }
 [data-theme="light-sunset"] .bg-slate-600 { background-color: hsl(35 50% 84%); }
 [data-theme="light-sunset"] .bg-slate-500 { background-color: hsl(35 40% 77%); }
 [data-theme="light-sunset"] .bg-slate-900\/95 { background-color: hsl(36 90% 97% / 0.97); }
 [data-theme="light-sunset"] .bg-slate-900\/80 { background-color: hsl(36 90% 97% / 0.85); }
 [data-theme="light-sunset"] .bg-slate-900\/60 { background-color: hsl(36 90% 97% / 0.65); }
 [data-theme="light-sunset"] .bg-slate-900\/50 { background-color: hsl(36 90% 97% / 0.60); }
-[data-theme="light-sunset"] .bg-slate-800\/80 { background-color: hsl(36 80% 98% / 0.85); }
-[data-theme="light-sunset"] .bg-slate-800\/70 { background-color: hsl(36 80% 98% / 0.75); }
-[data-theme="light-sunset"] .bg-slate-800\/60 { background-color: hsl(36 80% 98% / 0.65); }
-[data-theme="light-sunset"] .bg-slate-800\/50 { background-color: hsl(36 80% 98% / 0.60); }
-[data-theme="light-sunset"] .bg-slate-800\/40 { background-color: hsl(36 80% 98% / 0.45); }
-[data-theme="light-sunset"] .bg-slate-800\/30 { background-color: hsl(36 80% 98% / 0.35); }
-[data-theme="light-sunset"] .bg-slate-700\/60 { background-color: hsl(35 60% 91% / 0.65); }
-[data-theme="light-sunset"] .bg-slate-700\/50 { background-color: hsl(35 60% 91% / 0.55); }
+[data-theme="light-sunset"] .bg-slate-800\/80 { background-color: hsl(35 50% 91% / 0.88); }
+[data-theme="light-sunset"] .bg-slate-800\/70 { background-color: hsl(35 50% 91% / 0.80); }
+[data-theme="light-sunset"] .bg-slate-800\/60 { background-color: hsl(35 50% 91% / 0.72); }
+[data-theme="light-sunset"] .bg-slate-800\/50 { background-color: hsl(35 50% 91% / 0.70); }
+[data-theme="light-sunset"] .bg-slate-800\/40 { background-color: hsl(35 50% 91% / 0.55); }
+[data-theme="light-sunset"] .bg-slate-800\/30 { background-color: hsl(35 50% 91% / 0.40); }
+[data-theme="light-sunset"] .bg-slate-700\/60 { background-color: hsl(35 55% 85% / 0.68); }
+[data-theme="light-sunset"] .bg-slate-700\/50 { background-color: hsl(35 55% 85% / 0.58); }
 [data-theme="light-sunset"] .text-white                { color: hsl(20 60% 12%); }
 [data-theme="light-sunset"] .hover\:text-white:hover   { color: hsl(20 60% 12%); }
 
@@ -394,13 +448,41 @@
 [data-theme="light-sunset"] .hover\:text-slate-300:hover { color: hsl(20 42% 26%); }
 
 /* sunset accent — amber/orange */
-[data-theme="light-sunset"] .text-blue-400  { color: hsl(24 92% 38%); }
-[data-theme="light-sunset"] .text-blue-300  { color: hsl(24 90% 32%); }
-[data-theme="light-sunset"] .text-blue-500  { color: hsl(24 88% 30%); }
-[data-theme="light-sunset"] .border-blue-500 { border-color: hsl(24 92% 46%); }
-[data-theme="light-sunset"] .border-blue-500\/30 { border-color: hsl(24 92% 46% / 0.5); }
-[data-theme="light-sunset"] .bg-blue-600\/20  { background-color: hsl(24 92% 46% / 0.15); }
-[data-theme="light-sunset"] .bg-blue-600\/10  { background-color: hsl(24 92% 46% / 0.08); }
+/* sunset "blue" = deep terracotta-orange (accent colour for this theme) */
+[data-theme="light-sunset"] .bg-blue-600        { background-color: hsl(24 88% 38%); }
+[data-theme="light-sunset"] .bg-blue-500        { background-color: hsl(24 88% 44%); }
+[data-theme="light-sunset"] .bg-blue-700        { background-color: hsl(22 88% 32%); }
+[data-theme="light-sunset"] .bg-blue-950\/40    { background-color: hsl(24 88% 38% / 0.10); }
+[data-theme="light-sunset"] .bg-blue-600\/30    { background-color: hsl(24 88% 38% / 0.18); }
+[data-theme="light-sunset"] .bg-blue-600\/20    { background-color: hsl(24 88% 38% / 0.14); }
+[data-theme="light-sunset"] .bg-blue-600\/10    { background-color: hsl(24 88% 38% / 0.08); }
+[data-theme="light-sunset"] .hover\:bg-blue-500:hover { background-color: hsl(24 88% 44%); }
+[data-theme="light-sunset"] .hover\:bg-blue-600:hover { background-color: hsl(22 88% 32%); }
+/* gradient — TripManager header, warm amber-orange */
+[data-theme="light-sunset"] .from-blue-700     { --tw-gradient-from: hsl(24 78% 38%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(24 78% 38% / 0) var(--tw-gradient-to-position); }
+[data-theme="light-sunset"] .to-blue-800       { --tw-gradient-to: hsl(20 78% 30%) var(--tw-gradient-to-position); }
+[data-theme="light-sunset"] .hover\:from-blue-800:hover { --tw-gradient-from: hsl(20 78% 30%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(20 78% 30% / 0) var(--tw-gradient-to-position); }
+[data-theme="light-sunset"] .hover\:to-blue-900:hover   { --tw-gradient-to: hsl(17 76% 24%) var(--tw-gradient-to-position); }
+[data-theme="light-sunset"] .text-blue-400  { color: hsl(24 88% 36%); }
+[data-theme="light-sunset"] .text-blue-300  { color: hsl(24 88% 40%); }
+[data-theme="light-sunset"] .text-blue-500  { color: hsl(22 88% 30%); }
+[data-theme="light-sunset"] .border-blue-500      { border-color: hsl(24 88% 40%); }
+[data-theme="light-sunset"] .border-blue-500\/30  { border-color: hsl(24 88% 40% / 0.5); }
+[data-theme="light-sunset"] .border-blue-600\/50  { border-color: hsl(24 88% 38% / 0.6); }
+/* amber accents — cost page */
+[data-theme="light-sunset"] .text-amber-300       { color: hsl(38 90% 28%); }
+[data-theme="light-sunset"] .text-amber-400       { color: hsl(35 90% 30%); }
+[data-theme="light-sunset"] .text-amber-500       { color: hsl(33 88% 26%); }
+[data-theme="light-sunset"] .text-amber-400\/70   { color: hsl(35 90% 30% / 0.85); }
+[data-theme="light-sunset"] .text-amber-400\/50   { color: hsl(35 90% 30% / 0.70); }
+[data-theme="light-sunset"] .text-amber-500\/70   { color: hsl(33 88% 26% / 0.85); }
+[data-theme="light-sunset"] .bg-amber-900\/20     { background-color: hsl(38 80% 90%); }
+[data-theme="light-sunset"] .bg-amber-900\/40     { background-color: hsl(38 80% 85%); }
+[data-theme="light-sunset"] .bg-amber-900\/60     { background-color: hsl(38 80% 79%); }
+[data-theme="light-sunset"] .border-amber-500     { border-color: hsl(38 85% 38%); }
+[data-theme="light-sunset"] .border-amber-600     { border-color: hsl(35 85% 32%); }
+[data-theme="light-sunset"] .border-amber-600\/50 { border-color: hsl(35 85% 32% / 0.55); }
+[data-theme="light-sunset"] .border-amber-700\/30 { border-color: hsl(33 80% 28% / 0.40); }
 
 /* ── dark-forest ─────────────────────────────────────────────────────────── */
 

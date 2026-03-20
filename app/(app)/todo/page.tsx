@@ -121,15 +121,6 @@ export default function TodoPage() {
             {/* Progress */}
             {totalItems > 0 && (
               <div>
-                {/* Car moving along the bar */}
-                <div className="relative h-4 mb-0.5 overflow-hidden">
-                  <span
-                    className="absolute text-sm leading-none transition-all duration-700 ease-in-out inline-block"
-                    style={{ left: `${Math.min(pct, 88)}%`, transform: 'scaleX(-1)' }}
-                  >
-                    🚗
-                  </span>
-                </div>
                 {/* Progress bar — bg-slate-600 gives visible track in both dark and light themes */}
                 <div className="w-full bg-slate-600 rounded-full h-2">
                   <div
