@@ -1,0 +1,104 @@
+By,Flyplassnavn,Kode,Tidsforskjell Norge
+New York,John F. Kennedy International,JFK,−6
+New York,Newark Liberty International,EWR,−6
+New York,LaGuardia Airport,LGA,−6
+Atlanta,Hartsfield–Jackson Atlanta,ATL,−6
+Miami,Miami International,MIA,−6
+Orlando,Orlando International,MCO,−6
+Washington D.C.,Dulles International,IAD,−6
+Washington D.C.,Ronald Reagan National,DCA,−6
+Boston,Logan International,BOS,−6
+Chicago,O'Hare International,ORD,−7
+Dallas,Dallas/Fort Worth International,DFW,−7
+Houston,George Bush Intercontinental,IAH,−7
+Minneapolis,Minneapolis–Saint Paul,MSP,−7
+New Orleans,Louis Armstrong New Orleans,MSY,−7
+Denver,Denver International,DEN,−8
+Los Angeles,Los Angeles International,LAX,−9
+San Francisco,San Francisco International,SFO,−9
+Seattle,Seattle–Tacoma International,SEA,−9
+Las Vegas,Harry Reid International,LAS,−9
+Phoenix,Phoenix Sky Harbor,PHX,−9
+San Diego,San Diego International,SAN,−9
+Anchorage,Ted Stevens Anchorage,ANC,−10
+Honolulu,Daniel K. Inouye International,HNL,−11
+London,Heathrow,LHR,−1
+Istanbul,Istanbul Airport,IST,2
+Paris,Charles de Gaulle,CDG,0
+Amsterdam,Schiphol,AMS,0
+Madrid,Madrid–Barajas,MAD,0
+Frankfurt,Frankfurt Airport,FRA,0
+Barcelona,Barcelona–El Prat,BCN,0
+Roma,Fiumicino,FCO,0
+Moskva,Sheremetyevo,SVO,2
+München,Munich Airport,MUC,0
+London,Gatwick,LGW,−1
+Dublin,Dublin Airport,DUB,−1
+Lisboa,Humberto Delgado,LIS,−1
+Paris,Orly,ORY,0
+Athen,Eleftherios Venizelos,ATH,1
+Palma,Son Sant Joan,PMI,0
+Zürich,Zurich Airport,ZRH,0
+Wien,Vienna Airport,VIE,0
+København,Kastrup,CPH,0
+Manchester,Manchester Airport,MAN,−1
+Dubai,Dubai International,DXB,3
+Tokyo,Haneda,HND,8
+Shanghai,Pudong International,PVG,7
+Guangzhou,Baiyun International,CAN,7
+Delhi,Indira Gandhi,DEL,5
+Seoul,Incheon International,ICN,8
+Beijing,Capital International,PEK,7
+Singapore,Changi Airport,SIN,7
+Shenzhen,Bao'an International,SZX,7
+Kuala Lumpur,KL International,KUL,7
+Bangkok,Suvarnabhumi,BKK,6
+Hong Kong,Hong Kong International,HKG,7
+Chengdu,Tianfu International,TFU,7
+Jakarta,Soekarno–Hatta,CGK,6
+Mumbai,Chhatrapati Shivaji Maharaj,BOM,5
+Doha,Hamad International,DOH,2
+Jeddah,King Abdulaziz,JED,2
+Manila,Ninoy Aquino,MNL,7
+Chongqing,Jiangbei International,CKG,7
+Kunming,Changshui International,KMG,7
+Oslo,"Oslo Lufthavn, Gardermoen",OSL,
+Bergen,"Bergen lufthavn, Flesland",BGO,
+Trondheim,"Trondheim lufthavn, Værnes",TRD,
+Stavanger,"Stavanger lufthavn, Sola",SVG,
+Tromsø,"Tromsø lufthavn, Langnes",TOS,
+Bodø,Bodø lufthavn,BOO,
+Ålesund,"Ålesund lufthavn, Vigra",AES,
+Sandefjord,"Sandefjord lufthavn, Torp",TRF,
+Haugesund,"Haugesund lufthavn, Karmøy",HAU,
+Harstad/Narvik,"Harstad/Narvik lufthavn, Evenes",EVE,
+Kristiansand,"Kristiansand lufthavn, Kjevik",KRS,
+Molde,"Molde lufthavn, Årø",MOL,
+Alta,Alta lufthavn,ALF,
+Kirkenes,"Kirkenes lufthavn, Høybuktmoen",KKN,
+Bardufoss,Bardufoss lufthavn,BDU,
+Kristiansund,"Kristiansund lufthavn, Kvernberget",KSU,
+Hammerfest,Hammerfest lufthavn,HFT,
+Florø,Florø lufthavn,FRO,
+Svalbard,"Svalbard lufthavn, Longyear",LYR,
+Lakselv,"Lakselv lufthavn, Banak",LKL,
+Stockholm,Arlanda Airport,ARN,
+Gøteborg,Landvetter Airport,GOT,
+Malmø,Malmö Airport,MMX,
+Stockholm,Bromma Airport,BMA,
+Luleå,Luleå Airport,LLA,
+Umeå,Umeå Airport,UME,
+Ängelholm,Ängelholm–Helsingborg Airport,AGH,
+Åre/Östersund,Åre Östersund Airport,OSD,
+Visby,Visby Airport,VBY,
+Skellefteå,Skellefteå Airport,SFT,
+Sundsvall,Sundsvall-Timrå Airport,SDL,
+Kiruna,Kiruna Airport,KRN,
+Karlstad,Karlstad Airport,KSD,
+Växjö,Växjö Småland Airport,VXO,
+Linköping,Linköping City Airport,LPI,
+Jönköping,Jönköping Airport,JKG,
+Kalmar,Kalmar Airport,KLR,
+Örebro,Örebro Airport,ORB,
+Norrköping,Norrköping Airport,NRK,
+Ronneby,Ronneby Airport,RNB,
