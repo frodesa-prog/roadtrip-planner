@@ -187,65 +187,64 @@ export default function LoginPage() {
         </span>
       </header>
 
-      {/* ── Hero + auth ─────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col lg:flex-row">
+      {/* ── Hero: logo + tagline ─────────────────────────────────────── */}
+      <section className="flex items-center gap-12 px-10 pt-16 pb-10 lg:px-16">
+        {/* Logo — 3× original size */}
+        <div className="relative flex-shrink-0" style={{ width: 420, height: 420 }}>
+          <Image
+            src="/logo.png"
+            alt="MyVacayPlanner"
+            fill
+            className="object-contain"
+            style={{ mixBlendMode: 'multiply' }}
+          />
+        </div>
 
-        {/* Left — logo + hero + features */}
-        <section className="flex-1 flex flex-col justify-center px-10 py-16 lg:px-16 lg:py-20">
-
-          {/* Logo + headline side by side */}
-          <div className="flex items-center gap-8 mb-12">
-            <div className="relative flex-shrink-0" style={{ width: 220, height: 220 }}>
-              <Image
-                src="/logo.png"
-                alt="MyVacayPlanner"
-                fill
-                className="object-contain"
-                style={{ mixBlendMode: 'multiply' }}
-              />
-            </div>
-            <div>
-              <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight mb-4" style={{ color: C.navy }}>
-                Plan.<br />
-                <span style={{ color: C.copper }}>Travel.</span><br />
-                <span style={{ color: C.mint }}>Relive.</span>
-              </h1>
-              <p className="text-base lg:text-lg max-w-sm leading-relaxed" style={{ color: C.navyLight }}>
-                Et komplett verktøy for å planlegge ferier, holde oversikt under turen og arkivere minner etterpå.
-              </p>
-              <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5">
-                {['Roadtrip', 'Storbytur', 'Resort', 'Delt med turfølget', 'Kart & ruter', 'Kostnadsfordeling'].map((tag) => (
-                  <span key={tag} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: C.navyLight }}>
-                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: C.mint }} />
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Feature grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-w-3xl">
-            {FEATURES.map(({ icon: Icon, color, bg, title, desc }) => (
-              <div key={title} className="flex gap-3 p-4 rounded-xl border border-slate-200/70 bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: bg }}>
-                  <Icon className="w-4 h-4" style={{ color }} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold mb-0.5" style={{ color: C.navy }}>{title}</p>
-                  <p className="text-xs leading-relaxed" style={{ color: C.navyLight }}>{desc}</p>
-                </div>
-              </div>
+        {/* Tagline */}
+        <div>
+          <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight mb-4" style={{ color: C.navy }}>
+            Plan.<br />
+            <span style={{ color: C.copper }}>Travel.</span><br />
+            <span style={{ color: C.mint }}>Relive.</span>
+          </h1>
+          <p className="text-base lg:text-lg max-w-sm leading-relaxed mb-6" style={{ color: C.navyLight }}>
+            Et komplett verktøy for å planlegge ferier, holde oversikt under turen og arkivere minner etterpå.
+          </p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {['Roadtrip', 'Storbytur', 'Resort', 'Delt med turfølget', 'Kart & ruter', 'Kostnadsfordeling'].map((tag) => (
+              <span key={tag} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: C.navyLight }}>
+                <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: C.mint }} />
+                {tag}
+              </span>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Right — auth card */}
-        <aside className="flex flex-col items-center justify-center px-10 py-16 lg:py-20 lg:w-[360px] lg:flex-shrink-0">
-          <div className="w-full max-w-xs bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden">
+      {/* ── Features + Login (same height) ──────────────────────────── */}
+      <section className="flex items-stretch gap-4 px-10 pb-16 lg:px-16">
+
+        {/* Feature grid: 2 cols × 3 rows */}
+        <div className="flex-1 grid grid-cols-2 gap-3">
+          {FEATURES.map(({ icon: Icon, color, bg, title, desc }) => (
+            <div key={title} className="flex gap-3 p-4 rounded-xl border border-slate-200/70 bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: bg }}>
+                <Icon className="w-4 h-4" style={{ color }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-0.5" style={{ color: C.navy }}>{title}</p>
+                <p className="text-xs leading-relaxed" style={{ color: C.navyLight }}>{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Login card — stretches to same height as feature grid */}
+        <div className="w-72 flex-shrink-0 flex flex-col">
+          <div className="flex flex-col flex-1 bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden">
 
             {/* Card header */}
-            <div className="px-6 py-4 border-b border-slate-100" style={{ background: 'linear-gradient(135deg, #f8f9fd, #f0f3fa)' }}>
+            <div className="px-6 py-4 border-b border-slate-100 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f8f9fd, #f0f3fa)' }}>
               <div className="flex items-center gap-2 mb-1">
                 <MapPin className="w-4 h-4" style={{ color: C.copper }} />
                 <h2 className="font-bold text-sm" style={{ color: C.navy }}>
@@ -259,76 +258,80 @@ export default function LoginPage() {
               </p>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="px-6 py-5 space-y-3">
-              <div>
-                <label className="block text-[11px] font-semibold mb-1" style={{ color: C.navy }}>E-post</label>
-                <div className="relative">
-                  <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: C.blue }} />
-                  <input
-                    type="email"
-                    placeholder="din@epost.no"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full pl-8 pr-3 py-2 rounded-lg border text-xs outline-none transition-all"
-                    style={{ borderColor: '#d4dce8', color: C.navy, background: '#fafbfd' }}
-                    onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
-                    onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
-                  />
+            {/* Form — flex-1 fills remaining height */}
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 px-6 py-5 gap-4">
+              <div className="space-y-3 flex-1 flex flex-col justify-center">
+                <div>
+                  <label className="block text-[11px] font-semibold mb-1" style={{ color: C.navy }}>E-post</label>
+                  <div className="relative">
+                    <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: C.blue }} />
+                    <input
+                      type="email"
+                      placeholder="din@epost.no"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full pl-8 pr-3 py-2 rounded-lg border text-xs outline-none transition-all"
+                      style={{ borderColor: '#d4dce8', color: C.navy, background: '#fafbfd' }}
+                      onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
+                      onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold mb-1" style={{ color: C.navy }}>Passord</label>
+                  <div className="relative">
+                    <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: C.blue }} />
+                    <input
+                      type="password"
+                      placeholder={mode === 'register' ? 'Minst 6 tegn' : '••••••••'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="w-full pl-8 pr-3 py-2 rounded-lg border text-xs outline-none transition-all"
+                      style={{ borderColor: '#d4dce8', color: C.navy, background: '#fafbfd' }}
+                      onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
+                      onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold mb-1" style={{ color: C.navy }}>Passord</label>
-                <div className="relative">
-                  <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: C.blue }} />
-                  <input
-                    type="password"
-                    placeholder={mode === 'register' ? 'Minst 6 tegn' : '••••••••'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className="w-full pl-8 pr-3 py-2 rounded-lg border text-xs outline-none transition-all"
-                    style={{ borderColor: '#d4dce8', color: C.navy, background: '#fafbfd' }}
-                    onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
-                    onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-xs text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60 mt-1"
-                style={{ background: `linear-gradient(135deg, ${C.copper}, #b8714a)` }}
-              >
-                {loading
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  : mode === 'login' ? 'Logg inn' : 'Opprett konto'}
-              </button>
-
-              <div className="pt-0.5 text-center">
+              <div className="space-y-2 flex-shrink-0">
                 <button
-                  type="button"
-                  onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-                  className="text-[11px] transition-colors hover:underline"
-                  style={{ color: C.mint }}
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-xs text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60"
+                  style={{ background: `linear-gradient(135deg, ${C.copper}, #b8714a)` }}
                 >
-                  {mode === 'login'
-                    ? 'Ny bruker? Opprett konto gratis'
-                    : 'Har du allerede konto? Logg inn'}
+                  {loading
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : mode === 'login' ? 'Logg inn' : 'Opprett konto'}
                 </button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+                    className="text-[11px] transition-colors hover:underline"
+                    style={{ color: C.mint }}
+                  >
+                    {mode === 'login'
+                      ? 'Ny bruker? Opprett konto gratis'
+                      : 'Har du allerede konto? Logg inn'}
+                  </button>
+                </div>
+
+                <p className="text-center text-[10px]" style={{ color: '#9fb3c8' }}>
+                  Privat app · Bare inviterte brukere
+                </p>
               </div>
             </form>
           </div>
-
-          <p className="text-center text-[11px] mt-4" style={{ color: '#9fb3c8' }}>
-            Privat app · Bare inviterte brukere
-          </p>
-        </aside>
-      </div>
+        </div>
+      </section>
 
       {/* ── App screenshots / mockups ────────────────────────────────── */}
       <section className="px-10 py-16 lg:px-16 border-t border-slate-200/60" style={{ background: 'linear-gradient(180deg, transparent, #edf1f8 60%)' }}>
