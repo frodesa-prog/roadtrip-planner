@@ -220,6 +220,30 @@
     --ring: 211 85% 52%;
     --page-bg: 214 95% 4%;
   }
+
+  /* ── MyVacay (light – navy/copper/mint palette) ──────────────────────────── */
+  [data-theme="light-vacay"] {
+    --background: 220 28% 97%;
+    --foreground: 220 30% 22%;
+    --card: 220 25% 99%;
+    --card-foreground: 220 30% 22%;
+    --popover: 220 28% 97%;
+    --popover-foreground: 220 30% 22%;
+    --primary: 22 48% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 35% 88%;
+    --secondary-foreground: 220 30% 22%;
+    --muted: 217 30% 92%;
+    --muted-foreground: 220 20% 46%;
+    --accent: 177 38% 85%;
+    --accent-foreground: 177 45% 28%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 25% 84%;
+    --input: 217 25% 84%;
+    --ring: 22 48% 56%;
+    --page-bg: 220 25% 93%;
+  }
 }
 
 @layer base {
@@ -820,6 +844,99 @@
 [data-theme="dark-dodgers"] .bg-green-900\/50          { background-color: hsl(211 75% 18%); }
 [data-theme="dark-dodgers"] .bg-green-900\/70          { background-color: hsl(211 75% 14%); }
 [data-theme="dark-dodgers"] .border-green-700\/50      { border-color: hsl(211 80% 42% / 0.45); }
+
+/* ── light-vacay (MyVacay — navy/copper/mint) ────────────────────────────── */
+
+/* Backgrounds — slate inverted to light */
+[data-theme="light-vacay"] .bg-slate-950    { background-color: hsl(220 25% 96%); }
+[data-theme="light-vacay"] .bg-slate-950\/95{ background-color: hsl(220 25% 96% / 0.97); }
+[data-theme="light-vacay"] .bg-slate-900    { background-color: hsl(220 22% 98%); }
+[data-theme="light-vacay"] .bg-slate-900\/95{ background-color: hsl(220 22% 98% / 0.97); }
+[data-theme="light-vacay"] .bg-slate-900\/80{ background-color: hsl(220 22% 98% / 0.85); }
+[data-theme="light-vacay"] .bg-slate-900\/60{ background-color: hsl(220 22% 98% / 0.65); }
+[data-theme="light-vacay"] .bg-slate-900\/50{ background-color: hsl(220 22% 98% / 0.55); }
+[data-theme="light-vacay"] .bg-slate-800    { background-color: hsl(220 20% 93%); }
+[data-theme="light-vacay"] .bg-slate-800\/80{ background-color: hsl(220 20% 93% / 0.85); }
+[data-theme="light-vacay"] .bg-slate-800\/70{ background-color: hsl(220 20% 93% / 0.75); }
+[data-theme="light-vacay"] .bg-slate-800\/60{ background-color: hsl(220 20% 93% / 0.65); }
+[data-theme="light-vacay"] .bg-slate-800\/50{ background-color: hsl(220 20% 93% / 0.55); }
+[data-theme="light-vacay"] .bg-slate-800\/40{ background-color: hsl(220 20% 93% / 0.45); }
+[data-theme="light-vacay"] .bg-slate-800\/30{ background-color: hsl(220 20% 93% / 0.35); }
+[data-theme="light-vacay"] .bg-slate-700    { background-color: hsl(220 18% 87%); }
+[data-theme="light-vacay"] .bg-slate-700\/60{ background-color: hsl(220 18% 87% / 0.65); }
+[data-theme="light-vacay"] .bg-slate-700\/50{ background-color: hsl(220 18% 87% / 0.55); }
+[data-theme="light-vacay"] .bg-slate-600    { background-color: hsl(220 15% 80%); }
+[data-theme="light-vacay"] .bg-slate-500    { background-color: hsl(220 12% 70%); }
+
+/* Text — dark navy instead of light slate */
+[data-theme="light-vacay"] .text-slate-100  { color: hsl(220 30% 22%); }
+[data-theme="light-vacay"] .text-slate-200  { color: hsl(220 28% 30%); }
+[data-theme="light-vacay"] .text-slate-300  { color: hsl(220 22% 40%); }
+[data-theme="light-vacay"] .text-slate-400  { color: hsl(220 18% 50%); }
+[data-theme="light-vacay"] .text-slate-500  { color: hsl(220 15% 58%); }
+
+/* Borders */
+[data-theme="light-vacay"] .border-slate-900 { border-color: hsl(220 20% 90%); }
+[data-theme="light-vacay"] .border-slate-800 { border-color: hsl(220 18% 85%); }
+[data-theme="light-vacay"] .border-slate-700 { border-color: hsl(220 16% 78%); }
+[data-theme="light-vacay"] .border-slate-700\/50 { border-color: hsl(220 16% 78% / 0.60); }
+[data-theme="light-vacay"] .border-slate-700\/60 { border-color: hsl(220 16% 78% / 0.70); }
+[data-theme="light-vacay"] .border-slate-600 { border-color: hsl(220 14% 72%); }
+
+/* Hover states */
+[data-theme="light-vacay"] .hover\:bg-slate-900:hover { background-color: hsl(220 22% 95%); }
+[data-theme="light-vacay"] .hover\:bg-slate-800:hover { background-color: hsl(220 20% 90%); }
+[data-theme="light-vacay"] .hover\:bg-slate-700:hover { background-color: hsl(220 18% 84%); }
+[data-theme="light-vacay"] .hover\:text-slate-100:hover { color: hsl(220 30% 20%); }
+[data-theme="light-vacay"] .hover\:text-slate-200:hover { color: hsl(220 28% 28%); }
+[data-theme="light-vacay"] .hover\:text-slate-300:hover { color: hsl(220 22% 38%); }
+
+/* Copper accent — replaces blue utilities */
+[data-theme="light-vacay"] .text-blue-400   { color: hsl(22 48% 50%); }
+[data-theme="light-vacay"] .text-blue-300   { color: hsl(22 52% 42%); }
+[data-theme="light-vacay"] .text-blue-500   { color: hsl(22 48% 44%); }
+[data-theme="light-vacay"] .border-blue-500 { border-color: hsl(22 48% 56%); }
+[data-theme="light-vacay"] .border-blue-400 { border-color: hsl(22 50% 62%); }
+[data-theme="light-vacay"] .border-blue-500\/30 { border-color: hsl(22 48% 56% / 0.35); }
+[data-theme="light-vacay"] .border-blue-600\/50 { border-color: hsl(22 48% 50% / 0.55); }
+[data-theme="light-vacay"] .bg-blue-600     { background-color: hsl(22 48% 52%); }
+[data-theme="light-vacay"] .bg-blue-500     { background-color: hsl(22 50% 60%); }
+[data-theme="light-vacay"] .bg-blue-700     { background-color: hsl(22 48% 44%); }
+[data-theme="light-vacay"] .bg-blue-600\/10 { background-color: hsl(22 48% 56% / 0.12); }
+[data-theme="light-vacay"] .bg-blue-600\/20 { background-color: hsl(22 48% 56% / 0.20); }
+[data-theme="light-vacay"] .bg-blue-600\/25 { background-color: hsl(22 48% 56% / 0.25); }
+[data-theme="light-vacay"] .bg-blue-600\/30 { background-color: hsl(22 48% 56% / 0.30); }
+[data-theme="light-vacay"] .bg-blue-950\/40 { background-color: hsl(220 30% 22% / 0.12); }
+[data-theme="light-vacay"] .bg-blue-500\/20 { background-color: hsl(22 50% 60% / 0.22); }
+[data-theme="light-vacay"] .hover\:bg-blue-600:hover { background-color: hsl(22 48% 46%); }
+[data-theme="light-vacay"] .hover\:bg-blue-500:hover { background-color: hsl(22 50% 56%); }
+
+/* Active nav/tab highlight */
+[data-theme="light-vacay"] .bg-blue-900\/20 { background-color: hsl(22 48% 56% / 0.12); }
+[data-theme="light-vacay"] .border-l-blue-500 { border-left-color: hsl(22 48% 52%); }
+[data-theme="light-vacay"] .border-b-blue-500 { border-bottom-color: hsl(22 48% 52%); }
+[data-theme="light-vacay"] .border-blue-500\/50 { border-color: hsl(22 48% 56% / 0.55); }
+
+/* Mint — replaces green utilities */
+[data-theme="light-vacay"] .text-green-400              { color: hsl(177 45% 32%); }
+[data-theme="light-vacay"] .hover\:text-green-400:hover { color: hsl(177 45% 26%); }
+[data-theme="light-vacay"] .bg-green-900\/50             { background-color: hsl(177 40% 88%); }
+[data-theme="light-vacay"] .bg-green-900\/70             { background-color: hsl(177 40% 84%); }
+[data-theme="light-vacay"] .border-green-700\/50         { border-color: hsl(177 38% 55% / 0.45); }
+
+/* Amber text → navy (cost page) */
+[data-theme="light-vacay"] .text-amber-300 { color: hsl(22 48% 40%); }
+[data-theme="light-vacay"] .text-amber-400 { color: hsl(22 50% 36%); }
+[data-theme="light-vacay"] .text-amber-500 { color: hsl(22 52% 32%); }
+
+/* Map type buttons */
+[data-theme="light-vacay"] .bg-slate-800\/60 { background-color: hsl(220 20% 93% / 0.80); }
+
+/* gradient — TripManager header, copper */
+[data-theme="light-vacay"] .from-blue-700     { --tw-gradient-from: hsl(22 50% 48%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(22 50% 48% / 0) var(--tw-gradient-to-position); }
+[data-theme="light-vacay"] .to-blue-800       { --tw-gradient-to: hsl(22 48% 40%) var(--tw-gradient-to-position); }
+[data-theme="light-vacay"] .hover\:from-blue-800:hover { --tw-gradient-from: hsl(22 48% 40%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(22 48% 40% / 0) var(--tw-gradient-to-position); }
+[data-theme="light-vacay"] .hover\:to-blue-900:hover   { --tw-gradient-to: hsl(22 46% 33%) var(--tw-gradient-to-position); }
 
 /* gradient — TripManager header, deep forest green */
 [data-theme="dark-forest"] .from-blue-700     { --tw-gradient-from: hsl(150 60% 24%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(150 60% 24% / 0) var(--tw-gradient-to-position); }

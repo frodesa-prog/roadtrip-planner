@@ -13,6 +13,7 @@ export type ThemeName =
   | 'dark-forest'
   | 'dark-midnight'
   | 'dark-dodgers'
+  | 'light-vacay'
 
 export interface ThemeConfig {
   id: ThemeName
@@ -75,6 +76,12 @@ export const THEMES: ThemeConfig[] = [
     name: '⚾ Dodgers',
     type: 'dark',
     preview: { bg: '#010d1f', card: '#021630', primary: '#1a6fc4', text: '#e8f0fc', accent: '#003087' },
+  },
+  {
+    id: 'light-vacay',
+    name: '✈️ MyVacay',
+    type: 'light',
+    preview: { bg: '#f2f4f8', card: '#ffffff', primary: '#c4845a', text: '#3d4e6b', accent: '#d4e3f5' },
   },
 ]
 

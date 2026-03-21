@@ -29,6 +29,7 @@ const THEME_GRADIENT: Record<ThemeName, string> = {
   'dark-forest':    'bg-gradient-to-r from-emerald-800 to-emerald-900 hover:from-emerald-900 hover:to-green-950',
   'dark-midnight':  'bg-gradient-to-r from-violet-800  to-violet-900  hover:from-violet-900  hover:to-purple-950',
   'dark-dodgers':   'bg-gradient-to-r from-blue-700    to-blue-800    hover:from-blue-800    hover:to-blue-900',
+  'light-vacay':    'bg-gradient-to-r from-blue-700    to-blue-800    hover:from-blue-800    hover:to-blue-900',
 }
 
 const TRIP_TYPE_EMOJI: Record<string, string> = {
