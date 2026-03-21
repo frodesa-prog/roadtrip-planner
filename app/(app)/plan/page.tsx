@@ -313,6 +313,8 @@ export default function PlanPage() {
               tripsLoading={tripsLoading}
               userId={userId}
               stop={stops[0] ?? null}
+              hotel={hotels.find((h) => h.stop_id === (stops[0]?.id ?? '')) ?? null}
+              onSaveHotel={saveHotel}
               activities={activities}
               dining={dining}
               possibleActivities={possibleActivities}

@@ -6,12 +6,11 @@ import {
   UtensilsCrossed, Plus, Moon, ExternalLink, Navigation, Loader2, LayoutList,
   Check, X,
 } from 'lucide-react'
-import { Trip, Stop, Activity, Dining, PossibleActivity, NewTripData } from '@/types'
+import { Trip, Stop, Activity, Dining, PossibleActivity, NewTripData, Hotel } from '@/types'
 import TripManager from './TripManager'
 import TripPanels from './TripPanels'
 import NewTripWizard from './NewTripWizard'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import { useHotels } from '@/hooks/useHotels'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -32,29 +31,29 @@ function formatDayHeader(dateStr: string, index: number): string {
 
 function HotelSection({
   stopId,
+  hotel,
+  onSaveHotel,
   onMovePin,
 }: {
   stopId: string
+  hotel: Hotel | null
+  onSaveHotel: (stopId: string, updates: Partial<Hotel>) => void
   onMovePin?: (lat: number, lng: number) => void
 }) {
-  const { hotels, saveHotel, loading } = useHotels([stopId])
-  const hotel = hotels.find((h) => h.stop_id === stopId) ?? null
-
-  const [editing, setEditing] = useState(true)
+  const [editing, setEditing] = useState(!hotel?.name)
   const initialized = useRef(false)
   const [geocoding, setGeocoding] = useState(false)
 
-  // Only auto-close editing once hotels data has actually loaded
+  // Switch out of editing mode once hotel data arrives
   useEffect(() => {
-    if (!loading && !initialized.current) {
+    if (!initialized.current && hotel?.name) {
       initialized.current = true
-      setEditing(!hotel?.name)
+      setEditing(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading])
+  }, [hotel?.name])
 
   async function save(field: 'name' | 'address' | 'url', value: string) {
-    saveHotel(stopId, { [field]: value || null })
+    onSaveHotel(stopId, { [field]: value || null })
     if (field === 'address' && value.trim() && onMovePin) {
       setGeocoding(true)
       try {
@@ -88,15 +87,6 @@ function HotelSection({
     } finally {
       setGeocoding(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="px-4 py-3 border-b border-slate-800 bg-slate-800/30 flex-shrink-0 flex items-center gap-2">
-        <HotelIcon className="w-3.5 h-3.5 text-amber-400" />
-        <Loader2 className="w-3.5 h-3.5 text-slate-500 animate-spin" />
-      </div>
-    )
   }
 
   return (
@@ -269,6 +259,8 @@ interface CityPlanSidebarProps {
   tripsLoading: boolean
   userId?: string | null
   stop: Stop | null
+  hotel: Hotel | null
+  onSaveHotel: (stopId: string, updates: Partial<Hotel>) => void
   activities: Activity[]
   dining: Dining[]
   possibleActivities: PossibleActivity[]
@@ -288,7 +280,7 @@ interface CityPlanSidebarProps {
 
 export default function CityPlanSidebar({
   trips, currentTrip, tripsLoading, userId,
-  stop, activities, dining,
+  stop, hotel, onSaveHotel, activities, dining,
   selectedDayStr, onSelectDay,
   onSelectTrip, onCreateTrip, onDeleteTrip,
   onMoveHotelPin,
@@ -371,6 +363,8 @@ export default function CityPlanSidebar({
       {stop && (
         <HotelSection
           stopId={stop.id}
+          hotel={hotel}
+          onSaveHotel={onSaveHotel}
           onMovePin={onMoveHotelPin}
         />
       )}
