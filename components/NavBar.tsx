@@ -144,9 +144,9 @@ function TripPickerModal({ onClose }: { onClose: () => void }) {
 
 const links = [
   { href: '/plan', label: 'Planlegg', icon: Map },
+  { href: '/summary', label: 'Oversikt', icon: CalendarDays },
   { href: '/todo', label: 'ToDo', icon: ClipboardList },
   { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
-  { href: '/summary', label: 'Oppsummering', icon: CalendarDays },
   { href: '/aktiviteter', label: 'Aktiviteter', icon: ListChecks },
   { href: '/kostnader', label: 'Kostnader', icon: Receipt },
   { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
