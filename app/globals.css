@@ -279,6 +279,8 @@
 /* text-white → dark in light themes */
 [data-theme="light-white"] .text-white                  { color: hsl(222 47% 10%); }
 [data-theme="light-white"] .hover\:text-white:hover     { color: hsl(222 47% 10%); }
+/* egne chatbobler har mørk blå bakgrunn — teksten skal alltid være hvit */
+[data-theme="light-white"] .bg-blue-600.text-white      { color: #ffffff; }
 
 /* text — slate-500 set to 40% lightness for WCAG AA contrast on white */
 [data-theme="light-white"] .text-slate-100 { color: hsl(222 47% 10%); }
@@ -373,6 +375,7 @@
 [data-theme="light-ocean"] .bg-slate-700\/50 { background-color: hsl(197 50% 91% / 0.55); }
 [data-theme="light-ocean"] .text-white                { color: hsl(202 70% 12%); }
 [data-theme="light-ocean"] .hover\:text-white:hover   { color: hsl(202 70% 12%); }
+[data-theme="light-ocean"] .bg-blue-600.text-white    { color: #ffffff; }
 
 [data-theme="light-ocean"] .text-slate-100 { color: hsl(202 70% 12%); }
 [data-theme="light-ocean"] .text-slate-200 { color: hsl(202 60% 18%); }
@@ -463,6 +466,7 @@
 [data-theme="light-sunset"] .bg-slate-700\/50 { background-color: hsl(35 55% 85% / 0.58); }
 [data-theme="light-sunset"] .text-white                { color: hsl(20 60% 12%); }
 [data-theme="light-sunset"] .hover\:text-white:hover   { color: hsl(20 60% 12%); }
+[data-theme="light-sunset"] .bg-blue-600.text-white    { color: #ffffff; }
 
 [data-theme="light-sunset"] .text-slate-100 { color: hsl(20 60% 12%); }
 [data-theme="light-sunset"] .text-slate-200 { color: hsl(20 50% 20%); }
@@ -561,6 +565,7 @@
 /* text — dark navy on light blue */
 [data-theme="light-steel"] .text-white                  { color: hsl(220 45% 10%); }
 [data-theme="light-steel"] .hover\:text-white:hover     { color: hsl(220 45% 10%); }
+[data-theme="light-steel"] .bg-blue-600.text-white      { color: #ffffff; }
 [data-theme="light-steel"] .text-slate-100 { color: hsl(220 45% 10%); }
 [data-theme="light-steel"] .text-slate-200 { color: hsl(218 38% 17%); }
 [data-theme="light-steel"] .text-slate-300 { color: hsl(218 30% 28%); }
