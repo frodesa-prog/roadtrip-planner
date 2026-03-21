@@ -759,29 +759,6 @@ export default function ChatPanel() {
                         <span className="text-[10px] text-slate-500 mb-0.5 px-1">{msg.sender_name}</span>
                       )}
 
-                      {/* ── Emoji picker bar — flytende over boblen ──────── */}
-                      {hoveredMsgId === msg.id && (
-                        <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} -top-7 z-20
-                          flex items-center gap-px px-1.5 py-1 rounded-xl
-                          bg-slate-800 border border-slate-700 shadow-lg shadow-black/40`}>
-                          {QUICK_EMOJIS.map(emoji => (
-                            <button
-                              key={emoji}
-                              onClick={() => toggleReaction(msg.id, emoji)}
-                              title={emoji}
-                              className={`text-sm leading-none p-0.5 rounded-md transition-transform
-                                hover:scale-125 active:scale-110
-                                ${hasUserReacted(msg.id, emoji)
-                                  ? 'bg-blue-600/30 scale-110'
-                                  : 'hover:bg-slate-700'
-                                }`}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
                       <div className={`flex items-start gap-1.5 w-full ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                         {/* Message bubble – alltid 75% av full chatbredde */}
                         <div className={`w-[75%] flex-shrink-0 px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
@@ -826,6 +803,29 @@ export default function ChatPanel() {
                         )}
                       </div>
 
+                      {/* ── Emoji picker bar — flytende under boblen ─────── */}
+                      {hoveredMsgId === msg.id && (
+                        <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} -bottom-7 z-20
+                          flex items-center gap-px px-1.5 py-1 rounded-xl
+                          bg-slate-800 border border-slate-700 shadow-lg shadow-black/40`}>
+                          {QUICK_EMOJIS.map(emoji => (
+                            <button
+                              key={emoji}
+                              onClick={() => toggleReaction(msg.id, emoji)}
+                              title={emoji}
+                              className={`text-sm leading-none p-0.5 rounded-md transition-transform
+                                hover:scale-125 active:scale-110
+                                ${hasUserReacted(msg.id, emoji)
+                                  ? 'bg-blue-600/30 scale-110'
+                                  : 'hover:bg-slate-700'
+                                }`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
                       {/* ── Existing reactions — overlapper boblen litt ──── */}
                       {reactionGroups.length > 0 && (
                         <div className={`relative -mt-2 flex flex-wrap gap-0.5 px-1.5 z-10
@@ -835,12 +835,7 @@ export default function ChatPanel() {
                               key={emoji}
                               onClick={() => toggleReaction(msg.id, emoji)}
                               title={hasOwn ? `Du og ${count - 1} andre` : `${count} reaksjon${count > 1 ? 'er' : ''}`}
-                              className={`flex items-center gap-0.5 px-1.5 py-px rounded-full text-xs border
-                                transition-colors select-none
-                                ${hasOwn
-                                  ? 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35'
-                                  : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-700'
-                                }`}
+                              className="flex items-center gap-0.5 select-none transition-transform hover:scale-110 active:scale-95"
                             >
                               <span className="text-[13px] leading-none">{emoji}</span>
                               {count > 1 && (
