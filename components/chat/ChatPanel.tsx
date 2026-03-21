@@ -748,7 +748,7 @@ export default function ChatPanel() {
                   const reactionGroups = groupReactions(msgReactions)
 
                   return (
-                    <div key={msg.id} className={`flex flex-col mb-1 ${isOwn ? 'items-end' : 'items-start'}`}
+                    <div key={msg.id} className={`relative flex flex-col mb-1 ${isOwn ? 'items-end' : 'items-start'}`}
                       onMouseEnter={() => setHoveredMsgId(msg.id)}
                       onMouseLeave={() => {
                         if (pendingDeleteId === msg.id) setPendingDeleteId(null)
@@ -759,16 +759,17 @@ export default function ChatPanel() {
                         <span className="text-[10px] text-slate-500 mb-0.5 px-1">{msg.sender_name}</span>
                       )}
 
-                      {/* ── Emoji picker bar (visible on hover) ─────────── */}
+                      {/* ── Emoji picker bar — flytende over boblen ──────── */}
                       {hoveredMsgId === msg.id && (
-                        <div className={`flex items-center gap-0.5 px-2 py-1.5 mb-1 rounded-2xl
-                          bg-slate-800 border border-slate-700 shadow-lg shadow-black/30 z-10`}>
+                        <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} -top-7 z-20
+                          flex items-center gap-px px-1.5 py-1 rounded-xl
+                          bg-slate-800 border border-slate-700 shadow-lg shadow-black/40`}>
                           {QUICK_EMOJIS.map(emoji => (
                             <button
                               key={emoji}
                               onClick={() => toggleReaction(msg.id, emoji)}
                               title={emoji}
-                              className={`text-base leading-none p-1 rounded-lg transition-transform
+                              className={`text-sm leading-none p-0.5 rounded-md transition-transform
                                 hover:scale-125 active:scale-110
                                 ${hasUserReacted(msg.id, emoji)
                                   ? 'bg-blue-600/30 scale-110'
@@ -825,24 +826,25 @@ export default function ChatPanel() {
                         )}
                       </div>
 
-                      {/* ── Existing reactions ───────────────────────────── */}
+                      {/* ── Existing reactions — overlapper boblen litt ──── */}
                       {reactionGroups.length > 0 && (
-                        <div className={`flex flex-wrap gap-1 mt-1 px-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`relative -mt-2 flex flex-wrap gap-0.5 px-1.5 z-10
+                          ${isOwn ? 'justify-end' : 'justify-start'}`}>
                           {reactionGroups.map(({ emoji, count, hasOwn }) => (
                             <button
                               key={emoji}
                               onClick={() => toggleReaction(msg.id, emoji)}
                               title={hasOwn ? `Du og ${count - 1} andre` : `${count} reaksjon${count > 1 ? 'er' : ''}`}
-                              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border
+                              className={`flex items-center gap-0.5 px-1.5 py-px rounded-full text-xs border
                                 transition-colors select-none
                                 ${hasOwn
                                   ? 'bg-blue-600/25 border-blue-500/50 hover:bg-blue-600/35'
                                   : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-700'
                                 }`}
                             >
-                              <span>{emoji}</span>
+                              <span className="text-[13px] leading-none">{emoji}</span>
                               {count > 1 && (
-                                <span className={`text-[11px] font-semibold tabular-nums leading-none
+                                <span className={`text-[10px] font-semibold tabular-nums leading-none
                                   ${hasOwn ? 'text-blue-300' : 'text-slate-400'}`}>
                                   {count}
                                 </span>
