@@ -2,18 +2,76 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
-import { MapPin, Loader2, Mail, Lock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import {
+  MapPin, Loader2, Mail, Lock, Route,
+  ClipboardList, Archive, Wallet, Users, PackageOpen,
+  CheckCircle2,
+} from 'lucide-react'
 import { toast } from 'sonner'
+
+// ── Brand colours (from logo) ──────────────────────────────────────────────
+const C = {
+  navy:    '#3d4e6b',
+  copper:  '#c4845a',
+  mint:    '#6dbdb8',
+  blue:    '#8ea8d4',
+  navyLight: '#5a6f91',
+}
+
+// ── Features ───────────────────────────────────────────────────────────────
+const FEATURES = [
+  {
+    icon: Route,
+    color: C.copper,
+    bg: '#fdf1ea',
+    title: 'Planlegg reiseruten',
+    desc: 'Legg til stoppesteder, se kjøreruter på kart og organiser hele turen dag for dag.',
+  },
+  {
+    icon: ClipboardList,
+    color: C.mint,
+    bg: '#eaf7f6',
+    title: 'Gjøremål & pakkeliste',
+    desc: 'Aldri glem noe igjen. Del lister med turfølget og følg med på hvem som pakker hva.',
+  },
+  {
+    icon: Wallet,
+    color: C.blue,
+    bg: '#edf2fb',
+    title: 'Hold oversikt over kostnadene',
+    desc: 'Registrer utgifter, del på kostnader og se budsjettet i sanntid.',
+  },
+  {
+    icon: Users,
+    color: C.navyLight,
+    bg: '#f0f3fa',
+    title: 'Planlegg sammen',
+    desc: 'Chat med turfølget, reager på meldinger og planlegg i fellesskap fra der dere er.',
+  },
+  {
+    icon: Archive,
+    color: C.copper,
+    bg: '#fdf1ea',
+    title: 'Arkiver minner',
+    desc: 'Etter reisen lagres alt automatisk i arkivet — klar til å se tilbake på.',
+  },
+  {
+    icon: PackageOpen,
+    color: C.mint,
+    bg: '#eaf7f6',
+    title: 'Roadtrip, storbytur & resort',
+    desc: 'Verktøyet tilpasser seg ferietypen din — enten det er biltur, bytur eller strandhotel.',
+  },
+]
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [loading, setLoading]   = useState(false)
+  const [mode, setMode]         = useState<'login' | 'register'>('login')
 
   const supabase = createClient()
 
@@ -45,79 +103,190 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex bg-blue-500/20 border border-blue-500/30 rounded-full p-4 mb-4">
-            <MapPin className="w-10 h-10 text-blue-400" />
+    <main className="min-h-screen flex flex-col">
+
+      {/* ── Top bar ───────────────────────────────────────────────────── */}
+      <header className="flex items-center px-6 py-4 border-b border-slate-200/60 bg-white/40 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <div className="relative w-9 h-9 flex-shrink-0">
+            <Image src="/logo.png" alt="MyVacayPlanner" fill className="object-contain" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Ferieplanlegger</h1>
-          <p className="text-blue-200/60 text-sm mt-1">Planlegg og arkiver dine eventyr</p>
+          <span className="font-bold text-lg tracking-tight" style={{ color: C.navy }}>
+            MyVacayPlanner
+          </span>
         </div>
+        <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-medium"
+          style={{ background: '#eaf7f6', color: C.mint }}>
+          Privat beta
+        </span>
+      </header>
 
-        {/* Kort */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 space-y-4">
-          <h2 className="text-white font-semibold text-center">
-            {mode === 'login' ? 'Logg inn' : 'Opprett konto'}
-          </h2>
+      {/* ── Body ──────────────────────────────────────────────────────── */}
+      <div className="flex flex-1 flex-col lg:flex-row">
 
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                type="email"
-                placeholder="E-post"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-blue-400"
-                required
-              />
+        {/* Left — info */}
+        <section className="flex-1 flex flex-col justify-center px-8 py-12 lg:px-16 lg:py-16 max-w-3xl mx-auto lg:mx-0 w-full">
+
+          {/* Hero */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-12">
+            <div className="relative w-24 h-24 flex-shrink-0 drop-shadow-md">
+              <Image src="/logo.png" alt="MyVacayPlanner logo" fill className="object-contain" />
             </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                type="password"
-                placeholder="Passord"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:border-blue-400"
-                required
-                minLength={6}
-              />
+            <div>
+              <h1 className="text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight" style={{ color: C.navy }}>
+                Planlegg.<br />
+                <span style={{ color: C.copper }}>Reis.</span>{' '}
+                <span style={{ color: C.mint }}>Gjenopplev.</span>
+              </h1>
+              <p className="mt-3 text-base lg:text-lg max-w-lg leading-relaxed" style={{ color: C.navyLight }}>
+                Et komplett verktøy for å planlegge ferier, holde oversikt under turen
+                og arkivere minner etterpå — alt på ett sted.
+              </p>
             </div>
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white h-10 font-medium"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : mode === 'login' ? (
-                'Logg inn'
-              ) : (
-                'Opprett konto'
-              )}
-            </Button>
-          </form>
-
-          <div className="text-center pt-1">
-            <button
-              onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-              className="text-sm text-blue-300/70 hover:text-blue-300 transition-colors"
-            >
-              {mode === 'login'
-                ? 'Ny bruker? Opprett konto'
-                : 'Har du allerede konto? Logg inn'}
-            </button>
           </div>
-        </div>
 
-        <p className="text-center text-slate-600 text-xs mt-6">
-          Frode &amp; Monica · Privat app
-        </p>
+          {/* Feature grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {FEATURES.map(({ icon: Icon, color, bg, title, desc }) => (
+              <div key={title} className="flex gap-3 p-4 rounded-xl border border-slate-200/70 bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: bg }}>
+                  <Icon className="w-4.5 h-4.5" style={{ color }} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold mb-0.5" style={{ color: C.navy }}>{title}</p>
+                  <p className="text-xs leading-relaxed" style={{ color: C.navyLight }}>{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bullet trust signals */}
+          <div className="flex flex-wrap gap-x-6 gap-y-2 mt-8">
+            {['Roadtrip', 'Storbytur', 'Resort', 'Delt med turfølget', 'Kart & ruter', 'Kostnadsfordeling'].map((tag) => (
+              <span key={tag} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: C.navyLight }}>
+                <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: C.mint }} />
+                {tag}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        {/* Right — auth card */}
+        <aside className="flex items-center justify-center px-6 py-10 lg:py-0 lg:w-[420px] lg:flex-shrink-0">
+          <div className="w-full max-w-sm">
+
+            {/* Card */}
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden">
+
+              {/* Card header */}
+              <div className="px-7 py-5 border-b border-slate-100" style={{ background: 'linear-gradient(135deg, #f8f9fd, #f0f3fa)' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <MapPin className="w-4 h-4" style={{ color: C.copper }} />
+                  <h2 className="font-bold text-base" style={{ color: C.navy }}>
+                    {mode === 'login' ? 'Logg inn' : 'Opprett konto'}
+                  </h2>
+                </div>
+                <p className="text-xs" style={{ color: C.navyLight }}>
+                  {mode === 'login'
+                    ? 'Velkommen tilbake! Logg inn for å fortsette planleggingen.'
+                    : 'Opprett en gratis konto og kom i gang med planleggingen.'}
+                </p>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="px-7 py-6 space-y-4">
+                {/* Email */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: C.navy }}>
+                    E-post
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: C.blue }} />
+                    <input
+                      type="email"
+                      placeholder="din@epost.no"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full pl-9 pr-3 py-2.5 rounded-lg border text-sm outline-none transition-colors"
+                      style={{
+                        borderColor: '#d4dce8',
+                        color: C.navy,
+                        background: '#fafbfd',
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
+                      onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: C.navy }}>
+                    Passord
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: C.blue }} />
+                    <input
+                      type="password"
+                      placeholder={mode === 'register' ? 'Minst 6 tegn' : '••••••••'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-lg border text-sm outline-none transition-colors"
+                      style={{
+                        borderColor: '#d4dce8',
+                        color: C.navy,
+                        background: '#fafbfd',
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
+                      onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-sm text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60 mt-2"
+                  style={{ background: `linear-gradient(135deg, ${C.copper}, #b8714a)` }}
+                >
+                  {loading
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : mode === 'login' ? 'Logg inn' : 'Opprett konto'}
+                </button>
+
+                {/* Toggle mode */}
+                <div className="pt-1 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+                    className="text-xs transition-colors hover:underline"
+                    style={{ color: C.mint }}
+                  >
+                    {mode === 'login'
+                      ? 'Ny bruker? Opprett konto gratis'
+                      : 'Har du allerede konto? Logg inn'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Footer note */}
+            <p className="text-center text-xs mt-5" style={{ color: '#9fb3c8' }}>
+              Privat app · Bare inviterte brukere
+            </p>
+          </div>
+        </aside>
       </div>
-    </div>
+
+      {/* ── Bottom bar ────────────────────────────────────────────────── */}
+      <footer className="flex items-center justify-between px-6 py-3 border-t border-slate-200/60 bg-white/30 text-xs" style={{ color: '#9fb3c8' }}>
+        <span>© 2026 MyVacayPlanner</span>
+        <span className="italic">Plan. Travel. Relive.</span>
+      </footer>
+    </main>
   )
 }
