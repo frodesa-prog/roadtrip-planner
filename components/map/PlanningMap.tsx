@@ -198,6 +198,7 @@ function PoiInfoBox({
   const [poiPossDesc, setPoiPossDesc] = useState('')
   const [poiPossUrl, setPoiPossUrl] = useState('')
   const [poiPossCategory, setPoiPossCategory] = useState<string | null>(null)
+  const [poiPossDate, setPoiPossDate] = useState<string | null>(null)
 
   // Derive stop dates for the currently selected stop
   const selectedStopObj = stops.find((s) => s.id === selectedStopId) ?? null
@@ -223,6 +224,7 @@ function PoiInfoBox({
     setPoiPossDesc(info?.name ?? '')
     setPoiPossUrl(info?.website ?? '')
     setPoiPossCategory(null)
+    setPoiPossDate(null)
     setShowPossForm(true)
   }
 
@@ -271,6 +273,9 @@ function PoiInfoBox({
       description: poiPossDesc.trim(),
       url: poiPossUrl.trim() || undefined,
       category: poiPossCategory ?? undefined,
+      activity_date: poiPossDate ?? undefined,
+      map_lat: info?.lat ?? undefined,
+      map_lng: info?.lng ?? undefined,
     }
     onPoiAction?.addPossible(selectedStopId, data)
     setShowPossForm(false)
@@ -772,6 +777,24 @@ function PoiInfoBox({
                             ))}
                           </div>
                         </div>
+                        {poiStopDates.length > 0 && (
+                          <div>
+                            <p className="text-[10px] text-slate-500 mb-1">Dag (valgfritt)</p>
+                            <div className="flex flex-wrap gap-1">
+                              {poiStopDates.map((d) => (
+                                <button key={d} type="button"
+                                  onClick={() => setPoiPossDate(poiPossDate === d ? null : d)}
+                                  className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                    poiPossDate === d
+                                      ? 'bg-teal-700 border-teal-600 text-white'
+                                      : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                                  }`}>
+                                  {new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="flex gap-1.5">
                           <button type="submit" disabled={!poiPossDesc.trim()}
                             className="flex-1 h-7 rounded-md bg-teal-700 hover:bg-teal-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">

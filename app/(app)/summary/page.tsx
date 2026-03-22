@@ -580,7 +580,10 @@ export default function SummaryPage() {
               hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
               activities={activities.filter((a) => a.stop_id === selectedStop.id && a.activity_date === selectedDate)}
               dining={dining.filter((d) => d.stop_id === selectedStop.id && d.booking_date === selectedDate)}
-              possibleActivities={possibleActivities.filter((a) => a.stop_id === selectedStop.id)}
+              possibleActivities={possibleActivities.filter((a) =>
+                a.stop_id === selectedStop.id &&
+                (a.activity_date == null || a.activity_date === selectedDate)
+              )}
               leg={selectedStopLeg}
               selectedDate={selectedDate}
               stopIndex={selectedStopIndex}

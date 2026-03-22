@@ -481,9 +481,7 @@ export default function PlanPage() {
                 setSelectedRoadPossibleId(id)
                 setSelectedRoadActivityId(null)
                 setSelectedRoadDiningId(null)
-                if (!id || possibleActivities.find((p) => p.id === id && p.map_lat != null && p.map_lng != null)) {
-                  setRoadMapVersion((v) => v + 1)
-                }
+                setRoadMapVersion((v) => v + 1)
               }}
               onClose={() => { setSelectedStopId(null); setMobileView('steder') }}
             />
@@ -537,9 +535,7 @@ export default function PlanPage() {
                 setSelectedCityPossibleId(id)
                 setSelectedCityActivityId(null)
                 setSelectedCityDiningId(null)
-                if (!id || possibleActivities.find((p) => p.id === id && p.map_lat != null && p.map_lng != null)) {
-                  setCityZoomVersion((v) => v + 1)
-                }
+                setCityZoomVersion((v) => v + 1)
               }}
               onClose={() => { setSelectedDayStr(null); setMobileView('steder') }}
             />
