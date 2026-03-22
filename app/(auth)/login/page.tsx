@@ -345,7 +345,7 @@ export default function LoginPage() {
       </header>
 
       {/* ── Hero: tagline ────────────────────────────────────────────── */}
-      <section className="flex flex-col items-center gap-6 px-4 sm:px-8 lg:px-16 pt-5 sm:pt-6 pb-0 text-center">
+      <section className="flex flex-col items-center gap-6 px-4 sm:px-8 lg:px-16 pt-2 sm:pt-3 pb-0 text-center">
         {/* Tagline */}
         <div className="max-w-2xl w-full">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight mb-3 sm:mb-4" style={{ color: C.navy }}>
