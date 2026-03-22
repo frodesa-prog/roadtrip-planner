@@ -13,6 +13,27 @@ import { Note, Stop } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Split text on URLs and return spans/anchors */
+function renderWithLinks(text: string) {
+  const parts = text.split(/(https?:\/\/[^\s]+)/)
+  return parts.map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-400 underline hover:text-blue-300 break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  )
+}
+
 function getStopDateRange(stop: Stop): string[] {
   if (!stop.arrival_date) return []
   const dates: string[] = []
@@ -439,6 +460,7 @@ function DraftEditor({
 }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [isEditingContent, setIsEditingContent] = useState(true)
   const titleRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -492,9 +514,26 @@ function DraftEditor({
         </button>
       </div>
 
-      <textarea value={content} onChange={(e) => handleContentChange(e.target.value)}
-        placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
-        className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0" />
+      {isEditingContent ? (
+        <textarea
+          autoFocus
+          value={content}
+          onChange={(e) => handleContentChange(e.target.value)}
+          onBlur={() => setIsEditingContent(false)}
+          placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
+          className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
+        />
+      ) : (
+        <div
+          onClick={() => setIsEditingContent(true)}
+          className="flex-1 text-slate-300 text-sm px-4 md:px-6 py-4 whitespace-pre-wrap leading-relaxed overflow-y-auto cursor-text min-h-0"
+        >
+          {content
+            ? renderWithLinks(content)
+            : <span className="text-slate-700">Skriv notater her…</span>
+          }
+        </div>
+      )}
 
       <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0">
         <p className="text-[11px] text-slate-600 italic">Lagres automatisk når du begynner å skrive</p>
@@ -528,6 +567,7 @@ function NoteEditor({
   const [content, setContent] = useState(note.content)
   const [stopId, setStopId] = useState<string | null>(note.stop_id)
   const [noteDate, setNoteDate] = useState<string | null>(note.note_date)
+  const [isEditingContent, setIsEditingContent] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -710,13 +750,27 @@ function NoteEditor({
 
       {/* Textarea + image gallery */}
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-        <textarea
-          value={content}
-          onChange={(e) => handleContentChange(e.target.value)}
-          onPaste={handlePaste}
-          placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
-          className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
-        />
+        {isEditingContent ? (
+          <textarea
+            autoFocus
+            value={content}
+            onChange={(e) => handleContentChange(e.target.value)}
+            onPaste={handlePaste}
+            onBlur={() => setIsEditingContent(false)}
+            placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
+            className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
+          />
+        ) : (
+          <div
+            onClick={() => setIsEditingContent(true)}
+            className="flex-1 text-slate-300 text-sm px-4 md:px-6 py-4 whitespace-pre-wrap leading-relaxed overflow-y-auto cursor-text min-h-0"
+          >
+            {content
+              ? renderWithLinks(content)
+              : <span className="text-slate-700">Skriv notater her…</span>
+            }
+          </div>
+        )}
 
         {images.length > 0 && (
           <div className="border-t border-slate-800 px-4 py-3 grid grid-cols-3 gap-2 max-h-52 overflow-y-auto flex-shrink-0">
