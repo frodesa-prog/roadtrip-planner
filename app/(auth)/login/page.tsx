@@ -345,7 +345,7 @@ export default function LoginPage() {
       </header>
 
       {/* ── Hero: tagline ────────────────────────────────────────────── */}
-      <section className="flex flex-col items-center gap-6 px-4 sm:px-8 lg:px-16 pt-10 sm:pt-14 pb-6 sm:pb-8 text-center">
+      <section className="flex flex-col items-center gap-6 px-4 sm:px-8 lg:px-16 pt-8 sm:pt-10 pb-2 sm:pb-3 text-center">
         {/* Tagline */}
         <div className="max-w-2xl w-full">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight mb-3 sm:mb-4" style={{ color: C.navy }}>
@@ -369,7 +369,7 @@ export default function LoginPage() {
       </section>
 
       {/* ── Illustration ─────────────────────────────────────────────── */}
-      <section className="px-4 sm:px-8 lg:px-16 pb-6">
+      <section className="px-4 sm:px-8 lg:px-16 py-4">
         <div className="relative w-full max-w-4xl mx-auto" style={{ aspectRatio: '16/7' }}>
           <Image
             src="/illustration1.png"
@@ -382,7 +382,7 @@ export default function LoginPage() {
       </section>
 
       {/* ── Features grid ────────────────────────────────────────────── */}
-      <section className="px-4 sm:px-8 lg:px-16 pb-8">
+      <section className="px-4 sm:px-8 lg:px-16 pt-0 pb-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {FEATURES.map(({ icon: Icon, color, bg, title, desc }) => (
             <div key={title} className="flex gap-3 p-4 rounded-xl border border-slate-200/70 bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow">
