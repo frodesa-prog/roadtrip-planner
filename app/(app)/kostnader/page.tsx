@@ -13,7 +13,7 @@ import { useDrivingInfo } from '@/hooks/useDrivingInfo'
 import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
 import { Flight, CarRental } from '@/types'
 import {
-  Plane, Car, Fuel, BedDouble, Ticket,
+  Plane, Train, Car, Fuel, BedDouble, Ticket,
   ChevronDown, Loader2, Receipt, ExternalLink,
   PlaneTakeoff, PlaneLanding, X, ChevronRight,
   Link as LinkIcon, Clock, Calculator, Bus,
@@ -178,10 +178,12 @@ function TableTotal({ label, amount }: { label: string; amount: number }) {
 function FlightInfoModal({
   outbound,
   returnFlight,
+  isTrain = false,
   onClose,
 }: {
   outbound: Flight | null
   returnFlight: Flight | null
+  isTrain?: boolean
   onClose: () => void
 }) {
   const [tab, setTab] = useState<'outbound' | 'return'>('outbound')
@@ -189,7 +191,9 @@ function FlightInfoModal({
 
   function FlightInfo({ f }: { f: Flight | null }) {
     if (!f) return (
-      <p className="text-slate-500 text-xs text-center py-6">Ingen flyinformasjon registrert</p>
+      <p className="text-slate-500 text-xs text-center py-6">
+        {isTrain ? 'Ingen toginformasjon registrert' : 'Ingen flyinformasjon registrert'}
+      </p>
     )
 
     const fromOffset  = getOffset(f.leg1_from)
@@ -210,7 +214,7 @@ function FlightInfoModal({
         <div className="bg-slate-800/60 rounded-lg p-3 space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-              {f.has_stopover ? 'Etappe 1' : 'Flyvning'}
+              {f.has_stopover ? 'Etappe 1' : isTrain ? 'Strekning' : 'Flyvning'}
             </p>
             {leg1Min !== null && (
               <span className="flex items-center gap-1 text-[10px] text-sky-400 font-semibold">
@@ -222,7 +226,7 @@ function FlightInfoModal({
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
             <InfoField label="Fra" value={f.leg1_from} />
             <InfoField label="Avgang" value={f.leg1_departure} />
-            <InfoField label="Flightnr." value={f.leg1_flight_nr} />
+            <InfoField label={isTrain ? 'Rutenr.' : 'Flightnr.'} value={f.leg1_flight_nr} />
             <InfoField label="Til" value={f.leg1_to} />
             <InfoField label="Ankomst" value={f.leg1_arrival} />
           </div>
@@ -257,7 +261,7 @@ function FlightInfoModal({
               )}
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-              <InfoField label="Flightnr." value={f.leg2_flight_nr} />
+              <InfoField label={isTrain ? 'Rutenr.' : 'Flightnr.'} value={f.leg2_flight_nr} />
               <InfoField label="Avgang" value={f.leg2_departure} />
               <InfoField label="Til" value={f.leg2_to} />
               <InfoField label="Ankomst" value={f.leg2_arrival} />
@@ -286,8 +290,13 @@ function FlightInfoModal({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
-            <Plane className="w-4 h-4 text-sky-400" />
-            <h3 className="text-sm font-bold text-white">Flyinformasjon</h3>
+            {isTrain
+              ? <Train className="w-4 h-4 text-sky-400" />
+              : <Plane className="w-4 h-4 text-sky-400" />
+            }
+            <h3 className="text-sm font-bold text-white">
+              {isTrain ? 'Toginformasjon' : 'Flyinformasjon'}
+            </h3>
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
             <X className="w-4 h-4" />
@@ -827,8 +836,9 @@ export default function KostnaderPage() {
   )
 
   // ── Car/flight flags (null/undefined = true for backward compat with old trips) ──
-  const hasCarRental = currentTrip?.has_car_rental !== false
-  const hasFlight    = currentTrip?.has_flight !== false
+  const hasCarRental  = currentTrip?.has_car_rental !== false
+  const hasFlight     = currentTrip?.has_flight !== false
+  const isTrain       = currentTrip?.transport_type === 'tog'
 
   // ── Totaler ──────────────────────────────────────────────────────────────
   const totalHotels = hotelRows.reduce((s, r) => s + (r.hotel.cost ?? 0), 0)
@@ -910,6 +920,7 @@ export default function KostnaderPage() {
         <FlightInfoModal
           outbound={outbound}
           returnFlight={returnFlight}
+          isTrain={isTrain}
           onClose={() => setShowFlightModal(false)}
         />
       )}
@@ -1127,7 +1138,7 @@ export default function KostnaderPage() {
                     <Th right>Gjenstår</Th>
                   </div>
 
-                  {/* Fly – vises kun når turen inkluderer fly */}
+                  {/* Fly/Tog – vises kun når turen inkluderer fly eller tog */}
                   {hasFlight && (
                     <div
                       className={`grid ${rightGrid} items-center hover:bg-slate-800/40 transition-colors`}
@@ -1135,10 +1146,13 @@ export default function KostnaderPage() {
                       <button
                         onClick={() => setShowFlightModal(true)}
                         className="px-2 py-2 flex items-center gap-1.5 text-left group"
-                        title="Vis flyinformasjon"
+                        title={isTrain ? 'Vis toginformasjon' : 'Vis flyinformasjon'}
                       >
-                        <Plane className="w-3 h-3 text-sky-400 flex-shrink-0" />
-                        <span className="text-xs text-slate-200">Fly</span>
+                        {isTrain
+                          ? <Train className="w-3 h-3 text-sky-400 flex-shrink-0" />
+                          : <Plane className="w-3 h-3 text-sky-400 flex-shrink-0" />
+                        }
+                        <span className="text-xs text-slate-200">{isTrain ? 'Tog' : 'Fly'}</span>
                         <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-colors ml-auto" />
                       </button>
                       <div className="px-1.5 py-1.5">
@@ -1293,7 +1307,7 @@ export default function KostnaderPage() {
                   {[
                     { label: 'Hoteller', value: totalHotels },
                     { label: 'Aktiviteter', value: totalActivities },
-                    { label: 'Fly + leiebil', value: totalFlight + totalCar },
+                    { label: isTrain ? 'Tog + leiebil' : 'Fly + leiebil', value: totalFlight + totalCar },
                     { label: 'Bensin', value: totalGas },
                     { label: 'Parkering', value: totalParking },
                   ].map(({ label, value }) => (
