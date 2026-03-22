@@ -336,16 +336,8 @@ export default function CityPlanSidebar({
 
       {/* Trip selector */}
       <TripManager
-        trips={trips}
         currentTrip={currentTrip}
         loading={tripsLoading}
-        userId={userId}
-        onSelectTrip={onSelectTrip}
-        onRequestCreate={() => setShowWizard(true)}
-        onDeleteTrip={(id) => {
-          const name = trips.find((t) => t.id === id)?.name ?? 'denne turen'
-          setConfirmDelete({ id, name })
-        }}
         onEditDates={openEditDates}
       />
       <NewTripWizard open={showWizard} onClose={() => setShowWizard(false)} onCreateTrip={onCreateTrip} />

@@ -3,9 +3,9 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronRight, Check } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronDown, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useChat } from '@/components/chat/ChatContext'
 import { Trip } from '@/types'
 
@@ -27,10 +27,13 @@ function formatTripDates(trip: Trip): string {
   return String(trip.year)
 }
 
-function TripPickerModal({ onClose }: { onClose: () => void }) {
+// ── Inline trip dropdown in the top nav ─────────────────────────────────────
+function TripDropdown() {
   const [trips, setTrips] = useState<Trip[]>([])
-  const [loading, setLoading] = useState(true)
   const [currentId, setCurrentId] = useState<string | null>(null)
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setCurrentId(typeof window !== 'undefined' ? localStorage.getItem(SELECTED_TRIP_KEY) : null)
@@ -40,9 +43,26 @@ function TripPickerModal({ onClose }: { onClose: () => void }) {
         if (data) setTrips(data as Trip[])
         setLoading(false)
       })
+
+    function onTripChanged(e: Event) {
+      const detail = (e as CustomEvent).detail
+      if (detail?.trip) setCurrentId(detail.trip.id)
+    }
+    window.addEventListener('trip-changed', onTripChanged)
+    return () => window.removeEventListener('trip-changed', onTripChanged)
   }, [])
 
-  // Aktiv tur alltid øverst
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const currentTrip = trips.find(t => t.id === currentId) ?? null
   const sortedTrips = trips.slice().sort((a, b) => {
     if (a.id === currentId) return -1
     if (b.id === currentId) return 1
@@ -51,94 +71,77 @@ function TripPickerModal({ onClose }: { onClose: () => void }) {
 
   const selectTrip = useCallback((trip: Trip) => {
     localStorage.setItem(SELECTED_TRIP_KEY, trip.id)
+    setCurrentId(trip.id)
     window.dispatchEvent(new CustomEvent('trip-changed', { detail: { trip } }))
-    onClose()
-  }, [onClose])
+    setOpen(false)
+  }, [])
 
   return (
-    /* Mørk overlay – klikk utenfor for å lukke */
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="w-full max-w-md mx-4 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl shadow-black/60 overflow-hidden">
+    <div ref={dropdownRef} className="relative flex-shrink-0">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium text-slate-200 hover:bg-slate-800 transition-colors"
+        title="Bytt reise"
+      >
+        {loading ? (
+          <span className="text-slate-400 text-xs">Laster…</span>
+        ) : currentTrip ? (
+          <>
+            <span className="text-base leading-none flex-shrink-0">
+              {TRIP_TYPE_EMOJI[currentTrip.trip_type ?? 'road_trip'] ?? '🗺️'}
+            </span>
+            <span className="truncate font-semibold text-slate-100 max-w-[140px]">
+              {currentTrip.name}
+            </span>
+          </>
+        ) : (
+          <span className="text-slate-400 text-xs">Velg reise</span>
+        )}
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🗺️</span>
-            <p className="text-sm font-bold text-slate-100">Velg reise</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Liste */}
-        <div className="overflow-y-auto" style={{ maxHeight: 'min(70vh, 480px)' }}>
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : sortedTrips.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-12">Ingen reiser registrert ennå</p>
-          ) : (
-            <div className="p-3 flex flex-col gap-2">
-              {sortedTrips.map((trip) => {
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl shadow-black/60 overflow-hidden min-w-[240px]">
+          <div className="overflow-y-auto" style={{ maxHeight: 'min(70vh, 400px)' }}>
+            {trips.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-6 px-4">Ingen reiser registrert ennå</p>
+            ) : (
+              sortedTrips.map(trip => {
                 const isActive = trip.id === currentId
                 return (
                   <button
                     key={trip.id}
                     onClick={() => selectTrip(trip)}
-                    className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all group
-                      ${isActive
-                        ? 'bg-blue-600/20 border border-blue-500/40 ring-1 ring-blue-500/20'
-                        : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 hover:border-slate-600'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                      isActive ? 'bg-blue-900/40' : 'hover:bg-slate-800'
+                    }`}
                   >
-                    {/* Emoji stor */}
-                    <span className="text-2xl flex-shrink-0 leading-none">
+                    <span className="text-base flex-shrink-0">
                       {TRIP_TYPE_EMOJI[trip.trip_type ?? 'road_trip'] ?? '🗺️'}
                     </span>
-
-                    {/* Tekst */}
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold leading-snug truncate ${isActive ? 'text-blue-300' : 'text-slate-100'}`}>
+                      <p className={`text-sm font-medium truncate ${isActive ? 'text-blue-300' : 'text-slate-100'}`}>
                         {trip.name}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5">{formatTripDates(trip)}</p>
+                      <p className="text-xs text-slate-500">{formatTripDates(trip)}</p>
                     </div>
-
-                    {/* Aktiv-hake eller pil */}
-                    {isActive ? (
-                      <span className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold text-blue-400">
-                        <Check className="w-4 h-4" />
-                        Aktiv
-                      </span>
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 flex-shrink-0 transition-colors" />
-                    )}
+                    {isActive && <Check className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />}
                   </button>
                 )
-              })}
-            </div>
-          )}
+              })
+            )}
+          </div>
+          <div className="border-t border-slate-700 px-4 py-2.5">
+            <Link
+              href="/minside"
+              onClick={() => setOpen(false)}
+              className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              + Opprett ny reise
+            </Link>
+          </div>
         </div>
-
-        {/* Footer */}
-        <div className="border-t border-slate-800 px-5 py-3 flex items-center justify-between">
-          <p className="text-xs text-slate-600">{trips.length} reise{trips.length !== 1 ? 'r' : ''} totalt</p>
-          <Link
-            href="/minside"
-            onClick={onClose}
-            className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
-          >
-            + Opprett ny reise
-          </Link>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -168,7 +171,6 @@ export default function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [tripPickerOpen, setTripPickerOpen] = useState(false)
   const { toggle: toggleChat, unreadCount } = useChat()
 
   async function handleLogout() {
@@ -191,12 +193,8 @@ export default function NavBar() {
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Logo – klikk for å velge tur */}
-        <button
-          onClick={() => setTripPickerOpen(true)}
-          className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-slate-800 transition-colors group mr-4"
-          title="Velg reise"
-        >
+        {/* Logo – statisk, lenker til /plan */}
+        <Link href="/plan" className="flex items-center px-1 py-0.5 flex-shrink-0">
           <Image
             src="/logo.png"
             alt="MyVacayPlanner"
@@ -204,20 +202,26 @@ export default function NavBar() {
             height={48}
             className="object-contain -mt-2"
           />
-        </button>
-        {tripPickerOpen && (
-          <TripPickerModal onClose={() => setTripPickerOpen(false)} />
-        )}
+        </Link>
+
+        {/* Skillelinje */}
+        <div className="hidden md:block w-px h-5 bg-slate-700 mx-1 flex-shrink-0" />
+
+        {/* Trip dropdown – velg aktiv ferie */}
+        <TripDropdown />
+
+        {/* Skillelinje */}
+        <div className="hidden md:block w-px h-5 bg-slate-700 mx-1 flex-shrink-0" />
 
         {/* Nav links – kun synlig på desktop */}
-        <div className="hidden md:flex items-center gap-1 flex-1">
+        <div className="hidden md:flex items-center gap-1 flex-1 overflow-x-auto">
           {links.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   isActive
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
@@ -320,6 +324,11 @@ export default function NavBar() {
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Trip dropdown i mobil-drawer */}
+        <div className="px-3 py-2 border-b border-slate-800">
+          <TripDropdown />
         </div>
 
         {/* Nav-lenker */}

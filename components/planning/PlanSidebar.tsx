@@ -124,14 +124,9 @@ export default function PlanSidebar({
       } h-full bg-slate-900 border-r border-slate-800 flex flex-col transition-[width] duration-300 overflow-hidden`}
     >
       <TripManager
-        trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
+        currentTrip={currentTrip}
+        loading={tripsLoading}
         startDate={stops.filter(s => s.arrival_date).sort((a, b) => a.arrival_date!.localeCompare(b.arrival_date!))[0]?.arrival_date ?? null}
-        onSelectTrip={onSelectTrip}
-        onRequestCreate={() => setShowWizard(true)}
-        onDeleteTrip={(id) => {
-          const name = trips.find((t) => t.id === id)?.name ?? 'denne turen'
-          setConfirmDelete({ id, name })
-        }}
         onEditDates={onUpdateTripDates ? openEditDates : undefined}
       />
 
