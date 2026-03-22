@@ -13,24 +13,98 @@ import { Note, Stop } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Split text on URLs and return spans/anchors */
+// Common TLDs for bare-domain detection (e.g. vg.no, google.com)
+const LINK_PATTERN = new RegExp(
+  '(https?://[^\\s<>"]+' +
+  '|www\\.[^\\s<>"]+' +
+  '|[a-zA-Z0-9][a-zA-Z0-9-]*\\.(?:no|com|net|org|io|co|uk|de|fr|se|dk|fi|is|gov|edu|app|dev|ai|tv|info|biz|me|ly|gg|xyz|online|tech|media|news|sport|store|site|cloud|digital|studio|design|shop|travel|hotel|booking)(?:/[^\\s<>"]*)?)',
+  'g'
+)
+
+/** Split text on URLs (including bare domains like vg.no) and return spans/anchors */
 function renderWithLinks(text: string) {
-  const parts = text.split(/(https?:\/\/[^\s]+)/)
-  return parts.map((part, i) =>
-    /^https?:\/\//.test(part) ? (
+  const parts = text.split(LINK_PATTERN)
+  return parts.map((part, i) => {
+    if (!part) return null
+    // Odd-indexed parts are the captured URL matches
+    if (i % 2 === 0) return <span key={i}>{part}</span>
+    const href = /^https?:\/\//.test(part) ? part : `https://${part}`
+    return (
       <a
         key={i}
-        href={part}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         className="text-blue-400 underline hover:text-blue-300 break-all"
+        style={{ pointerEvents: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
         {part}
       </a>
-    ) : (
-      <span key={i}>{part}</span>
     )
+  })
+}
+
+const NOTE_PLACEHOLDER = 'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'
+
+/**
+ * Textarea with a transparent overlay that renders URLs as clickable links.
+ * The textarea handles all editing; the mirror div on top shows the styled text.
+ * Links in the mirror have pointer-events:auto so they intercept clicks even
+ * while the user is actively editing.
+ */
+function LinkifyTextarea({
+  value,
+  onChange,
+  onPaste,
+  autoFocus,
+  placeholder = NOTE_PLACEHOLDER,
+  className = '',
+}: {
+  value: string
+  onChange: (v: string) => void
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
+  autoFocus?: boolean
+  placeholder?: string
+  className?: string
+}) {
+  const mirrorRef = useRef<HTMLDivElement>(null)
+
+  function syncScroll(e: React.UIEvent<HTMLTextAreaElement>) {
+    if (mirrorRef.current) {
+      mirrorRef.current.style.transform = `translateY(-${e.currentTarget.scrollTop}px)`
+    }
+  }
+
+  return (
+    <div className={`relative overflow-hidden ${className}`}>
+      {/* Mirror layer — on top, pointer-events:none except on <a> tags */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none overflow-hidden px-4 md:px-6 py-4"
+      >
+        <div
+          ref={mirrorRef}
+          className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap break-words select-none"
+        >
+          {value
+            ? renderWithLinks(value)
+            : <span className="text-slate-700">{placeholder}</span>
+          }
+        </div>
+      </div>
+
+      {/* Actual textarea — transparent text so only mirror is visible, caret stays */}
+      <textarea
+        autoFocus={autoFocus}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onPaste={onPaste}
+        onScroll={syncScroll}
+        className="absolute inset-0 w-full h-full bg-transparent resize-none outline-none text-sm px-4 md:px-6 py-4 leading-relaxed"
+        style={{ color: 'transparent', caretColor: '#94a3b8', fontFamily: 'inherit' }}
+      />
+    </div>
   )
 }
 
@@ -460,7 +534,6 @@ function DraftEditor({
 }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [isEditingContent, setIsEditingContent] = useState(true)
   const titleRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -514,26 +587,11 @@ function DraftEditor({
         </button>
       </div>
 
-      {isEditingContent ? (
-        <textarea
-          autoFocus
-          value={content}
-          onChange={(e) => handleContentChange(e.target.value)}
-          onBlur={() => setIsEditingContent(false)}
-          placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
-          className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
-        />
-      ) : (
-        <div
-          onClick={() => setIsEditingContent(true)}
-          className="flex-1 text-slate-300 text-sm px-4 md:px-6 py-4 whitespace-pre-wrap leading-relaxed overflow-y-auto cursor-text min-h-0"
-        >
-          {content
-            ? renderWithLinks(content)
-            : <span className="text-slate-700">Skriv notater her…</span>
-          }
-        </div>
-      )}
+      <LinkifyTextarea
+        value={content}
+        onChange={handleContentChange}
+        className="flex-1 min-h-0"
+      />
 
       <div className="px-4 md:px-6 py-2 border-t border-slate-800 flex-shrink-0">
         <p className="text-[11px] text-slate-600 italic">Lagres automatisk når du begynner å skrive</p>
@@ -567,7 +625,6 @@ function NoteEditor({
   const [content, setContent] = useState(note.content)
   const [stopId, setStopId] = useState<string | null>(note.stop_id)
   const [noteDate, setNoteDate] = useState<string | null>(note.note_date)
-  const [isEditingContent, setIsEditingContent] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -750,27 +807,12 @@ function NoteEditor({
 
       {/* Textarea + image gallery */}
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-        {isEditingContent ? (
-          <textarea
-            autoFocus
-            value={content}
-            onChange={(e) => handleContentChange(e.target.value)}
-            onPaste={handlePaste}
-            onBlur={() => setIsEditingContent(false)}
-            placeholder={'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'}
-            className="flex-1 bg-transparent text-slate-300 text-sm px-4 md:px-6 py-4 resize-none outline-none placeholder:text-slate-700 leading-relaxed min-h-0"
-          />
-        ) : (
-          <div
-            onClick={() => setIsEditingContent(true)}
-            className="flex-1 text-slate-300 text-sm px-4 md:px-6 py-4 whitespace-pre-wrap leading-relaxed overflow-y-auto cursor-text min-h-0"
-          >
-            {content
-              ? renderWithLinks(content)
-              : <span className="text-slate-700">Skriv notater her…</span>
-            }
-          </div>
-        )}
+        <LinkifyTextarea
+          value={content}
+          onChange={handleContentChange}
+          onPaste={handlePaste}
+          className="flex-1 min-h-0"
+        />
 
         {images.length > 0 && (
           <div className="border-t border-slate-800 px-4 py-3 grid grid-cols-3 gap-2 max-h-52 overflow-y-auto flex-shrink-0">
