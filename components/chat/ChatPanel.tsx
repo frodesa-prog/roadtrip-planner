@@ -778,15 +778,11 @@ export default function ChatPanel() {
                         }`}>
                           {/* Quoted reply block */}
                           {msg.reply_to_id && (
-                            <div className={`mb-1.5 px-2 py-1.5 rounded-lg border-l-2 text-xs
-                              ${isOwn
-                                ? 'bg-blue-700/60 border-blue-300/60'
-                                : 'bg-slate-800/60 border-blue-400/60'
-                              }`}>
+                            <div className="mb-1.5 px-2 py-1.5 rounded-lg border-l-2 text-xs bg-slate-800/60 border-blue-400/60">
                               <p className="font-semibold text-blue-300 text-[10px] mb-0.5 truncate">
                                 {msg.reply_to_sender ?? ''}
                               </p>
-                              <p className={`truncate ${isOwn ? 'text-blue-100/80' : 'text-slate-400'}`}>
+                              <p className="truncate text-slate-400">
                                 {msg.reply_to_content || '📎 Vedlegg'}
                               </p>
                             </div>
