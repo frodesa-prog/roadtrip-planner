@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Loader2, Mail, Lock, Route,
   ClipboardList, Archive, Wallet, Users, PackageOpen,
-  CheckCircle2, MapPin, Map, DollarSign, MessageCircle,
+  CheckCircle2, MapPin, Map, DollarSign, MessageCircle, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -31,20 +31,112 @@ const FEATURES = [
   { icon: PackageOpen,   color: C.mint,      bg: '#eaf7f6', title: 'Roadtrip, storbytur & resort', desc: 'Verktøyet tilpasser seg ferietypen din — biltur, bytur eller strandhotel.' },
 ]
 
+// ── Travel illustration ───────────────────────────────────────────────────────
+
+function TravelIllustration() {
+  return (
+    <svg viewBox="0 0 700 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-2xl mx-auto">
+      {/* Sky gradient */}
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ddeeff" />
+          <stop offset="100%" stopColor="#f2f4f8" />
+        </linearGradient>
+        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#b0d9f5" />
+          <stop offset="100%" stopColor="#8ea8d4" stopOpacity="0.4" />
+        </linearGradient>
+      </defs>
+
+      {/* Background */}
+      <rect width="700" height="220" fill="url(#sky)" rx="16" />
+
+      {/* Sun */}
+      <circle cx="580" cy="48" r="30" fill="#fde68a" opacity="0.7" />
+      <circle cx="580" cy="48" r="22" fill="#fcd34d" opacity="0.8" />
+
+      {/* Clouds */}
+      <g opacity="0.7">
+        <ellipse cx="120" cy="45" rx="45" ry="18" fill="white" />
+        <ellipse cx="100" cy="50" rx="30" ry="14" fill="white" />
+        <ellipse cx="145" cy="50" rx="30" ry="14" fill="white" />
+      </g>
+      <g opacity="0.5">
+        <ellipse cx="420" cy="35" rx="32" ry="13" fill="white" />
+        <ellipse cx="405" cy="40" rx="22" ry="10" fill="white" />
+        <ellipse cx="440" cy="40" rx="22" ry="10" fill="white" />
+      </g>
+
+      {/* Mountains */}
+      <polygon points="0,170 80,80 160,170" fill="#c0d4ed" opacity="0.6" />
+      <polygon points="60,170 150,65 240,170" fill="#8ea8d4" opacity="0.5" />
+      <polygon points="480,170 570,75 660,170" fill="#c0d4ed" opacity="0.5" />
+      <polygon points="540,170 630,90 720,170" fill="#8ea8d4" opacity="0.4" />
+
+      {/* Sea / ground */}
+      <rect x="0" y="168" width="700" height="52" rx="0" fill="url(#sea)" opacity="0.5" />
+      <ellipse cx="350" cy="168" rx="700" ry="12" fill="#b0d9f5" opacity="0.3" />
+
+      {/* Dotted flight path */}
+      <path d="M80,140 Q200,40 350,80 Q500,120 620,50" stroke={C.copper} strokeWidth="2" strokeDasharray="6,6" fill="none" opacity="0.8" />
+
+      {/* Airplane */}
+      <g transform="translate(330,68) rotate(-15)">
+        {/* Body */}
+        <ellipse cx="0" cy="0" rx="22" ry="7" fill={C.copper} />
+        {/* Nose */}
+        <polygon points="22,-3 34,0 22,3" fill={C.copper} />
+        {/* Tail fin */}
+        <polygon points="-22,-7 -14,-18 -10,-7" fill="#b8714a" />
+        {/* Wings */}
+        <polygon points="-5,-7 12,-7 18,0 12,7 -5,7 -2,0" fill="#d4956e" />
+        {/* Window strip */}
+        <rect x="-8" y="-3" width="20" height="6" rx="3" fill="white" opacity="0.5" />
+      </g>
+
+      {/* Palm tree left */}
+      <line x1="270" y1="170" x2="270" y2="130" stroke="#6b7c5a" strokeWidth="4" />
+      <ellipse cx="258" cy="130" rx="18" ry="8" fill="#5a8a5a" opacity="0.8" transform="rotate(-20,258,130)" />
+      <ellipse cx="282" cy="132" rx="18" ry="8" fill="#4a7a4a" opacity="0.8" transform="rotate(20,282,132)" />
+      <ellipse cx="270" cy="126" rx="14" ry="6" fill="#6aaa6a" opacity="0.9" />
+
+      {/* Palm tree right */}
+      <line x1="440" y1="170" x2="440" y2="132" stroke="#6b7c5a" strokeWidth="4" />
+      <ellipse cx="428" cy="132" rx="18" ry="8" fill="#5a8a5a" opacity="0.8" transform="rotate(-20,428,132)" />
+      <ellipse cx="452" cy="134" rx="18" ry="8" fill="#4a7a4a" opacity="0.8" transform="rotate(20,452,134)" />
+      <ellipse cx="440" cy="128" rx="14" ry="6" fill="#6aaa6a" opacity="0.9" />
+
+      {/* Location pin */}
+      <g transform="translate(612,38)">
+        <circle cx="0" cy="-4" r="8" fill={C.mint} />
+        <polygon points="-4,0 4,0 0,10" fill={C.mint} />
+        <circle cx="0" cy="-4" r="3.5" fill="white" />
+      </g>
+
+      {/* Start pin */}
+      <g transform="translate(82,132)">
+        <circle cx="0" cy="-4" r="7" fill={C.navy} opacity="0.7" />
+        <polygon points="-3.5,0 3.5,0 0,9" fill={C.navy} opacity="0.7" />
+        <circle cx="0" cy="-4" r="3" fill="white" />
+      </g>
+    </svg>
+  )
+}
+
 // ── App mockup screens ────────────────────────────────────────────────────────
 
 function MockupPlanning() {
   return (
-    <div className="rounded-xl overflow-hidden shadow-lg border" style={{ borderColor: C.border, background: C.bg, fontFamily: 'system-ui' }}>
+    <div className="rounded-xl overflow-hidden shadow-lg border h-full" style={{ borderColor: C.border, background: C.bg, fontFamily: 'system-ui' }}>
       {/* Nav */}
       <div className="flex items-center gap-3 px-4 py-2.5 border-b" style={{ background: C.card, borderColor: C.border }}>
-        <span className="text-xs font-bold" style={{ color: C.navy }}>✈️ Ferieplanlegger</span>
-        {['Planlegg','ToDo','Pakkeliste','Oversikt'].map((t, i) => (
+        <span className="text-xs font-bold" style={{ color: C.navy }}>✈️ MyVacay</span>
+        {['Planlegg','ToDo','Oversikt'].map((t, i) => (
           <span key={t} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: i === 0 ? C.copper : 'transparent', color: i === 0 ? '#fff' : C.navyLight, fontWeight: i === 0 ? 600 : 400 }}>{t}</span>
         ))}
       </div>
       {/* Body */}
-      <div className="flex" style={{ height: 180 }}>
+      <div className="flex" style={{ height: 200 }}>
         {/* Sidebar */}
         <div className="w-36 border-r p-2 space-y-1.5 flex-shrink-0" style={{ borderColor: C.border }}>
           <div className="rounded-lg px-2.5 py-2 text-[10px] font-semibold" style={{ background: `${C.copper}18`, color: C.copper, borderLeft: `3px solid ${C.copper}` }}>🚗 Roadtrip 2026</div>
@@ -73,14 +165,14 @@ function MockupCosts() {
     { label: 'Middag Bryggen', amount: '1 200', cat: 'Mat', color: C.copper },
   ]
   return (
-    <div className="rounded-xl overflow-hidden shadow-lg border" style={{ borderColor: C.border, background: C.bg }}>
+    <div className="rounded-xl overflow-hidden shadow-lg border h-full" style={{ borderColor: C.border, background: C.bg }}>
       <div className="flex items-center gap-3 px-4 py-2.5 border-b" style={{ background: C.card, borderColor: C.border }}>
-        <span className="text-xs font-bold" style={{ color: C.navy }}>✈️ Ferieplanlegger</span>
-        {['Planlegg','ToDo','Pakkeliste','Oversikt','Kostnader'].map((t, i) => (
-          <span key={t} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: i === 4 ? C.copper : 'transparent', color: i === 4 ? '#fff' : C.navyLight, fontWeight: i === 4 ? 600 : 400 }}>{t}</span>
+        <span className="text-xs font-bold" style={{ color: C.navy }}>✈️ MyVacay</span>
+        {['Planlegg','Oversikt','Kostnader'].map((t, i) => (
+          <span key={t} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: i === 2 ? C.copper : 'transparent', color: i === 2 ? '#fff' : C.navyLight, fontWeight: i === 2 ? 600 : 400 }}>{t}</span>
         ))}
       </div>
-      <div className="p-3 space-y-1.5" style={{ height: 180 }}>
+      <div className="p-3 space-y-1.5" style={{ height: 200 }}>
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-bold" style={{ color: C.navy }}>Totalt: 4 280 kr</span>
           <span className="text-[9px] px-2 py-0.5 rounded-full" style={{ background: `${C.mint}20`, color: C.mint, border: `1px solid ${C.mint}44` }}>3 deltakere</span>
@@ -108,13 +200,13 @@ function MockupCosts() {
 
 function MockupChat() {
   return (
-    <div className="rounded-xl overflow-hidden shadow-lg border" style={{ borderColor: C.border, background: C.bg }}>
+    <div className="rounded-xl overflow-hidden shadow-lg border h-full" style={{ borderColor: C.border, background: C.bg }}>
       <div className="flex items-center gap-3 px-4 py-2.5 border-b" style={{ background: C.card, borderColor: C.border }}>
-        <span className="text-xs font-bold" style={{ color: C.navy }}>✈️ Ferieplanlegger</span>
+        <span className="text-xs font-bold" style={{ color: C.navy }}>✈️ MyVacay</span>
         <MessageCircle className="w-3 h-3 ml-auto" style={{ color: C.copper }} />
         <span className="text-[10px]" style={{ color: C.navyLight }}>Chat</span>
       </div>
-      <div className="p-3 space-y-2" style={{ height: 180 }}>
+      <div className="p-3 space-y-2" style={{ height: 200 }}>
         {[
           { name: 'Sara', msg: 'Har dere booket hotellet i Bergen?', own: false },
           { name: 'Deg', msg: 'Ja! Bekreftelsesnummer: 48291 🏨', own: true, reactions: ['👍','❤️'] },
@@ -138,43 +230,126 @@ function MockupChat() {
   )
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── Auth modal ────────────────────────────────────────────────────────────────
 
-export default function LoginPage() {
+function AuthModal({ mode: initialMode, onClose }: { mode: 'login' | 'register'; onClose: () => void }) {
   const router = useRouter()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading]   = useState(false)
-  const [mode, setMode]         = useState<'login' | 'register'>('login')
-
+  const [mode, setMode]         = useState<'login' | 'register'>(initialMode)
   const supabase = createClient()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!email || !password) return
     setLoading(true)
-
     if (mode === 'login') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        toast.error('Feil e-post eller passord')
-        setLoading(false)
-        return
-      }
-      router.push('/plan')
-      router.refresh()
+      if (error) { toast.error('Feil e-post eller passord'); setLoading(false); return }
+      router.push('/plan'); router.refresh()
     } else {
       const { error } = await supabase.auth.signUp({ email, password })
-      if (error) {
-        toast.error(error.message)
-        setLoading(false)
-        return
-      }
+      if (error) { toast.error(error.message); setLoading(false); return }
       toast.success('Konto opprettet! Sjekk e-posten for bekreftelse.')
-      setMode('login')
-      setLoading(false)
+      setMode('login'); setLoading(false)
     }
   }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(30,40,60,0.45)', backdropFilter: 'blur(4px)' }}>
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-4 border-b flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #f8f9fd, #f0f3fa)', borderColor: C.border }}>
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4" style={{ color: C.copper }} />
+            <h2 className="font-bold text-sm" style={{ color: C.navy }}>
+              {mode === 'login' ? 'Logg inn' : 'Opprett konto'}
+            </h2>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
+            <X className="w-4 h-4" style={{ color: C.navyLight }} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-[11px] font-semibold mb-1" style={{ color: C.navy }}>E-post</label>
+            <div className="relative">
+              <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: C.blue }} />
+              <input
+                type="email"
+                placeholder="din@epost.no"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full pl-8 pr-3 py-2 rounded-lg border text-xs outline-none transition-all"
+                style={{ borderColor: '#d4dce8', color: C.navy, background: '#fafbfd' }}
+                onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
+                onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold mb-1" style={{ color: C.navy }}>Passord</label>
+            <div className="relative">
+              <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: C.blue }} />
+              <input
+                type="password"
+                placeholder={mode === 'register' ? 'Minst 6 tegn' : '••••••••'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full pl-8 pr-3 py-2 rounded-lg border text-xs outline-none transition-all"
+                style={{ borderColor: '#d4dce8', color: C.navy, background: '#fafbfd' }}
+                onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
+                onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-xs text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60"
+              style={{ background: `linear-gradient(135deg, ${C.copper}, #b8714a)` }}
+            >
+              {loading
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : mode === 'login' ? 'Logg inn' : 'Opprett konto'}
+            </button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+                className="text-[11px] transition-colors hover:underline"
+                style={{ color: C.mint }}
+              >
+                {mode === 'login'
+                  ? 'Ny bruker? Opprett konto gratis'
+                  : 'Har du allerede konto? Logg inn'}
+              </button>
+            </div>
+
+            <p className="text-center text-[10px]" style={{ color: '#9fb3c8' }}>
+              Privat app · Bare inviterte brukere
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
+export default function LoginPage() {
+  const [authModal, setAuthModal] = useState<'login' | 'register' | null>(null)
 
   return (
     <main className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #f8f9fc 0%, #edf1f8 50%, #f2f7f6 100%)' }}>
@@ -182,20 +357,33 @@ export default function LoginPage() {
       {/* ── Top bar ─────────────────────────────────────────────────── */}
       <header className="flex items-center px-10 py-4 border-b border-slate-200/60 bg-white/50 backdrop-blur-sm">
         <span className="font-bold text-base tracking-tight" style={{ color: C.navy }}>MyVacayPlanner</span>
-        <span className="ml-auto text-xs px-2.5 py-0.5 rounded-full font-medium" style={{ background: '#eaf7f6', color: C.mint }}>
-          Privat beta
-        </span>
+        <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={() => setAuthModal('login')}
+            className="px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors hover:bg-slate-50"
+            style={{ borderColor: C.navy, color: C.navy }}
+          >
+            Logg inn
+          </button>
+          <button
+            onClick={() => setAuthModal('register')}
+            className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ background: `linear-gradient(135deg, ${C.copper}, #b8714a)` }}
+          >
+            Registrer deg
+          </button>
+        </div>
       </header>
 
       {/* ── Hero: logo + tagline ─────────────────────────────────────── */}
-      <section className="flex items-center gap-12 px-10 pt-16 pb-10 lg:px-16">
-        {/* Logo — 3× original size */}
-        <div className="relative flex-shrink-0" style={{ width: 420, height: 420 }}>
+      <section className="flex items-center gap-10 px-10 pt-14 pb-8 lg:px-16">
+        {/* Logo — graphic only (text portion clipped) */}
+        <div className="relative flex-shrink-0" style={{ width: 500, height: 340, overflow: 'hidden' }}>
           <Image
             src="/logo.png"
             alt="MyVacayPlanner"
             fill
-            className="object-contain"
+            className="object-cover object-top"
             style={{ mixBlendMode: 'multiply' }}
           />
         </div>
@@ -204,7 +392,7 @@ export default function LoginPage() {
         <div>
           <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight mb-4" style={{ color: C.navy }}>
             Plan.<br />
-            <span style={{ color: C.copper }}>Travel.</span><br />
+            <span style={{ color: C.copper }}>Travel.</span>{' '}
             <span style={{ color: C.mint }}>Relive.</span>
           </h1>
           <p className="text-base lg:text-lg max-w-sm leading-relaxed mb-6" style={{ color: C.navyLight }}>
@@ -221,11 +409,14 @@ export default function LoginPage() {
         </div>
       </section>
 
-      {/* ── Features + Login (same height) ──────────────────────────── */}
-      <section className="flex items-stretch gap-4 px-10 pb-16 lg:px-16">
+      {/* ── Travel illustration ──────────────────────────────────────── */}
+      <section className="px-10 pb-6 lg:px-16">
+        <TravelIllustration />
+      </section>
 
-        {/* Feature grid: 2 cols × 3 rows */}
-        <div className="flex-1 grid grid-cols-2 gap-3">
+      {/* ── Features grid ────────────────────────────────────────────── */}
+      <section className="px-10 pb-8 lg:px-16">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {FEATURES.map(({ icon: Icon, color, bg, title, desc }) => (
             <div key={title} className="flex gap-3 p-4 rounded-xl border border-slate-200/70 bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow">
               <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: bg }}>
@@ -239,126 +430,53 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {/* Login card — stretches to same height as feature grid */}
-        <div className="w-72 flex-shrink-0 flex flex-col">
-          <div className="flex flex-col flex-1 bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden">
-
-            {/* Card header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #f8f9fd, #f0f3fa)' }}>
-              <div className="flex items-center gap-2 mb-1">
-                <MapPin className="w-4 h-4" style={{ color: C.copper }} />
-                <h2 className="font-bold text-sm" style={{ color: C.navy }}>
-                  {mode === 'login' ? 'Logg inn' : 'Opprett konto'}
-                </h2>
-              </div>
-              <p className="text-[11px]" style={{ color: C.navyLight }}>
-                {mode === 'login'
-                  ? 'Velkommen tilbake! Logg inn for å fortsette.'
-                  : 'Opprett en konto og kom i gang.'}
-              </p>
-            </div>
-
-            {/* Form — flex-1 fills remaining height */}
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 px-6 py-5 gap-4">
-              <div className="space-y-3 flex-1 flex flex-col justify-center">
-                <div>
-                  <label className="block text-[11px] font-semibold mb-1" style={{ color: C.navy }}>E-post</label>
-                  <div className="relative">
-                    <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: C.blue }} />
-                    <input
-                      type="email"
-                      placeholder="din@epost.no"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full pl-8 pr-3 py-2 rounded-lg border text-xs outline-none transition-all"
-                      style={{ borderColor: '#d4dce8', color: C.navy, background: '#fafbfd' }}
-                      onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
-                      onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold mb-1" style={{ color: C.navy }}>Passord</label>
-                  <div className="relative">
-                    <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: C.blue }} />
-                    <input
-                      type="password"
-                      placeholder={mode === 'register' ? 'Minst 6 tegn' : '••••••••'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full pl-8 pr-3 py-2 rounded-lg border text-xs outline-none transition-all"
-                      style={{ borderColor: '#d4dce8', color: C.navy, background: '#fafbfd' }}
-                      onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
-                      onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2 flex-shrink-0">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-xs text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60"
-                  style={{ background: `linear-gradient(135deg, ${C.copper}, #b8714a)` }}
-                >
-                  {loading
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : mode === 'login' ? 'Logg inn' : 'Opprett konto'}
-                </button>
-
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-                    className="text-[11px] transition-colors hover:underline"
-                    style={{ color: C.mint }}
-                  >
-                    {mode === 'login'
-                      ? 'Ny bruker? Opprett konto gratis'
-                      : 'Har du allerede konto? Logg inn'}
-                  </button>
-                </div>
-
-                <p className="text-center text-[10px]" style={{ color: '#9fb3c8' }}>
-                  Privat app · Bare inviterte brukere
-                </p>
-              </div>
-            </form>
-          </div>
+        {/* "Kom i gang" button */}
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={() => setAuthModal('register')}
+            className="flex items-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-base text-white shadow-lg transition-all hover:opacity-90 hover:shadow-xl hover:-translate-y-0.5"
+            style={{ background: `linear-gradient(135deg, ${C.copper} 0%, #b8714a 100%)` }}
+          >
+            Kom i gang
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
       </section>
 
       {/* ── App screenshots / mockups ────────────────────────────────── */}
-      <section className="px-10 py-16 lg:px-16 border-t border-slate-200/60" style={{ background: 'linear-gradient(180deg, transparent, #edf1f8 60%)' }}>
+      <section className="px-10 py-14 lg:px-16 border-t border-slate-200/60" style={{ background: 'linear-gradient(180deg, transparent, #edf1f8 60%)' }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-extrabold mb-2" style={{ color: C.navy }}>Se hva du får</h2>
             <p className="text-sm" style={{ color: C.navyLight }}>Alt du trenger for å planlegge, gjennomføre og huske reisen</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            <div className="flex flex-col">
               <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: C.copper }}>
                 <Route className="w-3.5 h-3.5" /> Planlegge
               </p>
-              <MockupPlanning />
+              <div style={{ height: 240 }}>
+                <MockupPlanning />
+              </div>
             </div>
-            <div>
+            <div className="flex flex-col">
               <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: C.blue }}>
                 <DollarSign className="w-3.5 h-3.5" /> Kostnader
               </p>
-              <MockupCosts />
+              <div style={{ height: 240 }}>
+                <MockupCosts />
+              </div>
             </div>
-            <div>
+            <div className="flex flex-col">
               <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: C.mint }}>
                 <MessageCircle className="w-3.5 h-3.5" /> Chat
               </p>
-              <MockupChat />
+              <div style={{ height: 240 }}>
+                <MockupChat />
+              </div>
             </div>
           </div>
         </div>
@@ -367,8 +485,25 @@ export default function LoginPage() {
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <footer className="flex items-center justify-between px-10 py-3 border-t border-slate-200/60 bg-white/30 text-xs" style={{ color: '#9fb3c8' }}>
         <span>© 2026 MyVacayPlanner</span>
+        <span>
+          Utviklet av{' '}
+          <a
+            href="https://www.sirkussand.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline transition-colors"
+            style={{ color: C.copper }}
+          >
+            SirkusSand
+          </a>
+        </span>
         <span className="italic">Plan. Travel. Relive.</span>
       </footer>
+
+      {/* ── Auth modal ───────────────────────────────────────────────── */}
+      {authModal && (
+        <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
+      )}
     </main>
   )
 }
