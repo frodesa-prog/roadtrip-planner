@@ -1,6 +1,6 @@
 'use client'
 
-import { Route, Loader2, Pencil } from 'lucide-react'
+import { Loader2, Pencil } from 'lucide-react'
 import { Trip } from '@/types'
 import { useAppTheme, ThemeName } from '@/contexts/ThemeContext'
 
@@ -9,6 +9,7 @@ interface TripManagerProps {
   loading: boolean
   startDate?: string | null
   onEditDates?: () => void
+  showCountdown?: boolean
 }
 
 const THEME_GRADIENT: Record<ThemeName, string> = {
@@ -21,12 +22,6 @@ const THEME_GRADIENT: Record<ThemeName, string> = {
   'dark-midnight':  'bg-gradient-to-r from-violet-800  to-violet-900',
   'dark-dodgers':   'bg-gradient-to-r from-blue-700    to-blue-800',
   'light-vacay':    'bg-gradient-to-r from-blue-700    to-blue-800',
-}
-
-const TRIP_TYPE_EMOJI: Record<string, string> = {
-  road_trip: '🚗',
-  storbytur: '🏙️',
-  resort: '🌴',
 }
 
 /** Returns "yyyy: dd.mm – dd.mm" if both dates exist, else just the year number */
@@ -55,32 +50,28 @@ export default function TripManager({
   loading,
   startDate,
   onEditDates,
+  showCountdown = false,
 }: TripManagerProps) {
   const { theme } = useAppTheme()
   const gradientClass = THEME_GRADIENT[theme] ?? THEME_GRADIENT['default']
 
-  // Determine countdown: use date_from if available, else startDate prop (from stops)
   const countdownDate = currentTrip?.date_from ?? startDate ?? null
 
   return (
-    <div className={`flex items-center gap-2 px-5 py-4 flex-shrink-0 ${gradientClass}`}>
-      <Route className="w-5 h-5 text-white/80 flex-shrink-0" />
+    <div className={`flex items-center gap-2 px-5 py-3 flex-shrink-0 ${gradientClass}`}>
       <div className="flex-1 text-left min-w-0">
         {loading ? (
           <div className="flex items-center gap-2">
             <Loader2 className="w-3.5 h-3.5 text-white/60 animate-spin" />
-            <span className="text-white/60 text-sm">Laster turer…</span>
+            <span className="text-white/60 text-sm">Laster…</span>
           </div>
         ) : currentTrip ? (
           <>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-base leading-none">
-                {TRIP_TYPE_EMOJI[currentTrip.trip_type ?? 'road_trip'] ?? '🚗'}
-              </span>
-              <p className="text-white font-bold text-base leading-tight truncate">
+              <p className="text-white font-bold text-sm leading-tight truncate">
                 {currentTrip.name}
               </p>
-              {countdownDate && (() => {
+              {showCountdown && countdownDate && (() => {
                 const days = getDaysUntil(countdownDate)
                 if (days > 0) {
                   return (
@@ -99,7 +90,7 @@ export default function TripManager({
               })()}
             </div>
             <div className="flex items-center gap-1.5">
-              <p className="text-blue-200/60 text-xs">{formatTripDateLabel(currentTrip)}</p>
+              <p className="text-blue-200/70 text-xs">{formatTripDateLabel(currentTrip)}</p>
               {onEditDates && (
                 <button
                   onClick={onEditDates}

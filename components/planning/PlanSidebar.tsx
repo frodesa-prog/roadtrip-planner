@@ -128,6 +128,7 @@ export default function PlanSidebar({
         loading={tripsLoading}
         startDate={stops.filter(s => s.arrival_date).sort((a, b) => a.arrival_date!.localeCompare(b.arrival_date!))[0]?.arrival_date ?? null}
         onEditDates={onUpdateTripDates ? openEditDates : undefined}
+        showCountdown
       />
 
       {/* Inline datoeditor for road trip */}

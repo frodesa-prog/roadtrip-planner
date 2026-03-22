@@ -193,25 +193,8 @@ export default function NavBar() {
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Logo – statisk, lenker til /plan */}
-        <Link href="/plan" className="flex items-center px-1 py-0.5 flex-shrink-0">
-          <Image
-            src="/logo.png"
-            alt="MyVacayPlanner"
-            width={90}
-            height={48}
-            className="object-contain -mt-2"
-          />
-        </Link>
-
-        {/* Skillelinje */}
-        <div className="hidden md:block w-px h-5 bg-slate-700 mx-1 flex-shrink-0" />
-
         {/* Trip dropdown – velg aktiv ferie */}
         <TripDropdown />
-
-        {/* Skillelinje */}
-        <div className="hidden md:block w-px h-5 bg-slate-700 mx-1 flex-shrink-0" />
 
         {/* Nav links – kun synlig på desktop */}
         <div className="hidden md:flex items-center gap-1 flex-1 overflow-x-auto">

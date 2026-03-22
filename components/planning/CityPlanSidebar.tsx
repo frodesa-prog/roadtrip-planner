@@ -339,6 +339,7 @@ export default function CityPlanSidebar({
         currentTrip={currentTrip}
         loading={tripsLoading}
         onEditDates={openEditDates}
+        showCountdown
       />
       <NewTripWizard open={showWizard} onClose={() => setShowWizard(false)} onCreateTrip={onCreateTrip} />
 
