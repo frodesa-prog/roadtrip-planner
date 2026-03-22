@@ -103,6 +103,9 @@ export interface PossibleActivity {
   url: string | null
   category: string | null   // same values as Activity.activity_type
   notes: string | null
+  map_lat: number | null
+  map_lng: number | null
+  activity_date: string | null  // ISO date – which day this idea is linked to
 }
 
 export interface Photo {

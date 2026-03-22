@@ -16,6 +16,7 @@ import AddStopPopup from './AddStopPopup'
 import MapSearchBox from './MapSearchBox'
 import ActivityMarker from './ActivityMarker'
 import DiningMarker from './DiningMarker'
+import PossibleActivityMarker from './PossibleActivityMarker'
 import ActivityRoutePolyline, { RouteInfo } from './ActivityRoutePolyline'
 import { AddActivityData } from '@/hooks/useActivities'
 import { AddDiningData } from '@/hooks/useDining'
@@ -54,6 +55,8 @@ interface PlanningMapProps {
   onActivityRouteInfo?: (info: RouteInfo) => void
   hotels?: Hotel[]
   possibleActivities?: PossibleActivity[]
+  selectedPossibleId?: string | null
+  onSelectPossible?: (id: string) => void
   onPoiAction?: PoiActionCallbacks
   routeLegs?: RouteLeg[]
   routeLegsLoaded?: boolean
@@ -1380,6 +1383,8 @@ export default function PlanningMap({
   onActivityRouteInfo,
   hotels = [],
   possibleActivities = [],
+  selectedPossibleId = null,
+  onSelectPossible,
   onPoiAction,
   routeLegs = [],
   routeLegsLoaded = true,
@@ -1495,6 +1500,16 @@ export default function PlanningMap({
               dining={d}
               isSelected={d.id === selectedDiningId}
               onClick={onSelectDining ? () => onSelectDining(d.id) : undefined}
+            />
+          ))}
+
+          {/* Mulige aktiviteter med kartpunkt */}
+          {possibleActivities.filter((p) => p.map_lat != null && p.map_lng != null).map((p) => (
+            <PossibleActivityMarker
+              key={p.id}
+              possible={p}
+              isSelected={p.id === selectedPossibleId}
+              onClick={onSelectPossible ? () => onSelectPossible(p.id) : undefined}
             />
           ))}
 

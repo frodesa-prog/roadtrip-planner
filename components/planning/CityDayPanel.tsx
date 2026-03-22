@@ -9,8 +9,9 @@ import { Activity, Dining, PossibleActivity } from '@/types'
 import { AddActivityData, UpdateActivityData } from '@/hooks/useActivities'
 import { AddDiningData, UpdateDiningData } from '@/hooks/useDining'
 import { AddPossibleActivityData, UpdatePossibleActivityData } from '@/hooks/usePossibleActivities'
-import { ACTIVITY_TYPE_PRESETS, getActivityTypeConfig } from '@/lib/activityTypes'
+import { ACTIVITY_TYPE_PRESETS, getActivityTypeConfig, ActivityTypeIcon } from '@/lib/activityTypes'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import InlineLocationPicker from '@/components/map/InlineLocationPicker'
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -40,10 +41,14 @@ interface CityDayPanelProps {
   selectedActivityId?: string | null
   /** Currently selected dining id (for map route highlight) */
   selectedDiningId?: string | null
+  /** Currently selected possible activity id (for map pin highlight) */
+  selectedPossibleId?: string | null
   /** Called when user clicks an activity row to show route; null = deselect */
   onSelectActivity?: (id: string | null) => void
   /** Called when user clicks a dining row to show route; null = deselect */
   onSelectDining?: (id: string | null) => void
+  /** Called when user clicks a possible activity row that has a map pin */
+  onSelectPossible?: (id: string | null) => void
   onClose: () => void
 }
 
@@ -68,8 +73,10 @@ export default function CityDayPanel({
   onSaveDayPlan,
   selectedActivityId = null,
   selectedDiningId = null,
+  selectedPossibleId = null,
   onSelectActivity,
   onSelectDining,
+  onSelectPossible,
   onClose,
 }: CityDayPanelProps) {
 
@@ -116,15 +123,17 @@ export default function CityDayPanel({
   const [editDiningTime, setEditDiningTime]     = useState('')
 
   // ── Possible activities state ─────────────────────────────────────────────
-  const [showAddPossible, setShowAddPossible]       = useState(false)
-  const [newPossibleDesc, setNewPossibleDesc]       = useState('')
-  const [newPossibleUrl, setNewPossibleUrl]         = useState('')
-  const [newPossibleNotes, setNewPossibleNotes]     = useState('')
-  const [editingPossibleId, setEditingPossibleId]   = useState<string | null>(null)
-  const [editPossibleDesc, setEditPossibleDesc]     = useState('')
-  const [editPossibleUrl, setEditPossibleUrl]       = useState('')
-  const [editPossibleNotes, setEditPossibleNotes]   = useState('')
-  const [selectedPossibleId, setSelectedPossibleId] = useState<string | null>(null)
+  const [showAddPossible, setShowAddPossible]         = useState(false)
+  const [newPossibleDesc, setNewPossibleDesc]         = useState('')
+  const [newPossibleUrl, setNewPossibleUrl]           = useState('')
+  const [newPossibleNotes, setNewPossibleNotes]       = useState('')
+  const [newPossibleLocation, setNewPossibleLocation] = useState<{ lat: number; lng: number; name: string } | null>(null)
+  const [editingPossibleId, setEditingPossibleId]     = useState<string | null>(null)
+  const [editPossibleDesc, setEditPossibleDesc]       = useState('')
+  const [editPossibleUrl, setEditPossibleUrl]         = useState('')
+  const [editPossibleNotes, setEditPossibleNotes]     = useState('')
+  const [editPossibleLocation, setEditPossibleLocation] = useState<{ lat: number; lng: number; name: string } | null>(null)
+  const [pinningPossibleId, setPinningPossibleId]     = useState<string | null>(null)
 
   // ── Confirm dialog ────────────────────────────────────────────────────────
   const [confirm, setConfirm] = useState<{ message: string; action: () => void } | null>(null)
@@ -219,8 +228,12 @@ export default function CityDayPanel({
       description: newPossibleDesc.trim(),
       url: newPossibleUrl.trim() || undefined,
       notes: newPossibleNotes.trim() || undefined,
+      activity_date: dateStr,
+      map_lat: newPossibleLocation?.lat ?? undefined,
+      map_lng: newPossibleLocation?.lng ?? undefined,
     })
     setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleNotes('')
+    setNewPossibleLocation(null)
     setShowAddPossible(false)
   }
 
@@ -229,6 +242,11 @@ export default function CityDayPanel({
     setEditPossibleDesc(a.description)
     setEditPossibleUrl(a.url ?? '')
     setEditPossibleNotes(a.notes ?? '')
+    setEditPossibleLocation(
+      a.map_lat != null && a.map_lng != null
+        ? { lat: a.map_lat, lng: a.map_lng, name: a.description }
+        : null
+    )
   }
 
   function saveEditPossible() {
@@ -237,8 +255,11 @@ export default function CityDayPanel({
       description: editPossibleDesc.trim(),
       url: editPossibleUrl.trim() || null,
       notes: editPossibleNotes.trim() || null,
+      map_lat: editPossibleLocation?.lat ?? null,
+      map_lng: editPossibleLocation?.lng ?? null,
     })
     setEditingPossibleId(null)
+    setEditPossibleLocation(null)
   }
 
   // ── Shared input style ────────────────────────────────────────────────────
@@ -391,7 +412,6 @@ export default function CityDayPanel({
                   <div
                     key={act.id}
                     onClick={onSelectActivity ? () => {
-                      setSelectedPossibleId(null)
                       onSelectActivity(isActSelected ? null : act.id)
                     } : undefined}
                     className={`flex items-center gap-2 px-2.5 py-2 rounded-lg group transition-colors ${
@@ -530,7 +550,6 @@ export default function CityDayPanel({
                   <div
                     key={d.id}
                     onClick={onSelectDining ? () => {
-                      setSelectedPossibleId(null)
                       onSelectDining(isDinSelected ? null : d.id)
                     } : undefined}
                     className={`flex items-center gap-2 px-2.5 py-2 rounded-lg group transition-colors ${
@@ -616,10 +635,16 @@ export default function CityDayPanel({
                   placeholder="Kommentar (valgfritt)"
                   rows={2}
                   className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-yellow-500 resize-none" />
+                <InlineLocationPicker
+                  selected={newPossibleLocation}
+                  onSelect={(lat, lng, name) => setNewPossibleLocation({ lat, lng, name })}
+                  onClear={() => setNewPossibleLocation(null)}
+                  accentColor="teal"
+                />
                 <div className="flex gap-1.5 justify-end">
                   <button
                     type="button"
-                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleNotes('') }}
+                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleNotes(''); setNewPossibleLocation(null) }}
                     className="px-2.5 py-1 text-xs text-slate-400 hover:text-slate-200 transition-colors"
                   >
                     Avbryt
@@ -645,56 +670,90 @@ export default function CityDayPanel({
                         placeholder="Kommentar (valgfritt)"
                         rows={2}
                         className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-yellow-500 resize-none" />
+                      <InlineLocationPicker
+                        selected={editPossibleLocation}
+                        onSelect={(lat, lng, name) => setEditPossibleLocation({ lat, lng, name })}
+                        onClear={() => setEditPossibleLocation(null)}
+                        accentColor="teal"
+                      />
                       <div className="flex gap-1 justify-end">
-                        <button onClick={() => setEditingPossibleId(null)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-200">Avbryt</button>
+                        <button onClick={() => { setEditingPossibleId(null); setEditPossibleLocation(null) }} className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-200">Avbryt</button>
                         <button onClick={saveEditPossible} className="px-2.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded">Lagre</button>
                       </div>
                     </div>
                   )
                 }
                 const isPossibleSelected = selectedPossibleId === a.id
+                const hasPin = a.map_lat != null && a.map_lng != null
                 return (
-                  <div
-                    key={a.id}
-                    onClick={() => {
-                      const newId = isPossibleSelected ? null : a.id
-                      setSelectedPossibleId(newId)
-                      if (newId) {
-                        // Clear activity/dining selection when possible activity is chosen
-                        onSelectActivity?.(null)
-                        onSelectDining?.(null)
-                      }
-                    }}
-                    className={`flex items-center gap-2 px-2.5 py-2 rounded-lg group transition-colors cursor-pointer ${
-                      isPossibleSelected
-                        ? 'bg-yellow-500/10 border border-yellow-500/30'
-                        : 'bg-slate-800/50 border border-transparent hover:bg-slate-800/80'
-                    }`}
-                  >
-                    <Lightbulb className={`w-3.5 h-3.5 flex-shrink-0 transition-colors ${isPossibleSelected ? 'text-yellow-300' : 'text-yellow-400'}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-slate-300 truncate">{a.description}</p>
-                      {a.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{a.notes}</p>}
-                    </div>
+                  <div key={a.id}>
                     <div
-                      className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={() => {
+                        const newId = isPossibleSelected ? null : a.id
+                        onSelectPossible?.(newId)
+                      }}
+                      className={`flex items-start gap-2 px-2.5 py-2 rounded-lg group transition-colors cursor-pointer ${
+                        isPossibleSelected
+                          ? 'bg-yellow-500/10 border border-yellow-500/30'
+                          : 'bg-slate-800/50 border border-transparent hover:bg-slate-800/80'
+                      }`}
                     >
-                      {a.url && (
-                        <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-400 transition-colors">
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                      <button onClick={() => startEditPossible(a)} className="text-slate-500 hover:text-blue-400 transition-colors">
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => setConfirm({ message: `Fjerne «${a.description}»?`, action: () => onRemovePossibleActivity(a.id) })}
-                        className="text-slate-500 hover:text-red-400 transition-colors"
+                      <span className="flex-shrink-0 mt-0.5" style={{ lineHeight: 1 }}>
+                        {a.category
+                          ? <ActivityTypeIcon type={a.category} size={14} />
+                          : <Lightbulb className={`w-3.5 h-3.5 transition-colors ${isPossibleSelected ? 'text-yellow-300' : 'text-yellow-400'}`} />
+                        }
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-300 break-words leading-relaxed">{a.description}</p>
+                        {a.category && (
+                          <span className="text-[10px] text-slate-500">{getActivityTypeConfig(a.category).label}</span>
+                        )}
+                        {a.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{a.notes}</p>}
+                      </div>
+                      <div
+                        className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                        {a.url && (
+                          <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-400 transition-colors">
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                        <button onClick={() => startEditPossible(a)} className="text-slate-500 hover:text-blue-400 transition-colors">
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setPinningPossibleId(pinningPossibleId === a.id ? null : a.id)}
+                          title={hasPin ? 'Endre kartplassering' : 'Fest på kart'}
+                          className={`transition-colors ${hasPin ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'}`}
+                        >
+                          <MapPin className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setConfirm({ message: `Fjerne «${a.description}»?`, action: () => onRemovePossibleActivity(a.id) })}
+                          className="text-slate-500 hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
+                    {pinningPossibleId === a.id && (
+                      <div className="mt-1 px-1" onClick={(e) => e.stopPropagation()}>
+                        <InlineLocationPicker
+                          selected={a.map_lat != null ? { lat: a.map_lat, lng: a.map_lng!, name: a.description } : null}
+                          onSelect={(lat, lng) => {
+                            onUpdatePossibleActivity(a.id, { map_lat: lat, map_lng: lng })
+                            setPinningPossibleId(null)
+                          }}
+                          onClear={() => {
+                            onUpdatePossibleActivity(a.id, { map_lat: null, map_lng: null })
+                            setPinningPossibleId(null)
+                          }}
+                          accentColor="teal"
+                        />
+                      </div>
+                    )}
                   </div>
                 )
               })}

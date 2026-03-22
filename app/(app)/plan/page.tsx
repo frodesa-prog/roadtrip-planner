@@ -31,6 +31,7 @@ export default function PlanPage() {
   // Road trip item-zoom state
   const [selectedRoadActivityId, setSelectedRoadActivityId] = useState<string | null>(null)
   const [selectedRoadDiningId, setSelectedRoadDiningId] = useState<string | null>(null)
+  const [selectedRoadPossibleId, setSelectedRoadPossibleId] = useState<string | null>(null)
   const [roadMapVersion, setRoadMapVersion] = useState(0)
 
   // City trip map state
@@ -40,6 +41,7 @@ export default function PlanPage() {
   const [showCityOverview, setShowCityOverview] = useState(false)
   const [selectedCityActivityId, setSelectedCityActivityId] = useState<string | null>(null)
   const [selectedCityDiningId, setSelectedCityDiningId] = useState<string | null>(null)
+  const [selectedCityPossibleId, setSelectedCityPossibleId] = useState<string | null>(null)
 
   const {
     trips, currentTrip, loading: tripsLoading, userId,
@@ -80,7 +82,7 @@ export default function PlanPage() {
   const cityStop = isCityTrip ? (stops[0] ?? null) : null
   const cityCenter = cityStop ? { lat: cityStop.lat, lng: cityStop.lng } : null
 
-  // City trip: fit points for selected activity/dining (item + stop = shows route in view)
+  // City trip: fit points for selected activity/dining/possible (item + stop = shows route in view)
   const cityItemFitPoints = useMemo(() => {
     if (!isCityTrip || !cityStop) return null
     if (selectedCityActivityId) {
@@ -101,10 +103,19 @@ export default function PlanPage() {
         ]
       }
     }
+    if (selectedCityPossibleId) {
+      const pos = possibleActivities.find((p) => p.id === selectedCityPossibleId)
+      if (pos?.map_lat != null && pos?.map_lng != null) {
+        return [
+          { lat: pos.map_lat, lng: pos.map_lng },
+          { lat: cityStop.lat, lng: cityStop.lng },
+        ]
+      }
+    }
     return null
-  }, [isCityTrip, cityStop, selectedCityActivityId, selectedCityDiningId, activities, dining])
+  }, [isCityTrip, cityStop, selectedCityActivityId, selectedCityDiningId, selectedCityPossibleId, activities, dining, possibleActivities])
 
-  // Road trip: fit points for selected activity/dining (item pin + stop pin)
+  // Road trip: fit points for selected activity/dining/possible (item pin + stop pin)
   const roadTripItemFitPoints = useMemo(() => {
     if (isCityTrip || !selectedStop) return null
     if (selectedRoadActivityId) {
@@ -125,8 +136,17 @@ export default function PlanPage() {
         ]
       }
     }
+    if (selectedRoadPossibleId) {
+      const pos = possibleActivities.find((p) => p.id === selectedRoadPossibleId)
+      if (pos?.map_lat != null && pos?.map_lng != null) {
+        return [
+          { lat: pos.map_lat, lng: pos.map_lng },
+          { lat: selectedStop.lat, lng: selectedStop.lng },
+        ]
+      }
+    }
     return null
-  }, [isCityTrip, selectedStop, selectedRoadActivityId, selectedRoadDiningId, activities, dining])
+  }, [isCityTrip, selectedStop, selectedRoadActivityId, selectedRoadDiningId, selectedRoadPossibleId, activities, dining, possibleActivities])
 
   // City trip: map fit points — day pins when a day is selected, all pins otherwise
   const cityMapFitPoints = useMemo(() => {
@@ -240,6 +260,7 @@ export default function PlanPage() {
     setSelectedStopId((prev) => (prev === id ? null : id))
     setSelectedRoadActivityId(null)
     setSelectedRoadDiningId(null)
+    setSelectedRoadPossibleId(null)
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setMobileView('detaljer')
     }
@@ -250,6 +271,7 @@ export default function PlanPage() {
     setCityZoomVersion((v) => v + 1)
     setSelectedCityActivityId(null)
     setSelectedCityDiningId(null)
+    setSelectedCityPossibleId(null)
     if (day && typeof window !== 'undefined' && window.innerWidth < 768) {
       setMobileView('detaljer')
     }
@@ -440,6 +462,7 @@ export default function PlanPage() {
               onSelectActivity={(id) => {
                 setSelectedRoadActivityId(id)
                 setSelectedRoadDiningId(null)
+                setSelectedRoadPossibleId(null)
                 if (!id || activities.find((a) => a.id === id && a.map_lat != null && a.map_lng != null)) {
                   setRoadMapVersion((v) => v + 1)
                 }
@@ -448,7 +471,17 @@ export default function PlanPage() {
               onSelectDining={(id) => {
                 setSelectedRoadDiningId(id)
                 setSelectedRoadActivityId(null)
+                setSelectedRoadPossibleId(null)
                 if (!id || dining.find((d) => d.id === id && d.map_lat != null && d.map_lng != null)) {
+                  setRoadMapVersion((v) => v + 1)
+                }
+              }}
+              selectedPossibleId={selectedRoadPossibleId}
+              onSelectPossible={(id) => {
+                setSelectedRoadPossibleId(id)
+                setSelectedRoadActivityId(null)
+                setSelectedRoadDiningId(null)
+                if (!id || possibleActivities.find((p) => p.id === id && p.map_lat != null && p.map_lng != null)) {
                   setRoadMapVersion((v) => v + 1)
                 }
               }}
@@ -485,6 +518,7 @@ export default function PlanPage() {
               onSelectActivity={(id) => {
                 setSelectedCityActivityId(id)
                 setSelectedCityDiningId(null)
+                setSelectedCityPossibleId(null)
                 // Only zoom when deselecting (zoom back) or item is pinned on map
                 if (!id || activities.find((a) => a.id === id && a.map_lat != null && a.map_lng != null)) {
                   setCityZoomVersion((v) => v + 1)
@@ -493,7 +527,17 @@ export default function PlanPage() {
               onSelectDining={(id) => {
                 setSelectedCityDiningId(id)
                 setSelectedCityActivityId(null)
+                setSelectedCityPossibleId(null)
                 if (!id || dining.find((d) => d.id === id && d.map_lat != null && d.map_lng != null)) {
+                  setCityZoomVersion((v) => v + 1)
+                }
+              }}
+              selectedPossibleId={selectedCityPossibleId}
+              onSelectPossible={(id) => {
+                setSelectedCityPossibleId(id)
+                setSelectedCityActivityId(null)
+                setSelectedCityDiningId(null)
+                if (!id || possibleActivities.find((p) => p.id === id && p.map_lat != null && p.map_lng != null)) {
                   setCityZoomVersion((v) => v + 1)
                 }
               }}
@@ -521,8 +565,10 @@ export default function PlanPage() {
               possibleActivities={possibleActivities}
               selectedActivityId={selectedCityActivityId}
               selectedDiningId={selectedCityDiningId}
-              onSelectActivity={(id) => { setSelectedCityActivityId((prev) => prev === id ? null : id); setSelectedCityDiningId(null); setCityZoomVersion((v) => v + 1) }}
-              onSelectDining={(id) => { setSelectedCityDiningId((prev) => prev === id ? null : id); setSelectedCityActivityId(null); setCityZoomVersion((v) => v + 1) }}
+              selectedPossibleId={selectedCityPossibleId}
+              onSelectActivity={(id) => { setSelectedCityActivityId((prev) => prev === id ? null : id); setSelectedCityDiningId(null); setSelectedCityPossibleId(null); setCityZoomVersion((v) => v + 1) }}
+              onSelectDining={(id) => { setSelectedCityDiningId((prev) => prev === id ? null : id); setSelectedCityActivityId(null); setSelectedCityPossibleId(null); setCityZoomVersion((v) => v + 1) }}
+              onSelectPossible={(id) => { setSelectedCityPossibleId((prev) => prev === id ? null : id); setSelectedCityActivityId(null); setSelectedCityDiningId(null); setCityZoomVersion((v) => v + 1) }}
               activityRoute={cityActivityRoute}
               mapCenter={citySearchCenter ?? null}
               mapFitPoints={citySearchCenter ? null : (cityItemFitPoints ?? cityMapFitPoints)}
@@ -548,6 +594,8 @@ export default function PlanPage() {
               activities={activities}
               dining={dining}
               possibleActivities={possibleActivities}
+              selectedPossibleId={selectedRoadPossibleId}
+              onSelectPossible={(id) => { setSelectedRoadPossibleId((prev) => prev === id ? null : id); setSelectedRoadActivityId(null); setSelectedRoadDiningId(null); setRoadMapVersion((v) => v + 1) }}
               mapCenter={roadTripItemFitPoints ? null : (selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null)}
               mapFitPoints={roadTripItemFitPoints ?? undefined}
               mapForcePanVersion={roadMapVersion}

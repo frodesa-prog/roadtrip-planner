@@ -49,6 +49,8 @@ interface StopDetailPanelProps {
   onSelectActivity?: (id: string | null) => void
   selectedDiningId?: string | null
   onSelectDining?: (id: string | null) => void
+  selectedPossibleId?: string | null
+  onSelectPossible?: (id: string | null) => void
   stopNotes: Note[]
   onUpdateNote: (id: string, data: Partial<Pick<Note, 'title' | 'content' | 'note_date'>>) => void
   onDeleteNote: (id: string) => void
@@ -81,6 +83,7 @@ export default function StopDetailPanel({
   onAddPossibleActivity, onRemovePossibleActivity, onUpdatePossibleActivity,
   selectedActivityId = null, onSelectActivity,
   selectedDiningId = null, onSelectDining,
+  selectedPossibleId = null, onSelectPossible,
   onUpdateNote, onDeleteNote,
   onClose,
   tripDayLabel,
@@ -199,12 +202,15 @@ export default function StopDetailPanel({
   const [newPossibleUrl, setNewPossibleUrl]           = useState('')
   const [newPossibleNotes, setNewPossibleNotes]       = useState('')
   const [newPossibleCategory, setNewPossibleCategory] = useState<string | null>(null)
+  const [newPossibleDate, setNewPossibleDate]         = useState(selectedDate || stop.arrival_date || '')
   const [editingPossibleId, setEditingPossibleId]     = useState<string | null>(null)
-  const [selectedPossibleId, setSelectedPossibleId]   = useState<string | null>(null)
   const [editPossibleDesc, setEditPossibleDesc]       = useState('')
   const [editPossibleUrl, setEditPossibleUrl]         = useState('')
   const [editPossibleNotes, setEditPossibleNotes]     = useState('')
   const [editPossibleCategory, setEditPossibleCategory] = useState<string | null>(null)
+  const [editPossibleDate, setEditPossibleDate]       = useState('')
+  const [editPossibleLocation, setEditPossibleLocation] = useState<{ lat: number; lng: number; name: string } | null>(null)
+  const [pinningPossibleId, setPinningPossibleId]     = useState<string | null>(null)
 
   function startEditPossible(a: PossibleActivity) {
     setEditingPossibleId(a.id)
@@ -212,6 +218,12 @@ export default function StopDetailPanel({
     setEditPossibleUrl(a.url ?? '')
     setEditPossibleNotes(a.notes ?? '')
     setEditPossibleCategory(a.category ?? null)
+    setEditPossibleDate(a.activity_date ?? '')
+    setEditPossibleLocation(
+      a.map_lat != null && a.map_lng != null
+        ? { lat: a.map_lat, lng: a.map_lng, name: a.description }
+        : null
+    )
   }
 
   function saveEditPossible() {
@@ -221,8 +233,12 @@ export default function StopDetailPanel({
       url: editPossibleUrl.trim() || null,
       notes: editPossibleNotes.trim() || null,
       category: editPossibleCategory,
+      activity_date: editPossibleDate || null,
+      map_lat: editPossibleLocation?.lat ?? null,
+      map_lng: editPossibleLocation?.lng ?? null,
     })
     setEditingPossibleId(null)
+    setEditPossibleLocation(null)
   }
 
   function handleAddPossible(e: React.FormEvent) {
@@ -233,11 +249,16 @@ export default function StopDetailPanel({
       url: newPossibleUrl.trim() || undefined,
       notes: newPossibleNotes.trim() || undefined,
       category: newPossibleCategory ?? undefined,
+      activity_date: newPossibleDate || undefined,
+      map_lat: newPossibleLocation?.lat ?? undefined,
+      map_lng: newPossibleLocation?.lng ?? undefined,
     })
     setNewPossibleDesc('')
     setNewPossibleUrl('')
     setNewPossibleNotes('')
     setNewPossibleCategory(null)
+    setNewPossibleDate(selectedDate || stop.arrival_date || '')
+    setNewPossibleLocation(null)
     setShowAddPossible(false)
   }
 
@@ -781,7 +802,6 @@ export default function StopDetailPanel({
                   return (
                     <div key={act.id}
                       onClick={onSelectActivity ? () => {
-                        setSelectedPossibleId(null)
                         onSelectActivity(selectedActivityId === act.id ? null : act.id)
                       } : undefined}
                       className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border group relative transition-colors ${
@@ -1070,7 +1090,6 @@ export default function StopDetailPanel({
                   return (
                     <div key={d.id}
                       onClick={onSelectDining ? () => {
-                        setSelectedPossibleId(null)
                         onSelectDining(selectedDiningId === d.id ? null : d.id)
                       } : undefined}
                       className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border group transition-colors ${
@@ -1239,12 +1258,36 @@ export default function StopDetailPanel({
                             ))}
                           </div>
                         </div>
+                        {stopDates.length > 0 && (
+                          <div>
+                            <p className="text-[10px] text-slate-500 mb-1">Dag</p>
+                            <div className="flex flex-wrap gap-1">
+                              {stopDates.map((sd) => (
+                                <button key={sd} type="button"
+                                  onClick={() => setEditPossibleDate(editPossibleDate === sd ? '' : sd)}
+                                  className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                    sd === editPossibleDate
+                                      ? 'bg-teal-700 border-teal-600 text-white'
+                                      : 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                                  }`}>
+                                  {new Date(sd + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <InlineLocationPicker
+                          selected={editPossibleLocation}
+                          onSelect={(lat, lng, name) => setEditPossibleLocation({ lat, lng, name })}
+                          onClear={() => setEditPossibleLocation(null)}
+                          accentColor="teal"
+                        />
                         <div className="flex gap-1.5">
                           <button onClick={saveEditPossible} disabled={!editPossibleDesc.trim()}
                             className="flex-1 h-7 rounded bg-teal-700 hover:bg-teal-600 disabled:opacity-40 text-white text-xs font-medium flex items-center justify-center gap-1 transition-colors">
                             <Check className="w-3 h-3" /> Lagre
                           </button>
-                          <button onClick={() => setEditingPossibleId(null)}
+                          <button onClick={() => { setEditingPossibleId(null); setEditPossibleLocation(null) }}
                             className="px-3 h-7 rounded border border-slate-600 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
                             Avbryt
                           </button>
@@ -1253,53 +1296,84 @@ export default function StopDetailPanel({
                     )
                   }
                   const isPossibleSelected = selectedPossibleId === a.id
+                  const hasPin = a.map_lat != null && a.map_lng != null
                   return (
-                    <div key={a.id}
-                      onClick={() => {
-                        const newId = isPossibleSelected ? null : a.id
-                        setSelectedPossibleId(newId)
-                        if (newId) { onSelectActivity?.(null); onSelectDining?.(null) }
-                      }}
-                      className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border group transition-colors cursor-pointer ${
-                        isPossibleSelected
-                          ? 'bg-yellow-500/10 border-yellow-500/30'
-                          : 'bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/80'
-                      }`}>
-                      <span className="flex-shrink-0 mt-0.5" style={{ lineHeight: 1 }}>
-                        <ActivityTypeIcon type={a.category} size={14} />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs text-slate-200 leading-relaxed break-words block">
-                          {a.description}
+                    <div key={a.id}>
+                      <div
+                        onClick={() => {
+                          const newId = isPossibleSelected ? null : a.id
+                          onSelectPossible?.(newId)
+                        }}
+                        className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border group transition-colors cursor-pointer ${
+                          isPossibleSelected
+                            ? 'bg-yellow-500/10 border-yellow-500/30'
+                            : 'bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/80'
+                        }`}>
+                        <span className="flex-shrink-0 mt-0.5" style={{ lineHeight: 1 }}>
+                          <ActivityTypeIcon type={a.category} size={14} />
                         </span>
-                        {a.category && (
-                          <span className="text-[10px] text-slate-500">
-                            {getActivityTypeConfig(a.category).label}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs text-slate-200 leading-relaxed break-words block">
+                            {a.description}
                           </span>
-                        )}
-                        {a.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{a.notes}</p>}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {a.category && (
+                              <span className="text-[10px] text-slate-500">
+                                {getActivityTypeConfig(a.category).label}
+                              </span>
+                            )}
+                            {a.activity_date && (
+                              <span className="text-[10px] text-teal-500/80">
+                                {new Date(a.activity_date + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                              </span>
+                            )}
+                          </div>
+                          {a.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{a.notes}</p>}
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                          {a.url && (
+                            <a href={a.url} target="_blank" rel="noopener noreferrer"
+                              title={a.url}
+                              className="text-slate-600 hover:text-teal-400 transition-colors">
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                          <button onClick={(e) => { e.stopPropagation(); startEditPossible(a) }} title="Rediger"
+                            className="text-slate-500 hover:text-teal-400 flex-shrink-0 transition-colors">
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setPinningPossibleId(pinningPossibleId === a.id ? null : a.id) }}
+                            title={hasPin ? 'Endre kartplassering' : 'Fest på kart'}
+                            className={`flex-shrink-0 transition-colors ${hasPin ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'}`}>
+                            <MapPin className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirm({
+                              message: `Slett "${a.description}"?`,
+                              action: () => onRemovePossibleActivity(a.id),
+                            }) }}
+                            className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
-                        {a.url && (
-                          <a href={a.url} target="_blank" rel="noopener noreferrer"
-                            title={a.url}
-                            className="text-slate-600 hover:text-teal-400 transition-colors">
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                      </div>
-                      <button onClick={(e) => { e.stopPropagation(); startEditPossible(a) }} title="Rediger"
-                        className="text-slate-500 hover:text-teal-400 flex-shrink-0 transition-colors mt-0.5">
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setConfirm({
-                          message: `Slett "${a.description}"?`,
-                          action: () => onRemovePossibleActivity(a.id),
-                        }) }}
-                        className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors mt-0.5">
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      {pinningPossibleId === a.id && (
+                        <div className="mt-1 px-2.5" onClick={(e) => e.stopPropagation()}>
+                          <InlineLocationPicker
+                            selected={a.map_lat != null ? { lat: a.map_lat, lng: a.map_lng!, name: a.description } : null}
+                            onSelect={(lat, lng) => {
+                              onUpdatePossibleActivity(a.id, { map_lat: lat, map_lng: lng })
+                              setPinningPossibleId(null)
+                            }}
+                            onClear={() => {
+                              onUpdatePossibleActivity(a.id, { map_lat: null, map_lng: null })
+                              setPinningPossibleId(null)
+                            }}
+                            accentColor="teal"
+                          />
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -1342,13 +1416,37 @@ export default function StopDetailPanel({
                     ))}
                   </div>
                 </div>
+                {stopDates.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-slate-500 mb-1">Dag</p>
+                    <div className="flex flex-wrap gap-1">
+                      {stopDates.map((sd) => (
+                        <button key={sd} type="button"
+                          onClick={() => setNewPossibleDate(newPossibleDate === sd ? '' : sd)}
+                          className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                            sd === newPossibleDate
+                              ? 'bg-teal-700 border-teal-600 text-white'
+                              : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                          }`}>
+                          {new Date(sd + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <InlineLocationPicker
+                  selected={newPossibleLocation}
+                  onSelect={(lat, lng, name) => setNewPossibleLocation({ lat, lng, name })}
+                  onClear={() => setNewPossibleLocation(null)}
+                  accentColor="teal"
+                />
                 <div className="flex gap-1.5">
                   <button type="submit" disabled={!newPossibleDesc.trim()}
                     className="flex-1 h-7 rounded-md bg-teal-700 hover:bg-teal-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
                     Legg til
                   </button>
                   <button type="button"
-                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleNotes(''); setNewPossibleCategory(null) }}
+                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleNotes(''); setNewPossibleCategory(null); setNewPossibleDate(selectedDate || stop.arrival_date || ''); setNewPossibleLocation(null) }}
                     className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
                     Avbryt
                   </button>
