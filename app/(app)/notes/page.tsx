@@ -78,7 +78,20 @@ function LinkifyTextarea({
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
-      {/* Mirror layer — on top, pointer-events:none except on <a> tags */}
+      {/* Textarea FIRST = below in stacking order */}
+      <textarea
+        autoFocus={autoFocus}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onPaste={onPaste}
+        onScroll={syncScroll}
+        className="absolute inset-0 w-full h-full bg-transparent resize-none outline-none text-sm px-4 md:px-6 py-4 leading-relaxed"
+        style={{ color: 'transparent', caretColor: '#94a3b8', fontFamily: 'inherit' }}
+      />
+
+      {/* Mirror LAST = on top in stacking order.
+          pointer-events:none passes clicks through to textarea,
+          EXCEPT on <a> tags which have pointer-events:auto and intercept link clicks. */}
       <div
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none overflow-hidden px-4 md:px-6 py-4"
@@ -93,17 +106,6 @@ function LinkifyTextarea({
           }
         </div>
       </div>
-
-      {/* Actual textarea — transparent text so only mirror is visible, caret stays */}
-      <textarea
-        autoFocus={autoFocus}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onPaste={onPaste}
-        onScroll={syncScroll}
-        className="absolute inset-0 w-full h-full bg-transparent resize-none outline-none text-sm px-4 md:px-6 py-4 leading-relaxed"
-        style={{ color: 'transparent', caretColor: '#94a3b8', fontFamily: 'inherit' }}
-      />
     </div>
   )
 }
