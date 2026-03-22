@@ -826,9 +826,10 @@ export default function ChatPanel() {
                         )}
                       </div>
 
-                      {/* ── Emoji picker + reply bar — halvveis over bunnen av boblen ─ */}
+                      {/* ── Emoji picker + reply bar — overlapper nede til høyre i boblen ─ */}
                       {hoveredMsgId === msg.id && (
-                        <div className={`absolute right-0 bottom-0 translate-y-1/2 z-20
+                        <div className={`absolute z-20
+                          ${isOwn ? 'right-2' : 'left-2'} bottom-0 translate-y-1/4
                           flex items-center gap-px px-1.5 py-1 rounded-xl
                           bg-slate-800 border border-slate-700 shadow-lg shadow-black/40`}>
                           {/* Reply button */}
