@@ -203,7 +203,6 @@ export default function NavBar() {
             width={110}
             height={60}
             className="object-contain"
-            style={{ filter: 'brightness(0) invert(1)' }}
           />
         </button>
         {tripPickerOpen && (
@@ -312,7 +311,6 @@ export default function NavBar() {
               width={110}
               height={60}
               className="object-contain"
-              style={{ filter: 'brightness(0) invert(1)' }}
             />
           </span>
           <button
