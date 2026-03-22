@@ -7,8 +7,11 @@ import { useTrips } from '@/hooks/useTrips'
 import { useNotes } from '@/hooks/useNotes'
 import { useStops } from '@/hooks/useStops'
 import { useNoteImages } from '@/hooks/useNoteImages'
+import { useActivities } from '@/hooks/useActivities'
+import { useDining } from '@/hooks/useDining'
+import { usePossibleActivities } from '@/hooks/usePossibleActivities'
 import TripManager from '@/components/planning/TripManager'
-import { Note, Stop } from '@/types'
+import { Note, Stop, Activity, Dining, PossibleActivity } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -595,7 +598,7 @@ function DraftEditor({
 
 // ─── Note Editor ─────────────────────────────────────────────────────────────
 
-type NoteUpdates = Partial<Pick<Note, 'title' | 'content' | 'stop_id' | 'note_date'>>
+type NoteUpdates = Partial<Pick<Note, 'title' | 'content' | 'stop_id' | 'note_date' | 'activity_id' | 'dining_id' | 'possible_activity_id'>>
 
 function NoteEditor({
   note,
@@ -620,6 +623,46 @@ function NoteEditor({
   const [noteDate, setNoteDate] = useState<string | null>(note.note_date)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Entity linking state (mutually exclusive: activity / dining / possible_activity)
+  const [entityType, setEntityType] = useState<'activity' | 'dining' | 'possible' | null>(
+    note.activity_id ? 'activity' : note.dining_id ? 'dining' : note.possible_activity_id ? 'possible' : null
+  )
+  const [entityId, setEntityId] = useState<string | null>(
+    note.activity_id ?? note.dining_id ?? note.possible_activity_id ?? null
+  )
+
+  // Load entities for selected stop (auto-refetch when stopId changes)
+  const { activities }          = useActivities(stopId ? [stopId] : [])
+  const { dining: diningItems } = useDining(stopId ? [stopId] : [])
+  const { possibleActivities }  = usePossibleActivities(stopId ? [stopId] : [])
+
+  // Filter by date: show entities that match the selected date OR have no date
+  const matchesDate = (entityDate: string | null) => !noteDate || !entityDate || entityDate === noteDate
+  const filteredActivities = activities.filter(a => matchesDate(a.activity_date))
+  const filteredDining      = diningItems.filter(d => matchesDate(d.booking_date))
+  const filteredPossible    = possibleActivities.filter(p => matchesDate(p.activity_date))
+
+  // For the currently selected entity: ensure it always appears in the select
+  // even if it fell outside the filtered list (e.g. date was changed after linking)
+  const entitySelectValue = entityType && entityId ? `${entityType}:${entityId}` : ''
+  const currentEntityInList = !entityId || (
+    entityType === 'activity' ? filteredActivities.some(a => a.id === entityId) :
+    entityType === 'dining'   ? filteredDining.some(d => d.id === entityId) :
+                                filteredPossible.some(p => p.id === entityId)
+  )
+  const orphanLabel: string | null = (!currentEntityInList && entityId && entityType) ? (() => {
+    if (entityType === 'activity') {
+      const a = activities.find(a => a.id === entityId)
+      return a ? `🎟 ${a.name}` : null
+    }
+    if (entityType === 'dining') {
+      const d = diningItems.find(d => d.id === entityId)
+      return d ? `🍽️ ${d.name}` : null
+    }
+    const p = possibleActivities.find(p => p.id === entityId)
+    return p ? `💡 ${p.description}` : null
+  })() : null
 
   const { images, isUploading, uploadImage, removeImage } = useNoteImages(note.id)
 
@@ -658,8 +701,29 @@ function NoteEditor({
   function handleStopChange(newStopId: string | null) {
     setStopId(newStopId)
     setNoteDate(null)
+    setEntityType(null)
+    setEntityId(null)
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    onUpdate(note.id, { stop_id: newStopId, note_date: null })
+    onUpdate(note.id, { stop_id: newStopId, note_date: null, activity_id: null, dining_id: null, possible_activity_id: null })
+  }
+
+  function handleEntityChange(value: string) {
+    if (!value) {
+      setEntityType(null)
+      setEntityId(null)
+      onUpdate(note.id, { activity_id: null, dining_id: null, possible_activity_id: null })
+      return
+    }
+    const colonIdx = value.indexOf(':')
+    const type = value.slice(0, colonIdx) as 'activity' | 'dining' | 'possible'
+    const id   = value.slice(colonIdx + 1)
+    setEntityType(type)
+    setEntityId(id)
+    onUpdate(note.id, {
+      activity_id:          type === 'activity' ? id : null,
+      dining_id:            type === 'dining'   ? id : null,
+      possible_activity_id: type === 'possible' ? id : null,
+    })
   }
 
   function handleDateToggle(date: string) {
@@ -794,6 +858,45 @@ function NoteEditor({
           <div className="flex items-center gap-3">
             <span className="text-[11px] text-slate-500 w-12 flex-shrink-0">Dato</span>
             <span className="text-[11px] text-slate-600 italic">Stopp har ingen dato satt</span>
+          </div>
+        )}
+
+        {/* Entity linking — shown when a stop is selected and entities exist */}
+        {stopId && (filteredActivities.length > 0 || filteredDining.length > 0 || filteredPossible.length > 0 || entityId) && (
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-slate-500 w-12 flex-shrink-0">Knytt til</span>
+            <select
+              value={entitySelectValue}
+              onChange={(e) => handleEntityChange(e.target.value)}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 px-2 py-1.5 outline-none focus:border-blue-500 transition-colors cursor-pointer"
+            >
+              <option value="">— Ingen tilknytning —</option>
+              {/* If selected entity was filtered out by date, still show it */}
+              {orphanLabel && (
+                <option value={entitySelectValue}>{orphanLabel}</option>
+              )}
+              {filteredActivities.length > 0 && (
+                <optgroup label="🎟 Aktiviteter">
+                  {filteredActivities.map((a) => (
+                    <option key={a.id} value={`activity:${a.id}`}>{a.name}</option>
+                  ))}
+                </optgroup>
+              )}
+              {filteredDining.length > 0 && (
+                <optgroup label="🍽️ Spisesteder">
+                  {filteredDining.map((d) => (
+                    <option key={d.id} value={`dining:${d.id}`}>{d.name}</option>
+                  ))}
+                </optgroup>
+              )}
+              {filteredPossible.length > 0 && (
+                <optgroup label="💡 Mulige aktiviteter">
+                  {filteredPossible.map((p) => (
+                    <option key={p.id} value={`possible:${p.id}`}>{p.description}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
           </div>
         )}
       </div>
