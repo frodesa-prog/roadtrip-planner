@@ -435,8 +435,21 @@ export default function PlanPage() {
               onSaveDayPlan={handleSaveDayPlan}
               selectedActivityId={selectedCityActivityId}
               selectedDiningId={selectedCityDiningId}
-              onSelectActivity={(id) => { setSelectedCityActivityId(id); setSelectedCityDiningId(null); setCityZoomVersion((v) => v + 1) }}
-              onSelectDining={(id) => { setSelectedCityDiningId(id); setSelectedCityActivityId(null); setCityZoomVersion((v) => v + 1) }}
+              onSelectActivity={(id) => {
+                setSelectedCityActivityId(id)
+                setSelectedCityDiningId(null)
+                // Only zoom when deselecting (zoom back) or item is pinned on map
+                if (!id || activities.find((a) => a.id === id && a.map_lat != null && a.map_lng != null)) {
+                  setCityZoomVersion((v) => v + 1)
+                }
+              }}
+              onSelectDining={(id) => {
+                setSelectedCityDiningId(id)
+                setSelectedCityActivityId(null)
+                if (!id || dining.find((d) => d.id === id && d.map_lat != null && d.map_lng != null)) {
+                  setCityZoomVersion((v) => v + 1)
+                }
+              }}
               onClose={() => { setSelectedDayStr(null); setMobileView('steder') }}
             />
           </div>

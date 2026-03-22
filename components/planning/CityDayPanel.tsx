@@ -124,6 +124,7 @@ export default function CityDayPanel({
   const [editPossibleDesc, setEditPossibleDesc]     = useState('')
   const [editPossibleUrl, setEditPossibleUrl]       = useState('')
   const [editPossibleNotes, setEditPossibleNotes]   = useState('')
+  const [selectedPossibleId, setSelectedPossibleId] = useState<string | null>(null)
 
   // ── Confirm dialog ────────────────────────────────────────────────────────
   const [confirm, setConfirm] = useState<{ message: string; action: () => void } | null>(null)
@@ -386,13 +387,15 @@ export default function CityDayPanel({
                 }
                 const isActSelected = selectedActivityId === act.id
                 const hasPin = act.map_lat != null && act.map_lng != null
-                const canSelect = hasPin && !!onSelectActivity
                 return (
                   <div
                     key={act.id}
-                    onClick={canSelect ? () => onSelectActivity!(isActSelected ? null : act.id) : undefined}
+                    onClick={onSelectActivity ? () => {
+                      setSelectedPossibleId(null)
+                      onSelectActivity(isActSelected ? null : act.id)
+                    } : undefined}
                     className={`flex items-center gap-2 px-2.5 py-2 rounded-lg group transition-colors ${
-                      canSelect ? 'cursor-pointer' : ''
+                      onSelectActivity ? 'cursor-pointer' : ''
                     } ${
                       isActSelected
                         ? 'bg-blue-500/15 border border-blue-500/40'
@@ -523,13 +526,15 @@ export default function CityDayPanel({
                 }
                 const isDinSelected = selectedDiningId === d.id
                 const hasDinPin = d.map_lat != null && d.map_lng != null
-                const canSelectDin = hasDinPin && !!onSelectDining
                 return (
                   <div
                     key={d.id}
-                    onClick={canSelectDin ? () => onSelectDining!(isDinSelected ? null : d.id) : undefined}
+                    onClick={onSelectDining ? () => {
+                      setSelectedPossibleId(null)
+                      onSelectDining(isDinSelected ? null : d.id)
+                    } : undefined}
                     className={`flex items-center gap-2 px-2.5 py-2 rounded-lg group transition-colors ${
-                      canSelectDin ? 'cursor-pointer' : ''
+                      onSelectDining ? 'cursor-pointer' : ''
                     } ${
                       isDinSelected
                         ? 'bg-orange-500/15 border border-orange-500/40'
@@ -647,19 +652,39 @@ export default function CityDayPanel({
                     </div>
                   )
                 }
+                const isPossibleSelected = selectedPossibleId === a.id
                 return (
-                  <div key={a.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-800/50 group">
-                    <Lightbulb className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />
+                  <div
+                    key={a.id}
+                    onClick={() => {
+                      const newId = isPossibleSelected ? null : a.id
+                      setSelectedPossibleId(newId)
+                      if (newId) {
+                        // Clear activity/dining selection when possible activity is chosen
+                        onSelectActivity?.(null)
+                        onSelectDining?.(null)
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-lg group transition-colors cursor-pointer ${
+                      isPossibleSelected
+                        ? 'bg-yellow-500/10 border border-yellow-500/30'
+                        : 'bg-slate-800/50 border border-transparent hover:bg-slate-800/80'
+                    }`}
+                  >
+                    <Lightbulb className={`w-3.5 h-3.5 flex-shrink-0 transition-colors ${isPossibleSelected ? 'text-yellow-300' : 'text-yellow-400'}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-slate-300 truncate">{a.description}</p>
                       {a.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{a.notes}</p>}
                     </div>
-                    {a.url && (
-                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-slate-600 hover:text-blue-400 transition-colors">
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                    <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div
+                      className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {a.url && (
+                        <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-400 transition-colors">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                       <button onClick={() => startEditPossible(a)} className="text-slate-500 hover:text-blue-400 transition-colors">
                         <Pencil className="w-3 h-3" />
                       </button>
