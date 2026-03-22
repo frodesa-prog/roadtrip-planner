@@ -344,24 +344,10 @@ export default function LoginPage() {
         </div>
       </header>
 
-      {/* ── Hero: logo + tagline ─────────────────────────────────────── */}
+      {/* ── Hero: tagline ────────────────────────────────────────────── */}
       <section className="flex flex-col lg:flex-row items-center gap-6 lg:gap-10 px-4 sm:px-8 lg:px-16 pt-10 sm:pt-14 pb-6 sm:pb-8 text-center lg:text-left">
-        {/* Logo — graphic only (text portion clipped) */}
-        <div
-          className="relative flex-shrink-0 mx-auto lg:mx-0"
-          style={{ width: 'min(300px, 70vw)', aspectRatio: '500 / 340', overflow: 'hidden' }}
-        >
-          <Image
-            src="/logo.png"
-            alt="MyVacayPlanner"
-            fill
-            className="object-cover object-top"
-            style={{ mixBlendMode: 'multiply' }}
-          />
-        </div>
-
         {/* Tagline */}
-        <div className="max-w-lg lg:max-w-none">
+        <div className="max-w-lg lg:max-w-none w-full">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight mb-3 sm:mb-4" style={{ color: C.navy }}>
             Plan.<br />
             <span style={{ color: C.copper }}>Travel.</span>{' '}
@@ -402,9 +388,16 @@ export default function LoginPage() {
         </div>
       </section>
 
-      {/* ── Travel illustration ──────────────────────────────────────── */}
+      {/* ── Illustration ─────────────────────────────────────────────── */}
       <section className="px-4 sm:px-8 lg:px-16 pb-6">
-        <TravelIllustration />
+        <div className="relative w-full max-w-2xl mx-auto" style={{ aspectRatio: '16/7' }}>
+          <Image
+            src="/illustration1.png"
+            alt="Reiseillustrasjon"
+            fill
+            className="object-contain"
+          />
+        </div>
       </section>
 
       {/* ── Features grid ────────────────────────────────────────────── */}
@@ -455,7 +448,7 @@ export default function LoginPage() {
                 <MockupPlanning />
               </div>
             </div>
-            {/* Kostnader — visible sm+ */}
+            {/* Kostnader — midterste kolonne */}
             <div className="flex flex-col">
               <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: C.blue }}>
                 <DollarSign className="w-3.5 h-3.5" /> Kostnader
@@ -464,7 +457,7 @@ export default function LoginPage() {
                 <MockupCosts />
               </div>
             </div>
-            {/* Chat — visible lg+ on small, always on sm+ */}
+            {/* Chat */}
             <div className="flex flex-col sm:col-span-2 lg:col-span-1">
               <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: C.mint }}>
                 <MessageCircle className="w-3.5 h-3.5" /> Chat
@@ -472,6 +465,22 @@ export default function LoginPage() {
               <div style={{ height: 240 }}>
                 <MockupChat />
               </div>
+            </div>
+          </div>
+
+          {/* Logo sentrert under midterste skjermbilde */}
+          <div className="flex justify-center mt-10">
+            <div
+              className="relative"
+              style={{ width: 'min(280px, 65vw)', aspectRatio: '1 / 1' }}
+            >
+              <Image
+                src="/logo.png"
+                alt="MyVacayPlanner"
+                fill
+                className="object-contain"
+                style={{ mixBlendMode: 'multiply' }}
+              />
             </div>
           </div>
         </div>
