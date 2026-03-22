@@ -744,6 +744,20 @@ export default function TripPanels({
             })}
           </div>
 
+          {isTrain && (
+            <div className="px-4 pt-3 pb-1">
+              <a
+                href="https://www.vy.no"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg bg-green-700/20 hover:bg-green-700/30 border border-green-700/40 text-green-400 hover:text-green-300 text-xs font-medium transition-colors"
+              >
+                <Train className="w-3.5 h-3.5 flex-shrink-0" />
+                Bestill togtur på vy.no
+              </a>
+            </div>
+          )}
+
           <FlightForm
             key={`${flightTab}-${activeFlight?.has_stopover ?? false}`}
             flight={activeFlight}
