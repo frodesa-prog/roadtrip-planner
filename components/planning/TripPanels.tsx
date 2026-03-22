@@ -325,7 +325,7 @@ const GENDERS = [
 
 function genderEmoji(gender: string | null) {
   if (gender === 'mann') return '👨'
-  if (gender === 'kvinne') return '👩'
+  if (gender === 'kvinne') return '👩‍🦫'
   return '🧑'
 }
 
