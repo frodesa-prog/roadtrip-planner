@@ -53,6 +53,12 @@ interface StopDetailPanelProps {
   onUpdateNote: (id: string, data: Partial<Pick<Note, 'title' | 'content' | 'note_date'>>) => void
   onDeleteNote: (id: string) => void
   onClose: () => void
+  /** Shown in the panel header, e.g. "Dag 5 av 30 dager" */
+  tripDayLabel?: string
+  /** Replaces the nights counter, e.g. "2 av 4 netter" */
+  nightOfStayLabel?: string
+  /** Hides the arrival-date field (used from summary page) */
+  hideArrivalDate?: boolean
 }
 
 function getStopDates(stop: Stop): string[] {
@@ -77,6 +83,9 @@ export default function StopDetailPanel({
   selectedDiningId = null, onSelectDining,
   onUpdateNote, onDeleteNote,
   onClose,
+  tripDayLabel,
+  nightOfStayLabel,
+  hideArrivalDate = false,
 }: StopDetailPanelProps) {
   const [hotelName, setHotelName]               = useState(hotel?.name ?? '')
   const [hotelAddress, setHotelAddress]         = useState(hotel?.address ?? '')
@@ -477,6 +486,9 @@ export default function StopDetailPanel({
                 </div>
               )}
               <p className="text-xs text-slate-500 capitalize ml-5">{dayLabel}</p>
+              {tripDayLabel && (
+                <p className="text-xs text-blue-400/80 ml-5 mt-0.5 font-medium">{tripDayLabel}</p>
+              )}
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               <button
@@ -514,27 +526,43 @@ export default function StopDetailPanel({
           {/* ── Opphold ─────────────────────────────────────────────────── */}
           <section>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Opphold</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-slate-500 flex items-center gap-1 mb-1">
-                  <Calendar className="w-3 h-3" /> Ankomstdato
-                </label>
-                <Input type="date" value={arrivalDate}
-                  onChange={(e) => { setArrivalDate(e.target.value); onUpdateStop({ arrival_date: e.target.value || null }) }}
-                  className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100" />
+            {(hideArrivalDate && nightOfStayLabel) ? (
+              /* Summary-page compact view: just show night-of-stay label */
+              <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                <Moon className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                <span className="text-xs text-slate-200 font-medium">{nightOfStayLabel}</span>
               </div>
-              <div>
-                <label className="text-xs text-slate-500 flex items-center gap-1 mb-1">
-                  <Moon className="w-3 h-3" /> Netter
-                </label>
-                <Input type="number" min={1} value={nights}
-                  onChange={(e) => {
-                    const val = Number(e.target.value)
-                    if (!isNaN(val) && val >= 1) { setNights(val); onUpdateStop({ nights: val }) }
-                  }}
-                  className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100" />
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {!hideArrivalDate && (
+                  <div>
+                    <label className="text-xs text-slate-500 flex items-center gap-1 mb-1">
+                      <Calendar className="w-3 h-3" /> Ankomstdato
+                    </label>
+                    <Input type="date" value={arrivalDate}
+                      onChange={(e) => { setArrivalDate(e.target.value); onUpdateStop({ arrival_date: e.target.value || null }) }}
+                      className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100" />
+                  </div>
+                )}
+                <div>
+                  <label className="text-xs text-slate-500 flex items-center gap-1 mb-1">
+                    <Moon className="w-3 h-3" /> Netter
+                  </label>
+                  {nightOfStayLabel ? (
+                    <div className="h-7 flex items-center px-2 bg-slate-800/50 rounded border border-slate-700/50">
+                      <span className="text-xs text-slate-200">{nightOfStayLabel}</span>
+                    </div>
+                  ) : (
+                    <Input type="number" min={1} value={nights}
+                      onChange={(e) => {
+                        const val = Number(e.target.value)
+                        if (!isNaN(val) && val >= 1) { setNights(val); onUpdateStop({ nights: val }) }
+                      }}
+                      className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100" />
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           {/* ── Hotell ──────────────────────────────────────────────────── */}

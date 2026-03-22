@@ -257,6 +257,30 @@ export default function SummaryPage() {
 
   const hasEnoughData = stops.length > 0 && stops.some((s) => s.arrival_date)
 
+  // Detail panel labels for clicked day
+  const tripDayLabel = useMemo(() => {
+    if (!selectedDate || !currentTrip?.date_from) return undefined
+    const dayNum = Math.round(
+      (new Date(selectedDate + 'T12:00:00').getTime() - new Date(currentTrip.date_from + 'T12:00:00').getTime()) / 86_400_000
+    ) + 1
+    if (dayNum < 1) return undefined
+    const totalDays = currentTrip.date_to
+      ? Math.round(
+          (new Date(currentTrip.date_to + 'T12:00:00').getTime() - new Date(currentTrip.date_from + 'T12:00:00').getTime()) / 86_400_000
+        ) + 1
+      : null
+    return totalDays ? `Dag ${dayNum} av ${totalDays} dager` : `Dag ${dayNum}`
+  }, [selectedDate, currentTrip])
+
+  const nightOfStayLabel = useMemo(() => {
+    if (!selectedDate || !selectedStop?.arrival_date) return undefined
+    const nightNum = Math.round(
+      (new Date(selectedDate + 'T12:00:00').getTime() - new Date(selectedStop.arrival_date + 'T12:00:00').getTime()) / 86_400_000
+    ) + 1
+    if (nightNum < 1) return undefined
+    return `${nightNum} av ${selectedStop.nights} netter`
+  }, [selectedDate, selectedStop])
+
   // Date range label
   const dated = stops.filter((s) => s.arrival_date)
   const firstStop = dated[0]
@@ -417,19 +441,6 @@ export default function SummaryPage() {
                 </Link>
               </div>
 
-              {/* Stop legend */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {stops.filter((s) => s.arrival_date).map((stop) => {
-                  const pal = PALETTES[stopPaletteIndex[stop.id]]
-                  return (
-                    <div key={stop.id} className="flex items-center gap-1.5 text-xs text-slate-400">
-                      <div className={`w-2 h-2 rounded-full ${pal.dot}`} />
-                      {stop.city}
-                    </div>
-                  )
-                })}
-              </div>
-
               {/* Missing-hotel legend – vises kun hvis minst ett stopp mangler bekreftet hotell */}
               {stops.some((s) => s.arrival_date && !confirmedHotelStopIds.has(s.id)) && (
                 <div className="flex items-center gap-2 text-xs mb-4 px-2.5 py-1.5 rounded-md bg-red-950/30 border border-red-800/30 w-fit">
@@ -567,12 +578,15 @@ export default function SummaryPage() {
             <StopDetailPanel
               stop={selectedStop}
               hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
-              activities={activities.filter((a) => a.stop_id === selectedStop.id)}
-              dining={dining.filter((d) => d.stop_id === selectedStop.id)}
+              activities={activities.filter((a) => a.stop_id === selectedStop.id && a.activity_date === selectedDate)}
+              dining={dining.filter((d) => d.stop_id === selectedStop.id && d.booking_date === selectedDate)}
               possibleActivities={possibleActivities.filter((a) => a.stop_id === selectedStop.id)}
               leg={selectedStopLeg}
               selectedDate={selectedDate}
               stopIndex={selectedStopIndex}
+              tripDayLabel={tripDayLabel}
+              nightOfStayLabel={nightOfStayLabel}
+              hideArrivalDate
               onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
               onSaveHotel={(updates, lat, lng) => {
                 saveHotel(selectedStop.id, updates)
@@ -706,7 +720,7 @@ function DayCell({
               : <PlaneLanding className="w-3 h-3 text-sky-400" />
             }
             {flight.leg1_departure && (
-              <span className="text-[8px] text-sky-400/70">{flight.leg1_departure}</span>
+              <span className="text-[8px] text-sky-200">{flight.leg1_departure}</span>
             )}
           </button>
         )}
@@ -742,7 +756,7 @@ function DayCell({
             >
               <span className="leading-none"><ActivityTypeIcon type={a.activity_type} size={12} /></span>
               {a.activity_time && (
-                <span className="text-[8px]" style={{ color: cfg.color }}>
+                <span className="text-[8px] text-slate-100">
                   {a.activity_time.slice(0, 5)}
                 </span>
               )}
@@ -760,7 +774,7 @@ function DayCell({
           >
             <UtensilsCrossed className="w-3 h-3 text-red-400" />
             {d.booking_time && (
-              <span className="text-[8px] text-red-400/70">{d.booking_time.slice(0, 5)}</span>
+              <span className="text-[8px] text-red-200">{d.booking_time.slice(0, 5)}</span>
             )}
           </button>
         ))}
