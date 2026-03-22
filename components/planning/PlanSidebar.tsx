@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { MapPin, Loader2, Car, CalendarDays, List, Check, X } from 'lucide-react'
 import { Stop, Trip, Hotel, Activity, RouteLeg, NewTripData } from '@/types'
 import StopCard from './StopCard'
@@ -10,6 +11,7 @@ import TripPanels from './TripPanels'
 import TripManager from './TripManager'
 import NewTripWizard from './NewTripWizard'
 import { useDrivingInfo, addMinutes } from '@/hooks/useDrivingInfo'
+import { OPEN_NEW_TRIP_WIZARD_EVENT } from '@/components/NavBar'
 
 interface PlanSidebarProps {
   trips: Trip[]
@@ -51,6 +53,23 @@ export default function PlanSidebar({
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
+
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Open wizard when navigated with ?new=1 or via navbar event
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowWizard(true)
+      router.replace('/plan', { scroll: false })
+    }
+  }, [searchParams, router])
+
+  useEffect(() => {
+    function onOpenWizard() { setShowWizard(true) }
+    window.addEventListener(OPEN_NEW_TRIP_WIZARD_EVENT, onOpenWizard)
+    return () => window.removeEventListener(OPEN_NEW_TRIP_WIZARD_EVENT, onOpenWizard)
+  }, [])
 
   // ── Edit dates state (road trip – ingen stopp-oppdatering) ──────────────────
   const [editingDates, setEditingDates] = useState(false)

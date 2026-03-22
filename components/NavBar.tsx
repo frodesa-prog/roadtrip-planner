@@ -3,11 +3,13 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronDown, Check } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronDown, Check, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useChat } from '@/components/chat/ChatContext'
 import { Trip } from '@/types'
+
+export const OPEN_NEW_TRIP_WIZARD_EVENT = 'open-new-trip-wizard'
 
 const SELECTED_TRIP_KEY = 'selected_trip_id'
 
@@ -34,6 +36,8 @@ function TripDropdown() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     setCurrentId(typeof window !== 'undefined' ? localStorage.getItem(SELECTED_TRIP_KEY) : null)
@@ -132,13 +136,19 @@ function TripDropdown() {
             )}
           </div>
           <div className="border-t border-slate-700 px-4 py-2.5">
-            <Link
-              href="/minside"
-              onClick={() => setOpen(false)}
-              className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
+            <button
+              onClick={() => {
+                setOpen(false)
+                if (pathname === '/plan') {
+                  window.dispatchEvent(new CustomEvent(OPEN_NEW_TRIP_WIZARD_EVENT))
+                } else {
+                  router.push('/plan?new=1')
+                }
+              }}
+              className="flex items-center gap-1 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
             >
-              + Opprett ny reise
-            </Link>
+              <Plus className="w-3 h-3" /> Opprett ny reise
+            </button>
           </div>
         </div>
       )}
