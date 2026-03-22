@@ -369,7 +369,7 @@ export default function LoginPage() {
       </section>
 
       {/* ── Illustration ─────────────────────────────────────────────── */}
-      <section className="px-4 sm:px-8 lg:px-16 -mt-6 pb-2">
+      <section className="px-4 sm:px-8 lg:px-16 -mt-10 pb-2">
         <div className="relative w-full max-w-4xl mx-auto" style={{ aspectRatio: '16/7' }}>
           <Image
             src="/illustration1.png"
