@@ -20,12 +20,13 @@ export default function NotesArchivePage() {
   const {
     currentTrip, loading: tripsLoading,
   } = useTrips()
-  const { archivedNotes, deleteNotePermanently, restoreNote } = useArchivedNotes(
+  const { archivedNotes, deleteNotePermanently, restoreNote, deleteAllPermanently } = useArchivedNotes(
     currentTrip?.id ?? null
   )
   const { stops } = useStops(currentTrip?.id ?? null)
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
 
   const stopNameMap = useMemo(() => {
@@ -76,6 +77,42 @@ export default function NotesArchivePage() {
                 className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
               >
                 Slett permanent
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Slett alle-bekreftelse ───────────────────────────────────────── */}
+      {confirmDeleteAll && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          onClick={() => setConfirmDeleteAll(false)}
+        >
+          <div
+            className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-sm font-semibold text-slate-100 mb-1.5">Tøm hele arkivet?</h2>
+            <p className="text-xs text-slate-400 mb-5">
+              Alle {archivedNotes.length} arkiverte {archivedNotes.length === 1 ? 'notat' : 'notater'} slettes permanent. Dette kan ikke angres.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDeleteAll(false)}
+                className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={async () => {
+                  await deleteAllPermanently()
+                  setSelectedNoteId(null)
+                  setConfirmDeleteAll(false)
+                }}
+                className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
+              >
+                Slett alle permanent
               </button>
             </div>
           </div>
@@ -154,8 +191,17 @@ export default function NotesArchivePage() {
           )}
         </div>
 
-        {/* Back to notes */}
-        <div className="border-t border-slate-800 p-3 flex-shrink-0">
+        {/* Slett alle + Tilbake */}
+        <div className="border-t border-slate-800 p-3 flex-shrink-0 space-y-1">
+          {archivedNotes.length > 0 && (
+            <button
+              onClick={() => setConfirmDeleteAll(true)}
+              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-red-500/80 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Slett alle permanent
+            </button>
+          )}
           <Link
             href="/notes"
             className="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-colors"

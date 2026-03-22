@@ -111,5 +111,23 @@ export function useArchivedNotes(tripId: string | null) {
     if (error) toast.error('Kunne ikke gjenopprette notat')
   }, [supabase])
 
-  return { archivedNotes, deleteNotePermanently, restoreNote }
+  const deleteAllPermanently = useCallback(async (): Promise<boolean> => {
+    if (!tripId) return false
+    const snapshot = archivedNotes
+    setArchivedNotes([])
+    const { error } = await supabase
+      .from('notes')
+      .delete()
+      .eq('trip_id', tripId)
+      .not('archived_at', 'is', null)
+    if (error) {
+      setArchivedNotes(snapshot)
+      toast.error('Kunne ikke slette arkivet')
+      return false
+    }
+    toast.success('Arkivet er tømt')
+    return true
+  }, [tripId, archivedNotes, supabase])
+
+  return { archivedNotes, deleteNotePermanently, restoreNote, deleteAllPermanently }
 }
