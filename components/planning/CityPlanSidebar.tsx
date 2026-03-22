@@ -72,6 +72,11 @@ function HotelSection({
     }
   }
 
+  function saveNumber(field: 'cost' | 'parking_cost_per_night', raw: string) {
+    const parsed = raw.trim() ? Number(raw.trim()) : null
+    onSaveHotel(stopId, { [field]: parsed })
+  }
+
   async function geocodeAddress() {
     if (!hotel?.address && !hotel?.name) return
     const query = hotel.address || hotel.name
@@ -90,6 +95,8 @@ function HotelSection({
       setGeocoding(false)
     }
   }
+
+  const inputCls = 'w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500'
 
   return (
     <div className="px-4 py-3 border-b border-slate-800 bg-slate-800/30 flex-shrink-0">
@@ -121,39 +128,79 @@ function HotelSection({
             defaultValue={hotel?.name ?? ''}
             placeholder="Hotellnavn"
             onBlur={(e) => save('name', e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+            className={inputCls}
           />
           <input
             type="text"
             defaultValue={hotel?.address ?? ''}
             placeholder="Adresse"
             onBlur={(e) => save('address', e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+            className={inputCls}
           />
           <input
             type="text"
             defaultValue={hotel?.url ?? ''}
             placeholder="URL (valgfritt)"
             onBlur={(e) => save('url', e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+            className={inputCls}
           />
+          <div className="grid grid-cols-2 gap-1.5">
+            <div>
+              <p className="text-[10px] text-slate-500 mb-0.5">Kostnad (kr)</p>
+              <input
+                type="number"
+                min="0"
+                defaultValue={hotel?.cost ?? ''}
+                placeholder="0"
+                onBlur={(e) => saveNumber('cost', e.target.value)}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 mb-0.5">Parkering/døgn (kr)</p>
+              <input
+                type="number"
+                min="0"
+                defaultValue={hotel?.parking_cost_per_night ?? ''}
+                placeholder="0"
+                onBlur={(e) => saveNumber('parking_cost_per_night', e.target.value)}
+                className={inputCls}
+              />
+            </div>
+          </div>
         </div>
       ) : hotel?.name ? (
-        <div className="flex items-start gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-200">{hotel.name}</p>
-            {hotel.address && <p className="text-xs text-slate-400 mt-0.5">{hotel.address}</p>}
+        <div className="space-y-1.5">
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-200">{hotel.name}</p>
+              {hotel.address && <p className="text-xs text-slate-400 mt-0.5">{hotel.address}</p>}
+            </div>
+            {hotel.url && (
+              <a
+                href={hotel.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={hotel.url}
+                className="flex-shrink-0 text-slate-500 hover:text-blue-400 transition-colors mt-0.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
-          {hotel.url && (
-            <a
-              href={hotel.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={hotel.url}
-              className="flex-shrink-0 text-slate-500 hover:text-blue-400 transition-colors mt-0.5"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+          {(hotel.cost != null || hotel.parking_cost_per_night != null) && (
+            <div className="flex gap-3">
+              {hotel.cost != null && (
+                <span className="text-[11px] text-slate-400">
+                  Kostnad: <span className="text-slate-200 font-medium">{hotel.cost.toLocaleString('nb-NO')} kr</span>
+                </span>
+              )}
+              {hotel.parking_cost_per_night != null && (
+                <span className="text-[11px] text-slate-400">
+                  Parkering: <span className="text-slate-200 font-medium">{hotel.parking_cost_per_night.toLocaleString('nb-NO')} kr/døgn</span>
+                </span>
+              )}
+            </div>
           )}
         </div>
       ) : (
