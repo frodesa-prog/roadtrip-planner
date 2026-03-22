@@ -364,6 +364,8 @@ export default function PlanPage() {
               selectedStopId={selectedStopId}
               hotels={hotels}
               activities={activities}
+              dining={dining}
+              possibleActivities={possibleActivities}
               onSelectStop={handleSelectStop}
               onRemoveStop={removeStop}
               onReorderStops={reorderStops}

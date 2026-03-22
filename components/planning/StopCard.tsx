@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
-import { Stop, Hotel as HotelType, Activity } from '@/types'
+import { Stop, Hotel as HotelType, Activity, Dining, PossibleActivity } from '@/types'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface StopCardProps {
@@ -12,6 +12,8 @@ interface StopCardProps {
   isSelected: boolean
   hotel: HotelType | null
   activities: Activity[]
+  dining: Dining[]
+  possibleActivities: PossibleActivity[]
   onSelect: () => void
   onRemove: () => void
   onMoveUp: () => void
@@ -25,6 +27,8 @@ export default function StopCard({
   isSelected,
   hotel,
   activities,
+  dining,
+  possibleActivities,
   onSelect,
   onRemove,
   onMoveUp,
@@ -88,10 +92,24 @@ export default function StopCard({
               )}
             </div>
 
-            {/* Activities — separate row */}
-            {activities.length > 0 && (
-              <p className="text-xs text-purple-400 mt-0.5">
-                {activities.length} aktivitet{activities.length !== 1 ? 'er' : ''}
+            {/* Aktiviteter · spisesteder · mulige aktiviteter — én rad */}
+            {(activities.length > 0 || dining.length > 0 || possibleActivities.length > 0) && (
+              <p className="text-xs text-purple-400 mt-0.5 flex items-center gap-1.5">
+                {activities.length > 0 && (
+                  <span>{activities.length} aktivitet{activities.length !== 1 ? 'er' : ''}</span>
+                )}
+                {activities.length > 0 && dining.length > 0 && (
+                  <span className="text-purple-700">·</span>
+                )}
+                {dining.length > 0 && (
+                  <span>{dining.length} spise{dining.length !== 1 ? 'steder' : 'sted'}</span>
+                )}
+                {(activities.length > 0 || dining.length > 0) && possibleActivities.length > 0 && (
+                  <span className="text-purple-700">·</span>
+                )}
+                {possibleActivities.length > 0 && (
+                  <span>{possibleActivities.length} mulig{possibleActivities.length !== 1 ? 'e' : ''}</span>
+                )}
               </p>
             )}
           </div>

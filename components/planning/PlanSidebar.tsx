@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 
 import { MapPin, Loader2, Car, CalendarDays, List, Check, X } from 'lucide-react'
-import { Stop, Trip, Hotel, Activity, RouteLeg, NewTripData } from '@/types'
+import { Stop, Trip, Hotel, Activity, Dining, PossibleActivity, RouteLeg, NewTripData } from '@/types'
 import StopCard from './StopCard'
 import CalendarView from './CalendarView'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -23,6 +23,8 @@ interface PlanSidebarProps {
   selectedStopId: string | null
   hotels: Hotel[]
   activities: Activity[]
+  dining: Dining[]
+  possibleActivities: PossibleActivity[]
   onSelectStop: (id: string) => void
   onRemoveStop: (id: string) => void
   onReorderStops: (stops: Stop[]) => void
@@ -42,6 +44,8 @@ export default function PlanSidebar({
   selectedStopId,
   hotels,
   activities,
+  dining,
+  possibleActivities,
   onSelectStop, onRemoveStop, onReorderStops, onUpdateStop,
   onSelectTrip, onCreateTrip, onDeleteTrip,
   routeLegs,
@@ -324,6 +328,8 @@ export default function PlanSidebar({
                     isSelected={stop.id === selectedStopId}
                     hotel={hotels.find((h) => h.stop_id === stop.id) ?? null}
                     activities={activities.filter((a) => a.stop_id === stop.id)}
+                    dining={dining.filter((d) => d.stop_id === stop.id)}
+                    possibleActivities={possibleActivities.filter((p) => p.stop_id === stop.id)}
                     onSelect={() => onSelectStop(stop.id)}
                     onRemove={() => onRemoveStop(stop.id)}
                     onMoveUp={() => moveStop(index, 'up')}
