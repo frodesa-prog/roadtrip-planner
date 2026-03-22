@@ -57,9 +57,30 @@ export default function TripManager({
 
   const countdownDate = currentTrip?.date_from ?? startDate ?? null
 
+  // Resolve badge ahead of render so we can conditionally apply layout classes
+  const countdownBadge = (() => {
+    if (!showCountdown || !countdownDate) return null
+    const days = getDaysUntil(countdownDate)
+    if (days > 0) {
+      return (
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-yellow-200/90 border border-yellow-300/20 whitespace-nowrap">
+          ✈️ {days} dager igjen
+        </span>
+      )
+    } else if (days === 0) {
+      return (
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-green-300 border border-green-400/20 whitespace-nowrap">
+          🎉 i dag!
+        </span>
+      )
+    }
+    return null
+  })()
+
   return (
     <div className={`flex items-center gap-2 px-5 py-3 flex-shrink-0 ${gradientClass}`}>
-      <div className="flex-1 text-left min-w-0">
+      {/* Name + dates — takes natural width when badge is shown, full width otherwise */}
+      <div className={`text-left min-w-0 ${countdownBadge ? 'overflow-hidden' : 'flex-1'}`}>
         {loading ? (
           <div className="flex items-center gap-2">
             <Loader2 className="w-3.5 h-3.5 text-white/60 animate-spin" />
@@ -67,28 +88,9 @@ export default function TripManager({
           </div>
         ) : currentTrip ? (
           <>
-            <div className="flex items-center gap-2 min-w-0">
-              <p className="text-white font-bold text-sm leading-tight truncate">
-                {currentTrip.name}
-              </p>
-              {showCountdown && countdownDate && (() => {
-                const days = getDaysUntil(countdownDate)
-                if (days > 0) {
-                  return (
-                    <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-yellow-200/90 border border-yellow-300/20">
-                      ✈️ {days} d
-                    </span>
-                  )
-                } else if (days === 0) {
-                  return (
-                    <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-green-300 border border-green-400/20">
-                      🎉 i dag!
-                    </span>
-                  )
-                }
-                return null
-              })()}
-            </div>
+            <p className="text-white font-bold text-sm leading-tight truncate">
+              {currentTrip.name}
+            </p>
             <div className="flex items-center gap-1.5">
               <p className="text-blue-200/70 text-xs">{formatTripDateLabel(currentTrip)}</p>
               {onEditDates && (
@@ -106,6 +108,13 @@ export default function TripManager({
           <p className="text-blue-200/80 text-sm font-medium">Ingen reise valgt</p>
         )}
       </div>
+
+      {/* Badge — centred in the remaining space between name and right edge */}
+      {countdownBadge && (
+        <div className="flex-1 flex items-center justify-center">
+          {countdownBadge}
+        </div>
+      )}
     </div>
   )
 }
