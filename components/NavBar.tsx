@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronRight, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -196,10 +197,13 @@ export default function NavBar() {
           className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-slate-800 transition-colors group mr-4"
           title="Velg reise"
         >
-          <span className="text-base">🗺️</span>
-          <span className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">
-            Ferieplanlegger
-          </span>
+          <Image
+            src="/logo.png"
+            alt="MyVacayPlanner"
+            width={120}
+            height={40}
+            className="object-contain"
+          />
         </button>
         {tripPickerOpen && (
           <TripPickerModal onClose={() => setTripPickerOpen(false)} />
