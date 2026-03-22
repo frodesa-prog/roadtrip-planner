@@ -95,7 +95,7 @@ type TabId = BaseTabId | 'admin'
 
 const PROFILE_GENDERS = [
   { value: 'mann',   label: 'Mann',   emoji: '👨' },
-  { value: 'kvinne', label: 'Kvinne', emoji: '👩‍🦫' },
+  { value: 'kvinne', label: 'Kvinne', emoji: '👩' },
   { value: 'annet',  label: 'Annet',  emoji: '🧑' },
 ] as const
 
