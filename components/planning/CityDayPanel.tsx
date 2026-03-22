@@ -3,15 +3,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   X, MapPin, UtensilsCrossed, Plus, Trash2, Pencil,
-  Lightbulb, ExternalLink, Clock, NotebookPen,
+  Lightbulb, ExternalLink, Clock, NotebookPen, FileText,
 } from 'lucide-react'
-import { Activity, Dining, PossibleActivity } from '@/types'
+import { Activity, Dining, PossibleActivity, Note } from '@/types'
 import { AddActivityData, UpdateActivityData } from '@/hooks/useActivities'
 import { AddDiningData, UpdateDiningData } from '@/hooks/useDining'
 import { AddPossibleActivityData, UpdatePossibleActivityData } from '@/hooks/usePossibleActivities'
+import { NoteInput } from '@/hooks/useNotes'
 import { ACTIVITY_TYPE_PRESETS, getActivityTypeConfig, ActivityTypeIcon } from '@/lib/activityTypes'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import InlineLocationPicker from '@/components/map/InlineLocationPicker'
+import NoteModal from '@/components/planning/NoteModal'
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +51,13 @@ interface CityDayPanelProps {
   onSelectDining?: (id: string | null) => void
   /** Called when user clicks a possible activity row that has a map pin */
   onSelectPossible?: (id: string | null) => void
+  /** Notes for the current stop (used for entity-linked note icons) */
+  stopNotes?: Note[]
+  /** Stop id – used when creating entity-linked notes */
+  stopId?: string
+  onAddNote?: (data: NoteInput) => Promise<Note | null>
+  onUpdateNote?: (id: string, data: Partial<Pick<Note, 'title' | 'content' | 'note_date'>>) => void
+  onDeleteNote?: (id: string) => void
   onClose: () => void
 }
 
@@ -77,6 +86,11 @@ export default function CityDayPanel({
   onSelectActivity,
   onSelectDining,
   onSelectPossible,
+  stopNotes = [],
+  stopId,
+  onAddNote,
+  onUpdateNote,
+  onDeleteNote,
   onClose,
 }: CityDayPanelProps) {
 
@@ -137,6 +151,14 @@ export default function CityDayPanel({
 
   // ── Confirm dialog ────────────────────────────────────────────────────────
   const [confirm, setConfirm] = useState<{ message: string; action: () => void } | null>(null)
+
+  // ── Entity note modal ─────────────────────────────────────────────────────
+  const [entityNoteModal, setEntityNoteModal] = useState<{
+    entityType: 'activity' | 'dining' | 'possible'
+    entityId: string
+    entityTitle: string
+    note: Note | null
+  } | null>(null)
 
   // ── Sorted lists ──────────────────────────────────────────────────────────
   const sortedActivities = [...activities].sort((a, b) => {
@@ -449,6 +471,23 @@ export default function CityDayPanel({
                       <button onClick={() => startEditActivity(act)} className="text-slate-500 hover:text-blue-400 transition-colors">
                         <Pencil className="w-3 h-3" />
                       </button>
+                      {(() => {
+                        const actNotes = stopNotes.filter((n) => n.activity_id === act.id)
+                        return (
+                          <button
+                            onClick={() => setEntityNoteModal({ entityType: 'activity', entityId: act.id, entityTitle: act.name, note: actNotes[0] ?? null })}
+                            title={actNotes.length > 0 ? `${actNotes.length} notat` : 'Legg til notat'}
+                            className={`relative transition-colors ${actNotes.length > 0 ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'}`}
+                          >
+                            <FileText className="w-3 h-3" />
+                            {actNotes.length > 0 && (
+                              <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[7px] text-white flex items-center justify-center font-bold leading-none">
+                                {actNotes.length}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })()}
                       <button
                         onClick={() => setConfirm({ message: `Fjerne «${act.name}»?`, action: () => onRemoveActivity(act.id) })}
                         className="text-slate-500 hover:text-red-400 transition-colors"
@@ -587,6 +626,23 @@ export default function CityDayPanel({
                       <button onClick={() => startEditDining(d)} className="text-slate-500 hover:text-blue-400 transition-colors">
                         <Pencil className="w-3 h-3" />
                       </button>
+                      {(() => {
+                        const dinNotes = stopNotes.filter((n) => n.dining_id === d.id)
+                        return (
+                          <button
+                            onClick={() => setEntityNoteModal({ entityType: 'dining', entityId: d.id, entityTitle: d.name, note: dinNotes[0] ?? null })}
+                            title={dinNotes.length > 0 ? `${dinNotes.length} notat` : 'Legg til notat'}
+                            className={`relative transition-colors ${dinNotes.length > 0 ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'}`}
+                          >
+                            <FileText className="w-3 h-3" />
+                            {dinNotes.length > 0 && (
+                              <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[7px] text-white flex items-center justify-center font-bold leading-none">
+                                {dinNotes.length}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })()}
                       <button
                         onClick={() => setConfirm({ message: `Fjerne «${d.name}»?`, action: () => onRemoveDining(d.id) })}
                         className="text-slate-500 hover:text-red-400 transition-colors"
@@ -730,6 +786,23 @@ export default function CityDayPanel({
                         >
                           <MapPin className="w-3 h-3" />
                         </button>
+                        {(() => {
+                          const posNotes = stopNotes.filter((n) => n.possible_activity_id === a.id)
+                          return (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setEntityNoteModal({ entityType: 'possible', entityId: a.id, entityTitle: a.description, note: posNotes[0] ?? null }) }}
+                              title={posNotes.length > 0 ? `${posNotes.length} notat` : 'Legg til notat'}
+                              className={`relative flex-shrink-0 transition-colors ${posNotes.length > 0 ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'}`}
+                            >
+                              <FileText className="w-3 h-3" />
+                              {posNotes.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[7px] text-white flex items-center justify-center font-bold leading-none">
+                                  {posNotes.length}
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })()}
                         <button
                           onClick={() => setConfirm({ message: `Fjerne «${a.description}»?`, action: () => onRemovePossibleActivity(a.id) })}
                           className="text-slate-500 hover:text-red-400 transition-colors"
@@ -762,6 +835,38 @@ export default function CityDayPanel({
 
         </div>
       </div>
+
+      {/* Entity note modal (activity / dining / possible) */}
+      {entityNoteModal && (
+        <NoteModal
+          mode={entityNoteModal.note ? 'edit' : 'new'}
+          note={entityNoteModal.note ?? undefined}
+          stops={[]}
+          entityTitle={entityNoteModal.entityTitle}
+          entityType={entityNoteModal.entityType}
+          onSave={async (data) => {
+            if (entityNoteModal.note) {
+              onUpdateNote?.(entityNoteModal.note.id, { title: data.title, content: data.content })
+            } else if (onAddNote && stopId) {
+              await onAddNote({
+                title: data.title,
+                content: data.content,
+                stop_id: stopId,
+                note_date: null,
+                activity_id: entityNoteModal.entityType === 'activity' ? entityNoteModal.entityId : null,
+                dining_id: entityNoteModal.entityType === 'dining' ? entityNoteModal.entityId : null,
+                possible_activity_id: entityNoteModal.entityType === 'possible' ? entityNoteModal.entityId : null,
+              })
+            }
+            setEntityNoteModal(null)
+          }}
+          onDelete={entityNoteModal.note ? () => {
+            onDeleteNote?.(entityNoteModal.note!.id)
+            setEntityNoteModal(null)
+          } : undefined}
+          onClose={() => setEntityNoteModal(null)}
+        />
+      )}
 
       {/* Confirm dialog */}
       {confirm && (

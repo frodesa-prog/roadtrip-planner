@@ -9,6 +9,7 @@ import { Stop, Hotel as HotelType, Activity, Dining, PossibleActivity, Note } fr
 import { AddActivityData, UpdateActivityData } from '@/hooks/useActivities'
 import { AddDiningData, UpdateDiningData } from '@/hooks/useDining'
 import { AddPossibleActivityData, UpdatePossibleActivityData } from '@/hooks/usePossibleActivities'
+import { NoteInput } from '@/hooks/useNotes'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { LegInfo } from '@/hooks/useDrivingInfo'
@@ -52,6 +53,7 @@ interface StopDetailPanelProps {
   selectedPossibleId?: string | null
   onSelectPossible?: (id: string | null) => void
   stopNotes: Note[]
+  onAddNote: (data: NoteInput) => Promise<Note | null>
   onUpdateNote: (id: string, data: Partial<Pick<Note, 'title' | 'content' | 'note_date'>>) => void
   onDeleteNote: (id: string) => void
   onClose: () => void
@@ -84,7 +86,7 @@ export default function StopDetailPanel({
   selectedActivityId = null, onSelectActivity,
   selectedDiningId = null, onSelectDining,
   selectedPossibleId = null, onSelectPossible,
-  onUpdateNote, onDeleteNote,
+  onAddNote, onUpdateNote, onDeleteNote,
   onClose,
   tripDayLabel,
   nightOfStayLabel,
@@ -262,8 +264,16 @@ export default function StopDetailPanel({
     setShowAddPossible(false)
   }
 
-  // Modal state – notes
+  // Modal state – general notes
   const [editingNote, setEditingNote] = useState<Note | null>(null)
+
+  // Modal state – entity-linked notes (activity / dining / possible)
+  const [entityNoteModal, setEntityNoteModal] = useState<{
+    entityType: 'activity' | 'dining' | 'possible'
+    entityId: string
+    entityTitle: string
+    note: Note | null
+  } | null>(null)
 
   function startEditDining(d: Dining) {
     setEditingDiningId(d.id)
@@ -875,6 +885,22 @@ export default function StopDetailPanel({
 
                       {/* Action buttons — stop propagation so row click isn't double-fired */}
                       <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const actNotes = stopNotes.filter((n) => n.activity_id === act.id)
+                          return (
+                            <button
+                              onClick={() => setEntityNoteModal({ entityType: 'activity', entityId: act.id, entityTitle: act.name, note: actNotes[0] ?? null })}
+                              title={actNotes.length > 0 ? `${actNotes.length} notat` : 'Legg til notat'}
+                              className={`relative transition-colors ${actNotes.length > 0 ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'}`}>
+                              <FileText className="w-3 h-3" />
+                              {actNotes.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[7px] text-white flex items-center justify-center font-bold leading-none">
+                                  {actNotes.length}
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })()}
                         {act.url && (
                           <a href={act.url} target="_blank" rel="noopener noreferrer"
                             className="text-slate-600 hover:text-blue-400">
@@ -1117,6 +1143,22 @@ export default function StopDetailPanel({
 
                       {/* Action buttons — stop propagation so row click isn't double-fired */}
                       <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const dinNotes = stopNotes.filter((n) => n.dining_id === d.id)
+                          return (
+                            <button
+                              onClick={() => setEntityNoteModal({ entityType: 'dining', entityId: d.id, entityTitle: d.name, note: dinNotes[0] ?? null })}
+                              title={dinNotes.length > 0 ? `${dinNotes.length} notat` : 'Legg til notat'}
+                              className={`relative transition-colors ${dinNotes.length > 0 ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'}`}>
+                              <FileText className="w-3 h-3" />
+                              {dinNotes.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[7px] text-white flex items-center justify-center font-bold leading-none">
+                                  {dinNotes.length}
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })()}
                         {d.url && (
                           <a href={d.url} target="_blank" rel="noopener noreferrer"
                             className="text-slate-600 hover:text-blue-400">
@@ -1331,6 +1373,22 @@ export default function StopDetailPanel({
                           {a.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{a.notes}</p>}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                          {(() => {
+                            const posNotes = stopNotes.filter((n) => n.possible_activity_id === a.id)
+                            return (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEntityNoteModal({ entityType: 'possible', entityId: a.id, entityTitle: a.description, note: posNotes[0] ?? null }) }}
+                                title={posNotes.length > 0 ? `${posNotes.length} notat` : 'Legg til notat'}
+                                className={`relative flex-shrink-0 transition-colors ${posNotes.length > 0 ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'}`}>
+                                <FileText className="w-3 h-3" />
+                                {posNotes.length > 0 && (
+                                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[7px] text-white flex items-center justify-center font-bold leading-none">
+                                    {posNotes.length}
+                                  </span>
+                                )}
+                              </button>
+                            )
+                          })()}
                           {a.url && (
                             <a href={a.url} target="_blank" rel="noopener noreferrer"
                               title={a.url}
@@ -1461,42 +1519,46 @@ export default function StopDetailPanel({
           </section>
 
           {/* ── Notater ─────────────────────────────────────────────────── */}
-          {stopNotes.length > 0 && (
-            <section>
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1 mb-2">
-                <FileText className="w-3 h-3" /> Notater
-                <span className="text-slate-600 normal-case font-normal">({stopNotes.length})</span>
-              </h3>
-              <div className="space-y-1">
-                {stopNotes.map((note) => (
-                  <button key={note.id} type="button" onClick={() => setEditingNote(note)}
-                    className="w-full text-left px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 hover:border-amber-700/50 hover:bg-slate-800 transition-colors group">
-                    <div className="flex items-start gap-1.5 min-w-0">
-                      <FileText className="w-3 h-3 text-slate-500 group-hover:text-amber-500 flex-shrink-0 mt-0.5 transition-colors" />
-                      <div className="flex-1 min-w-0">
-                        {note.title && (
-                          <p className="text-xs font-medium text-slate-200 truncate mb-0.5">
-                            {note.title}
+          {(() => {
+            const generalNotes = stopNotes.filter((n) => !n.activity_id && !n.dining_id && !n.possible_activity_id)
+            if (generalNotes.length === 0) return null
+            return (
+              <section>
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1 mb-2">
+                  <FileText className="w-3 h-3" /> Notater
+                  <span className="text-slate-600 normal-case font-normal">({generalNotes.length})</span>
+                </h3>
+                <div className="space-y-1">
+                  {generalNotes.map((note) => (
+                    <button key={note.id} type="button" onClick={() => setEditingNote(note)}
+                      className="w-full text-left px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 hover:border-amber-700/50 hover:bg-slate-800 transition-colors group">
+                      <div className="flex items-start gap-1.5 min-w-0">
+                        <FileText className="w-3 h-3 text-slate-500 group-hover:text-amber-500 flex-shrink-0 mt-0.5 transition-colors" />
+                        <div className="flex-1 min-w-0">
+                          {note.title && (
+                            <p className="text-xs font-medium text-slate-200 truncate mb-0.5">
+                              {note.title}
+                            </p>
+                          )}
+                          <p className="text-[11px] text-slate-400 leading-relaxed whitespace-pre-wrap break-words line-clamp-3">
+                            {note.content}
                           </p>
-                        )}
-                        <p className="text-[11px] text-slate-400 leading-relaxed whitespace-pre-wrap break-words line-clamp-3">
-                          {note.content}
-                        </p>
-                        {note.note_date && (
-                          <p className="text-[10px] text-slate-600 mt-1">
-                            {new Date(note.note_date + 'T12:00:00').toLocaleDateString('nb-NO', {
-                              weekday: 'short', day: 'numeric', month: 'short',
-                            })}
-                          </p>
-                        )}
+                          {note.note_date && (
+                            <p className="text-[10px] text-slate-600 mt-1">
+                              {new Date(note.note_date + 'T12:00:00').toLocaleDateString('nb-NO', {
+                                weekday: 'short', day: 'numeric', month: 'short',
+                              })}
+                            </p>
+                          )}
+                        </div>
+                        <Pencil className="w-3 h-3 text-slate-600 group-hover:text-amber-500 flex-shrink-0 mt-0.5 transition-colors" />
                       </div>
-                      <Pencil className="w-3 h-3 text-slate-600 group-hover:text-amber-500 flex-shrink-0 mt-0.5 transition-colors" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )
+          })()}
         </div>
       </div>
 
@@ -1547,6 +1609,38 @@ export default function StopDetailPanel({
             setEditingNote(null)
           }}
           onClose={() => setEditingNote(null)}
+        />
+      )}
+
+      {/* Entity note modal (activity / dining / possible) */}
+      {entityNoteModal && (
+        <NoteModal
+          mode={entityNoteModal.note ? 'edit' : 'new'}
+          note={entityNoteModal.note ?? undefined}
+          stops={[stop]}
+          entityTitle={entityNoteModal.entityTitle}
+          entityType={entityNoteModal.entityType}
+          onSave={async (data) => {
+            if (entityNoteModal.note) {
+              onUpdateNote(entityNoteModal.note.id, { title: data.title, content: data.content })
+            } else {
+              await onAddNote({
+                title: data.title,
+                content: data.content,
+                stop_id: stop.id,
+                note_date: null,
+                activity_id: entityNoteModal.entityType === 'activity' ? entityNoteModal.entityId : null,
+                dining_id: entityNoteModal.entityType === 'dining' ? entityNoteModal.entityId : null,
+                possible_activity_id: entityNoteModal.entityType === 'possible' ? entityNoteModal.entityId : null,
+              })
+            }
+            setEntityNoteModal(null)
+          }}
+          onDelete={entityNoteModal.note ? () => {
+            onDeleteNote(entityNoteModal.note!.id)
+            setEntityNoteModal(null)
+          } : undefined}
+          onClose={() => setEntityNoteModal(null)}
         />
       )}
 

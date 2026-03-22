@@ -131,13 +131,17 @@ export interface BudgetItem {
 export interface Note {
   id: string
   trip_id: string
-  stop_id: string | null    // koblet til stopp (null = generelt turnotat)
-  note_date: string | null  // ISO dato notatet vises på (null = første dag i stopp)
+  stop_id: string | null             // koblet til stopp (null = generelt turnotat)
+  note_date: string | null           // ISO dato notatet vises på (null = første dag i stopp)
   title: string | null
   content: string
   created_at: string
   updated_at: string
   archived_at: string | null
+  // Entity links – a note can be linked to one of these
+  activity_id: string | null
+  dining_id: string | null
+  possible_activity_id: string | null
 }
 
 export interface Flight {

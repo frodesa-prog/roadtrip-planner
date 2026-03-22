@@ -61,13 +61,17 @@ interface NoteModalProps {
   stopId?: string | null
   initialDate?: string | null
   stops: Stop[]
+  /** When set, the note is linked to a specific entity (activity / dining / possible).
+   *  The stop/date selector is hidden and a context label is shown instead. */
+  entityTitle?: string
+  entityType?: 'activity' | 'dining' | 'possible'
   onSave: (data: NoteModalSaveData) => void
   onDelete?: () => void
   onClose: () => void
 }
 
 export default function NoteModal({
-  mode, note, stopId, initialDate, stops, onSave, onDelete, onClose,
+  mode, note, stopId, initialDate, stops, entityTitle, entityType, onSave, onDelete, onClose,
 }: NoteModalProps) {
   const [title, setTitle]     = useState(note?.title ?? '')
   const [content, setContent] = useState(note?.content ?? '')
@@ -123,11 +127,19 @@ export default function NoteModal({
           <div className="flex flex-col flex-1 min-w-0">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-semibold text-slate-100">
-                  {mode === 'new' ? 'Nytt notat' : (isEditing ? 'Rediger notat' : 'Notat')}
-                </span>
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                <div className="min-w-0">
+                  <span className="text-sm font-semibold text-slate-100">
+                    {mode === 'new' ? 'Nytt notat' : (isEditing ? 'Rediger notat' : 'Notat')}
+                  </span>
+                  {entityTitle && (
+                    <p className="text-[10px] text-slate-500 truncate">
+                      {entityType === 'activity' ? '🎟 ' : entityType === 'dining' ? '🍽️ ' : '💡 '}
+                      {entityTitle}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 {/* Toggle edit/read mode (only for existing notes) */}
@@ -185,8 +197,8 @@ export default function NoteModal({
                 </div>
               )}
 
-              {/* City selector */}
-              {isEditing && stops.length > 1 && (
+              {/* City selector — hidden when note is entity-linked */}
+              {isEditing && stops.length > 1 && !entityTitle && (
                 <div>
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">By</p>
                   <select
@@ -202,8 +214,8 @@ export default function NoteModal({
                 </div>
               )}
 
-              {/* Date picker */}
-              {isEditing && stopDates.length > 0 && (
+              {/* Date picker — hidden when note is entity-linked */}
+              {isEditing && stopDates.length > 0 && !entityTitle && (
                 <div>
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Dato</p>
                   <div className="flex flex-wrap gap-1">

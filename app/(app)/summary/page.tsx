@@ -605,6 +605,7 @@ export default function SummaryPage() {
               onRemovePossibleActivity={removePossibleActivity}
               onUpdatePossibleActivity={updatePossibleActivity}
               stopNotes={notes.filter((n) => n.stop_id === selectedStop.id)}
+              onAddNote={addNote}
               onUpdateNote={updateNote}
               onDeleteNote={deleteNote}
               onClose={() => setSelectedDate(null)}

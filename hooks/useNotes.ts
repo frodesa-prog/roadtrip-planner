@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Note } from '@/types'
 import { toast } from 'sonner'
 
-type NoteInput = Pick<Note, 'content' | 'title' | 'stop_id' | 'note_date'>
+export type NoteInput = Pick<Note, 'content' | 'title' | 'stop_id' | 'note_date'> &
+  Partial<Pick<Note, 'activity_id' | 'dining_id' | 'possible_activity_id'>>
 
 export function useNotes(tripId: string | null) {
   const [notes, setNotes] = useState<Note[]>([])
@@ -27,6 +28,9 @@ export function useNotes(tripId: string | null) {
     const optimistic: Note = {
       id: crypto.randomUUID(),
       trip_id: tripId,
+      activity_id: null,
+      dining_id: null,
+      possible_activity_id: null,
       ...data,
       archived_at: null,
       created_at: new Date().toISOString(),

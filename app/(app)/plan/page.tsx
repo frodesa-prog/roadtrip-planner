@@ -456,6 +456,7 @@ export default function PlanPage() {
               onRemovePossibleActivity={removePossibleActivity}
               onUpdatePossibleActivity={updatePossibleActivity}
               stopNotes={notes.filter((n) => n.stop_id === selectedStop.id)}
+              onAddNote={addNote}
               onUpdateNote={updateNote}
               onDeleteNote={deleteNote}
               selectedActivityId={selectedRoadActivityId}
@@ -509,6 +510,11 @@ export default function PlanPage() {
               onAddPossibleActivity={(data) => addPossibleActivity(cityStop.id, data)}
               onRemovePossibleActivity={removePossibleActivity}
               onUpdatePossibleActivity={updatePossibleActivity}
+              stopNotes={notes.filter((n) => n.stop_id === cityStop.id)}
+              stopId={cityStop.id}
+              onAddNote={addNote}
+              onUpdateNote={updateNote}
+              onDeleteNote={deleteNote}
               dayPlanText={dayPlanNote?.content ?? ''}
               onSaveDayPlan={handleSaveDayPlan}
               selectedActivityId={selectedCityActivityId}
