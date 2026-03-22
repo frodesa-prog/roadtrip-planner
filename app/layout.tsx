@@ -9,9 +9,6 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 export const metadata: Metadata = {
   title: 'Ferieplanlegger',
   description: 'Planlegg og arkiver dine roadtrips',
-  icons: {
-    icon: '/favicon.png',
-  },
 }
 
 // Inline script that runs before React hydrates to prevent theme flash
@@ -38,7 +35,6 @@ export default function RootLayout({
       <head>
         {/* Anti-flash: apply stored theme before React hydrates */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <link rel="icon" href="/favicon.png" type="image/png" />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <ThemeProvider>
