@@ -303,7 +303,7 @@ export default function CityTripOverviewModal({
                       <span className="text-xs text-slate-300 flex-1 truncate">{a.name}</span>
                       {a.activity_time && (
                         <span className="text-[10px] text-slate-500 flex-shrink-0">
-                          {a.activity_time}
+                          {a.activity_time.slice(0, 5)}
                         </span>
                       )}
                     </div>
@@ -323,7 +323,7 @@ export default function CityTripOverviewModal({
                       <span className="text-xs text-slate-300 flex-1 truncate">{d.name}</span>
                       {d.booking_time && (
                         <span className="text-[10px] text-slate-500 flex-shrink-0">
-                          {d.booking_time}
+                          {d.booking_time.slice(0, 5)}
                         </span>
                       )}
                     </div>

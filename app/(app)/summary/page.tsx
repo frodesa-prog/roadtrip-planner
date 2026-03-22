@@ -762,7 +762,7 @@ function DayCell({
               <span className="leading-none"><ActivityTypeIcon type={a.activity_type} size={12} /></span>
               {a.activity_time && (
                 <span className="text-[8px]" style={{ color: cfg.color }}>
-                  {a.activity_time}
+                  {a.activity_time.slice(0, 5)}
                 </span>
               )}
             </button>
@@ -779,7 +779,7 @@ function DayCell({
           >
             <UtensilsCrossed className="w-3 h-3 text-red-400" />
             {d.booking_time && (
-              <span className="text-[8px] text-red-400/70">{d.booking_time}</span>
+              <span className="text-[8px] text-red-400/70">{d.booking_time.slice(0, 5)}</span>
             )}
           </button>
         ))}

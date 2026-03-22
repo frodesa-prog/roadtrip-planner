@@ -772,7 +772,7 @@ export default function StopDetailPanel({
                             {act.activity_date && new Date(act.activity_date + 'T12:00:00').toLocaleDateString('nb-NO', {
                               weekday: 'short', day: 'numeric', month: 'short',
                             })}
-                            {act.activity_time && ` · ${act.activity_time}`}
+                            {act.activity_time && ` · ${act.activity_time.slice(0, 5)}`}
                           </span>
                         )}
                         {act.activity_type === 'baseball' && (act.stadium || act.section || act.seat_row || act.seat) && (
@@ -1012,7 +1012,7 @@ export default function StopDetailPanel({
                             {d.booking_date && new Date(d.booking_date + 'T12:00:00').toLocaleDateString('nb-NO', {
                               weekday: 'short', day: 'numeric', month: 'short',
                             })}
-                            {d.booking_time && ` · ${d.booking_time}`}
+                            {d.booking_time && ` · ${d.booking_time.slice(0, 5)}`}
                           </span>
                         )}
                       </div>

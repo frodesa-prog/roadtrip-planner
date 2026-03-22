@@ -377,7 +377,7 @@ export default function CityDayPanel({
                       <p className="text-xs text-slate-200 font-medium truncate">{act.name}</p>
                       {act.activity_time && (
                         <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
-                          <Clock className="w-2.5 h-2.5" /> {act.activity_time}
+                          <Clock className="w-2.5 h-2.5" /> {act.activity_time.slice(0, 5)}
                         </p>
                       )}
                     </div>
@@ -505,7 +505,7 @@ export default function CityDayPanel({
                       <p className="text-xs text-slate-200 font-medium truncate">{d.name}</p>
                       {d.booking_time && (
                         <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
-                          <Clock className="w-2.5 h-2.5" /> {d.booking_time}
+                          <Clock className="w-2.5 h-2.5" /> {d.booking_time.slice(0, 5)}
                         </p>
                       )}
                     </div>
