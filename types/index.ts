@@ -342,6 +342,9 @@ export interface TripGroupMessage {
   attachment_url?: string | null
   attachment_name?: string | null
   attachment_type?: 'image' | 'document' | null
+  reply_to_id?: string | null
+  reply_to_content?: string | null
+  reply_to_sender?: string | null
 }
 
 export interface ChatArchive {

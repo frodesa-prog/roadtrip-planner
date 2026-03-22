@@ -166,9 +166,13 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
       .then(() => {})
   }, [tripId, userId, supabase])
 
-  // ── Send message (with optional file attachment) ─────────────────────────
+  // ── Send message (with optional file attachment and reply) ───────────────
   const sendMessage = useCallback(
-    async (content: string, file?: File) => {
+    async (
+      content: string,
+      file?: File,
+      replyTo?: { id: string; content: string; sender: string },
+    ) => {
       if (!tripId || !userId) return
       const trimmed = content.trim()
       if (!trimmed && !file) return
@@ -233,6 +237,9 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
           sender_name: senderName,
           content: trimmed,
           created_at: new Date().toISOString(),
+          reply_to_id: replyTo?.id ?? null,
+          reply_to_content: replyTo?.content ?? null,
+          reply_to_sender: replyTo?.sender ?? null,
         }
         setMessages((prev) => [...prev, optimistic])
       }
@@ -247,6 +254,9 @@ export function useTripGroupChat(tripId: string | null, userId: string | null) {
           attachment_url: attachmentUrl,
           attachment_name: attachmentName,
           attachment_type: attachmentType,
+          reply_to_id: replyTo?.id ?? null,
+          reply_to_content: replyTo?.content ?? null,
+          reply_to_sender: replyTo?.sender ?? null,
         })
         .select()
         .single()

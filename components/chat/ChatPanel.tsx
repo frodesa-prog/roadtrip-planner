@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom'
 import {
   X, MessageSquare, MessageSquarePlus, Send, Paperclip, FileText,
   Trash2, Archive, FolderOpen, ChevronLeft,
-  AlertTriangle, Loader2, ImageIcon, Download, NotebookPen,
+  AlertTriangle, Loader2, ImageIcon, Download, NotebookPen, CornerUpLeft,
 } from 'lucide-react'
 import { useChat } from '@/components/chat/ChatContext'
 import { createClient } from '@/lib/supabase/client'
@@ -181,6 +181,9 @@ export default function ChatPanel() {
   // ── Emoji reactions ─────────────────────────────────────────────────────
   const [reactions, setReactions] = useState<Record<string, MessageReaction[]>>({})
   const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null)
+
+  // ── Reply-to state ──────────────────────────────────────────────────────
+  const [replyingTo, setReplyingTo] = useState<TripGroupMessage | null>(null)
 
   // ── Input / file upload ─────────────────────────────────────────────────
   const [inputValue, setInputValue] = useState('')
@@ -584,14 +587,23 @@ export default function ChatPanel() {
     if ((!trimmed && !pendingFile) || sending) return
     setSending(true)
     const fileToSend = pendingFile
+    const currentReply = replyingTo
     removePendingFile()
     setInputValue('')
-    await sendMessage(trimmed, fileToSend ?? undefined)
+    setReplyingTo(null)
+    await sendMessage(
+      trimmed,
+      fileToSend ?? undefined,
+      currentReply
+        ? { id: currentReply.id, content: currentReply.content, sender: currentReply.sender_name }
+        : undefined,
+    )
     setSending(false)
     textareaRef.current?.focus()
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Escape' && replyingTo) { setReplyingTo(null); return }
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
@@ -764,6 +776,21 @@ export default function ChatPanel() {
                         <div className={`w-[75%] flex-shrink-0 px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
                           isOwn ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-slate-700 text-slate-100 rounded-bl-sm'
                         }`}>
+                          {/* Quoted reply block */}
+                          {msg.reply_to_id && (
+                            <div className={`mb-1.5 px-2 py-1.5 rounded-lg border-l-2 text-xs
+                              ${isOwn
+                                ? 'bg-blue-700/60 border-blue-300/60'
+                                : 'bg-slate-800/60 border-blue-400/60'
+                              }`}>
+                              <p className="font-semibold text-blue-300 text-[10px] mb-0.5 truncate">
+                                {msg.reply_to_sender ?? ''}
+                              </p>
+                              <p className={`truncate ${isOwn ? 'text-blue-100/80' : 'text-slate-400'}`}>
+                                {msg.reply_to_content || '📎 Vedlegg'}
+                              </p>
+                            </div>
+                          )}
                           {msg.content && renderContent(msg.content)}
                           {msg.attachment_url && (
                             <AttachmentBubble
@@ -803,11 +830,21 @@ export default function ChatPanel() {
                         )}
                       </div>
 
-                      {/* ── Emoji picker bar — flytende under boblen ─────── */}
+                      {/* ── Emoji picker + reply bar — flytende under boblen ─ */}
                       {hoveredMsgId === msg.id && (
                         <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} -bottom-7 z-20
                           flex items-center gap-px px-1.5 py-1 rounded-xl
                           bg-slate-800 border border-slate-700 shadow-lg shadow-black/40`}>
+                          {/* Reply button */}
+                          <button
+                            onClick={() => { setReplyingTo(msg); setTimeout(() => textareaRef.current?.focus(), 50) }}
+                            title="Svar på melding"
+                            className="p-0.5 rounded-md transition-colors hover:bg-slate-700 text-slate-400 hover:text-blue-400 mr-0.5"
+                          >
+                            <CornerUpLeft className="w-3.5 h-3.5" />
+                          </button>
+                          {/* Divider */}
+                          <div className="w-px h-4 bg-slate-700 mr-0.5" />
                           {QUICK_EMOJIS.map(emoji => (
                             <button
                               key={emoji}
@@ -865,6 +902,25 @@ export default function ChatPanel() {
 
           {/* Input area */}
           <div className="border-t border-slate-800 p-3 flex-shrink-0">
+            {/* Reply preview strip */}
+            {replyingTo && (
+              <div className="mb-2 flex items-start gap-2 pl-2.5 pr-2 py-1.5 rounded-lg bg-slate-800 border-l-2 border-blue-500">
+                <CornerUpLeft className="w-3.5 h-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-semibold text-blue-400 mb-0.5">{replyingTo.sender_name}</p>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {replyingTo.content || '📎 Vedlegg'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setReplyingTo(null)}
+                  className="flex-shrink-0 p-0.5 rounded text-slate-500 hover:text-slate-300 transition-colors"
+                  title="Avbryt svar"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             {/* Pending file preview */}
             {(pendingFile || fileError) && (
               <div className="mb-2">

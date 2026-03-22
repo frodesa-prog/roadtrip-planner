@@ -20,7 +20,7 @@ interface ChatContextValue {
   close: () => void
   unreadCount: number
   messages: TripGroupMessage[]
-  sendMessage: (content: string, file?: File) => Promise<void>
+  sendMessage: (content: string, file?: File, replyTo?: { id: string; content: string; sender: string }) => Promise<void>
   deleteMessage: (messageId: string, attachmentUrl?: string | null) => Promise<void>
   clearChat: () => Promise<boolean>
   archiveAndClear: (name: string) => Promise<boolean>
@@ -39,7 +39,7 @@ const ChatContext = createContext<ChatContextValue>({
   close: () => {},
   unreadCount: 0,
   messages: [],
-  sendMessage: async (_content: string, _file?: File) => {},
+  sendMessage: async (_content: string, _file?: File, _replyTo?: { id: string; content: string; sender: string }) => {},
   deleteMessage: async () => {},
   clearChat: async () => false,
   archiveAndClear: async () => false,
