@@ -214,7 +214,7 @@ export default function PlanSidebar({
           groupDescription={currentTrip.group_description}
           onUpdateGroupDescription={onUpdateGroupDescription}
           tripDateFrom={currentTrip.date_from ?? undefined}
-          hasFlight={currentTrip.has_flight !== false}
+          transportType={currentTrip.transport_type ?? (currentTrip.has_flight !== false ? 'fly' : 'ingen')}
         />
       )}
 

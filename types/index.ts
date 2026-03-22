@@ -1,6 +1,7 @@
 export type TripStatus = 'planning' | 'archived'
 export type TripType = 'road_trip' | 'storbytur' | 'resort'
 export type BookingStatus = 'not_booked' | 'confirmed'
+export type TransportType = 'fly' | 'tog' | 'ingen'
 
 export interface Trip {
   id: string
@@ -20,12 +21,14 @@ export interface Trip {
   destination_city: string | null
   destination_country: string | null
   description: string | null
+  transport_type: TransportType
 }
 
 export interface NewTripData {
   name: string
   year: number
   trip_type: TripType
+  transport_type?: TransportType
   has_flight: boolean
   has_car_rental: boolean
   date_from: string | null

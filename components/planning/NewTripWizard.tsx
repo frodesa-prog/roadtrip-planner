@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { X, ChevronRight, ChevronLeft, Check, Loader2, UserCheck, UserX, Mail, Users } from 'lucide-react'
-import { Trip, NewTripData, TripType } from '@/types'
+import { Trip, NewTripData, TripType, TransportType } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 
 interface NewTripWizardProps {
@@ -90,7 +90,7 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
   const [dateTo, setDateTo] = useState('')
   const [city, setCity] = useState('')
   const [country, setCountry] = useState('')
-  const [hasFlight, setHasFlight] = useState(true)
+  const [transportType, setTransportType] = useState<TransportType>('fly')
   const [hasCarRental, setHasCarRental] = useState(true)
   const [description, setDescription] = useState('')
   const [creating, setCreating] = useState(false)
@@ -122,7 +122,7 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
     setDateTo('')
     setCity('')
     setCountry('')
-    setHasFlight(true)
+    setTransportType('fly')
     setHasCarRental(true)
     setDescription('')
     setGeocodeError('')
@@ -230,7 +230,8 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
       name: name.trim(),
       year: dateFrom ? new Date(dateFrom).getFullYear() : new Date().getFullYear(),
       trip_type: tripType,
-      has_flight: hasFlight,
+      transport_type: transportType,
+      has_flight: transportType !== 'ingen',
       has_car_rental: hasCarRental,
       date_from: dateFrom || null,
       date_to: dateTo || null,
@@ -542,22 +543,46 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
 
           {/* Step 3: Reisevalg */}
           {actualStep === 3 && (
-            <div className="space-y-1">
-              <p className="text-sm text-slate-400 mb-4">
+            <div className="space-y-4">
+              <p className="text-sm text-slate-400">
                 Disse valgene tilpasser funksjonaliteten i appen.
               </p>
-              <ToggleField
-                label="✈️  Skal du benytte fly på denne reisen?"
-                value={hasFlight}
-                onChange={setHasFlight}
-              />
+
+              {/* Transport til reisemål */}
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                  Transport til reisemål
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: 'fly',   emoji: '✈️',  label: 'Fly' },
+                    { value: 'tog',   emoji: '🚂',  label: 'Tog' },
+                    { value: 'ingen', emoji: '🚫',  label: 'Ingen' },
+                  ] as { value: TransportType; emoji: string; label: string }[]).map(({ value, emoji, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setTransportType(value)}
+                      className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl border transition-colors ${
+                        transportType === value
+                          ? 'border-blue-500 bg-blue-500/15 text-blue-300'
+                          : 'border-slate-700 hover:border-slate-600 text-slate-400'
+                      }`}
+                    >
+                      <span className="text-xl">{emoji}</span>
+                      <span className="text-xs font-medium">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <ToggleField
                 label="🚗  Skal du leie bil på denne ferien?"
                 value={hasCarRental}
                 onChange={setHasCarRental}
               />
               {!hasCarRental && (
-                <p className="text-xs text-slate-500 pt-2">
+                <p className="text-xs text-slate-500">
                   Uten leiebil vises en felles «Transport»-post i kostnadsoversikten i stedet for leiebil, bensin og parkering.
                 </p>
               )}

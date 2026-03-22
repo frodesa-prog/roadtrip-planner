@@ -86,7 +86,7 @@ export function useTrips() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return null
 
-      const { name, year, trip_type, has_flight, has_car_rental,
+      const { name, year, trip_type, has_flight, has_car_rental, transport_type,
               date_from, date_to, destination_city, destination_country,
               description, city_lat, city_lng } = tripData
 
@@ -97,6 +97,7 @@ export function useTrips() {
           trip_type: trip_type ?? 'road_trip',
           has_flight: has_flight ?? true,
           has_car_rental: has_car_rental ?? true,
+          transport_type: transport_type ?? 'fly',
           date_from: date_from ?? null,
           date_to: date_to ?? null,
           destination_city: destination_city ?? null,

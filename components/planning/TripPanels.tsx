@@ -3,10 +3,10 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Plane, Users, ChevronDown, PlaneLanding, PlaneTakeoff, Clock,
+  Plane, Train, Users, ChevronDown, PlaneLanding, PlaneTakeoff, Clock,
   Plus, Pencil, Trash2, Check, X, Link2, Loader2,
 } from 'lucide-react'
-import { Flight, Traveler } from '@/types'
+import { Flight, Traveler, TransportType } from '@/types'
 import { useFlights } from '@/hooks/useFlights'
 import { useTravelers } from '@/hooks/useTravelers'
 import type { LinkedTravelerResult } from '@/hooks/useTravelers'
@@ -163,11 +163,13 @@ function DateInput({ defaultValue, onSave }: { defaultValue?: string | null; onS
   )
 }
 
-function FlightForm({ flight, onSave, tripDateFrom }: {
+function FlightForm({ flight, onSave, tripDateFrom, transportType = 'fly' }: {
   flight: Flight | null
   onSave: (updates: Partial<Omit<Flight, 'id' | 'trip_id' | 'direction'>>) => void
   tripDateFrom?: string
+  transportType?: TransportType
 }) {
+  const isTrain = transportType === 'tog'
   const stopover = flight?.has_stopover ?? false
   const fromOffset  = getOffset(flight?.leg1_from)
   const viaOffset   = getOffset(flight?.leg1_to)
@@ -193,13 +195,19 @@ function FlightForm({ flight, onSave, tripDateFrom }: {
         <div><Label>Avgang</Label><TimeInput key={`dep1-${flight?.id}`} defaultValue={flight?.leg1_departure} onSave={(v) => onSave({ leg1_departure: v })} /></div>
       </div>
 
-      {/* Flightnr. | Fra (flyplass) */}
+      {/* Rutenr./Flightnr. | Fra (holdeplass/flyplass) */}
       <div className="grid grid-cols-2 gap-2">
-        <div><Label>Flightnr.</Label><Txt key={`fn1-${flight?.id}`} defaultValue={flight?.leg1_flight_nr} placeholder="DY 7081" onSave={(v) => onSave({ leg1_flight_nr: v })} /></div>
-        <div><Label>Fra (flyplass / by)</Label><AirportInput key={`from-${flight?.id}`} defaultValue={flight?.leg1_from} placeholder="OSL – Oslo" onSave={(v) => onSave({ leg1_from: v })} /></div>
+        <div><Label>{isTrain ? 'Rutenr.' : 'Flightnr.'}</Label><Txt key={`fn1-${flight?.id}`} defaultValue={flight?.leg1_flight_nr} placeholder={isTrain ? 'R10' : 'DY 7081'} onSave={(v) => onSave({ leg1_flight_nr: v })} /></div>
+        <div>
+          <Label>{isTrain ? 'Holdeplass (avgang)' : 'Fra (flyplass / by)'}</Label>
+          {isTrain
+            ? <Txt key={`from-${flight?.id}`} defaultValue={flight?.leg1_from} placeholder="Oslo S" onSave={(v) => onSave({ leg1_from: v })} />
+            : <AirportInput key={`from-${flight?.id}`} defaultValue={flight?.leg1_from} placeholder="OSL – Oslo" onSave={(v) => onSave({ leg1_from: v })} />
+          }
+        </div>
       </div>
 
-      {/* Billett + sete + Mellomlanding på samme linje */}
+      {/* Billett + sete + Mellomstopp/Mellomlanding på samme linje */}
       <div className="flex items-end gap-1.5">
         <div className="flex-[2] min-w-0">
           <Label>Billettkategori</Label>
@@ -215,14 +223,14 @@ function FlightForm({ flight, onSave, tripDateFrom }: {
         </div>
         <label className="flex-shrink-0 flex items-center gap-1.5 mb-[3px] cursor-pointer select-none group">
           <input type="checkbox" checked={stopover} onChange={(e) => onSave({ has_stopover: e.target.checked })} className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer" />
-          <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Mellomlanding</span>
+          <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">{isTrain ? 'Mellomstopp' : 'Mellomlanding'}</span>
         </label>
       </div>
 
-      {/* Flytid etappe 1 – midtstilt */}
+      {/* Reisetid/Flytid etappe 1 – midtstilt */}
       {leg1Min !== null && (
         <div className="flex justify-center">
-          <DurationBadge minutes={leg1Min} label={stopover ? 'Flytid etappe 1' : 'Flytid'} />
+          <DurationBadge minutes={leg1Min} label={stopover ? (isTrain ? 'Reisetid etappe 1' : 'Flytid etappe 1') : (isTrain ? 'Reisetid' : 'Flytid')} />
         </div>
       )}
 
@@ -230,20 +238,32 @@ function FlightForm({ flight, onSave, tripDateFrom }: {
         <>
           <div className="grid grid-cols-2 gap-2">
             <div><Label>Ankomst</Label><TimeInput key={`arr-d-${flight?.id}`} defaultValue={flight?.leg1_arrival} onSave={saveLeg1Arrival} /></div>
-            <div><Label>Destinasjon</Label><AirportInput key={`to-d-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg1_to: v })} /></div>
+            <div>
+              <Label>{isTrain ? 'Holdeplass (destinasjon)' : 'Destinasjon'}</Label>
+              {isTrain
+                ? <Txt key={`to-d-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="Bergen stasjon" onSave={(v) => onSave({ leg1_to: v })} />
+                : <AirportInput key={`to-d-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg1_to: v })} />
+              }
+            </div>
           </div>
         </>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2">
             <div><Label>Ankomst</Label><TimeInput key={`arr1-s-${flight?.id}`} defaultValue={flight?.leg1_arrival} onSave={saveLeg1Arrival} /></div>
-            <div><Label>Mellomstasjon</Label><AirportInput key={`stop-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="AMS – Amsterdam" onSave={(v) => onSave({ leg1_to: v })} /></div>
+            <div>
+              <Label>{isTrain ? 'Holdeplass (mellomstopp)' : 'Mellomstasjon'}</Label>
+              {isTrain
+                ? <Txt key={`stop-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="Myrdal" onSave={(v) => onSave({ leg1_to: v })} />
+                : <AirportInput key={`stop-${flight?.id}`} defaultValue={flight?.leg1_to} placeholder="AMS – Amsterdam" onSave={(v) => onSave({ leg1_to: v })} />
+              }
+            </div>
           </div>
-          {stopoverMin !== null && <DurationBadge minutes={stopoverMin} label="Ventetid på flyplass" />}
+          {stopoverMin !== null && <DurationBadge minutes={stopoverMin} label={isTrain ? 'Ventetid på holdeplass' : 'Ventetid på flyplass'} />}
           <Divider label="Neste etappe" />
           <div className="grid grid-cols-2 gap-2">
             <div><Label>Avgang</Label><TimeInput key={`dep2-${flight?.id}`} defaultValue={flight?.leg2_departure} onSave={saveLeg2Departure} /></div>
-            <div><Label>Flightnr.</Label><Txt key={`fn2-${flight?.id}`} defaultValue={flight?.leg2_flight_nr} placeholder="KL 0870" onSave={(v) => onSave({ leg2_flight_nr: v })} /></div>
+            <div><Label>{isTrain ? 'Rutenr.' : 'Flightnr.'}</Label><Txt key={`fn2-${flight?.id}`} defaultValue={flight?.leg2_flight_nr} placeholder={isTrain ? 'R10' : 'KL 0870'} onSave={(v) => onSave({ leg2_flight_nr: v })} /></div>
           </div>
 
           {/* Billett + sete etappe 2 */}
@@ -264,11 +284,17 @@ function FlightForm({ flight, onSave, tripDateFrom }: {
 
           <div className="grid grid-cols-2 gap-2">
             <div><Label>Ankomst</Label><TimeInput key={`arr2-${flight?.id}`} defaultValue={flight?.leg2_arrival} onSave={(v) => onSave({ leg2_arrival: v })} /></div>
-            <div><Label>Endelig destinasjon</Label><AirportInput key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg2_to: v })} /></div>
+            <div>
+              <Label>{isTrain ? 'Holdeplass (destinasjon)' : 'Endelig destinasjon'}</Label>
+              {isTrain
+                ? <Txt key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="Bergen stasjon" onSave={(v) => onSave({ leg2_to: v })} />
+                : <AirportInput key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg2_to: v })} />
+              }
+            </div>
           </div>
           {leg2Min !== null && (
             <div className="flex justify-center">
-              <DurationBadge minutes={leg2Min} label="Flytid etappe 2" />
+              <DurationBadge minutes={leg2Min} label={isTrain ? 'Reisetid etappe 2' : 'Flytid etappe 2'} />
             </div>
           )}
           {/* Total reisetid */}
@@ -549,8 +575,8 @@ interface TripPanelsProps {
   onUpdateGroupDescription?: (desc: string) => void
   /** Trip start date – pre-fills flight date when no flight is saved yet */
   tripDateFrom?: string
-  /** Skjul fly-panel hvis turen ikke inkluderer fly (default: true) */
-  hasFlight?: boolean
+  /** Transport mode – bestemmer om fly/tog-panel vises og hvilke etiketter som brukes */
+  transportType?: TransportType
 }
 
 export default function TripPanels({
@@ -558,8 +584,10 @@ export default function TripPanels({
   groupDescription,
   onUpdateGroupDescription,
   tripDateFrom,
-  hasFlight = true,
+  transportType = 'fly',
 }: TripPanelsProps) {
+  const hasFlight = transportType !== 'ingen'
+  const isTrain   = transportType === 'tog'
   const { outbound, returnFlight, saveFlight } = useFlights(tripId)
   const { travelers, addTraveler, addLinkedTraveler, updateTraveler, deleteTraveler } = useTravelers(tripId)
 
@@ -635,8 +663,11 @@ export default function TripPanels({
                 : 'text-slate-300 hover:bg-slate-800/50'
             }`}
           >
-            <Plane className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
-            <span className="text-xs truncate">Fly tur/retur</span>
+            {isTrain
+              ? <Train className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+              : <Plane className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+            }
+            <span className="text-xs truncate">{isTrain ? 'Tog tur/retur' : 'Fly tur/retur'}</span>
             {flightSummaryText && (
               <span className="text-[10px] text-slate-500 ml-auto truncate max-w-[56px] flex-shrink-0">
                 {flightSummaryText}
@@ -680,9 +711,10 @@ export default function TripPanels({
           {/* Tabs: Utreise / Hjemreise */}
           <div className="flex border-b border-slate-800 bg-slate-900/50">
             {([
-              { dir: 'outbound', label: 'Utreise',   icon: PlaneTakeoff, flight: outbound },
-              { dir: 'return',   label: 'Hjemreise', icon: PlaneLanding, flight: returnFlight },
-            ] as const).map(({ dir, label, icon: Icon, flight }) => {
+              { dir: 'outbound', label: 'Utreise',   flyIcon: PlaneTakeoff, flight: outbound },
+              { dir: 'return',   label: 'Hjemreise', flyIcon: PlaneLanding, flight: returnFlight },
+            ] as const).map(({ dir, label, flyIcon: FlyIcon, flight }) => {
+              const Icon = isTrain ? Train : FlyIcon
               const dateStr = flight?.flight_date
                 ? new Date(flight.flight_date + 'T12:00:00').toLocaleDateString('nb-NO', {
                     day: 'numeric', month: 'short',
@@ -717,6 +749,7 @@ export default function TripPanels({
             flight={activeFlight}
             onSave={(updates) => saveFlight(flightTab, updates)}
             tripDateFrom={tripDateFrom}
+            transportType={transportType}
           />
         </div>
       )}
