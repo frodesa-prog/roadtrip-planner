@@ -517,7 +517,7 @@ function TravelerCard({
     <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <GenderIcon gender={traveler.gender} size={32} />
+          <GenderIcon gender={traveler.gender} size={64} />
           <div>
             <div className="flex items-center gap-1.5">
               <p className="text-xs font-semibold text-slate-100">{traveler.name}</p>

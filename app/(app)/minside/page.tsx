@@ -264,7 +264,7 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
                     }`}
                   >
                     {g.value === 'kvinne'
-                      ? <img src="/femailemoji.png" alt="Kvinne" width={26} height={26} className="object-contain" />
+                      ? <img src="/femailemoji.png" alt="Kvinne" width={52} height={52} className="object-contain" />
                       : <span>{g.emoji}</span>
                     }
                     <span className="text-xs">{g.label}</span>
@@ -299,7 +299,7 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
               {genderLabel ? (
                 <div className="flex items-center gap-1.5">
                   {genderLabel.value === 'kvinne'
-                    ? <img src="/femailemoji.png" alt="Kvinne" width={22} height={22} className="object-contain" />
+                    ? <img src="/femailemoji.png" alt="Kvinne" width={44} height={44} className="object-contain" />
                     : <span>{genderLabel.emoji}</span>
                   }
                   <span className="text-sm text-slate-200">{genderLabel.label}</span>

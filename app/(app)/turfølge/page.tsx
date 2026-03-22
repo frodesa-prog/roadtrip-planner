@@ -259,7 +259,7 @@ function TravelerCard({
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <GenderIcon gender={traveler.gender} size={40} />
+          <GenderIcon gender={traveler.gender} size={80} />
           <div>
             <p className="text-sm font-semibold text-slate-100">{traveler.name}</p>
             <p className="text-xs text-slate-500">
