@@ -36,7 +36,6 @@ const FEATURES = [
 function TravelIllustration() {
   return (
     <svg viewBox="0 0 700 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-2xl mx-auto">
-      {/* Sky gradient */}
       <defs>
         <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#ddeeff" />
@@ -47,15 +46,9 @@ function TravelIllustration() {
           <stop offset="100%" stopColor="#8ea8d4" stopOpacity="0.4" />
         </linearGradient>
       </defs>
-
-      {/* Background */}
       <rect width="700" height="220" fill="url(#sky)" rx="16" />
-
-      {/* Sun */}
       <circle cx="580" cy="48" r="30" fill="#fde68a" opacity="0.7" />
       <circle cx="580" cy="48" r="22" fill="#fcd34d" opacity="0.8" />
-
-      {/* Clouds */}
       <g opacity="0.7">
         <ellipse cx="120" cy="45" rx="45" ry="18" fill="white" />
         <ellipse cx="100" cy="50" rx="30" ry="14" fill="white" />
@@ -66,54 +59,33 @@ function TravelIllustration() {
         <ellipse cx="405" cy="40" rx="22" ry="10" fill="white" />
         <ellipse cx="440" cy="40" rx="22" ry="10" fill="white" />
       </g>
-
-      {/* Mountains */}
       <polygon points="0,170 80,80 160,170" fill="#c0d4ed" opacity="0.6" />
       <polygon points="60,170 150,65 240,170" fill="#8ea8d4" opacity="0.5" />
       <polygon points="480,170 570,75 660,170" fill="#c0d4ed" opacity="0.5" />
       <polygon points="540,170 630,90 720,170" fill="#8ea8d4" opacity="0.4" />
-
-      {/* Sea / ground */}
       <rect x="0" y="168" width="700" height="52" rx="0" fill="url(#sea)" opacity="0.5" />
       <ellipse cx="350" cy="168" rx="700" ry="12" fill="#b0d9f5" opacity="0.3" />
-
-      {/* Dotted flight path */}
       <path d="M80,140 Q200,40 350,80 Q500,120 620,50" stroke={C.copper} strokeWidth="2" strokeDasharray="6,6" fill="none" opacity="0.8" />
-
-      {/* Airplane */}
       <g transform="translate(330,68) rotate(-15)">
-        {/* Body */}
         <ellipse cx="0" cy="0" rx="22" ry="7" fill={C.copper} />
-        {/* Nose */}
         <polygon points="22,-3 34,0 22,3" fill={C.copper} />
-        {/* Tail fin */}
         <polygon points="-22,-7 -14,-18 -10,-7" fill="#b8714a" />
-        {/* Wings */}
         <polygon points="-5,-7 12,-7 18,0 12,7 -5,7 -2,0" fill="#d4956e" />
-        {/* Window strip */}
         <rect x="-8" y="-3" width="20" height="6" rx="3" fill="white" opacity="0.5" />
       </g>
-
-      {/* Palm tree left */}
       <line x1="270" y1="170" x2="270" y2="130" stroke="#6b7c5a" strokeWidth="4" />
       <ellipse cx="258" cy="130" rx="18" ry="8" fill="#5a8a5a" opacity="0.8" transform="rotate(-20,258,130)" />
       <ellipse cx="282" cy="132" rx="18" ry="8" fill="#4a7a4a" opacity="0.8" transform="rotate(20,282,132)" />
       <ellipse cx="270" cy="126" rx="14" ry="6" fill="#6aaa6a" opacity="0.9" />
-
-      {/* Palm tree right */}
       <line x1="440" y1="170" x2="440" y2="132" stroke="#6b7c5a" strokeWidth="4" />
       <ellipse cx="428" cy="132" rx="18" ry="8" fill="#5a8a5a" opacity="0.8" transform="rotate(-20,428,132)" />
       <ellipse cx="452" cy="134" rx="18" ry="8" fill="#4a7a4a" opacity="0.8" transform="rotate(20,452,134)" />
       <ellipse cx="440" cy="128" rx="14" ry="6" fill="#6aaa6a" opacity="0.9" />
-
-      {/* Location pin */}
       <g transform="translate(612,38)">
         <circle cx="0" cy="-4" r="8" fill={C.mint} />
         <polygon points="-4,0 4,0 0,10" fill={C.mint} />
         <circle cx="0" cy="-4" r="3.5" fill="white" />
       </g>
-
-      {/* Start pin */}
       <g transform="translate(82,132)">
         <circle cx="0" cy="-4" r="7" fill={C.navy} opacity="0.7" />
         <polygon points="-3.5,0 3.5,0 0,9" fill={C.navy} opacity="0.7" />
@@ -128,16 +100,13 @@ function TravelIllustration() {
 function MockupPlanning() {
   return (
     <div className="rounded-xl overflow-hidden shadow-lg border h-full" style={{ borderColor: C.border, background: C.bg, fontFamily: 'system-ui' }}>
-      {/* Nav */}
       <div className="flex items-center gap-3 px-4 py-2.5 border-b" style={{ background: C.card, borderColor: C.border }}>
         <span className="text-xs font-bold" style={{ color: C.navy }}>✈️ MyVacay</span>
         {['Planlegg','ToDo','Oversikt'].map((t, i) => (
           <span key={t} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: i === 0 ? C.copper : 'transparent', color: i === 0 ? '#fff' : C.navyLight, fontWeight: i === 0 ? 600 : 400 }}>{t}</span>
         ))}
       </div>
-      {/* Body */}
       <div className="flex" style={{ height: 200 }}>
-        {/* Sidebar */}
         <div className="w-36 border-r p-2 space-y-1.5 flex-shrink-0" style={{ borderColor: C.border }}>
           <div className="rounded-lg px-2.5 py-2 text-[10px] font-semibold" style={{ background: `${C.copper}18`, color: C.copper, borderLeft: `3px solid ${C.copper}` }}>🚗 Roadtrip 2026</div>
           {['Oslo → Bergen','Bergen → Ålesund','Ålesund → Trondheim'].map((s, i) => (
@@ -146,7 +115,6 @@ function MockupPlanning() {
             </div>
           ))}
         </div>
-        {/* Map area */}
         <div className="flex-1 flex items-center justify-center" style={{ background: '#e8eef5' }}>
           <div className="text-center">
             <Map className="w-8 h-8 mx-auto mb-1" style={{ color: C.blue }} />
@@ -181,7 +149,7 @@ function MockupCosts() {
           <div key={label} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: C.card, border: `1px solid ${C.border}` }}>
             <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
             <span className="text-[10px] flex-1" style={{ color: C.navy }}>{label}</span>
-            <span className="text-[9px]" style={{ color: C.navyLight }}>{cat}</span>
+            <span className="text-[9px] hidden sm:inline" style={{ color: C.navyLight }}>{cat}</span>
             <span className="text-[10px] font-semibold" style={{ color: C.copper }}>{amount} kr</span>
           </div>
         ))}
@@ -257,8 +225,8 @@ function AuthModal({ mode: initialMode, onClose }: { mode: 'login' | 'register';
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(30,40,60,0.45)', backdropFilter: 'blur(4px)' }}>
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" style={{ background: 'rgba(30,40,60,0.45)', backdropFilter: 'blur(4px)' }}>
+      <div className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #f8f9fd, #f0f3fa)', borderColor: C.border }}>
           <div className="flex items-center gap-2">
@@ -284,7 +252,7 @@ function AuthModal({ mode: initialMode, onClose }: { mode: 'login' | 'register';
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full pl-8 pr-3 py-2 rounded-lg border text-xs outline-none transition-all"
+                className="w-full pl-8 pr-3 py-2.5 rounded-lg border text-sm outline-none transition-all"
                 style={{ borderColor: '#d4dce8', color: C.navy, background: '#fafbfd' }}
                 onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
                 onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
@@ -303,7 +271,7 @@ function AuthModal({ mode: initialMode, onClose }: { mode: 'login' | 'register';
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full pl-8 pr-3 py-2 rounded-lg border text-xs outline-none transition-all"
+                className="w-full pl-8 pr-3 py-2.5 rounded-lg border text-sm outline-none transition-all"
                 style={{ borderColor: '#d4dce8', color: C.navy, background: '#fafbfd' }}
                 onFocus={(e) => { e.target.style.borderColor = C.copper; e.target.style.boxShadow = `0 0 0 3px ${C.copper}22` }}
                 onBlur={(e)  => { e.target.style.borderColor = '#d4dce8'; e.target.style.boxShadow = 'none' }}
@@ -311,15 +279,15 @@ function AuthModal({ mode: initialMode, onClose }: { mode: 'login' | 'register';
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 pb-2">
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-xs text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-sm text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-60"
               style={{ background: `linear-gradient(135deg, ${C.copper}, #b8714a)` }}
             >
               {loading
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ? <Loader2 className="w-4 h-4 animate-spin" />
                 : mode === 'login' ? 'Logg inn' : 'Opprett konto'}
             </button>
 
@@ -327,7 +295,7 @@ function AuthModal({ mode: initialMode, onClose }: { mode: 'login' | 'register';
               <button
                 type="button"
                 onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-                className="text-[11px] transition-colors hover:underline"
+                className="text-xs transition-colors hover:underline py-1"
                 style={{ color: C.mint }}
               >
                 {mode === 'login'
@@ -355,30 +323,34 @@ export default function LoginPage() {
     <main className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #f8f9fc 0%, #edf1f8 50%, #f2f7f6 100%)' }}>
 
       {/* ── Top bar ─────────────────────────────────────────────────── */}
-      <header className="flex items-center px-10 py-4 border-b border-slate-200/60 bg-white/50 backdrop-blur-sm">
-        <span className="font-bold text-base tracking-tight" style={{ color: C.navy }}>MyVacayPlanner</span>
-        <div className="ml-auto flex items-center gap-3">
+      <header className="flex items-center px-4 sm:px-8 lg:px-10 py-3 sm:py-4 border-b border-slate-200/60 bg-white/50 backdrop-blur-sm">
+        <span className="font-bold text-sm sm:text-base tracking-tight" style={{ color: C.navy }}>MyVacayPlanner</span>
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setAuthModal('login')}
-            className="px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors hover:bg-slate-50"
+            className="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium border transition-colors hover:bg-slate-50"
             style={{ borderColor: C.navy, color: C.navy }}
           >
             Logg inn
           </button>
           <button
             onClick={() => setAuthModal('register')}
-            className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            className="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold text-white transition-opacity hover:opacity-90"
             style={{ background: `linear-gradient(135deg, ${C.copper}, #b8714a)` }}
           >
-            Registrer deg
+            <span className="hidden sm:inline">Registrer deg</span>
+            <span className="sm:hidden">Registrer</span>
           </button>
         </div>
       </header>
 
       {/* ── Hero: logo + tagline ─────────────────────────────────────── */}
-      <section className="flex items-center gap-10 px-10 pt-14 pb-8 lg:px-16">
+      <section className="flex flex-col lg:flex-row items-center gap-6 lg:gap-10 px-4 sm:px-8 lg:px-16 pt-10 sm:pt-14 pb-6 sm:pb-8 text-center lg:text-left">
         {/* Logo — graphic only (text portion clipped) */}
-        <div className="relative flex-shrink-0" style={{ width: 500, height: 340, overflow: 'hidden' }}>
+        <div
+          className="relative flex-shrink-0 mx-auto lg:mx-0"
+          style={{ width: 'min(300px, 70vw)', aspectRatio: '500 / 340', overflow: 'hidden' }}
+        >
           <Image
             src="/logo.png"
             alt="MyVacayPlanner"
@@ -389,16 +361,16 @@ export default function LoginPage() {
         </div>
 
         {/* Tagline */}
-        <div>
-          <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight mb-4" style={{ color: C.navy }}>
+        <div className="max-w-lg lg:max-w-none">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight mb-3 sm:mb-4" style={{ color: C.navy }}>
             Plan.<br />
             <span style={{ color: C.copper }}>Travel.</span>{' '}
             <span style={{ color: C.mint }}>Relive.</span>
           </h1>
-          <p className="text-base lg:text-lg max-w-sm leading-relaxed mb-6" style={{ color: C.navyLight }}>
+          <p className="text-sm sm:text-base lg:text-lg max-w-sm mx-auto lg:mx-0 leading-relaxed mb-5 sm:mb-6" style={{ color: C.navyLight }}>
             Et komplett verktøy for å planlegge ferier, holde oversikt under turen og arkivere minner etterpå.
           </p>
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <div className="flex flex-wrap justify-center lg:justify-start gap-x-4 sm:gap-x-5 gap-y-2">
             {['Roadtrip', 'Storbytur', 'Resort', 'Delt med turfølget', 'Kart & ruter', 'Kostnadsfordeling'].map((tag) => (
               <span key={tag} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: C.navyLight }}>
                 <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: C.mint }} />
@@ -406,17 +378,38 @@ export default function LoginPage() {
               </span>
             ))}
           </div>
+
+          {/* CTA buttons in hero on mobile */}
+          <div className="flex gap-3 justify-center lg:hidden mt-6">
+            <button
+              onClick={() => setAuthModal('register')}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all hover:opacity-90"
+              style={{ background: `linear-gradient(135deg, ${C.copper} 0%, #b8714a 100%)` }}
+            >
+              Kom i gang
+              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setAuthModal('login')}
+              className="px-6 py-3 rounded-xl font-bold text-sm border transition-colors hover:bg-white/60"
+              style={{ borderColor: C.navy, color: C.navy }}
+            >
+              Logg inn
+            </button>
+          </div>
         </div>
       </section>
 
       {/* ── Travel illustration ──────────────────────────────────────── */}
-      <section className="px-10 pb-6 lg:px-16">
+      <section className="px-4 sm:px-8 lg:px-16 pb-6">
         <TravelIllustration />
       </section>
 
       {/* ── Features grid ────────────────────────────────────────────── */}
-      <section className="px-10 pb-8 lg:px-16">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <section className="px-4 sm:px-8 lg:px-16 pb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {FEATURES.map(({ icon: Icon, color, bg, title, desc }) => (
             <div key={title} className="flex gap-3 p-4 rounded-xl border border-slate-200/70 bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow">
               <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: bg }}>
@@ -430,8 +423,8 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {/* "Kom i gang" button */}
-        <div className="flex justify-center mt-8">
+        {/* "Kom i gang" button — desktop only (mobile has it in hero) */}
+        <div className="hidden lg:flex justify-center mt-8">
           <button
             onClick={() => setAuthModal('register')}
             className="flex items-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-base text-white shadow-lg transition-all hover:opacity-90 hover:shadow-xl hover:-translate-y-0.5"
@@ -446,14 +439,14 @@ export default function LoginPage() {
       </section>
 
       {/* ── App screenshots / mockups ────────────────────────────────── */}
-      <section className="px-10 py-14 lg:px-16 border-t border-slate-200/60" style={{ background: 'linear-gradient(180deg, transparent, #edf1f8 60%)' }}>
+      <section className="px-4 sm:px-8 lg:px-16 py-10 sm:py-14 border-t border-slate-200/60" style={{ background: 'linear-gradient(180deg, transparent, #edf1f8 60%)' }}>
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl font-extrabold mb-2" style={{ color: C.navy }}>Se hva du får</h2>
+          <div className="text-center mb-8 sm:mb-10">
+            <h2 className="text-xl sm:text-2xl font-extrabold mb-2" style={{ color: C.navy }}>Se hva du får</h2>
             <p className="text-sm" style={{ color: C.navyLight }}>Alt du trenger for å planlegge, gjennomføre og huske reisen</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch">
             <div className="flex flex-col">
               <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: C.copper }}>
                 <Route className="w-3.5 h-3.5" /> Planlegge
@@ -462,6 +455,7 @@ export default function LoginPage() {
                 <MockupPlanning />
               </div>
             </div>
+            {/* Kostnader — visible sm+ */}
             <div className="flex flex-col">
               <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: C.blue }}>
                 <DollarSign className="w-3.5 h-3.5" /> Kostnader
@@ -470,7 +464,8 @@ export default function LoginPage() {
                 <MockupCosts />
               </div>
             </div>
-            <div className="flex flex-col">
+            {/* Chat — visible lg+ on small, always on sm+ */}
+            <div className="flex flex-col sm:col-span-2 lg:col-span-1">
               <p className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: C.mint }}>
                 <MessageCircle className="w-3.5 h-3.5" /> Chat
               </p>
@@ -483,7 +478,7 @@ export default function LoginPage() {
       </section>
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
-      <footer className="flex items-center justify-between px-10 py-3 border-t border-slate-200/60 bg-white/30 text-xs" style={{ color: '#9fb3c8' }}>
+      <footer className="flex flex-col sm:flex-row items-center gap-1 sm:justify-between px-4 sm:px-8 lg:px-10 py-4 sm:py-3 border-t border-slate-200/60 bg-white/30 text-xs text-center" style={{ color: '#9fb3c8' }}>
         <span>© 2026 MyVacayPlanner</span>
         <span>
           Utviklet av{' '}
