@@ -28,6 +28,11 @@ export default function PlanPage() {
   type MobileView = 'kart' | 'steder' | 'detaljer'
   const [mobileView, setMobileView] = useState<MobileView>('steder')
 
+  // Road trip item-zoom state
+  const [selectedRoadActivityId, setSelectedRoadActivityId] = useState<string | null>(null)
+  const [selectedRoadDiningId, setSelectedRoadDiningId] = useState<string | null>(null)
+  const [roadMapVersion, setRoadMapVersion] = useState(0)
+
   // City trip map state
   const [citySearchCenter, setCitySearchCenter] = useState<{ lat: number; lng: number } | null>(null)
   const [cityZoomVersion, setCityZoomVersion] = useState(0)
@@ -98,6 +103,30 @@ export default function PlanPage() {
     }
     return null
   }, [isCityTrip, cityStop, selectedCityActivityId, selectedCityDiningId, activities, dining])
+
+  // Road trip: fit points for selected activity/dining (item pin + stop pin)
+  const roadTripItemFitPoints = useMemo(() => {
+    if (isCityTrip || !selectedStop) return null
+    if (selectedRoadActivityId) {
+      const act = activities.find((a) => a.id === selectedRoadActivityId)
+      if (act?.map_lat != null && act?.map_lng != null) {
+        return [
+          { lat: act.map_lat, lng: act.map_lng },
+          { lat: selectedStop.lat, lng: selectedStop.lng },
+        ]
+      }
+    }
+    if (selectedRoadDiningId) {
+      const din = dining.find((d) => d.id === selectedRoadDiningId)
+      if (din?.map_lat != null && din?.map_lng != null) {
+        return [
+          { lat: din.map_lat, lng: din.map_lng },
+          { lat: selectedStop.lat, lng: selectedStop.lng },
+        ]
+      }
+    }
+    return null
+  }, [isCityTrip, selectedStop, selectedRoadActivityId, selectedRoadDiningId, activities, dining])
 
   // City trip: map fit points — day pins when a day is selected, all pins otherwise
   const cityMapFitPoints = useMemo(() => {
@@ -209,6 +238,8 @@ export default function PlanPage() {
 
   function handleSelectStop(id: string) {
     setSelectedStopId((prev) => (prev === id ? null : id))
+    setSelectedRoadActivityId(null)
+    setSelectedRoadDiningId(null)
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setMobileView('detaljer')
     }
@@ -405,6 +436,22 @@ export default function PlanPage() {
               stopNotes={notes.filter((n) => n.stop_id === selectedStop.id)}
               onUpdateNote={updateNote}
               onDeleteNote={deleteNote}
+              selectedActivityId={selectedRoadActivityId}
+              onSelectActivity={(id) => {
+                setSelectedRoadActivityId(id)
+                setSelectedRoadDiningId(null)
+                if (!id || activities.find((a) => a.id === id && a.map_lat != null && a.map_lng != null)) {
+                  setRoadMapVersion((v) => v + 1)
+                }
+              }}
+              selectedDiningId={selectedRoadDiningId}
+              onSelectDining={(id) => {
+                setSelectedRoadDiningId(id)
+                setSelectedRoadActivityId(null)
+                if (!id || dining.find((d) => d.id === id && d.map_lat != null && d.map_lng != null)) {
+                  setRoadMapVersion((v) => v + 1)
+                }
+              }}
               onClose={() => { setSelectedStopId(null); setMobileView('steder') }}
             />
           </div>
@@ -501,7 +548,9 @@ export default function PlanPage() {
               activities={activities}
               dining={dining}
               possibleActivities={possibleActivities}
-              mapCenter={selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null}
+              mapCenter={roadTripItemFitPoints ? null : (selectedStop ? { lat: selectedStop.lat, lng: selectedStop.lng } : null)}
+              mapFitPoints={roadTripItemFitPoints ?? undefined}
+              mapForcePanVersion={roadMapVersion}
               routeLegs={routeLegs}
               routeLegsLoaded={routeLegsLoaded}
               onRouteLegsChange={handleRouteLegsChange}

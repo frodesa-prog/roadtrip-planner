@@ -45,6 +45,10 @@ interface StopDetailPanelProps {
   onAddPossibleActivity: (data: AddPossibleActivityData) => void
   onRemovePossibleActivity: (id: string) => void
   onUpdatePossibleActivity: (id: string, updates: UpdatePossibleActivityData) => void
+  selectedActivityId?: string | null
+  onSelectActivity?: (id: string | null) => void
+  selectedDiningId?: string | null
+  onSelectDining?: (id: string | null) => void
   stopNotes: Note[]
   onUpdateNote: (id: string, data: Partial<Pick<Note, 'title' | 'content' | 'note_date'>>) => void
   onDeleteNote: (id: string) => void
@@ -69,6 +73,8 @@ export default function StopDetailPanel({
   onUpdateStop, onSaveHotel, onAddActivity, onRemoveActivity, onUpdateActivity,
   onAddDining, onRemoveDining, onUpdateDining,
   onAddPossibleActivity, onRemovePossibleActivity, onUpdatePossibleActivity,
+  selectedActivityId = null, onSelectActivity,
+  selectedDiningId = null, onSelectDining,
   onUpdateNote, onDeleteNote,
   onClose,
 }: StopDetailPanelProps) {
@@ -185,6 +191,7 @@ export default function StopDetailPanel({
   const [newPossibleNotes, setNewPossibleNotes]       = useState('')
   const [newPossibleCategory, setNewPossibleCategory] = useState<string | null>(null)
   const [editingPossibleId, setEditingPossibleId]     = useState<string | null>(null)
+  const [selectedPossibleId, setSelectedPossibleId]   = useState<string | null>(null)
   const [editPossibleDesc, setEditPossibleDesc]       = useState('')
   const [editPossibleUrl, setEditPossibleUrl]         = useState('')
   const [editPossibleNotes, setEditPossibleNotes]     = useState('')
@@ -745,7 +752,17 @@ export default function StopDetailPanel({
 
                   return (
                     <div key={act.id}
-                      className="flex items-center gap-2 px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 group relative">
+                      onClick={onSelectActivity ? () => {
+                        setSelectedPossibleId(null)
+                        onSelectActivity(selectedActivityId === act.id ? null : act.id)
+                      } : undefined}
+                      className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border group relative transition-colors ${
+                        onSelectActivity ? 'cursor-pointer' : ''
+                      } ${
+                        selectedActivityId === act.id
+                          ? 'bg-blue-500/15 border-blue-500/40'
+                          : 'bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/80'
+                      }`}>
                       {/* Type icon + picker */}
                       <div className="relative flex-shrink-0">
                         <button
@@ -808,41 +825,34 @@ export default function StopDetailPanel({
                         {act.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{act.notes}</p>}
                       </div>
 
-                      {act.url && (
-                        <a href={act.url} target="_blank" rel="noopener noreferrer"
-                          className="text-slate-600 hover:text-blue-400 flex-shrink-0">
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-
-                      {/* Edit button */}
-                      <button onClick={() => startEdit(act)}
-                        title="Rediger aktivitet"
-                        className="text-slate-500 hover:text-blue-400 flex-shrink-0 transition-colors">
-                        <Pencil className="w-3 h-3" />
-                      </button>
-
-                      {/* Map pin button */}
-                      <button
-                        onClick={() => setPinningActivityId(act.id)}
-                        title={isPinned ? 'Endre kartplassering' : 'Fest på kart'}
-                        className={`flex-shrink-0 transition-colors ${
-                          isPinned
-                            ? 'text-blue-400 hover:text-blue-300'
-                            : 'text-slate-500 hover:text-blue-400'
-                        }`}>
-                        <MapPin className="w-3 h-3" />
-                      </button>
-
-                      {/* Delete */}
-                      <button
-                        onClick={() => setConfirm({
-                          message: `Slett aktiviteten "${act.name}"?`,
-                          action: () => onRemoveActivity(act.id),
-                        })}
-                        className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors">
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      {/* Action buttons — stop propagation so row click isn't double-fired */}
+                      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {act.url && (
+                          <a href={act.url} target="_blank" rel="noopener noreferrer"
+                            className="text-slate-600 hover:text-blue-400">
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                        <button onClick={() => startEdit(act)}
+                          title="Rediger aktivitet"
+                          className="text-slate-500 hover:text-blue-400 transition-colors">
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setPinningActivityId(act.id)}
+                          title={isPinned ? 'Endre kartplassering' : 'Fest på kart'}
+                          className={`transition-colors ${isPinned ? 'text-blue-400 hover:text-blue-300' : 'text-slate-500 hover:text-blue-400'}`}>
+                          <MapPin className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setConfirm({
+                            message: `Slett aktiviteten "${act.name}"?`,
+                            action: () => onRemoveActivity(act.id),
+                          })}
+                          className="text-slate-500 hover:text-red-400 transition-colors">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   )
                 })}
@@ -1031,7 +1041,17 @@ export default function StopDetailPanel({
 
                   return (
                     <div key={d.id}
-                      className="flex items-center gap-2 px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 group">
+                      onClick={onSelectDining ? () => {
+                        setSelectedPossibleId(null)
+                        onSelectDining(selectedDiningId === d.id ? null : d.id)
+                      } : undefined}
+                      className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border group transition-colors ${
+                        onSelectDining ? 'cursor-pointer' : ''
+                      } ${
+                        selectedDiningId === d.id
+                          ? 'bg-orange-500/15 border-orange-500/40'
+                          : 'bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/80'
+                      }`}>
                       <span className="text-base flex-shrink-0" style={{ lineHeight: 1 }}>🍽️</span>
 
                       <div className="flex-1 min-w-0">
@@ -1048,36 +1068,34 @@ export default function StopDetailPanel({
                         {d.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{d.notes}</p>}
                       </div>
 
-                      {d.url && (
-                        <a href={d.url} target="_blank" rel="noopener noreferrer"
-                          className="text-slate-600 hover:text-blue-400 flex-shrink-0">
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-
-                      <button onClick={() => startEditDining(d)}
-                        title="Rediger"
-                        className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors">
-                        <Pencil className="w-3 h-3" />
-                      </button>
-
-                      <button
-                        onClick={() => setPinningDiningId(d.id)}
-                        title={isPinned ? 'Endre kartplassering' : 'Fest på kart'}
-                        className={`flex-shrink-0 transition-colors ${
-                          isPinned ? 'text-red-400 hover:text-red-300' : 'text-slate-500 hover:text-red-400'
-                        }`}>
-                        <MapPin className="w-3 h-3" />
-                      </button>
-
-                      <button
-                        onClick={() => setConfirm({
-                          message: `Slett spisestedet "${d.name}"?`,
-                          action: () => onRemoveDining(d.id),
-                        })}
-                        className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors">
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      {/* Action buttons — stop propagation so row click isn't double-fired */}
+                      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {d.url && (
+                          <a href={d.url} target="_blank" rel="noopener noreferrer"
+                            className="text-slate-600 hover:text-blue-400">
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                        <button onClick={() => startEditDining(d)}
+                          title="Rediger"
+                          className="text-slate-500 hover:text-red-400 transition-colors">
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setPinningDiningId(d.id)}
+                          title={isPinned ? 'Endre kartplassering' : 'Fest på kart'}
+                          className={`transition-colors ${isPinned ? 'text-red-400 hover:text-red-300' : 'text-slate-500 hover:text-red-400'}`}>
+                          <MapPin className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setConfirm({
+                            message: `Slett spisestedet "${d.name}"?`,
+                            action: () => onRemoveDining(d.id),
+                          })}
+                          className="text-slate-500 hover:text-red-400 transition-colors">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   )
                 })}
@@ -1206,9 +1224,19 @@ export default function StopDetailPanel({
                       </div>
                     )
                   }
+                  const isPossibleSelected = selectedPossibleId === a.id
                   return (
                     <div key={a.id}
-                      className="flex items-start gap-2 px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 group">
+                      onClick={() => {
+                        const newId = isPossibleSelected ? null : a.id
+                        setSelectedPossibleId(newId)
+                        if (newId) { onSelectActivity?.(null); onSelectDining?.(null) }
+                      }}
+                      className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border group transition-colors cursor-pointer ${
+                        isPossibleSelected
+                          ? 'bg-yellow-500/10 border-yellow-500/30'
+                          : 'bg-slate-800/60 border-slate-700/50 hover:bg-slate-800/80'
+                      }`}>
                       <span className="flex-shrink-0 mt-0.5" style={{ lineHeight: 1 }}>
                         <ActivityTypeIcon type={a.category} size={14} />
                       </span>
@@ -1223,22 +1251,24 @@ export default function StopDetailPanel({
                         )}
                         {a.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{a.notes}</p>}
                       </div>
-                      {a.url && (
-                        <a href={a.url} target="_blank" rel="noopener noreferrer"
-                          title={a.url}
-                          className="text-slate-600 hover:text-teal-400 flex-shrink-0 transition-colors mt-0.5">
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                      <button onClick={() => startEditPossible(a)} title="Rediger"
+                      <div className="flex items-center gap-1 flex-shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                        {a.url && (
+                          <a href={a.url} target="_blank" rel="noopener noreferrer"
+                            title={a.url}
+                            className="text-slate-600 hover:text-teal-400 transition-colors">
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); startEditPossible(a) }} title="Rediger"
                         className="text-slate-500 hover:text-teal-400 flex-shrink-0 transition-colors mt-0.5">
                         <Pencil className="w-3 h-3" />
                       </button>
                       <button
-                        onClick={() => setConfirm({
+                        onClick={(e) => { e.stopPropagation(); setConfirm({
                           message: `Slett "${a.description}"?`,
                           action: () => onRemovePossibleActivity(a.id),
-                        })}
+                        }) }}
                         className="text-slate-500 hover:text-red-400 flex-shrink-0 transition-colors mt-0.5">
                         <Trash2 className="w-3 h-3" />
                       </button>
