@@ -5,6 +5,7 @@ import { useTrips } from '@/hooks/useTrips'
 import { useStops } from '@/hooks/useStops'
 import { useActivities } from '@/hooks/useActivities'
 import { useDining } from '@/hooks/useDining'
+import { usePossibleActivities } from '@/hooks/usePossibleActivities'
 import { useHotels } from '@/hooks/useHotels'
 import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
 import PlanningMap from '@/components/map/PlanningMap'
@@ -12,7 +13,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { ActivityTypeIcon, getActivityTypeConfig } from '@/lib/activityTypes'
 import {
   MapPin, Clock, X, ExternalLink, Navigation, Car, Footprints,
-  Ruler, UtensilsCrossed, Trash2, MapPinOff,
+  Ruler, UtensilsCrossed, Trash2, MapPinOff, Lightbulb,
 } from 'lucide-react'
 import type { RouteInfo } from '@/components/map/ActivityRoutePolyline'
 import Link from 'next/link'
@@ -22,16 +23,23 @@ export default function AktiviteterPage() {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
-  // Auto-select activity or dining from URL hash (e.g. navigated from summary page)
-  // Activity hash: #<activityId>   Dining hash: #d-<diningId>
+  // Auto-select activity, dining or possible from URL hash
+  // Activity: #<id>  Dining: #d-<id>  Possible: #p-<id>
   useEffect(() => {
     const hash = window.location.hash.slice(1)
     if (!hash) return
     if (hash.startsWith('d-')) {
-      const diningId = hash.slice(2)
-      setSelectedDiningId(diningId)
+      const id = hash.slice(2)
+      setSelectedDiningId(id)
       setTimeout(() => {
-        const el = itemRefs.current[diningId]
+        const el = itemRefs.current[id]
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 400)
+    } else if (hash.startsWith('p-')) {
+      const id = hash.slice(2)
+      setSelectedPossibleId(id)
+      setTimeout(() => {
+        const el = itemRefs.current[id]
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }, 400)
     } else {
@@ -45,6 +53,8 @@ export default function AktiviteterPage() {
 
   const [selectedDiningId, setSelectedDiningId] = useState<string | null>(null)
   const [diningRouteInfo, setDiningRouteInfo] = useState<RouteInfo | null>(null)
+  const [selectedPossibleId, setSelectedPossibleId] = useState<string | null>(null)
+  const [possibleRouteInfo, setPossibleRouteInfo] = useState<RouteInfo | null>(null)
 
   // Confirm dialog state
   const [confirm, setConfirm] = useState<{ message: string; action: () => void } | null>(null)
@@ -56,9 +66,10 @@ export default function AktiviteterPage() {
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
   const { activities, removeActivity, updateActivity } = useActivities(stopIds)
   const { dining, removeDining, updateDining } = useDining(stopIds)
+  const { possibleActivities, removePossibleActivity, updatePossibleActivity } = usePossibleActivities(stopIds)
   const { hotels } = useHotels(stopIds)
 
-  // Stops in trip order, each with sorted activities and dining
+  // Stops in trip order, each with sorted activities, dining and possible activities
   const stopsWithItems = useMemo(() => {
     return stops
       .slice()
@@ -81,9 +92,17 @@ export default function AktiviteterPage() {
             if (dateA !== dateB) return dateA < dateB ? -1 : 1
             return (a.booking_time ?? '') < (b.booking_time ?? '') ? -1 : 1
           }),
+        possible: possibleActivities
+          .filter((p) => p.stop_id === stop.id)
+          .sort((a, b) => {
+            const dateA = a.activity_date ?? ''
+            const dateB = b.activity_date ?? ''
+            if (dateA !== dateB) return dateA < dateB ? -1 : 1
+            return a.description.localeCompare(b.description)
+          }),
       }))
-      .filter((s) => s.activities.length > 0 || s.dining.length > 0)
-  }, [stops, activities, dining])
+      .filter((s) => s.activities.length > 0 || s.dining.length > 0 || s.possible.length > 0)
+  }, [stops, activities, dining, possibleActivities])
 
   const selectedActivity = useMemo(
     () => activities.find((a) => a.id === selectedActivityId) ?? null,
@@ -115,6 +134,30 @@ export default function AktiviteterPage() {
     [selectedDiningStop, hotels]
   )
 
+  const selectedPossible = useMemo(
+    () => possibleActivities.find((p) => p.id === selectedPossibleId) ?? null,
+    [possibleActivities, selectedPossibleId]
+  )
+  const selectedPossibleStop = useMemo(
+    () => (selectedPossible ? stops.find((s) => s.id === selectedPossible.stop_id) ?? null : null),
+    [selectedPossible, stops]
+  )
+  const selectedPossibleHotel = useMemo(
+    () => (selectedPossibleStop ? hotels.find((h) => h.stop_id === selectedPossibleStop.id) ?? null : null),
+    [selectedPossibleStop, hotels]
+  )
+  const possibleRoute = useMemo(() => {
+    if (!selectedPossible?.map_lat || !selectedPossible?.map_lng) return null
+    if (!selectedPossibleStop) return null
+    return {
+      fromLat: selectedPossible.map_lat,
+      fromLng: selectedPossible.map_lng,
+      toAddress: null as string | null,
+      toLat: selectedPossibleStop.lat,
+      toLng: selectedPossibleStop.lng,
+    }
+  }, [selectedPossible?.map_lat, selectedPossible?.map_lng, selectedPossibleStop])
+
   const diningRoute = useMemo(() => {
     if (!selectedDining?.map_lat || !selectedDining?.map_lng) return null
     if (!selectedDiningStop) return null
@@ -131,30 +174,29 @@ export default function AktiviteterPage() {
     selectedDiningStop,
   ])
 
-  // Fit map to show both the activity/dining location and the associated stop
+  // Fit map to show both the item location and the associated stop
   const mapFitPoints = useMemo<Array<{ lat: number; lng: number }> | null>(() => {
     if (selectedDining?.map_lat && selectedDining?.map_lng) {
-      const pts: Array<{ lat: number; lng: number }> = [
-        { lat: selectedDining.map_lat, lng: selectedDining.map_lng },
-      ]
+      const pts: Array<{ lat: number; lng: number }> = [{ lat: selectedDining.map_lat, lng: selectedDining.map_lng }]
       if (selectedDiningStop) pts.push({ lat: selectedDiningStop.lat, lng: selectedDiningStop.lng })
       return pts
     }
+    if (selectedPossible?.map_lat && selectedPossible?.map_lng) {
+      const pts: Array<{ lat: number; lng: number }> = [{ lat: selectedPossible.map_lat, lng: selectedPossible.map_lng }]
+      if (selectedPossibleStop) pts.push({ lat: selectedPossibleStop.lat, lng: selectedPossibleStop.lng })
+      return pts
+    }
     if (selectedActivity?.map_lat && selectedActivity?.map_lng) {
-      const pts: Array<{ lat: number; lng: number }> = [
-        { lat: selectedActivity.map_lat, lng: selectedActivity.map_lng },
-      ]
+      const pts: Array<{ lat: number; lng: number }> = [{ lat: selectedActivity.map_lat, lng: selectedActivity.map_lng }]
       if (selectedStop) pts.push({ lat: selectedStop.lat, lng: selectedStop.lng })
       return pts
     }
     return null
   }, [
-    selectedActivity?.map_lat,
-    selectedActivity?.map_lng,
-    selectedDining?.map_lat,
-    selectedDining?.map_lng,
-    selectedStop,
-    selectedDiningStop,
+    selectedActivity?.map_lat, selectedActivity?.map_lng,
+    selectedDining?.map_lat, selectedDining?.map_lng,
+    selectedPossible?.map_lat, selectedPossible?.map_lng,
+    selectedStop, selectedDiningStop, selectedPossibleStop,
   ])
 
   // Route from activity to H-pin (stop coords – always tracks current pin position)
@@ -234,6 +276,37 @@ export default function AktiviteterPage() {
     if (selectedDiningId === id) setDiningRouteInfo(null)
   }
 
+  function handleSelectPossible(id: string) {
+    setSelectedActivityId(null)
+    setSelectedDiningId(null)
+    setRouteInfo(null)
+    setDiningRouteInfo(null)
+    setSelectedPossibleId((prev) => {
+      if (prev === id) { setPossibleRouteInfo(null); return null }
+      setPossibleRouteInfo(null)
+      return id
+    })
+    setTimeout(() => {
+      const el = itemRefs.current[id]
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }, 0)
+  }
+
+  function handleDeletePossible(id: string, description: string) {
+    setConfirm({
+      message: `Fjerne «${description}» fra mulige aktiviteter?`,
+      action: () => {
+        if (selectedPossibleId === id) { setSelectedPossibleId(null); setPossibleRouteInfo(null) }
+        removePossibleActivity(id)
+      },
+    })
+  }
+
+  function handleRemovePossiblePin(id: string) {
+    updatePossibleActivity(id, { map_lat: null, map_lng: null })
+    if (selectedPossibleId === id) setPossibleRouteInfo(null)
+  }
+
   if (!currentTrip) {
     return (
       <div className="flex h-full items-center justify-center bg-slate-950">
@@ -275,7 +348,7 @@ export default function AktiviteterPage() {
                 </p>
               </div>
             ) : (
-              stopsWithItems.map(({ stop, activities: acts, dining: dinings }) => (
+              stopsWithItems.map(({ stop, activities: acts, dining: dinings, possible: possibles }) => (
                 <div key={stop.id}>
                   {/* Stop header */}
                   <div className="px-4 py-2 bg-slate-900/60 border-b border-slate-800/50 sticky top-0 z-10">
@@ -440,6 +513,71 @@ export default function AktiviteterPage() {
                       </div>
                     )
                   })}
+                  {/* Possible activities */}
+                  {possibles.map((p) => {
+                    const isSelected = p.id === selectedPossibleId
+                    const hasPinnedLocation = !!(p.map_lat && p.map_lng)
+                    return (
+                      <div
+                        key={p.id}
+                        ref={(el) => { itemRefs.current[p.id] = el }}
+                        onClick={() => handleSelectPossible(p.id)}
+                        className={`group flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/40 cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-amber-900/30 border-l-2 border-l-amber-500'
+                            : 'hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-amber-900/30">
+                          <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-medium truncate ${isSelected ? 'text-amber-200' : 'text-slate-200'}`}>
+                            {p.description}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {p.category && (
+                              <span className="text-[10px] text-slate-500">{p.category}</span>
+                            )}
+                            {p.activity_date && (
+                              <span className="text-[10px] text-slate-500">
+                                {new Date(p.activity_date + 'T00:00:00').toLocaleDateString('nb-NO', {
+                                  day: 'numeric', month: 'short',
+                                })}
+                              </span>
+                            )}
+                            {hasPinnedLocation && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
+                                <MapPin className="w-2.5 h-2.5" />
+                                Kart
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div
+                          className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {hasPinnedLocation && (
+                            <button
+                              onClick={() => handleRemovePossiblePin(p.id)}
+                              title="Fjern kartpin"
+                              className="p-1.5 rounded text-slate-500 hover:text-amber-400 transition-colors"
+                            >
+                              <MapPinOff className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeletePossible(p.id, p.description)}
+                            title="Slett mulig aktivitet"
+                            className="p-1.5 rounded text-slate-500 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               ))
             )}
@@ -460,9 +598,12 @@ export default function AktiviteterPage() {
             dining={dining}
             selectedDiningId={selectedDiningId}
             onSelectDining={handleSelectDining}
+            possibleActivities={possibleActivities}
+            selectedPossibleId={selectedPossibleId}
+            onSelectPossible={handleSelectPossible}
             mapFitPoints={mapFitPoints}
-            activityRoute={selectedDining ? diningRoute : activityRoute}
-            onActivityRouteInfo={selectedDining ? setDiningRouteInfo : setRouteInfo}
+            activityRoute={selectedDining ? diningRoute : selectedPossibleId ? possibleRoute : activityRoute}
+            onActivityRouteInfo={selectedDining ? setDiningRouteInfo : selectedPossibleId ? setPossibleRouteInfo : setRouteInfo}
             routeLegs={routeLegs}
             routeLegsLoaded={routeLegsLoaded}
             cityTripMode={isCityTrip}
@@ -671,6 +812,108 @@ export default function AktiviteterPage() {
                 )}
                 <button
                   onClick={() => handleDeleteDining(selectedDining.id, selectedDining.name)}
+                  className="h-8 px-2.5 rounded-lg bg-slate-800 hover:bg-red-900/40 text-slate-400 hover:text-red-400 text-xs transition-colors flex items-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Slett
+                </button>
+              </div>
+            </div>
+          )}
+          {/* ─── Possible activity info box overlay ──────────────────── */}
+          {selectedPossible && (
+            <div className="absolute bottom-5 left-4 z-20 bg-slate-900/95 backdrop-blur-sm border border-amber-800/50 rounded-2xl shadow-2xl p-4 w-72 max-w-[calc(100%-2rem)]">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-amber-900/40">
+                  <Lightbulb className="w-5 h-5 text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-100 leading-tight">{selectedPossible.description}</p>
+                  {selectedPossibleStop && (
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {selectedPossibleStop.city}{selectedPossibleStop.state ? `, ${selectedPossibleStop.state}` : ''}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setSelectedPossibleId(null); setPossibleRouteInfo(null) }}
+                  className="flex-shrink-0 p-1 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="mt-3 space-y-1.5">
+                {selectedPossible.category && (
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <span className="text-slate-500">Kategori</span>
+                    <span>{selectedPossible.category}</span>
+                  </div>
+                )}
+                {selectedPossible.activity_date && (
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <Clock className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                    <span>
+                      {new Date(selectedPossible.activity_date + 'T00:00:00').toLocaleDateString('nb-NO', {
+                        weekday: 'long', day: 'numeric', month: 'long',
+                      })}
+                    </span>
+                  </div>
+                )}
+                {possibleRoute && (
+                  <div className="flex items-center gap-2 text-xs text-amber-400">
+                    <Navigation className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>
+                      Rute til{' '}
+                      {selectedPossibleHotel?.name ? selectedPossibleHotel.name : selectedPossibleStop?.city ?? 'hotellet'}
+                    </span>
+                  </div>
+                )}
+                {possibleRouteInfo && (
+                  <div className="mt-1 grid grid-cols-3 gap-1 rounded-lg bg-slate-800/60 p-2">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Ruler className="w-3 h-3 text-slate-400" />
+                      <span className="text-[10px] text-slate-300 font-medium">{possibleRouteInfo.distance}</span>
+                      <span className="text-[9px] text-slate-500">distanse</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Car className="w-3 h-3 text-amber-400" />
+                      <span className="text-[10px] text-slate-300 font-medium">{possibleRouteInfo.drivingTime}</span>
+                      <span className="text-[9px] text-slate-500">bil</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Footprints className="w-3 h-3 text-green-400" />
+                      <span className="text-[10px] text-slate-300 font-medium">{possibleRouteInfo.walkingTime}</span>
+                      <span className="text-[9px] text-slate-500">gange</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="mt-3 flex gap-2 flex-wrap">
+                {selectedPossible.url && (
+                  <a
+                    href={selectedPossible.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-amber-700/80 hover:bg-amber-600 text-white text-xs font-medium transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Åpne lenke
+                  </a>
+                )}
+                {selectedPossible.map_lat && selectedPossible.map_lng && (
+                  <button
+                    onClick={() => handleRemovePossiblePin(selectedPossible.id)}
+                    className="h-8 px-2.5 rounded-lg bg-slate-800 hover:bg-amber-900/40 text-slate-400 hover:text-amber-300 text-xs transition-colors flex items-center gap-1"
+                  >
+                    <MapPinOff className="w-3.5 h-3.5" />
+                    Fjern pin
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDeletePossible(selectedPossible.id, selectedPossible.description)}
                   className="h-8 px-2.5 rounded-lg bg-slate-800 hover:bg-red-900/40 text-slate-400 hover:text-red-400 text-xs transition-colors flex items-center gap-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
