@@ -325,8 +325,14 @@ const GENDERS = [
 
 function genderEmoji(gender: string | null) {
   if (gender === 'mann') return '👨'
-  if (gender === 'kvinne') return '👩'
   return '🧑'
+}
+
+function GenderIcon({ gender, size }: { gender: string | null; size: number }) {
+  if (gender === 'kvinne') {
+    return <img src="/femailemoji.png" alt="Kvinne" width={size} height={size} className="object-contain" />
+  }
+  return <span className="leading-none" style={{ fontSize: size }}>{genderEmoji(gender)}</span>
 }
 
 interface FormState {
@@ -511,7 +517,7 @@ function TravelerCard({
     <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-xl leading-none">{genderEmoji(traveler.gender)}</span>
+          <GenderIcon gender={traveler.gender} size={22} />
           <div>
             <div className="flex items-center gap-1.5">
               <p className="text-xs font-semibold text-slate-100">{traveler.name}</p>

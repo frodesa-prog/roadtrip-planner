@@ -32,8 +32,14 @@ const GENDERS = [
 
 function genderEmoji(gender: string | null) {
   if (gender === 'mann') return '👨'
-  if (gender === 'kvinne') return '👩'
   return '🧑'
+}
+
+function GenderIcon({ gender, size }: { gender: string | null; size: number }) {
+  if (gender === 'kvinne') {
+    return <img src="/femailemoji.png" alt="Kvinne" width={size} height={size} className="object-contain" />
+  }
+  return <span className="leading-none" style={{ fontSize: size }}>{genderEmoji(gender)}</span>
 }
 
 function parseInterests(str: string | null): string[] {
@@ -253,7 +259,7 @@ function TravelerCard({
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <span className="text-2xl leading-none">{genderEmoji(traveler.gender)}</span>
+          <GenderIcon gender={traveler.gender} size={28} />
           <div>
             <p className="text-sm font-semibold text-slate-100">{traveler.name}</p>
             <p className="text-xs text-slate-500">

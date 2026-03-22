@@ -263,7 +263,10 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
                         : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-300'
                     }`}
                   >
-                    <span>{g.emoji}</span>
+                    {g.value === 'kvinne'
+                      ? <img src="/femailemoji.png" alt="Kvinne" width={18} height={18} className="object-contain" />
+                      : <span>{g.emoji}</span>
+                    }
                     <span className="text-xs">{g.label}</span>
                   </button>
                 ))}
@@ -291,10 +294,20 @@ function ProfilTab({ user }: { user: SupabaseUser | null }) {
           <div className="space-y-4">
             <ProfileInfoRow label="Visningsnavn" value={displayNameVal || '—'} />
             <ProfileInfoRow label="Fødselsdato" value={birthFormatted} />
-            <ProfileInfoRow
-              label="Kjønn"
-              value={genderLabel ? `${genderLabel.emoji} ${genderLabel.label}` : '—'}
-            />
+            <div>
+              <p className="text-xs text-slate-500 mb-0.5">Kjønn</p>
+              {genderLabel ? (
+                <div className="flex items-center gap-1.5">
+                  {genderLabel.value === 'kvinne'
+                    ? <img src="/femailemoji.png" alt="Kvinne" width={16} height={16} className="object-contain" />
+                    : <span>{genderLabel.emoji}</span>
+                  }
+                  <span className="text-sm text-slate-200">{genderLabel.label}</span>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-200">—</p>
+              )}
+            </div>
           </div>
         )}
       </div>
