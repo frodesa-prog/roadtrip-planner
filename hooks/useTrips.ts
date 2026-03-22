@@ -222,6 +222,37 @@ export function useTrips() {
     [supabase],
   )
 
+  const archiveTrip = useCallback(
+    async (tripId: string) => {
+      setTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'archived' } : t))
+      setCurrentTripState((prev) => prev?.id === tripId ? { ...prev, status: 'archived' } : prev)
+      const { error } = await supabase.from('trips').update({ status: 'archived' }).eq('id', tripId)
+      if (error) {
+        toast.error('Kunne ikke arkivere tur')
+        setTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'planning' } : t))
+      } else {
+        toast.success('Tur arkivert')
+        logActivity({ log_type: 'database', action: 'UPDATE', entity_type: 'trip', entity_name: trips.find((t) => t.id === tripId)?.name, trip_id: tripId })
+      }
+    },
+    [supabase, trips],
+  )
+
+  const restoreTrip = useCallback(
+    async (tripId: string) => {
+      setTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'planning' } : t))
+      setCurrentTripState((prev) => prev?.id === tripId ? { ...prev, status: 'planning' } : prev)
+      const { error } = await supabase.from('trips').update({ status: 'planning' }).eq('id', tripId)
+      if (error) {
+        toast.error('Kunne ikke gjenopprette tur')
+        setTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'archived' } : t))
+      } else {
+        toast.success('Tur gjenopprettet')
+      }
+    },
+    [supabase],
+  )
+
   const deleteTrip = useCallback(
     async (tripId: string) => {
       const { error } = await supabase.from('trips').delete().eq('id', tripId)
@@ -271,6 +302,8 @@ export function useTrips() {
     setCurrentTrip,
     createTrip,
     updateTrip,
+    archiveTrip,
+    restoreTrip,
     deleteTrip,
   }
 }
