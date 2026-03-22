@@ -200,8 +200,8 @@ export default function NavBar() {
           <Image
             src="/logo.png"
             alt="MyVacayPlanner"
-            width={120}
-            height={40}
+            width={110}
+            height={60}
             className="object-contain"
           />
         </button>
@@ -304,9 +304,14 @@ export default function NavBar() {
       >
         {/* Drawer-header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 flex-shrink-0">
-          <span className="flex items-center gap-2 text-sm font-bold text-slate-200 select-none">
-            <span className="text-base">🗺️</span>
-            Ferieplanlegger
+          <span className="flex items-center select-none">
+            <Image
+              src="/logo.png"
+              alt="MyVacayPlanner"
+              width={110}
+              height={60}
+              className="object-contain"
+            />
           </span>
           <button
             onClick={() => setDrawerOpen(false)}
