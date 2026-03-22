@@ -459,7 +459,6 @@ export default function LoginPage() {
                 alt="MyVacayPlanner"
                 fill
                 className="object-contain"
-                style={{ mixBlendMode: 'multiply' }}
               />
             </div>
           </div>
