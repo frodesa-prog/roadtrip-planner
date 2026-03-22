@@ -251,7 +251,8 @@ export default function SummaryPage() {
 
   // Selected stop (from clicked date)
   const selectedStop = selectedDate ? (stopsByDate[selectedDate] ?? null) : null
-  const selectedStopLeg = selectedStop && selectedStop.arrival_date
+  // Only show driving leg when the clicked date IS the arrival date (i.e. a driving day)
+  const selectedStopLeg = selectedStop && selectedStop.arrival_date && selectedDate === selectedStop.arrival_date
     ? legByArrivalDate[selectedStop.arrival_date] ?? null
     : null
   const selectedStopIndex = selectedStop ? (stopPaletteIndex[selectedStop.id] ?? 0) : 0
