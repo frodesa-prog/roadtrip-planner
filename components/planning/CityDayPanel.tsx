@@ -386,13 +386,17 @@ export default function CityDayPanel({
                 }
                 const isActSelected = selectedActivityId === act.id
                 const hasPin = act.map_lat != null && act.map_lng != null
+                const canSelect = hasPin && !!onSelectActivity
                 return (
                   <div
                     key={act.id}
+                    onClick={canSelect ? () => onSelectActivity!(isActSelected ? null : act.id) : undefined}
                     className={`flex items-center gap-2 px-2.5 py-2 rounded-lg group transition-colors ${
+                      canSelect ? 'cursor-pointer' : ''
+                    } ${
                       isActSelected
                         ? 'bg-blue-500/15 border border-blue-500/40'
-                        : 'bg-slate-800/50 border border-transparent'
+                        : 'bg-slate-800/50 border border-transparent hover:bg-slate-800/80'
                     }`}
                   >
                     <span className="text-sm flex-shrink-0" title={cfg.label}>{cfg.emoji}</span>
@@ -405,24 +409,20 @@ export default function CityDayPanel({
                       )}
                       {act.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{act.notes}</p>}
                     </div>
-                    {act.url && (
-                      <a href={act.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-slate-600 hover:text-blue-400 transition-colors">
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                    {/* Pin indicator (static, always visible when pinned) */}
+                    {hasPin && (
+                      <MapPin className={`w-3 h-3 flex-shrink-0 transition-colors ${isActSelected ? 'text-blue-400' : 'text-slate-600'}`} />
                     )}
-                    {/* Route button (only for pinned activities) */}
-                    {hasPin && onSelectActivity && (
-                      <button
-                        onClick={() => onSelectActivity(isActSelected ? null : act.id)}
-                        title={isActSelected ? 'Skjul rute' : 'Vis rute til H-pin'}
-                        className={`flex-shrink-0 transition-colors ${
-                          isActSelected ? 'text-blue-400' : 'text-slate-600 hover:text-blue-400 opacity-0 group-hover:opacity-100'
-                        }`}
-                      >
-                        <MapPin className="w-3 h-3" />
-                      </button>
-                    )}
-                    <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Action buttons — stop propagation so row click isn't double-fired */}
+                    <div
+                      className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {act.url && (
+                        <a href={act.url} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-400 transition-colors">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                       <button onClick={() => startEditActivity(act)} className="text-slate-500 hover:text-blue-400 transition-colors">
                         <Pencil className="w-3 h-3" />
                       </button>
@@ -523,13 +523,17 @@ export default function CityDayPanel({
                 }
                 const isDinSelected = selectedDiningId === d.id
                 const hasDinPin = d.map_lat != null && d.map_lng != null
+                const canSelectDin = hasDinPin && !!onSelectDining
                 return (
                   <div
                     key={d.id}
+                    onClick={canSelectDin ? () => onSelectDining!(isDinSelected ? null : d.id) : undefined}
                     className={`flex items-center gap-2 px-2.5 py-2 rounded-lg group transition-colors ${
+                      canSelectDin ? 'cursor-pointer' : ''
+                    } ${
                       isDinSelected
                         ? 'bg-orange-500/15 border border-orange-500/40'
-                        : 'bg-slate-800/50 border border-transparent'
+                        : 'bg-slate-800/50 border border-transparent hover:bg-slate-800/80'
                     }`}
                   >
                     <UtensilsCrossed className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
@@ -542,24 +546,20 @@ export default function CityDayPanel({
                       )}
                       {d.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{d.notes}</p>}
                     </div>
-                    {d.url && (
-                      <a href={d.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-slate-600 hover:text-blue-400 transition-colors">
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                    {/* Pin indicator (static, always visible when pinned) */}
+                    {hasDinPin && (
+                      <MapPin className={`w-3 h-3 flex-shrink-0 transition-colors ${isDinSelected ? 'text-orange-400' : 'text-slate-600'}`} />
                     )}
-                    {/* Route button (only for pinned dining) */}
-                    {hasDinPin && onSelectDining && (
-                      <button
-                        onClick={() => onSelectDining(isDinSelected ? null : d.id)}
-                        title={isDinSelected ? 'Skjul rute' : 'Vis rute til H-pin'}
-                        className={`flex-shrink-0 transition-colors ${
-                          isDinSelected ? 'text-orange-400' : 'text-slate-600 hover:text-orange-400 opacity-0 group-hover:opacity-100'
-                        }`}
-                      >
-                        <MapPin className="w-3 h-3" />
-                      </button>
-                    )}
-                    <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Action buttons — stop propagation so row click isn't double-fired */}
+                    <div
+                      className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {d.url && (
+                        <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-400 transition-colors">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                       <button onClick={() => startEditDining(d)} className="text-slate-500 hover:text-blue-400 transition-colors">
                         <Pencil className="w-3 h-3" />
                       </button>

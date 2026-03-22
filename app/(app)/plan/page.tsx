@@ -75,6 +75,30 @@ export default function PlanPage() {
   const cityStop = isCityTrip ? (stops[0] ?? null) : null
   const cityCenter = cityStop ? { lat: cityStop.lat, lng: cityStop.lng } : null
 
+  // City trip: fit points for selected activity/dining (item + stop = shows route in view)
+  const cityItemFitPoints = useMemo(() => {
+    if (!isCityTrip || !cityStop) return null
+    if (selectedCityActivityId) {
+      const act = activities.find((a) => a.id === selectedCityActivityId)
+      if (act?.map_lat != null && act?.map_lng != null) {
+        return [
+          { lat: act.map_lat, lng: act.map_lng },
+          { lat: cityStop.lat, lng: cityStop.lng },
+        ]
+      }
+    }
+    if (selectedCityDiningId) {
+      const din = dining.find((d) => d.id === selectedCityDiningId)
+      if (din?.map_lat != null && din?.map_lng != null) {
+        return [
+          { lat: din.map_lat, lng: din.map_lng },
+          { lat: cityStop.lat, lng: cityStop.lng },
+        ]
+      }
+    }
+    return null
+  }, [isCityTrip, cityStop, selectedCityActivityId, selectedCityDiningId, activities, dining])
+
   // City trip: map fit points — day pins when a day is selected, all pins otherwise
   const cityMapFitPoints = useMemo(() => {
     if (!isCityTrip || citySearchCenter) return null
@@ -411,8 +435,8 @@ export default function PlanPage() {
               onSaveDayPlan={handleSaveDayPlan}
               selectedActivityId={selectedCityActivityId}
               selectedDiningId={selectedCityDiningId}
-              onSelectActivity={(id) => { setSelectedCityActivityId(id); setSelectedCityDiningId(null) }}
-              onSelectDining={(id) => { setSelectedCityDiningId(id); setSelectedCityActivityId(null) }}
+              onSelectActivity={(id) => { setSelectedCityActivityId(id); setSelectedCityDiningId(null); setCityZoomVersion((v) => v + 1) }}
+              onSelectDining={(id) => { setSelectedCityDiningId(id); setSelectedCityActivityId(null); setCityZoomVersion((v) => v + 1) }}
               onClose={() => { setSelectedDayStr(null); setMobileView('steder') }}
             />
           </div>
@@ -437,11 +461,11 @@ export default function PlanPage() {
               possibleActivities={possibleActivities}
               selectedActivityId={selectedCityActivityId}
               selectedDiningId={selectedCityDiningId}
-              onSelectActivity={(id) => { setSelectedCityActivityId((prev) => prev === id ? null : id); setSelectedCityDiningId(null) }}
-              onSelectDining={(id) => { setSelectedCityDiningId((prev) => prev === id ? null : id); setSelectedCityActivityId(null) }}
+              onSelectActivity={(id) => { setSelectedCityActivityId((prev) => prev === id ? null : id); setSelectedCityDiningId(null); setCityZoomVersion((v) => v + 1) }}
+              onSelectDining={(id) => { setSelectedCityDiningId((prev) => prev === id ? null : id); setSelectedCityActivityId(null); setCityZoomVersion((v) => v + 1) }}
               activityRoute={cityActivityRoute}
               mapCenter={citySearchCenter ?? null}
-              mapFitPoints={citySearchCenter ? null : cityMapFitPoints}
+              mapFitPoints={citySearchCenter ? null : (cityItemFitPoints ?? cityMapFitPoints)}
               mapForcePanVersion={cityZoomVersion}
               routeLegs={[]}
               routeLegsLoaded
