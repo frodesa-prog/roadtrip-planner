@@ -365,26 +365,6 @@ export default function LoginPage() {
             ))}
           </div>
 
-          {/* CTA buttons */}
-          <div className="flex gap-3 justify-center mt-6">
-            <button
-              onClick={() => setAuthModal('register')}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all hover:opacity-90"
-              style={{ background: `linear-gradient(135deg, ${C.copper} 0%, #b8714a 100%)` }}
-            >
-              Kom i gang
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setAuthModal('login')}
-              className="px-6 py-3 rounded-xl font-bold text-sm border transition-colors hover:bg-white/60"
-              style={{ borderColor: C.navy, color: C.navy }}
-            >
-              Logg inn
-            </button>
-          </div>
         </div>
       </section>
 
@@ -417,6 +397,18 @@ export default function LoginPage() {
           ))}
         </div>
 
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={() => setAuthModal('register')}
+            className="flex items-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-base text-white shadow-lg transition-all hover:opacity-90 hover:shadow-xl hover:-translate-y-0.5"
+            style={{ background: `linear-gradient(135deg, ${C.copper} 0%, #b8714a 100%)` }}
+          >
+            Kom i gang
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
       </section>
 
       {/* ── App screenshots / mockups ────────────────────────────────── */}
