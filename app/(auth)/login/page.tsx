@@ -345,18 +345,18 @@ export default function LoginPage() {
       </header>
 
       {/* ── Hero: tagline ────────────────────────────────────────────── */}
-      <section className="flex flex-col lg:flex-row items-center gap-6 lg:gap-10 px-4 sm:px-8 lg:px-16 pt-10 sm:pt-14 pb-6 sm:pb-8 text-center lg:text-left">
+      <section className="flex flex-col items-center gap-6 px-4 sm:px-8 lg:px-16 pt-10 sm:pt-14 pb-6 sm:pb-8 text-center">
         {/* Tagline */}
-        <div className="max-w-lg lg:max-w-none w-full">
+        <div className="max-w-2xl w-full">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight mb-3 sm:mb-4" style={{ color: C.navy }}>
             Plan.<br />
             <span style={{ color: C.copper }}>Travel.</span>{' '}
             <span style={{ color: C.mint }}>Relive.</span>
           </h1>
-          <p className="text-sm sm:text-base lg:text-lg max-w-sm mx-auto lg:mx-0 leading-relaxed mb-5 sm:mb-6" style={{ color: C.navyLight }}>
+          <p className="text-sm sm:text-base lg:text-lg max-w-sm mx-auto leading-relaxed mb-5 sm:mb-6" style={{ color: C.navyLight }}>
             Et komplett verktøy for å planlegge ferier, holde oversikt under turen og arkivere minner etterpå.
           </p>
-          <div className="flex flex-wrap justify-center lg:justify-start gap-x-4 sm:gap-x-5 gap-y-2">
+          <div className="flex flex-wrap justify-center gap-x-4 sm:gap-x-5 gap-y-2">
             {['Roadtrip', 'Storbytur', 'Resort', 'Delt med turfølget', 'Kart & ruter', 'Kostnadsfordeling'].map((tag) => (
               <span key={tag} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: C.navyLight }}>
                 <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: C.mint }} />
@@ -365,8 +365,8 @@ export default function LoginPage() {
             ))}
           </div>
 
-          {/* CTA buttons in hero on mobile */}
-          <div className="flex gap-3 justify-center lg:hidden mt-6">
+          {/* CTA buttons */}
+          <div className="flex gap-3 justify-center mt-6">
             <button
               onClick={() => setAuthModal('register')}
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all hover:opacity-90"
@@ -390,12 +390,13 @@ export default function LoginPage() {
 
       {/* ── Illustration ─────────────────────────────────────────────── */}
       <section className="px-4 sm:px-8 lg:px-16 pb-6">
-        <div className="relative w-full max-w-2xl mx-auto" style={{ aspectRatio: '16/7' }}>
+        <div className="relative w-full max-w-4xl mx-auto" style={{ aspectRatio: '16/7' }}>
           <Image
             src="/illustration1.png"
             alt="Reiseillustrasjon"
             fill
             className="object-contain"
+            style={{ mixBlendMode: 'multiply' }}
           />
         </div>
       </section>
@@ -416,19 +417,6 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {/* "Kom i gang" button — desktop only (mobile has it in hero) */}
-        <div className="hidden lg:flex justify-center mt-8">
-          <button
-            onClick={() => setAuthModal('register')}
-            className="flex items-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-base text-white shadow-lg transition-all hover:opacity-90 hover:shadow-xl hover:-translate-y-0.5"
-            style={{ background: `linear-gradient(135deg, ${C.copper} 0%, #b8714a 100%)` }}
-          >
-            Kom i gang
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        </div>
       </section>
 
       {/* ── App screenshots / mockups ────────────────────────────────── */}
