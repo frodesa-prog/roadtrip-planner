@@ -8,7 +8,6 @@ import { useNotes } from '@/hooks/useNotes'
 import { useStops } from '@/hooks/useStops'
 import { useNoteImages } from '@/hooks/useNoteImages'
 import TripManager from '@/components/planning/TripManager'
-import NewTripWizard from '@/components/planning/NewTripWizard'
 import { Note, Stop } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -234,15 +233,11 @@ function openCameraCapture(): Promise<File | null> {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NotesPage() {
-  const {
-    trips, currentTrip, loading: tripsLoading, userId,
-    setCurrentTrip, createTrip, deleteTrip,
-  } = useTrips()
+  const { currentTrip, loading: tripsLoading } = useTrips()
   const { notes, addNote, updateNote, archiveNote } = useNotes(
     currentTrip?.id ?? null
   )
   const { stops } = useStops(currentTrip?.id ?? null)
-  const [showWizard, setShowWizard] = useState(false)
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [showDraft, setShowDraft] = useState(false)
   const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null)
@@ -385,11 +380,7 @@ export default function NotesPage() {
         // Mobil: full bredde når vi er i list-view, skjult ellers
         mobileView === 'list' ? 'flex w-full' : 'hidden',
       ].join(' ')}>
-        <TripManager
-          trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
-          onSelectTrip={setCurrentTrip} onRequestCreate={() => setShowWizard(true)} onDeleteTrip={deleteTrip}
-        />
-        <NewTripWizard open={showWizard} onClose={() => setShowWizard(false)} onCreateTrip={createTrip} />
+        <TripManager currentTrip={currentTrip} loading={tripsLoading} />
 
         {/* Note list header */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800 flex-shrink-0">

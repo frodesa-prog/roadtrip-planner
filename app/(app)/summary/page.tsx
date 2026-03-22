@@ -16,7 +16,6 @@ import { useFlights } from '@/hooks/useFlights'
 import { useNotes } from '@/hooks/useNotes'
 import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
 import TripManager from '@/components/planning/TripManager'
-import NewTripWizard from '@/components/planning/NewTripWizard'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import NoteModal from '@/components/planning/NoteModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -74,7 +73,7 @@ const PALETTES = [
 
 export default function SummaryPage() {
   const router = useRouter()
-  const { trips, currentTrip, loading: tripsLoading, userId, setCurrentTrip, createTrip, deleteTrip } = useTrips()
+  const { currentTrip, loading: tripsLoading } = useTrips()
   const { stops, loading: stopsLoading, updateStop } = useStops(currentTrip?.id ?? null)
   const stopIds = useMemo(() => stops.map((s) => s.id), [stops])
   const { hotels, saveHotel } = useHotels(stopIds)
@@ -90,7 +89,6 @@ export default function SummaryPage() {
   const [flightModal, setFlightModal] = useState<Flight | null>(null)
   const [activityModal, setActivityModal] = useState<Activity | null>(null)
   const [diningModal, setDiningModal] = useState<Dining | null>(null)
-  const [showWizard, setShowWizard] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   type NoteModalState =
     | { mode: 'new'; stopId: string | null; initialDate: string | null }
@@ -291,11 +289,7 @@ export default function SummaryPage() {
         transition-transform duration-200
         ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <TripManager
-          trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
-          onSelectTrip={setCurrentTrip} onRequestCreate={() => setShowWizard(true)} onDeleteTrip={deleteTrip}
-        />
-        <NewTripWizard open={showWizard} onClose={() => setShowWizard(false)} onCreateTrip={createTrip} />
+        <TripManager currentTrip={currentTrip} loading={tripsLoading} />
 
         {currentTrip && !stopsLoading && stops.filter((s) => s.arrival_date).length > 0 && (
           <div className="flex-1 overflow-y-auto py-3 flex flex-col">
@@ -386,21 +380,8 @@ export default function SummaryPage() {
       {/* ── Main area ───────────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden flex-col md:flex-row">
 
-        {/* Mobil: kompakt turselektor */}
-        <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-slate-800 flex-shrink-0">
-          <select
-            value={currentTrip?.id ?? ''}
-            onChange={(e) => {
-              const trip = trips.find((t) => t.id === e.target.value)
-              if (trip) setCurrentTrip(trip)
-            }}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-md text-xs text-slate-200 px-2 py-1.5 outline-none"
-          >
-            {trips.length === 0 && <option value="">Ingen turer</option>}
-            {trips.map((t) => (
-              <option key={t.id} value={t.id}>{t.name} · {t.year}</option>
-            ))}
-          </select>
+        {/* Mobil: sidebar-knapp */}
+        <div className="md:hidden flex items-center justify-end px-3 py-2 border-b border-slate-800 flex-shrink-0">
           <button
             onClick={() => setMobileSidebarOpen(true)}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-xs"

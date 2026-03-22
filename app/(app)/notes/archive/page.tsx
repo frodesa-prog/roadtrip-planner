@@ -7,7 +7,6 @@ import { useTrips } from '@/hooks/useTrips'
 import { useArchivedNotes } from '@/hooks/useNotes'
 import { useStops } from '@/hooks/useStops'
 import TripManager from '@/components/planning/TripManager'
-import NewTripWizard from '@/components/planning/NewTripWizard'
 import { Note } from '@/types'
 
 function formatDate(iso: string) {
@@ -19,15 +18,13 @@ function formatDate(iso: string) {
 
 export default function NotesArchivePage() {
   const {
-    trips, currentTrip, loading: tripsLoading, userId,
-    setCurrentTrip, createTrip, deleteTrip,
+    currentTrip, loading: tripsLoading,
   } = useTrips()
   const { archivedNotes, deleteNotePermanently, restoreNote } = useArchivedNotes(
     currentTrip?.id ?? null
   )
   const { stops } = useStops(currentTrip?.id ?? null)
 
-  const [showWizard, setShowWizard] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
 
@@ -87,11 +84,7 @@ export default function NotesArchivePage() {
 
       {/* ── Left sidebar ────────────────────────────────────────────────── */}
       <div className="w-[240px] min-w-[200px] h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0">
-        <TripManager
-          trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
-          onSelectTrip={setCurrentTrip} onRequestCreate={() => setShowWizard(true)} onDeleteTrip={deleteTrip}
-        />
-        <NewTripWizard open={showWizard} onClose={() => setShowWizard(false)} onCreateTrip={createTrip} />
+        <TripManager currentTrip={currentTrip} loading={tripsLoading} />
 
         {/* Archive header */}
         <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-800 flex-shrink-0">

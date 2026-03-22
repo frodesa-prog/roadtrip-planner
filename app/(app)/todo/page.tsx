@@ -10,7 +10,6 @@ import { useTodoItems } from '@/hooks/useTodoItems'
 import { useTravelers } from '@/hooks/useTravelers'
 import { useStops } from '@/hooks/useStops'
 import TripManager from '@/components/planning/TripManager'
-import NewTripWizard from '@/components/planning/NewTripWizard'
 import { TodoItem, Traveler } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -30,15 +29,11 @@ function fmtDate(iso: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TodoPage() {
-  const {
-    trips, currentTrip, loading: tripsLoading, userId,
-    setCurrentTrip, createTrip, deleteTrip,
-  } = useTrips()
+  const { currentTrip, loading: tripsLoading } = useTrips()
   const { items, loading, addItem, updateItem, toggleItem, moveItem, setReminder, toggleCritical, deleteItem } =
     useTodoItems(currentTrip?.id ?? null)
   const { travelers } = useTravelers(currentTrip?.id ?? null)
   const { stops } = useStops(currentTrip?.id ?? null)
-  const [showWizard, setShowWizard] = useState(false)
   const [showReminderPanel, setShowReminderPanel] = useState(false)
   const [showCriticalPanel, setShowCriticalPanel] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -92,11 +87,7 @@ export default function TodoPage() {
         transition-transform duration-200
         ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <TripManager
-          trips={trips} currentTrip={currentTrip} loading={tripsLoading} userId={userId}
-          onSelectTrip={setCurrentTrip} onRequestCreate={() => setShowWizard(true)} onDeleteTrip={deleteTrip}
-        />
-        <NewTripWizard open={showWizard} onClose={() => setShowWizard(false)} onCreateTrip={createTrip} />
+        <TripManager currentTrip={currentTrip} loading={tripsLoading} />
 
         {/* Stats */}
         {currentTrip && (
@@ -225,21 +216,8 @@ export default function TodoPage() {
       {/* ── Main content ──────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* Mobil: kompakt turselektor + stats-knapp */}
-        <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-slate-800 flex-shrink-0">
-          <select
-            value={currentTrip?.id ?? ''}
-            onChange={(e) => {
-              const trip = trips.find((t) => t.id === e.target.value)
-              if (trip) setCurrentTrip(trip)
-            }}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-md text-xs text-slate-200 px-2 py-1.5 outline-none"
-          >
-            {trips.length === 0 && <option value="">Ingen turer</option>}
-            {trips.map((t) => (
-              <option key={t.id} value={t.id}>{t.name} · {t.year}</option>
-            ))}
-          </select>
+        {/* Mobil: sidebar-knapp */}
+        <div className="md:hidden flex items-center justify-end px-3 py-2 border-b border-slate-800 flex-shrink-0">
           <button
             onClick={() => setMobileSidebarOpen(true)}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-xs"
