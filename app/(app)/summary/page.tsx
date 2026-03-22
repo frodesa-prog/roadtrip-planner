@@ -137,6 +137,18 @@ export default function SummaryPage() {
     return map
   }, [stops, drivingLegs])
 
+  // Map: arrival ISO date → city name of the previous stop (departure city)
+  const prevCityByArrivalDate = useMemo(() => {
+    const map: Record<string, string> = {}
+    stops.forEach((stop, i) => {
+      if (stop.arrival_date && i > 0) {
+        const prev = stops[i - 1]
+        if (prev?.city) map[stop.arrival_date] = prev.city
+      }
+    })
+    return map
+  }, [stops])
+
   // Map: stop id → palette index
   // Strategy: first use a color no other stop has ever received (prefer unique);
   // only recycle when all 11 colors are exhausted, avoiding proximity conflicts.
@@ -473,6 +485,7 @@ export default function SummaryPage() {
                           stop={stop}
                           isArrival={isArrival}
                           leg={leg}
+                          fromCity={isArrival ? (prevCityByArrivalDate[dateStr] ?? null) : null}
                           palette={pal}
                           isSelected={isSelected}
                           activitiesOnDay={activitiesByDate[dateStr] ?? []}
@@ -613,6 +626,7 @@ function DayCell({
   stop,
   isArrival,
   leg,
+  fromCity,
   palette,
   isSelected,
   activitiesOnDay,
@@ -632,6 +646,7 @@ function DayCell({
   stop: Stop | null
   isArrival: boolean
   leg: LegInfo | null
+  fromCity: string | null
   palette: Palette
   isSelected: boolean
   activitiesOnDay: Activity[]
@@ -688,7 +703,7 @@ function DayCell({
       {/* City name – always on line 2, same position for all days */}
       {stop && (
         <p className="text-[11px] font-semibold truncate leading-tight mt-0.5 text-slate-200">
-          {stop.city}
+          {isArrival && fromCity ? `${fromCity} – ${stop.city}` : stop.city}
         </p>
       )}
 
