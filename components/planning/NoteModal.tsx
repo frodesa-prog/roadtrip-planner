@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { FileText, X, Loader2, ImagePlus, Trash2 } from 'lucide-react'
+import { FileText, X, Loader2, ImagePlus, Trash2, Pencil, Check } from 'lucide-react'
 import { Stop, Note } from '@/types'
 import { useNoteImages } from '@/hooks/useNoteImages'
 
@@ -16,6 +16,34 @@ function getStopDateRange(stop: Stop): string[] {
     dates.push(d.toISOString().split('T')[0])
   }
   return dates
+}
+
+const LINK_PATTERN = new RegExp(
+  '(https?://[^\\s<>"]+' +
+  '|www\\.[^\\s<>"]+' +
+  '|[a-zA-Z0-9][a-zA-Z0-9-]*\\.(?:no|com|net|org|io|co|uk|de|fr|se|dk|fi|is|gov|edu|app|dev|ai|tv|info|biz|me|ly|gg|xyz|online|tech|media|news|sport|store|site|cloud|digital|studio|design|shop|travel|hotel|booking)(?:/[^\\s<>"]*)?)',
+  'g'
+)
+
+function renderWithLinks(text: string) {
+  const parts = text.split(LINK_PATTERN)
+  return parts.map((part, i) => {
+    if (!part) return null
+    if (i % 2 === 0) return <span key={i}>{part}</span>
+    const href = /^https?:\/\//.test(part) ? part : `https://${part}`
+    return (
+      <a
+        key={i}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-400 underline hover:text-blue-300 break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {part}
+      </a>
+    )
+  })
 }
 
 // ─── NoteModal ────────────────────────────────────────────────────────────────
@@ -50,10 +78,11 @@ export default function NoteModal({
     note?.note_date ?? initialDate ?? null
   )
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  // New notes start in edit mode; existing notes start in read mode
+  const [isEditing, setIsEditing] = useState(mode === 'new')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Images only available when editing an existing note
   const { images, isUploading, uploadImage, removeImage } = useNoteImages(
     mode === 'edit' && note ? note.id : null
   )
@@ -97,33 +126,67 @@ export default function NoteModal({
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-amber-400" />
                 <span className="text-sm font-semibold text-slate-100">
-                  {mode === 'new' ? 'Nytt notat' : 'Rediger notat'}
+                  {mode === 'new' ? 'Nytt notat' : (isEditing ? 'Rediger notat' : 'Notat')}
                 </span>
               </div>
-              <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors">
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Toggle edit/read mode (only for existing notes) */}
+                {mode === 'edit' && (
+                  <button
+                    onClick={() => setIsEditing((v) => !v)}
+                    title={isEditing ? 'Bytt til lesemodus' : 'Rediger notat'}
+                    className={`p-1.5 rounded-md transition-colors ${
+                      isEditing
+                        ? 'text-amber-400 bg-amber-900/30 hover:bg-amber-900/50'
+                        : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800'
+                    }`}
+                  >
+                    {isEditing ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+                  </button>
+                )}
+                <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Body */}
-            <div className="px-5 py-4 space-y-3 flex-1">
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Tittel (valgfritt)"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-colors"
-              />
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Skriv notat her…"
-                rows={5}
-                autoFocus
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-colors resize-none"
-              />
+            <div className="px-5 py-4 space-y-3 flex-1 overflow-y-auto">
+              {/* Title */}
+              {isEditing ? (
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Tittel (valgfritt)"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-colors"
+                />
+              ) : (
+                title && (
+                  <p className="text-sm font-semibold text-slate-100">{title}</p>
+                )
+              )}
 
-              {/* City selector – only shown when there are multiple stops to choose from */}
-              {stops.length > 1 && (
+              {/* Content — read mode or edit mode */}
+              {isEditing ? (
+                <textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Skriv notat her…"
+                  rows={7}
+                  autoFocus
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-colors resize-none"
+                />
+              ) : (
+                <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap break-words min-h-[4rem]">
+                  {content
+                    ? renderWithLinks(content)
+                    : <span className="text-slate-600 italic">Ingen tekst</span>
+                  }
+                </div>
+              )}
+
+              {/* City selector */}
+              {isEditing && stops.length > 1 && (
                 <div>
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">By</p>
                   <select
@@ -139,8 +202,8 @@ export default function NoteModal({
                 </div>
               )}
 
-              {/* Date picker – only shown when a stop with dates is selected */}
-              {stopDates.length > 0 && (
+              {/* Date picker */}
+              {isEditing && stopDates.length > 0 && (
                 <div>
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Dato</p>
                   <div className="flex flex-wrap gap-1">
@@ -173,34 +236,44 @@ export default function NoteModal({
 
             {/* Footer */}
             <div className="px-5 pb-4 flex gap-2">
-              <button
-                onClick={() => onSave({ title: title.trim() || null, content, stop_id: selectedStopId, note_date: noteDate })}
-                disabled={!content.trim()}
-                className="flex-1 h-8 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-semibold transition-colors"
-              >
-                Lagre
-              </button>
-              {onDelete && (
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => onSave({ title: title.trim() || null, content, stop_id: selectedStopId, note_date: noteDate })}
+                    disabled={!content.trim()}
+                    className="flex-1 h-8 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-semibold transition-colors"
+                  >
+                    Lagre
+                  </button>
+                  {onDelete && (
+                    <button
+                      onClick={onDelete}
+                      className="px-3 h-8 rounded-lg border border-red-800/60 text-red-400 hover:bg-red-900/30 text-xs transition-colors"
+                    >
+                      Slett
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="px-3 h-8 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 text-xs transition-colors"
+                  >
+                    Avbryt
+                  </button>
+                </>
+              ) : (
                 <button
-                  onClick={onDelete}
-                  className="px-3 h-8 rounded-lg border border-red-800/60 text-red-400 hover:bg-red-900/30 text-xs transition-colors"
+                  onClick={onClose}
+                  className="flex-1 h-8 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 text-xs transition-colors"
                 >
-                  Slett
+                  Lukk
                 </button>
               )}
-              <button
-                onClick={onClose}
-                className="px-3 h-8 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 text-xs transition-colors"
-              >
-                Avbryt
-              </button>
             </div>
           </div>
 
           {/* ── Right: Image panel (edit mode only) ────────────────────── */}
           {showImagePanel && (
             <div className="w-56 flex-shrink-0 border-l border-slate-800 flex flex-col">
-              {/* Panel header */}
               <div className="px-4 py-4 border-b border-slate-800 flex items-center gap-2">
                 <ImagePlus className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-xs font-semibold text-slate-400">Bilder</span>
@@ -209,7 +282,6 @@ export default function NoteModal({
                 )}
               </div>
 
-              {/* Image grid */}
               <div className="flex-1 overflow-y-auto p-3">
                 {images.length === 0 && !isUploading && (
                   <p className="text-[11px] text-slate-600 text-center mt-6 leading-relaxed">
@@ -240,8 +312,6 @@ export default function NoteModal({
                       </button>
                     </div>
                   ))}
-
-                  {/* Upload spinner placeholder */}
                   {isUploading && (
                     <div className="aspect-square rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center">
                       <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
@@ -250,7 +320,6 @@ export default function NoteModal({
                 </div>
               </div>
 
-              {/* Upload button */}
               <div className="p-3 border-t border-slate-800">
                 <label className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 text-xs transition-colors cursor-pointer">
                   <ImagePlus className="w-3.5 h-3.5" />
