@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+
 import {
   ChevronDown, ChevronRight, Hotel as HotelIcon, MapPin,
   UtensilsCrossed, Plus, Moon, ExternalLink, Navigation, Loader2, LayoutList,
@@ -294,16 +294,14 @@ export default function CityPlanSidebar({
   const [showWizard, setShowWizard] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
 
-  const searchParams = useSearchParams()
-  const router = useRouter()
-
-  // Open wizard when navigated with ?new=1 or via navbar event
+  // Open wizard when navigated with ?new=1 (reads URL directly, avoids useSearchParams/Suspense)
   useEffect(() => {
-    if (searchParams.get('new') === '1') {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('new') === '1') {
       setShowWizard(true)
-      router.replace('/plan', { scroll: false })
+      window.history.replaceState({}, '', '/plan')
     }
-  }, [searchParams, router])
+  }, [])
 
   useEffect(() => {
     function onOpenWizard() { setShowWizard(true) }
