@@ -6,11 +6,11 @@ import { Dining } from '@/types'
 import { toast } from 'sonner'
 
 export type AddDiningData = Pick<Dining, 'name'> &
-  Partial<Pick<Dining, 'url' | 'booking_date' | 'booking_time' | 'map_lat' | 'map_lng'>>
+  Partial<Pick<Dining, 'url' | 'notes' | 'booking_date' | 'booking_time' | 'map_lat' | 'map_lng'>>
 
 export type UpdateDiningData = Partial<Pick<
   Dining,
-  'name' | 'url' | 'booking_date' | 'booking_time' | 'map_lat' | 'map_lng'
+  'name' | 'url' | 'notes' | 'booking_date' | 'booking_time' | 'map_lat' | 'map_lng'
 >>
 
 export function useDining(stopIds: string[]) {
@@ -42,6 +42,7 @@ export function useDining(stopIds: string[]) {
         stop_id: stopId,
         name: data.name,
         url: data.url ?? null,
+        notes: data.notes ?? null,
         booking_date: data.booking_date ?? null,
         booking_time: data.booking_time ?? null,
         map_lat: data.map_lat ?? null,

@@ -951,6 +951,7 @@ function ActivityModal({
   const [time, setTime]       = useState(activity.activity_time ?? '')
   const [cost, setCost]       = useState(activity.cost != null ? String(activity.cost) : '')
   const [url, setUrl]         = useState(activity.url ?? '')
+  const [actNotes, setActNotes] = useState(activity.notes ?? '')
   const [customType, setCustomType] = useState('')
   const [showCustom, setShowCustom] = useState(false)
 
@@ -965,6 +966,7 @@ function ActivityModal({
       activity_time: time || null,
       cost: cost ? Number(cost) : null,
       url: url.trim() || null,
+      notes: actNotes.trim() || null,
     })
     onClose()
   }
@@ -1086,6 +1088,15 @@ function ActivityModal({
               className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors" />
           </div>
 
+          {/* Notes */}
+          <div>
+            <p className="text-[10px] text-slate-500 mb-1">Kommentar</p>
+            <textarea value={actNotes} onChange={(e) => setActNotes(e.target.value)}
+              placeholder="Legg til en kommentar…"
+              rows={2}
+              className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors resize-none" />
+          </div>
+
           {/* Navigate to activities page */}
           {activity.map_lat && activity.map_lng && (
             <button onClick={onNavigate}
@@ -1128,10 +1139,11 @@ function DiningModal({
   onClose: () => void
   onNavigate: () => void
 }) {
-  const [name, setName] = useState(dining.name)
-  const [url, setUrl]   = useState(dining.url ?? '')
-  const [date, setDate] = useState(dining.booking_date ?? '')
-  const [time, setTime] = useState(dining.booking_time ?? '')
+  const [name, setName]         = useState(dining.name)
+  const [url, setUrl]           = useState(dining.url ?? '')
+  const [date, setDate]         = useState(dining.booking_date ?? '')
+  const [time, setTime]         = useState(dining.booking_time ?? '')
+  const [dinNotes, setDinNotes] = useState(dining.notes ?? '')
   const [showConfirm, setShowConfirm] = useState(false)
 
   const stopDates = stop ? getStopDateRange(stop) : []
@@ -1142,6 +1154,7 @@ function DiningModal({
       url: url.trim() || null,
       booking_date: date || null,
       booking_time: time || null,
+      notes: dinNotes.trim() || null,
     })
     onClose()
   }
@@ -1229,6 +1242,15 @@ function DiningModal({
             <p className="text-[10px] text-slate-500 mb-1">Bookingklokkeslett</p>
             <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
               className="h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 outline-none focus:border-red-500 transition-colors" />
+          </div>
+
+          {/* Notes */}
+          <div>
+            <p className="text-[10px] text-slate-500 mb-1">Kommentar</p>
+            <textarea value={dinNotes} onChange={(e) => setDinNotes(e.target.value)}
+              placeholder="Legg til en kommentar…"
+              rows={2}
+              className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-600 outline-none focus:border-red-500 transition-colors resize-none" />
           </div>
 
           {/* Navigate to aktiviteter page */}

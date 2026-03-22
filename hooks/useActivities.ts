@@ -6,12 +6,12 @@ import { Activity } from '@/types'
 import { toast } from 'sonner'
 
 export type AddActivityData = Pick<Activity, 'name'> &
-  Partial<Pick<Activity, 'url' | 'cost' | 'activity_date' | 'activity_time' | 'activity_type' |
+  Partial<Pick<Activity, 'url' | 'cost' | 'notes' | 'activity_date' | 'activity_time' | 'activity_type' |
     'stadium' | 'section' | 'seat_row' | 'seat' | 'map_lat' | 'map_lng'>>
 
 export type UpdateActivityData = Partial<Pick<
   Activity,
-  'name' | 'url' | 'cost' | 'activity_date' | 'activity_time' |
+  'name' | 'url' | 'cost' | 'notes' | 'activity_date' | 'activity_time' |
   'remaining_amount' | 'activity_type' | 'map_lat' | 'map_lng' |
   'stadium' | 'section' | 'seat_row' | 'seat'
 >>

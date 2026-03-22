@@ -91,6 +91,7 @@ export interface Dining {
   url: string | null
   booking_date: string | null   // ISO date (YYYY-MM-DD)
   booking_time: string | null   // HH:MM
+  notes: string | null
   map_lat: number | null
   map_lng: number | null
 }
@@ -101,6 +102,7 @@ export interface PossibleActivity {
   description: string
   url: string | null
   category: string | null   // same values as Activity.activity_type
+  notes: string | null
 }
 
 export interface Photo {

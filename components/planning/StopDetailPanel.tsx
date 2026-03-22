@@ -91,6 +91,7 @@ export default function StopDetailPanel({
   const [newActName, setNewActName]         = useState('')
   const [newActUrl, setNewActUrl]           = useState('')
   const [newActCost, setNewActCost]         = useState('')
+  const [newActNotes, setNewActNotes]       = useState('')
   const [newActDate, setNewActDate]         = useState(selectedDate || tripDateFrom)
   const [newActTime, setNewActTime]         = useState('')
   const [newActType, setNewActType]         = useState<string | null>(null)
@@ -118,6 +119,7 @@ export default function StopDetailPanel({
   const [editActName, setEditActName]       = useState('')
   const [editActUrl, setEditActUrl]         = useState('')
   const [editActCost, setEditActCost]       = useState('')
+  const [editActNotes, setEditActNotes]     = useState('')
   const [editActDate, setEditActDate]       = useState('')
   const [editActTime, setEditActTime]       = useState('')
   const [editActStadium, setEditActStadium] = useState('')
@@ -130,6 +132,7 @@ export default function StopDetailPanel({
     setEditActName(act.name)
     setEditActUrl(act.url ?? '')
     setEditActCost(act.cost != null ? String(act.cost) : '')
+    setEditActNotes(act.notes ?? '')
     setEditActDate(act.activity_date ?? '')
     setEditActTime(act.activity_time ?? '')
     setEditActStadium(act.stadium ?? '')
@@ -145,6 +148,7 @@ export default function StopDetailPanel({
       name: editActName.trim(),
       url: editActUrl.trim() || null,
       cost: editActCost ? Number(editActCost) : null,
+      notes: editActNotes.trim() || null,
       activity_date: editActDate || null,
       activity_time: editActTime || null,
       stadium:  editActStadium.trim() || null,
@@ -161,6 +165,7 @@ export default function StopDetailPanel({
   const [showAddDining, setShowAddDining]       = useState(false)
   const [newDiningName, setNewDiningName]       = useState('')
   const [newDiningUrl, setNewDiningUrl]         = useState('')
+  const [newDiningNotes, setNewDiningNotes]     = useState('')
   const [newDiningDate, setNewDiningDate]       = useState(selectedDate || tripDateFrom)
   const [newDiningTime, setNewDiningTime]       = useState('')
   const [pinningDiningId, setPinningDiningId]   = useState<string | null>(null)
@@ -169,6 +174,7 @@ export default function StopDetailPanel({
   const [editingDiningId, setEditingDiningId]   = useState<string | null>(null)
   const [editDiningName, setEditDiningName]     = useState('')
   const [editDiningUrl, setEditDiningUrl]       = useState('')
+  const [editDiningNotes, setEditDiningNotes]   = useState('')
   const [editDiningDate, setEditDiningDate]     = useState('')
   const [editDiningTime, setEditDiningTime]     = useState('')
 
@@ -176,16 +182,19 @@ export default function StopDetailPanel({
   const [showAddPossible, setShowAddPossible]         = useState(false)
   const [newPossibleDesc, setNewPossibleDesc]         = useState('')
   const [newPossibleUrl, setNewPossibleUrl]           = useState('')
+  const [newPossibleNotes, setNewPossibleNotes]       = useState('')
   const [newPossibleCategory, setNewPossibleCategory] = useState<string | null>(null)
   const [editingPossibleId, setEditingPossibleId]     = useState<string | null>(null)
   const [editPossibleDesc, setEditPossibleDesc]       = useState('')
   const [editPossibleUrl, setEditPossibleUrl]         = useState('')
+  const [editPossibleNotes, setEditPossibleNotes]     = useState('')
   const [editPossibleCategory, setEditPossibleCategory] = useState<string | null>(null)
 
   function startEditPossible(a: PossibleActivity) {
     setEditingPossibleId(a.id)
     setEditPossibleDesc(a.description)
     setEditPossibleUrl(a.url ?? '')
+    setEditPossibleNotes(a.notes ?? '')
     setEditPossibleCategory(a.category ?? null)
   }
 
@@ -194,6 +203,7 @@ export default function StopDetailPanel({
     onUpdatePossibleActivity(editingPossibleId, {
       description: editPossibleDesc.trim(),
       url: editPossibleUrl.trim() || null,
+      notes: editPossibleNotes.trim() || null,
       category: editPossibleCategory,
     })
     setEditingPossibleId(null)
@@ -205,10 +215,12 @@ export default function StopDetailPanel({
     onAddPossibleActivity({
       description: newPossibleDesc.trim(),
       url: newPossibleUrl.trim() || undefined,
+      notes: newPossibleNotes.trim() || undefined,
       category: newPossibleCategory ?? undefined,
     })
     setNewPossibleDesc('')
     setNewPossibleUrl('')
+    setNewPossibleNotes('')
     setNewPossibleCategory(null)
     setShowAddPossible(false)
   }
@@ -220,6 +232,7 @@ export default function StopDetailPanel({
     setEditingDiningId(d.id)
     setEditDiningName(d.name)
     setEditDiningUrl(d.url ?? '')
+    setEditDiningNotes(d.notes ?? '')
     setEditDiningDate(d.booking_date ?? '')
     setEditDiningTime(d.booking_time ?? '')
   }
@@ -229,6 +242,7 @@ export default function StopDetailPanel({
     onUpdateDining(editingDiningId, {
       name: editDiningName.trim(),
       url: editDiningUrl.trim() || null,
+      notes: editDiningNotes.trim() || null,
       booking_date: editDiningDate || null,
       booking_time: editDiningTime || null,
     })
@@ -241,12 +255,13 @@ export default function StopDetailPanel({
     onAddDining({
       name: newDiningName.trim(),
       url: newDiningUrl.trim() || undefined,
+      notes: newDiningNotes.trim() || undefined,
       booking_date: newDiningDate || undefined,
       booking_time: newDiningTime.trim() || undefined,
       map_lat: newDiningLocation?.lat ?? undefined,
       map_lng: newDiningLocation?.lng ?? undefined,
     })
-    setNewDiningName(''); setNewDiningUrl('')
+    setNewDiningName(''); setNewDiningUrl(''); setNewDiningNotes('')
     setNewDiningDate(selectedDate || tripDateFrom); setNewDiningTime('')
     setNewDiningLocation(null)
     setShowAddDining(false)
@@ -343,6 +358,7 @@ export default function StopDetailPanel({
       name: newActName.trim(),
       url: newActUrl.trim() || undefined,
       cost: newActCost ? Number(newActCost) : undefined,
+      notes: newActNotes.trim() || undefined,
       activity_date: newActDate || undefined,
       activity_time: newActTime.trim() || undefined,
       activity_type: newActType || undefined,
@@ -353,7 +369,7 @@ export default function StopDetailPanel({
       map_lat:  newActLocation?.lat   ?? undefined,
       map_lng:  newActLocation?.lng   ?? undefined,
     })
-    setNewActName(''); setNewActUrl(''); setNewActCost('')
+    setNewActName(''); setNewActUrl(''); setNewActCost(''); setNewActNotes('')
     setNewActDate(selectedDate || tripDateFrom); setNewActTime('')
     setNewActType(null); setCustomTypeInput(''); setShowCustomType(false); setShowAddActivity(false)
     setNewActStadium(''); setNewActSection(''); setNewActRow(''); setNewActSeat('')
@@ -362,7 +378,7 @@ export default function StopDetailPanel({
 
   function handleCancelAddActivity() {
     setShowAddActivity(false)
-    setNewActName(''); setNewActUrl(''); setNewActCost('')
+    setNewActName(''); setNewActUrl(''); setNewActCost(''); setNewActNotes('')
     setNewActDate(selectedDate || tripDateFrom); setNewActTime('')
     setNewActType(null); setCustomTypeInput(''); setShowCustomType(false)
     setNewActStadium(''); setNewActSection(''); setNewActRow(''); setNewActSeat('')
@@ -671,6 +687,10 @@ export default function StopDetailPanel({
                             className="w-20 h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-blue-500 transition-colors" />
                           <span className="text-xs text-slate-500 self-center">kr</span>
                         </div>
+                        <textarea value={editActNotes} onChange={(e) => setEditActNotes(e.target.value)}
+                          placeholder="Kommentar (valgfritt)"
+                          rows={2}
+                          className="w-full text-xs bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-500 outline-none focus:border-blue-500 transition-colors resize-none" />
                         <div className="flex gap-1.5 items-center">
                           <input type="time" value={editActTime} onChange={(e) => setEditActTime(e.target.value)}
                             className="w-28 h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 outline-none focus:border-blue-500 transition-colors" />
@@ -785,6 +805,7 @@ export default function StopDetailPanel({
                             ].filter(Boolean).join(' · ')}
                           </span>
                         )}
+                        {act.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{act.notes}</p>}
                       </div>
 
                       {act.url && (
@@ -841,6 +862,11 @@ export default function StopDetailPanel({
                     placeholder="Pris" className="h-7 text-xs w-20 bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
                   <span className="text-xs text-slate-500 self-center flex-shrink-0">kr</span>
                 </div>
+
+                <textarea value={newActNotes} onChange={(e) => setNewActNotes(e.target.value)}
+                  placeholder="Kommentar (valgfritt)"
+                  rows={2}
+                  className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-600 outline-none focus:border-blue-500 transition-colors resize-none" />
 
                 <div className="flex items-center gap-1.5">
                   <Input type="time" value={newActTime} onChange={(e) => setNewActTime(e.target.value)}
@@ -968,6 +994,10 @@ export default function StopDetailPanel({
                         <input value={editDiningUrl} onChange={(e) => setEditDiningUrl(e.target.value)}
                           placeholder="https://..."
                           className="w-full h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-red-500 transition-colors" />
+                        <textarea value={editDiningNotes} onChange={(e) => setEditDiningNotes(e.target.value)}
+                          placeholder="Kommentar (valgfritt)"
+                          rows={2}
+                          className="w-full text-xs bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-500 outline-none focus:border-red-500 transition-colors resize-none" />
                         <div className="flex gap-1.5 items-center">
                           <input type="time" value={editDiningTime} onChange={(e) => setEditDiningTime(e.target.value)}
                             className="w-28 h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 outline-none focus:border-red-500 transition-colors" />
@@ -1015,6 +1045,7 @@ export default function StopDetailPanel({
                             {d.booking_time && ` · ${d.booking_time.slice(0, 5)}`}
                           </span>
                         )}
+                        {d.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{d.notes}</p>}
                       </div>
 
                       {d.url && (
@@ -1060,6 +1091,10 @@ export default function StopDetailPanel({
                   className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" autoFocus />
                 <Input value={newDiningUrl} onChange={(e) => setNewDiningUrl(e.target.value)} placeholder="https://..."
                   className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
+                <textarea value={newDiningNotes} onChange={(e) => setNewDiningNotes(e.target.value)}
+                  placeholder="Kommentar (valgfritt)"
+                  rows={2}
+                  className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-600 outline-none focus:border-red-500 transition-colors resize-none" />
                 <div className="flex items-center gap-1.5">
                   <Input type="time" value={newDiningTime} onChange={(e) => setNewDiningTime(e.target.value)}
                     className="h-7 text-xs w-28 bg-slate-800 border-slate-700 text-slate-100" />
@@ -1092,7 +1127,7 @@ export default function StopDetailPanel({
                     className="flex-1 h-7 rounded-md bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-medium transition-colors">
                     Legg til
                   </button>
-                  <button type="button" onClick={() => { setShowAddDining(false); setNewDiningName(''); setNewDiningUrl(''); setNewDiningTime(''); setNewDiningDate(selectedDate || tripDateFrom); setNewDiningLocation(null) }}
+                  <button type="button" onClick={() => { setShowAddDining(false); setNewDiningName(''); setNewDiningUrl(''); setNewDiningNotes(''); setNewDiningTime(''); setNewDiningDate(selectedDate || tripDateFrom); setNewDiningLocation(null) }}
                     className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
                     Avbryt
                   </button>
@@ -1137,6 +1172,10 @@ export default function StopDetailPanel({
                           placeholder="https://..."
                           className="w-full h-7 text-xs bg-slate-700 border border-slate-600 rounded px-2 text-slate-100 placeholder:text-slate-500 outline-none focus:border-teal-500 transition-colors"
                         />
+                        <textarea value={editPossibleNotes} onChange={(e) => setEditPossibleNotes(e.target.value)}
+                          placeholder="Kommentar (valgfritt)"
+                          rows={2}
+                          className="w-full text-xs bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-500 outline-none focus:border-teal-500 transition-colors resize-none" />
                         <div>
                           <p className="text-[10px] text-slate-500 mb-1">Kategori</p>
                           <div className="flex flex-wrap gap-1">
@@ -1182,6 +1221,7 @@ export default function StopDetailPanel({
                             {getActivityTypeConfig(a.category).label}
                           </span>
                         )}
+                        {a.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{a.notes}</p>}
                       </div>
                       {a.url && (
                         <a href={a.url} target="_blank" rel="noopener noreferrer"
@@ -1223,6 +1263,10 @@ export default function StopDetailPanel({
                   placeholder="https://..."
                   className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600"
                 />
+                <textarea value={newPossibleNotes} onChange={(e) => setNewPossibleNotes(e.target.value)}
+                  placeholder="Kommentar (valgfritt)"
+                  rows={2}
+                  className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-600 outline-none focus:border-teal-500 transition-colors resize-none" />
                 <div>
                   <p className="text-[10px] text-slate-500 mb-1">Kategori</p>
                   <div className="flex flex-wrap gap-1">
@@ -1246,7 +1290,7 @@ export default function StopDetailPanel({
                     Legg til
                   </button>
                   <button type="button"
-                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleCategory(null) }}
+                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleNotes(''); setNewPossibleCategory(null) }}
                     className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
                     Avbryt
                   </button>

@@ -94,30 +94,36 @@ export default function CityDayPanel({
   const [showAddActivity, setShowAddActivity]   = useState(false)
   const [newActName, setNewActName]             = useState('')
   const [newActUrl, setNewActUrl]               = useState('')
+  const [newActNotes, setNewActNotes]           = useState('')
   const [newActTime, setNewActTime]             = useState('')
   const [newActType, setNewActType]             = useState<string | null>(null)
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
   const [editActName, setEditActName]           = useState('')
   const [editActUrl, setEditActUrl]             = useState('')
+  const [editActNotes, setEditActNotes]         = useState('')
   const [editActTime, setEditActTime]           = useState('')
 
   // ── Dining state ──────────────────────────────────────────────────────────
   const [showAddDining, setShowAddDining]       = useState(false)
   const [newDiningName, setNewDiningName]       = useState('')
   const [newDiningUrl, setNewDiningUrl]         = useState('')
+  const [newDiningNotes, setNewDiningNotes]     = useState('')
   const [newDiningTime, setNewDiningTime]       = useState('')
   const [editingDiningId, setEditingDiningId]   = useState<string | null>(null)
   const [editDiningName, setEditDiningName]     = useState('')
   const [editDiningUrl, setEditDiningUrl]       = useState('')
+  const [editDiningNotes, setEditDiningNotes]   = useState('')
   const [editDiningTime, setEditDiningTime]     = useState('')
 
   // ── Possible activities state ─────────────────────────────────────────────
   const [showAddPossible, setShowAddPossible]       = useState(false)
   const [newPossibleDesc, setNewPossibleDesc]       = useState('')
   const [newPossibleUrl, setNewPossibleUrl]         = useState('')
+  const [newPossibleNotes, setNewPossibleNotes]     = useState('')
   const [editingPossibleId, setEditingPossibleId]   = useState<string | null>(null)
   const [editPossibleDesc, setEditPossibleDesc]     = useState('')
   const [editPossibleUrl, setEditPossibleUrl]       = useState('')
+  const [editPossibleNotes, setEditPossibleNotes]   = useState('')
 
   // ── Confirm dialog ────────────────────────────────────────────────────────
   const [confirm, setConfirm] = useState<{ message: string; action: () => void } | null>(null)
@@ -142,11 +148,12 @@ export default function CityDayPanel({
     onAddActivity({
       name: newActName.trim(),
       url: newActUrl.trim() || undefined,
+      notes: newActNotes.trim() || undefined,
       activity_date: dateStr,
       activity_time: newActTime.trim() || undefined,
       activity_type: newActType || undefined,
     })
-    setNewActName(''); setNewActUrl(''); setNewActTime(''); setNewActType(null)
+    setNewActName(''); setNewActUrl(''); setNewActNotes(''); setNewActTime(''); setNewActType(null)
     setShowAddActivity(false)
   }
 
@@ -154,6 +161,7 @@ export default function CityDayPanel({
     setEditingActivityId(act.id)
     setEditActName(act.name)
     setEditActUrl(act.url ?? '')
+    setEditActNotes(act.notes ?? '')
     setEditActTime(act.activity_time ?? '')
   }
 
@@ -162,6 +170,7 @@ export default function CityDayPanel({
     onUpdateActivity(editingActivityId, {
       name: editActName.trim(),
       url: editActUrl.trim() || null,
+      notes: editActNotes.trim() || null,
       activity_time: editActTime || null,
       activity_date: dateStr,
     })
@@ -174,10 +183,11 @@ export default function CityDayPanel({
     onAddDining({
       name: newDiningName.trim(),
       url: newDiningUrl.trim() || undefined,
+      notes: newDiningNotes.trim() || undefined,
       booking_date: dateStr,
       booking_time: newDiningTime.trim() || undefined,
     })
-    setNewDiningName(''); setNewDiningUrl(''); setNewDiningTime('')
+    setNewDiningName(''); setNewDiningUrl(''); setNewDiningNotes(''); setNewDiningTime('')
     setShowAddDining(false)
   }
 
@@ -185,6 +195,7 @@ export default function CityDayPanel({
     setEditingDiningId(d.id)
     setEditDiningName(d.name)
     setEditDiningUrl(d.url ?? '')
+    setEditDiningNotes(d.notes ?? '')
     setEditDiningTime(d.booking_time ?? '')
   }
 
@@ -193,6 +204,7 @@ export default function CityDayPanel({
     onUpdateDining(editingDiningId, {
       name: editDiningName.trim(),
       url: editDiningUrl.trim() || null,
+      notes: editDiningNotes.trim() || null,
       booking_time: editDiningTime || null,
       booking_date: dateStr,
     })
@@ -205,8 +217,9 @@ export default function CityDayPanel({
     onAddPossibleActivity({
       description: newPossibleDesc.trim(),
       url: newPossibleUrl.trim() || undefined,
+      notes: newPossibleNotes.trim() || undefined,
     })
-    setNewPossibleDesc(''); setNewPossibleUrl('')
+    setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleNotes('')
     setShowAddPossible(false)
   }
 
@@ -214,6 +227,7 @@ export default function CityDayPanel({
     setEditingPossibleId(a.id)
     setEditPossibleDesc(a.description)
     setEditPossibleUrl(a.url ?? '')
+    setEditPossibleNotes(a.notes ?? '')
   }
 
   function saveEditPossible() {
@@ -221,6 +235,7 @@ export default function CityDayPanel({
     onUpdatePossibleActivity(editingPossibleId, {
       description: editPossibleDesc.trim(),
       url: editPossibleUrl.trim() || null,
+      notes: editPossibleNotes.trim() || null,
     })
     setEditingPossibleId(null)
   }
@@ -308,6 +323,10 @@ export default function CityDayPanel({
                     className={timeCls}
                   />
                 </div>
+                <textarea value={newActNotes} onChange={(e) => setNewActNotes(e.target.value)}
+                  placeholder="Kommentar (valgfritt)"
+                  rows={2}
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none" />
                 {/* Type picker */}
                 <div className="flex flex-wrap gap-1">
                   {ACTIVITY_TYPE_PRESETS.map((p) => (
@@ -328,7 +347,7 @@ export default function CityDayPanel({
                 <div className="flex gap-1.5 justify-end">
                   <button
                     type="button"
-                    onClick={() => { setShowAddActivity(false); setNewActName(''); setNewActUrl(''); setNewActTime(''); setNewActType(null) }}
+                    onClick={() => { setShowAddActivity(false); setNewActName(''); setNewActUrl(''); setNewActNotes(''); setNewActTime(''); setNewActType(null) }}
                     className="px-2.5 py-1 text-xs text-slate-400 hover:text-slate-200 transition-colors"
                   >
                     Avbryt
@@ -354,6 +373,10 @@ export default function CityDayPanel({
                         <input value={editActUrl} onChange={(e) => setEditActUrl(e.target.value)} placeholder="URL (valgfritt)" className={inputCls} />
                         <input type="time" value={editActTime} onChange={(e) => setEditActTime(e.target.value)} className={timeCls} />
                       </div>
+                      <textarea value={editActNotes} onChange={(e) => setEditActNotes(e.target.value)}
+                        placeholder="Kommentar (valgfritt)"
+                        rows={2}
+                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none" />
                       <div className="flex gap-1 justify-end">
                         <button onClick={() => setEditingActivityId(null)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-200">Avbryt</button>
                         <button onClick={saveEditActivity} className="px-2.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded">Lagre</button>
@@ -380,6 +403,7 @@ export default function CityDayPanel({
                           <Clock className="w-2.5 h-2.5" /> {act.activity_time.slice(0, 5)}
                         </p>
                       )}
+                      {act.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{act.notes}</p>}
                     </div>
                     {act.url && (
                       <a href={act.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-slate-600 hover:text-blue-400 transition-colors">
@@ -454,10 +478,14 @@ export default function CityDayPanel({
                     className={timeCls}
                   />
                 </div>
+                <textarea value={newDiningNotes} onChange={(e) => setNewDiningNotes(e.target.value)}
+                  placeholder="Kommentar (valgfritt)"
+                  rows={2}
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-orange-500 resize-none" />
                 <div className="flex gap-1.5 justify-end">
                   <button
                     type="button"
-                    onClick={() => { setShowAddDining(false); setNewDiningName(''); setNewDiningUrl(''); setNewDiningTime('') }}
+                    onClick={() => { setShowAddDining(false); setNewDiningName(''); setNewDiningUrl(''); setNewDiningNotes(''); setNewDiningTime('') }}
                     className="px-2.5 py-1 text-xs text-slate-400 hover:text-slate-200 transition-colors"
                   >
                     Avbryt
@@ -482,6 +510,10 @@ export default function CityDayPanel({
                         <input value={editDiningUrl} onChange={(e) => setEditDiningUrl(e.target.value)} placeholder="URL (valgfritt)" className={inputCls} />
                         <input type="time" value={editDiningTime} onChange={(e) => setEditDiningTime(e.target.value)} className={timeCls} />
                       </div>
+                      <textarea value={editDiningNotes} onChange={(e) => setEditDiningNotes(e.target.value)}
+                        placeholder="Kommentar (valgfritt)"
+                        rows={2}
+                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-orange-500 resize-none" />
                       <div className="flex gap-1 justify-end">
                         <button onClick={() => setEditingDiningId(null)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-200">Avbryt</button>
                         <button onClick={saveEditDining} className="px-2.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded">Lagre</button>
@@ -508,6 +540,7 @@ export default function CityDayPanel({
                           <Clock className="w-2.5 h-2.5" /> {d.booking_time.slice(0, 5)}
                         </p>
                       )}
+                      {d.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{d.notes}</p>}
                     </div>
                     {d.url && (
                       <a href={d.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-slate-600 hover:text-blue-400 transition-colors">
@@ -574,10 +607,14 @@ export default function CityDayPanel({
                   onChange={(e) => setNewPossibleUrl(e.target.value)}
                   className={inputCls}
                 />
+                <textarea value={newPossibleNotes} onChange={(e) => setNewPossibleNotes(e.target.value)}
+                  placeholder="Kommentar (valgfritt)"
+                  rows={2}
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-yellow-500 resize-none" />
                 <div className="flex gap-1.5 justify-end">
                   <button
                     type="button"
-                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl('') }}
+                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleNotes('') }}
                     className="px-2.5 py-1 text-xs text-slate-400 hover:text-slate-200 transition-colors"
                   >
                     Avbryt
@@ -599,6 +636,10 @@ export default function CityDayPanel({
                     <div key={a.id} className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50 space-y-1.5">
                       <input value={editPossibleDesc} onChange={(e) => setEditPossibleDesc(e.target.value)} className={inputCls} autoFocus />
                       <input value={editPossibleUrl} onChange={(e) => setEditPossibleUrl(e.target.value)} placeholder="URL (valgfritt)" className={inputCls} />
+                      <textarea value={editPossibleNotes} onChange={(e) => setEditPossibleNotes(e.target.value)}
+                        placeholder="Kommentar (valgfritt)"
+                        rows={2}
+                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-yellow-500 resize-none" />
                       <div className="flex gap-1 justify-end">
                         <button onClick={() => setEditingPossibleId(null)} className="px-2 py-0.5 text-xs text-slate-400 hover:text-slate-200">Avbryt</button>
                         <button onClick={saveEditPossible} className="px-2.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded">Lagre</button>
@@ -611,6 +652,7 @@ export default function CityDayPanel({
                     <Lightbulb className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-slate-300 truncate">{a.description}</p>
+                      {a.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{a.notes}</p>}
                     </div>
                     {a.url && (
                       <a href={a.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-slate-600 hover:text-blue-400 transition-colors">

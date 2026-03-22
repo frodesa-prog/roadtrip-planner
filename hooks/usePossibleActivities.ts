@@ -6,9 +6,9 @@ import { PossibleActivity } from '@/types'
 import { toast } from 'sonner'
 
 export type AddPossibleActivityData = Pick<PossibleActivity, 'description'> &
-  Partial<Pick<PossibleActivity, 'url' | 'category'>>
+  Partial<Pick<PossibleActivity, 'url' | 'category' | 'notes'>>
 
-export type UpdatePossibleActivityData = Partial<Pick<PossibleActivity, 'description' | 'url' | 'category'>>
+export type UpdatePossibleActivityData = Partial<Pick<PossibleActivity, 'description' | 'url' | 'category' | 'notes'>>
 
 export function usePossibleActivities(stopIds: string[]) {
   const [possibleActivities, setPossibleActivities] = useState<PossibleActivity[]>([])
@@ -40,6 +40,7 @@ export function usePossibleActivities(stopIds: string[]) {
         description: data.description,
         url: data.url ?? null,
         category: data.category ?? null,
+        notes: data.notes ?? null,
       }
       setPossibleActivities((prev) => [...prev, newEntry])
       const { error } = await supabase.from('possible_activities').insert(newEntry)
