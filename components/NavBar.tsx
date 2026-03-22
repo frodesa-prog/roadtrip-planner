@@ -200,9 +200,9 @@ export default function NavBar() {
           <Image
             src="/logo.png"
             alt="MyVacayPlanner"
-            width={110}
-            height={60}
-            className="object-contain"
+            width={90}
+            height={48}
+            className="object-contain -mt-2"
           />
         </button>
         {tripPickerOpen && (
