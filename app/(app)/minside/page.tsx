@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import AdminTab from '@/components/admin/AdminTab'
 import InnstillingerTab from '@/components/minside/InnstillingerTab'
 import AdministerReiserTab from '@/components/minside/AdministerReiserTab'
+import NyhetsbrevTab from '@/components/minside/NyhetsbrevTab'
 import {
   User,
   Share2,
@@ -28,6 +29,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Briefcase,
+  Bell,
   Eye,
   EyeOff,
   Plus,
@@ -80,6 +82,7 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
 const BASE_TABS = [
   { id: 'profil',          label: 'Profil',             icon: User },
   { id: 'reiser',          label: 'Administrer reiser', icon: Briefcase },
+  { id: 'nyhetsbrev',      label: 'Nyhetsbrev',         icon: Bell },
   { id: 'del',             label: 'Del ferie',          icon: Share2 },
   { id: 'logg',            label: 'Endringslogg',       icon: ClipboardList },
   { id: 'statistikk',      label: 'Statistikk',         icon: BarChart2 },
@@ -1440,6 +1443,7 @@ export default function MinSidePage() {
     switch (activeTab) {
       case 'profil':      return <ProfilTab user={user} />
       case 'reiser':      return <AdministerReiserTab />
+      case 'nyhetsbrev':  return <NyhetsbrevTab />
       case 'del':         return <DelFerieTab />
       case 'logg':        return <EndringsloggTab />
       case 'statistikk':  return <StatistikkTab />
