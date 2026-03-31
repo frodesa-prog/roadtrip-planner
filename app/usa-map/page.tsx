@@ -70,6 +70,11 @@ function TripRoute({
   const markersRef         = useRef<google.maps.Marker[]>([])
   const directionsLoadedRef = useRef(false)
 
+  // Nullstill når stoppesteder endres så ny rute hentes og fallback-polyline vises midlertidig
+  useEffect(() => {
+    directionsLoadedRef.current = false
+  }, [trip.stops])
+
   // Toggle visibility without re-fetching routes
   useEffect(() => {
     const targetMap = visible ? map ?? null : null
@@ -390,6 +395,8 @@ export default function UsaMapPage() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!
 
   useEffect(() => {
+    let cancelled = false
+
     async function load() {
       // Fetch all non-archived trips
       const { data: allTrips, error: tripsErr } = await supabase
@@ -398,8 +405,9 @@ export default function UsaMapPage() {
         .neq('status', 'archived')
         .order('created_at', { ascending: true })
 
+      if (cancelled) return
       if (tripsErr) { setError('Kunne ikke laste reiser'); setLoading(false); return }
-      if (!allTrips?.length) { setLoading(false); return }
+      if (!allTrips?.length) { setTrips([]); setLoading(false); return }
 
       // Fetch ALL stops across all trips
       const { data: stops, error: stopsErr } = await supabase
@@ -408,6 +416,7 @@ export default function UsaMapPage() {
         .in('trip_id', allTrips.map((t) => t.id))
         .order('order', { ascending: true })
 
+      if (cancelled) return
       if (stopsErr) { setError('Kunne ikke laste stoppesteder'); setLoading(false); return }
 
       // Group stops by trip
@@ -424,6 +433,7 @@ export default function UsaMapPage() {
         return lat >= 18 && lat <= 72 && lng >= -180 && lng <= -65
       }
 
+      // Preserve color assignment so trips keep the same color after re-load
       const result: TripWithStops[] = []
       let colorIdx = 0
 
@@ -436,21 +446,34 @@ export default function UsaMapPage() {
         result.push({
           id:    trip.id,
           name:  trip.name,
-          stops: tripStops, // keep all stops in order
+          stops: tripStops,
           color: ROUTE_COLORS[colorIdx % ROUTE_COLORS.length],
         })
         colorIdx++
       }
 
-      if (result.length === 0) {
-        setError('Ingen reiser med stoppesteder i USA funnet.')
-      }
-
+      setError(result.length === 0 ? 'Ingen reiser med stoppesteder i USA funnet.' : null)
       setTrips(result)
       setLoading(false)
     }
 
     load()
+
+    // Re-load automatically when stops or trips change in the database
+    const channel = supabase
+      .channel('usa-map-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stops' }, () => {
+        if (!cancelled) load()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => {
+        if (!cancelled) load()
+      })
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
   }, [supabase])
 
   return (
