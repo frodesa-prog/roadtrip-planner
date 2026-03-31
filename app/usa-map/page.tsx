@@ -53,10 +53,12 @@ const ROUTE_COLORS = [
 
 function TripRoute({
   trip,
+  visible,
   onMarkerClick,
   onDistanceReady,
 }: {
   trip: TripWithStops
+  visible: boolean
   onMarkerClick: (info: InfoState) => void
   onDistanceReady: (tripId: string, km: number) => void
 }) {
@@ -66,6 +68,14 @@ function TripRoute({
   const polylineRef = useRef<google.maps.Polyline | null>(null)
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null)
   const markersRef  = useRef<google.maps.Marker[]>([])
+
+  // Toggle visibility without re-fetching routes
+  useEffect(() => {
+    const targetMap = visible ? map ?? null : null
+    polylineRef.current?.setMap(targetMap)
+    rendererRef.current?.setMap(targetMap)
+    markersRef.current.forEach((m) => m.setMap(targetMap))
+  }, [visible, map])
 
   // 1. Fallback straight-line polyline (shown immediately while Directions loads)
   useEffect(() => {
@@ -227,7 +237,17 @@ function InfoPopup({ info, onClose }: { info: InfoState; onClose: () => void }) 
 
 // ── Legend ────────────────────────────────────────────────────────────────────
 
-function Legend({ trips, distances }: { trips: TripWithStops[]; distances: Record<string, number> }) {
+function Legend({
+  trips,
+  distances,
+  hidden,
+  onToggle,
+}: {
+  trips: TripWithStops[]
+  distances: Record<string, number>
+  hidden: Set<string>
+  onToggle: (tripId: string) => void
+}) {
   const [open, setOpen] = useState(true)
 
   return (
@@ -270,29 +290,43 @@ function Legend({ trips, distances }: { trips: TripWithStops[]; distances: Recor
 
       {open && (
         <div style={{ marginTop: 10 }}>
-          {trips.map((t) => (
-            <div
-              key={t.id}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}
-            >
+          {trips.map((t) => {
+            const isVisible = !hidden.has(t.id)
+            return (
               <div
+                key={t.id}
+                onClick={() => onToggle(t.id)}
                 style={{
-                  width: 28,
-                  height: 4,
-                  borderRadius: 2,
-                  background: t.color,
-                  flexShrink: 0,
+                  display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7,
+                  cursor: 'pointer', opacity: isVisible ? 1 : 0.4,
+                  transition: 'opacity 0.15s',
                 }}
-              />
-              <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1, lineHeight: 1.3 }}>
-                {t.name}
-              </span>
-              <span style={{ fontSize: 10, color: '#475569', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                {t.stops.length} stopp
-                {distances[t.id] != null && ` · ${distances[t.id].toLocaleString('nb-NO')} km`}
-              </span>
-            </div>
-          ))}
+              >
+                {/* Checkbox */}
+                <div style={{
+                  width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                  border: `2px solid ${t.color}`,
+                  background: isVisible ? t.color : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {isVisible && (
+                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                      <path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+                {/* Color bar */}
+                <div style={{ width: 22, height: 4, borderRadius: 2, background: t.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1, lineHeight: 1.3 }}>
+                  {t.name}
+                </span>
+                <span style={{ fontSize: 10, color: '#475569', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  {t.stops.length} stopp
+                  {distances[t.id] != null && ` · ${distances[t.id].toLocaleString('nb-NO')} km`}
+                </span>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -302,11 +336,21 @@ function Legend({ trips, distances }: { trips: TripWithStops[]; distances: Recor
 // ── Map content (inside APIProvider + Map) ────────────────────────────────────
 
 function MapContent({ trips }: { trips: TripWithStops[] }) {
-  const [activeInfo, setActiveInfo]   = useState<InfoState | null>(null)
-  const [distances, setDistances]     = useState<Record<string, number>>({})
+  const [activeInfo, setActiveInfo] = useState<InfoState | null>(null)
+  const [distances, setDistances]   = useState<Record<string, number>>({})
+  const [hidden, setHidden]         = useState<Set<string>>(new Set())
 
   const handleDistance = useCallback((tripId: string, km: number) => {
     setDistances((prev) => ({ ...prev, [tripId]: km }))
+  }, [])
+
+  const toggleTrip = useCallback((tripId: string) => {
+    setHidden((prev) => {
+      const next = new Set(prev)
+      if (next.has(tripId)) next.delete(tripId)
+      else next.add(tripId)
+      return next
+    })
   }, [])
 
   return (
@@ -315,11 +359,14 @@ function MapContent({ trips }: { trips: TripWithStops[] }) {
         <TripRoute
           key={trip.id}
           trip={trip}
+          visible={!hidden.has(trip.id)}
           onMarkerClick={setActiveInfo}
           onDistanceReady={handleDistance}
         />
       ))}
-      {trips.length > 0 && <Legend trips={trips} distances={distances} />}
+      {trips.length > 0 && (
+        <Legend trips={trips} distances={distances} hidden={hidden} onToggle={toggleTrip} />
+      )}
       {activeInfo && (
         <InfoPopup info={activeInfo} onClose={() => setActiveInfo(null)} />
       )}
