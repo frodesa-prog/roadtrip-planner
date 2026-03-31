@@ -65,14 +65,18 @@ function TripRoute({
   const map       = useMap()
   const routesLib = useMapsLibrary('routes')
 
-  const polylineRef = useRef<google.maps.Polyline | null>(null)
-  const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null)
-  const markersRef  = useRef<google.maps.Marker[]>([])
+  const polylineRef        = useRef<google.maps.Polyline | null>(null)
+  const rendererRef        = useRef<google.maps.DirectionsRenderer | null>(null)
+  const markersRef         = useRef<google.maps.Marker[]>([])
+  const directionsLoadedRef = useRef(false)
 
   // Toggle visibility without re-fetching routes
   useEffect(() => {
     const targetMap = visible ? map ?? null : null
-    polylineRef.current?.setMap(targetMap)
+    // Only restore fallback polyline if real directions haven't loaded yet
+    if (!directionsLoadedRef.current) {
+      polylineRef.current?.setMap(targetMap)
+    }
     rendererRef.current?.setMap(targetMap)
     markersRef.current.forEach((m) => m.setMap(targetMap))
   }, [visible, map])
@@ -125,6 +129,7 @@ function TripRoute({
       (result, status) => {
         if (status === 'OK' && result) {
           renderer.setDirections(result)
+          directionsLoadedRef.current = true
           polylineRef.current?.setMap(null)
           // Sum distance across all legs
           const totalMeters = result.routes[0]?.legs.reduce(
