@@ -329,35 +329,18 @@ export default function UsaMapPage() {
       // Fetch all non-archived trips
       const { data: allTrips, error: tripsErr } = await supabase
         .from('trips')
-        .select('id, name, destination_country')
+        .select('id, name')
         .neq('status', 'archived')
         .order('created_at', { ascending: true })
 
       if (tripsErr) { setError('Kunne ikke laste reiser'); setLoading(false); return }
       if (!allTrips?.length) { setLoading(false); return }
 
-      // Filter for USA trips
-      const usaTrips = allTrips.filter((t) => {
-        const c = (t.destination_country ?? '').toLowerCase().trim()
-        return (
-          c === 'usa' ||
-          c === 'us' ||
-          c.includes('united states') ||
-          c.includes('usa')
-        )
-      })
-
-      if (usaTrips.length === 0) {
-        setError('Ingen USA-reiser funnet. Sjekk at "Destinasjonsland" er satt til "USA" på reisene.')
-        setLoading(false)
-        return
-      }
-
-      // Fetch stops for all USA trips
+      // Fetch ALL stops across all trips
       const { data: stops, error: stopsErr } = await supabase
         .from('stops')
         .select('id, trip_id, city, state, lat, lng, order')
-        .in('trip_id', usaTrips.map((t) => t.id))
+        .in('trip_id', allTrips.map((t) => t.id))
         .order('order', { ascending: true })
 
       if (stopsErr) { setError('Kunne ikke laste stoppesteder'); setLoading(false); return }
@@ -370,18 +353,32 @@ export default function UsaMapPage() {
         stopsByTrip.set(s.trip_id, list)
       }
 
-      // Build result — skip trips with no stops
-      const result: TripWithStops[] = usaTrips
-        .filter((t) => (stopsByTrip.get(t.id) ?? []).length > 0)
-        .map((t, i) => ({
-          id:    t.id,
-          name:  t.name,
-          stops: stopsByTrip.get(t.id) ?? [],
-          color: ROUTE_COLORS[i % ROUTE_COLORS.length],
-        }))
+      // Keep only trips where the majority of stops fall within US bounding box
+      // Continental US + Alaska + Hawaii: lat 18–72, lng –180 to –65
+      function isInUSA(lat: number, lng: number): boolean {
+        return lat >= 18 && lat <= 72 && lng >= -180 && lng <= -65
+      }
+
+      const result: TripWithStops[] = []
+      let colorIdx = 0
+
+      for (const trip of allTrips) {
+        const tripStops = stopsByTrip.get(trip.id) ?? []
+        if (tripStops.length === 0) continue
+        const usaStops = tripStops.filter((s) => isInUSA(s.lat, s.lng))
+        // Include if more than half the stops are in the USA
+        if (usaStops.length === 0 || usaStops.length < tripStops.length / 2) continue
+        result.push({
+          id:    trip.id,
+          name:  trip.name,
+          stops: tripStops, // keep all stops in order
+          color: ROUTE_COLORS[colorIdx % ROUTE_COLORS.length],
+        })
+        colorIdx++
+      }
 
       if (result.length === 0) {
-        setError('USA-reisene har ingen stoppesteder ennå.')
+        setError('Ingen reiser med stoppesteder i USA funnet.')
       }
 
       setTrips(result)
