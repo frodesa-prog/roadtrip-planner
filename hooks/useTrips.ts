@@ -233,9 +233,17 @@ export function useTrips() {
       } else {
         toast.success('Tur arkivert')
         logActivity({ log_type: 'database', action: 'UPDATE', entity_type: 'trip', entity_name: trips.find((t) => t.id === tripId)?.name, trip_id: tripId })
+        // Skru av alle nyhetsbrev for denne turen
+        if (userId) {
+          await supabase
+            .from('newsletter_subscriptions')
+            .update({ enabled: false })
+            .eq('trip_id', tripId)
+            .eq('user_id', userId)
+        }
       }
     },
-    [supabase, trips],
+    [supabase, trips, userId],
   )
 
   const restoreTrip = useCallback(

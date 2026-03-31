@@ -142,21 +142,12 @@ function TripRow({
   onToggle: (val: boolean) => void
   onSetFrequency: (days: number) => void
 }) {
-  const isArchived = trip.status === 'archived'
-
   return (
-    <div className={`flex items-center gap-3 py-2.5 px-3 rounded-lg transition-colors ${
-      isArchived ? 'opacity-50' : 'hover:bg-slate-800/40'
-    }`}>
+    <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg transition-colors hover:bg-slate-800/40">
       {/* Trip info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium text-slate-200 truncate">{trip.name}</span>
-          {isArchived && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-500 flex-shrink-0">
-              Arkivert
-            </span>
-          )}
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
           {(trip.destination_city || trip.destination_country) && (
@@ -250,12 +241,12 @@ export default function NyhetsbrevTab() {
   const { trips, userId } = useTrips()
   const { loading, isEnabled, getFrequency, setSubscription, setFrequency } = useNewsletterSubscriptions(userId)
 
-  // Non-archived first, then archived — alphabetical within each group
-  const sortedTrips = useMemo(() => {
-    const active   = trips.filter((t) => t.status !== 'archived').sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
-    const archived = trips.filter((t) => t.status === 'archived').sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
-    return [...active, ...archived]
-  }, [trips])
+  // Only active (non-archived) trips, alphabetical
+  const sortedTrips = useMemo(() =>
+    trips
+      .filter((t) => t.status !== 'archived')
+      .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')),
+    [trips])
 
   if (loading) {
     return (
