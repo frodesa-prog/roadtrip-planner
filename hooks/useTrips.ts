@@ -115,7 +115,6 @@ export function useTrips() {
 
       const newTrip = data as Trip
       setTrips((prev) => [newTrip, ...prev])
-      setCurrentTrip(newTrip)  // saves to localStorage
       toast.success(`"${name}" er opprettet! 🗺️`)
       logActivity({ log_type: 'database', action: 'INSERT', entity_type: 'trip', entity_name: name, trip_id: newTrip.id })
 
@@ -198,7 +197,13 @@ export function useTrips() {
       })
       if (!travelerErr) {
         console.log('[createTrip] Traveler-insert OK ✓')
-      } else {
+      }
+
+      // Bytt aktiv tur ETTER at traveler er lagret i DB, slik at
+      // useTravelers ikke henter deltakere før raden finnes
+      setCurrentTrip(newTrip)
+
+      if (travelerErr) {
         console.error('[createTrip] Primær traveler-insert feilet:', JSON.stringify(travelerErr))
         // Fallback 1: uten ekstra profilfelter
         const { error: fallback1Err } = await supabase.from('travelers').insert({
