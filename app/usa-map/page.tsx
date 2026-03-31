@@ -243,8 +243,8 @@ function Legend({ trips, distances }: { trips: TripWithStops[]; distances: Recor
         color: 'white',
         boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
         zIndex: 10,
-        minWidth: open ? 200 : 'auto',
-        maxWidth: 280,
+        minWidth: open ? 260 : 'auto',
+        maxWidth: 340,
       }}
     >
       <button
@@ -287,16 +287,10 @@ function Legend({ trips, distances }: { trips: TripWithStops[]; distances: Recor
               <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1, lineHeight: 1.3 }}>
                 {t.name}
               </span>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}>
-                <span style={{ fontSize: 10, color: '#475569' }}>
-                  {t.stops.length} stopp
-                </span>
-                {distances[t.id] != null && (
-                  <span style={{ fontSize: 10, color: '#64748b' }}>
-                    {distances[t.id].toLocaleString('nb-NO')} km
-                  </span>
-                )}
-              </div>
+              <span style={{ fontSize: 10, color: '#475569', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {t.stops.length} stopp
+                {distances[t.id] != null && ` · ${distances[t.id].toLocaleString('nb-NO')} km`}
+              </span>
             </div>
           ))}
         </div>
