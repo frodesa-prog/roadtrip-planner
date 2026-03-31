@@ -85,20 +85,22 @@ async function generateDestinationTips(
 ): Promise<CityTips[]> {
   if (destinations.length === 0) return []
 
-  const destList = destinations.join(', ')
+  // Begrens til maks 6 destinasjoner for å holde responsen innenfor token-grensen
+  const limited = destinations.slice(0, 6)
+  const destList = limited.join(', ')
   const prompt = `Generer reisedestinasjonsnips på norsk for disse stedene på en tur som heter "${tripName}": ${destList}.
 
 For hvert sted, returner et JSON-objekt med disse feltene:
 - "city": stedets navn (nøyaktig som angitt)
-- "general_info": 2-3 setninger om stedet (størrelse, innbyggertall, kort historikk, særpreg)
-- "restaurants": array med 3 konkrete restauranttips (navn + en linje med hva stedet er kjent for)
-- "activities": array med 4 konkrete aktiviteter eller severdigheter å besøke
+- "general_info": 2 setninger om stedet (størrelse/innbyggertall, kort særpreg)
+- "restaurants": array med 2 restauranttips (navn + kort beskrivelse)
+- "activities": array med 3 aktiviteter eller severdigheter å besøke
 
 Returner KUN et gyldig JSON-array med ett objekt per sted. Ingen ekstra tekst utenfor JSON.`
 
   const message = await client.messages.create({
     model: 'claude-haiku-4-5',
-    max_tokens: 2048,
+    max_tokens: 4096,
     system: 'Du er en erfaren reiserådgiver. Returner KUN gyldig JSON, ingen annen tekst.',
     messages: [{ role: 'user', content: prompt }],
   })
@@ -106,14 +108,26 @@ Returner KUN et gyldig JSON-array med ett objekt per sted. Ingen ekstra tekst ut
   const block = message.content[0]
   const raw = block.type === 'text' ? block.text.trim() : '[]'
 
-  // Strip markdown code fences if present
-  const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+  console.log('[ai-destination-tips] Raw AI response (first 300 chars):', raw.slice(0, 300))
+
+  // Strip markdown code fences if present, then extract the JSON array
+  // by finding the first '[' and last ']' — robust against preamble/postamble text
+  const stripped = raw.replace(/^```(?:json)?\n?/gm, '').replace(/\n?```/gm, '').trim()
+  const jsonStart = stripped.indexOf('[')
+  const jsonEnd   = stripped.lastIndexOf(']') + 1
+
+  if (jsonStart === -1 || jsonEnd <= jsonStart) {
+    console.error('[ai-destination-tips] No JSON array found in AI response:', stripped.slice(0, 300))
+    return []
+  }
+
+  const jsonStr = stripped.slice(jsonStart, jsonEnd)
 
   try {
-    const parsed = JSON.parse(cleaned)
+    const parsed = JSON.parse(jsonStr)
     return Array.isArray(parsed) ? (parsed as CityTips[]) : []
-  } catch {
-    console.error('[ai-destination-tips] Failed to parse AI JSON:', cleaned.slice(0, 200))
+  } catch (err) {
+    console.error('[ai-destination-tips] Failed to parse AI JSON:', err, jsonStr.slice(0, 300))
     return []
   }
 }
@@ -208,6 +222,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // ?force=true bypasser last_sent_at-sjekk (kun for testing)
+  const force = req.nextUrl.searchParams.get('force') === 'true'
+
   const resendApiKey    = process.env.RESEND_API_KEY
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY
   const serviceRoleKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -251,11 +268,16 @@ export async function GET(req: NextRequest) {
   const ownerIds   = [...new Set(typedTrips.map((t) => t.owner_id))]
 
   // ── 2. Hent stopp for alle reiser ───────────────────────────────────────────
-  const { data: stops } = await supabase
+  const { data: stops, error: stopsError } = await supabase
     .from('stops')
-    .select('id, trip_id, city, state, nights, arrival_date, order')
+    .select('*')
     .in('trip_id', tripIds)
     .order('order', { ascending: true })
+
+  if (stopsError) {
+    console.error('[ai-destination-tips] DB error fetching stops:', stopsError)
+  }
+  console.log('[ai-destination-tips] Fetched stops count:', stops?.length ?? 0)
 
   // ── 3. Hent alle eksplisitte abonnement for ai_destination_tips ─────────────
   const { data: subscriptions } = await supabase
@@ -325,6 +347,8 @@ export async function GET(req: NextRequest) {
   // ── Helper: should this user+trip get a send today? ──────────────────────────
 
   function shouldSend(userId: string, tripId: string): boolean {
+    if (force) return true
+
     const sub = subscriptionMap.get(`${userId}:${tripId}`)
 
     // Explicit opt-out
