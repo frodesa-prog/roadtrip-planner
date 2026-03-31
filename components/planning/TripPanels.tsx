@@ -776,7 +776,7 @@ export default function TripPanels({
 
       {/* ── Turfølge expanded (full width) ── */}
       {openPanel === 'crew' && (
-        <div className="border-t border-slate-800/60">
+        <div className="border-t border-slate-800/60 max-h-[70vh] overflow-y-auto">
           {/* Sub-header */}
           <div className="flex items-center justify-between px-4 py-2.5">
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
