@@ -14,6 +14,7 @@ export const AIRPORTS: Airport[] = [
   { city: 'New York',        name: 'LaGuardia Airport',             code: 'LGA', offsetFromNorway: -6 },
   { city: 'Atlanta',         name: 'Hartsfield–Jackson Atlanta',    code: 'ATL', offsetFromNorway: -6 },
   { city: 'Miami',           name: 'Miami International',           code: 'MIA', offsetFromNorway: -6 },
+  { city: 'Fort Lauderdale', name: 'Fort Lauderdale-Hollywood Intl', code: 'FLL', offsetFromNorway: -6 },
   { city: 'Orlando',         name: 'Orlando International',         code: 'MCO', offsetFromNorway: -6 },
   { city: 'Washington D.C.', name: 'Dulles International',          code: 'IAD', offsetFromNorway: -6 },
   { city: 'Washington D.C.', name: 'Ronald Reagan National',        code: 'DCA', offsetFromNorway: -6 },
