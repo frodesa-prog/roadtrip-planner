@@ -1,7 +1,7 @@
 'use client'
 
 import { APIProvider, Map as GoogleMap, useMapsLibrary, useMap } from '@vis.gl/react-google-maps'
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -54,9 +54,11 @@ const ROUTE_COLORS = [
 function TripRoute({
   trip,
   onMarkerClick,
+  onDistanceReady,
 }: {
   trip: TripWithStops
   onMarkerClick: (info: InfoState) => void
+  onDistanceReady: (tripId: string, km: number) => void
 }) {
   const map       = useMap()
   const routesLib = useMapsLibrary('routes')
@@ -113,8 +115,12 @@ function TripRoute({
       (result, status) => {
         if (status === 'OK' && result) {
           renderer.setDirections(result)
-          // Hide the fallback polyline once real route is loaded
           polylineRef.current?.setMap(null)
+          // Sum distance across all legs
+          const totalMeters = result.routes[0]?.legs.reduce(
+            (sum, leg) => sum + (leg.distance?.value ?? 0), 0
+          ) ?? 0
+          onDistanceReady(trip.id, Math.round(totalMeters / 1000))
         }
       }
     )
@@ -221,7 +227,7 @@ function InfoPopup({ info, onClose }: { info: InfoState; onClose: () => void }) 
 
 // ── Legend ────────────────────────────────────────────────────────────────────
 
-function Legend({ trips }: { trips: TripWithStops[] }) {
+function Legend({ trips, distances }: { trips: TripWithStops[]; distances: Record<string, number> }) {
   const [open, setOpen] = useState(true)
 
   return (
@@ -281,9 +287,16 @@ function Legend({ trips }: { trips: TripWithStops[] }) {
               <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1, lineHeight: 1.3 }}>
                 {t.name}
               </span>
-              <span style={{ fontSize: 10, color: '#475569', flexShrink: 0 }}>
-                {t.stops.length} stopp
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}>
+                <span style={{ fontSize: 10, color: '#475569' }}>
+                  {t.stops.length} stopp
+                </span>
+                {distances[t.id] != null && (
+                  <span style={{ fontSize: 10, color: '#64748b' }}>
+                    {distances[t.id].toLocaleString('nb-NO')} km
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -295,7 +308,12 @@ function Legend({ trips }: { trips: TripWithStops[] }) {
 // ── Map content (inside APIProvider + Map) ────────────────────────────────────
 
 function MapContent({ trips }: { trips: TripWithStops[] }) {
-  const [activeInfo, setActiveInfo] = useState<InfoState | null>(null)
+  const [activeInfo, setActiveInfo]   = useState<InfoState | null>(null)
+  const [distances, setDistances]     = useState<Record<string, number>>({})
+
+  const handleDistance = useCallback((tripId: string, km: number) => {
+    setDistances((prev) => ({ ...prev, [tripId]: km }))
+  }, [])
 
   return (
     <>
@@ -304,9 +322,10 @@ function MapContent({ trips }: { trips: TripWithStops[] }) {
           key={trip.id}
           trip={trip}
           onMarkerClick={setActiveInfo}
+          onDistanceReady={handleDistance}
         />
       ))}
-      {trips.length > 0 && <Legend trips={trips} />}
+      {trips.length > 0 && <Legend trips={trips} distances={distances} />}
       {activeInfo && (
         <InfoPopup info={activeInfo} onClose={() => setActiveInfo(null)} />
       )}
