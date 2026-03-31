@@ -1453,7 +1453,7 @@ export default function PlanningMap({
     []
   )
 
-  function handleConfirmStop(city: string, state: string) {
+  function handleConfirmStop(city: string, state: string, nights: number) {
     if (!pendingStop) return
     const isFirst = stops.length === 0
     const newStop: Stop = {
@@ -1465,7 +1465,7 @@ export default function PlanningMap({
       lng: pendingStop.lng,
       order: stops.length,
       arrival_date: isFirst && tripDateFrom ? tripDateFrom : null,
-      nights: 1,
+      nights,
       notes: null,
       created_at: new Date().toISOString(),
     }

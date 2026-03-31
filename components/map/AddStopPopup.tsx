@@ -11,7 +11,7 @@ interface AddStopPopupProps {
   initialCity?: string
   initialState?: string
   fromSearch?: boolean
-  onConfirm: (city: string, state: string) => void
+  onConfirm: (city: string, state: string, nights: number) => void
   onCancel: () => void
 }
 
@@ -26,6 +26,7 @@ export default function AddStopPopup({
 }: AddStopPopupProps) {
   const [city, setCity] = useState(initialCity ?? '')
   const [state, setState] = useState(initialState ?? '')
+  const [nights, setNights] = useState(1)
   const [loading, setLoading] = useState(!initialCity)
 
   // Gjør reverse geocoding kun hvis vi ikke allerede har stedsnavn (fra søk)
@@ -56,7 +57,7 @@ export default function AddStopPopup({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!city.trim()) return
-    onConfirm(city.trim(), state.trim())
+    onConfirm(city.trim(), state.trim(), nights)
   }
 
   // Ved søkeresultat: vis en kompakt bekreftelses-popup
@@ -102,9 +103,19 @@ export default function AddStopPopup({
                 />
               </div>
             </div>
+            <div>
+              <label className="text-xs text-slate-400 mb-1 block">Antall netter</label>
+              <Input
+                type="number"
+                min={0}
+                value={nights}
+                onChange={(e) => setNights(Math.max(0, parseInt(e.target.value) || 0))}
+                className="h-8 text-sm bg-slate-800 border-slate-600 text-slate-100"
+              />
+            </div>
             <div className="flex gap-2">
               <Button
-                onClick={() => onConfirm(city.trim(), state.trim())}
+                onClick={() => onConfirm(city.trim(), state.trim(), nights)}
                 size="sm"
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-8"
                 disabled={!city.trim()}
@@ -162,14 +173,26 @@ export default function AddStopPopup({
                 autoFocus
               />
             </div>
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">Stat</label>
-              <Input
-                value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder="f.eks. NV"
-                className="h-8 text-sm bg-slate-800 border-slate-600 text-slate-100 placeholder:text-slate-600"
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Stat</label>
+                <Input
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  placeholder="f.eks. NV"
+                  className="h-8 text-sm bg-slate-800 border-slate-600 text-slate-100 placeholder:text-slate-600"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Antall netter</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={nights}
+                  onChange={(e) => setNights(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="h-8 text-sm bg-slate-800 border-slate-600 text-slate-100"
+                />
+              </div>
             </div>
             <div className="flex gap-2 pt-1">
               <Button
