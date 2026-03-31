@@ -260,20 +260,25 @@ function buildEmailHtml({
       <div style="text-align:center;margin-bottom:22px;">
         <span style="font-size:2.8rem;">🗺️</span>
         <h1 style="color:#60a5fa;font-size:1.3rem;margin:10px 0 2px;line-height:1.3;">${tripName}</h1>
-        <p style="color:#64748b;font-size:0.8rem;margin:0;">AI-genererte reisedestinasjonsnips</p>
+        <p style="color:#64748b;font-size:0.8rem;margin:0;">AI-genererte reisetips til din reise</p>
       </div>
 
       <!-- Days until trip -->
-      <div style="background:#451a03;border:1px solid #b45309;border-radius:10px;padding:14px 20px;margin-bottom:20px;text-align:center;">
+      <div style="background:#451a03;border:1px solid #b45309;border-radius:10px;padding:14px 20px;margin-bottom:16px;text-align:center;">
         <p style="font-size:1.1rem;font-weight:700;color:#fbbf24;margin:0;">✈️ ${daysLabel}</p>
       </div>
+
+      <!-- Intro text -->
+      <p style="color:#94a3b8;font-size:0.85rem;line-height:1.6;margin:0 0 20px;text-align:center;">
+        Det nærmer seg reisetid. Husk å planlegg ferien godt så du kan bruke ferien på å nyte.<br>Her er noen tips til inspirasjon.
+      </p>
 
       <!-- City tips -->
       ${cityHtml}
 
       <!-- Open app button -->
       <div style="text-align:center;margin:22px 0 18px;">
-        <a href="${appUrl}/plan"
+        <a href="https://myvacayplanner.com"
            style="display:inline-block;background:#2563eb;color:white;
                   padding:10px 24px;border-radius:8px;text-decoration:none;
                   font-size:0.85rem;font-weight:600;">
@@ -283,8 +288,8 @@ function buildEmailHtml({
 
       <!-- Footer -->
       <p style="color:#334155;font-size:0.72rem;text-align:center;margin:0;line-height:1.6;">
-        Du mottar denne e-posten fordi du har aktivert AI-reisedestinasjonsnips i Reiseplanleggeren.<br>
-        Administrer innstillingene dine på <a href="${appUrl}/minside" style="color:#475569;">Min side → Nyhetsbrev</a>.
+        Du mottar denne e-posten fordi du har aktivert AI-genererte tips i MyVacayPlanner.<br>
+        Administrer innstillingene dine på <a href="https://myvacayplanner.com/minside" style="color:#475569;">Min side → Nyhetsbrev</a>.
       </p>
     </div>
   `
