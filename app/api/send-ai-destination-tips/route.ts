@@ -51,13 +51,24 @@ interface SubscriptionRow {
   frequency_days: number
   last_sent_at: string | null
   enabled: boolean
+  current_stop_index: number
 }
+
+// AI may return items as plain strings or as {name, description} objects
+type TipItem = string | { name: string; description?: string }
 
 interface CityTips {
   city: string
   general_info: string
-  restaurants: string[]
-  activities: string[]
+  restaurants: TipItem[]
+  activities: TipItem[]
+}
+
+function formatTipItem(item: TipItem): string {
+  if (typeof item === 'string') return item
+  return item.description
+    ? `<strong>${item.name}</strong> — ${item.description}`
+    : item.name
 }
 
 // ── Helper: days-until label ───────────────────────────────────────────────────
@@ -81,54 +92,51 @@ function buildDaysLabel(dateFrom: string | null, year: number | null, today: str
 async function generateDestinationTips(
   client: Anthropic,
   tripName: string,
-  destinations: string[],
-): Promise<CityTips[]> {
-  if (destinations.length === 0) return []
+  destination: string,
+): Promise<CityTips | null> {
+  const prompt = `Generer reisedestinasjonsnips på norsk for "${destination}" på en tur som heter "${tripName}".
 
-  // Begrens til maks 6 destinasjoner for å holde responsen innenfor token-grensen
-  const limited = destinations.slice(0, 6)
-  const destList = limited.join(', ')
-  const prompt = `Generer reisedestinasjonsnips på norsk for disse stedene på en tur som heter "${tripName}": ${destList}.
+Returner KUN ett gyldig JSON-objekt med disse feltene (ingen array, bare ett objekt):
+{
+  "city": "${destination}",
+  "general_info": "2 setninger om stedet: innbyggertall/størrelse og kort særpreg",
+  "restaurants": ["Restaurant Navn – kort beskrivelse av stedet", "Restaurant 2 – kort beskrivelse"],
+  "activities": ["Aktivitet eller severdighet 1", "Aktivitet 2", "Aktivitet 3"]
+}
 
-For hvert sted, returner et JSON-objekt med disse feltene:
-- "city": stedets navn (nøyaktig som angitt)
-- "general_info": 2 setninger om stedet (størrelse/innbyggertall, kort særpreg)
-- "restaurants": array med 2 restauranttips (navn + kort beskrivelse)
-- "activities": array med 3 aktiviteter eller severdigheter å besøke
-
-Returner KUN et gyldig JSON-array med ett objekt per sted. Ingen ekstra tekst utenfor JSON.`
+Feltene "restaurants" og "activities" skal være arrays med KORTE TEKSTSTRENGER (ikke objekter).
+Ingen ekstra tekst utenfor JSON-objektet.`
 
   const message = await client.messages.create({
     model: 'claude-haiku-4-5',
-    max_tokens: 4096,
+    max_tokens: 1024,
     system: 'Du er en erfaren reiserådgiver. Returner KUN gyldig JSON, ingen annen tekst.',
     messages: [{ role: 'user', content: prompt }],
   })
 
   const block = message.content[0]
-  const raw = block.type === 'text' ? block.text.trim() : '[]'
+  const raw = block.type === 'text' ? block.text.trim() : '{}'
 
-  console.log('[ai-destination-tips] Raw AI response (first 300 chars):', raw.slice(0, 300))
+  console.log('[ai-destination-tips] Raw AI response (first 400 chars):', raw.slice(0, 400))
 
-  // Strip markdown code fences if present, then extract the JSON array
-  // by finding the first '[' and last ']' — robust against preamble/postamble text
+  // Strip markdown code fences, then extract the JSON object { ... }
   const stripped = raw.replace(/^```(?:json)?\n?/gm, '').replace(/\n?```/gm, '').trim()
-  const jsonStart = stripped.indexOf('[')
-  const jsonEnd   = stripped.lastIndexOf(']') + 1
+  const jsonStart = stripped.indexOf('{')
+  const jsonEnd   = stripped.lastIndexOf('}') + 1
 
   if (jsonStart === -1 || jsonEnd <= jsonStart) {
-    console.error('[ai-destination-tips] No JSON array found in AI response:', stripped.slice(0, 300))
-    return []
+    console.error('[ai-destination-tips] No JSON object found in AI response:', stripped.slice(0, 300))
+    return null
   }
 
   const jsonStr = stripped.slice(jsonStart, jsonEnd)
 
   try {
-    const parsed = JSON.parse(jsonStr)
-    return Array.isArray(parsed) ? (parsed as CityTips[]) : []
+    const parsed = JSON.parse(jsonStr) as CityTips
+    return parsed
   } catch (err) {
     console.error('[ai-destination-tips] Failed to parse AI JSON:', err, jsonStr.slice(0, 300))
-    return []
+    return null
   }
 }
 
@@ -138,43 +146,48 @@ function buildEmailHtml({
   tripName,
   daysLabel,
   cityTips,
+  stopNumber,
+  totalStops,
   appUrl,
 }: {
   tripName: string
   daysLabel: string
-  cityTips: CityTips[]
+  cityTips: CityTips | null
+  stopNumber: number
+  totalStops: number
   appUrl: string
 }): string {
-  const cityHtml = cityTips.length > 0
-    ? cityTips.map((c) => {
-        const restaurantItems = c.restaurants
-          .map((r) => `<li style="margin:4px 0;color:#cbd5e1;">${r}</li>`)
+  const cityHtml = cityTips
+    ? (() => {
+        const restaurantItems = (cityTips.restaurants ?? [])
+          .map((r) => `<li style="margin:6px 0;color:#cbd5e1;">${formatTipItem(r)}</li>`)
           .join('')
-        const activityItems = c.activities
-          .map((a) => `<li style="margin:4px 0;color:#cbd5e1;">${a}</li>`)
+        const activityItems = (cityTips.activities ?? [])
+          .map((a) => `<li style="margin:6px 0;color:#cbd5e1;">${formatTipItem(a)}</li>`)
           .join('')
 
         return `
           <div style="background:#1e293b;border-radius:10px;padding:16px 20px;margin-bottom:14px;">
-            <h2 style="color:#60a5fa;font-size:1rem;margin:0 0 10px;border-bottom:1px solid #334155;padding-bottom:8px;">
-              📍 ${c.city}
-            </h2>
-            ${c.general_info ? `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;border-bottom:1px solid #334155;padding-bottom:8px;">
+              <h2 style="color:#60a5fa;font-size:1rem;margin:0;">📍 ${cityTips.city}</h2>
+              <span style="font-size:0.7rem;color:#475569;">Stopp ${stopNumber} av ${totalStops}</span>
+            </div>
+            ${cityTips.general_info ? `
             <p style="font-size:0.82rem;color:#94a3b8;margin:0 0 14px;line-height:1.55;">
-              ${c.general_info}
+              ${cityTips.general_info}
             </p>` : ''}
             <p style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin:0 0 6px;">
               🍽️ Restauranttips
             </p>
-            <ul style="margin:0 0 14px;padding-left:18px;">${restaurantItems}</ul>
+            <ul style="margin:0 0 16px;padding-left:18px;">${restaurantItems || '<li style="color:#475569;">Ingen forslag tilgjengelig</li>'}</ul>
             <p style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin:0 0 6px;">
               🎟️ Aktiviteter og severdigheter
             </p>
-            <ul style="margin:0;padding-left:18px;">${activityItems}</ul>
+            <ul style="margin:0;padding-left:18px;">${activityItems || '<li style="color:#475569;">Ingen forslag tilgjengelig</li>'}</ul>
           </div>
         `
-      }).join('')
-    : '<p style="color:#64748b;font-style:italic;">Ingen destinasjoner å generere tips for ennå.</p>'
+      })()
+    : '<p style="color:#64748b;font-style:italic;">Ingen destinasjonstips tilgjengelig.</p>'
 
   return `
     <div style="font-family:sans-serif;max-width:540px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:28px 24px;border-radius:14px;">
@@ -223,7 +236,9 @@ export async function GET(req: NextRequest) {
   }
 
   // ?force=true bypasser last_sent_at-sjekk (kun for testing)
-  const force = req.nextUrl.searchParams.get('force') === 'true'
+  const force    = req.nextUrl.searchParams.get('force') === 'true'
+  // ?tripName=Sommerferien+2026 begrenser sending til én spesifikk tur (kun for testing)
+  const tripNameFilter = req.nextUrl.searchParams.get('tripName')
 
   const resendApiKey    = process.env.RESEND_API_KEY
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY
@@ -263,7 +278,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ sent: 0, trips: 0 })
   }
 
-  const typedTrips = trips as TripRow[]
+  let typedTrips = trips as TripRow[]
+
+  // Filtrer på turnavnet dersom ?tripName= er angitt
+  if (tripNameFilter) {
+    typedTrips = typedTrips.filter((t) =>
+      t.name.toLowerCase() === tripNameFilter.toLowerCase()
+    )
+    if (typedTrips.length === 0) {
+      return NextResponse.json({ error: `Ingen tur funnet med navn: ${tripNameFilter}` }, { status: 404 })
+    }
+  }
+
   const tripIds    = typedTrips.map((t) => t.id)
   const ownerIds   = [...new Set(typedTrips.map((t) => t.owner_id))]
 
@@ -376,45 +402,58 @@ export async function GET(req: NextRequest) {
     const tripStops     = stopsByTrip.get(trip.id) ?? []
     const tripTravelers = travelersByTrip.get(trip.id) ?? []
 
-    // Samle destinasjoner: stopp-byer + fallback til destination_city
-    const destinations: string[] = tripStops.length > 0
+    // Bygg liste over alle destinasjoner (stopp-byer, eller fallback til trip-felt)
+    const allDestinations: string[] = tripStops.length > 0
       ? tripStops.map((s) => s.state ? `${s.city}, ${s.state}` : s.city)
-      : [trip.destination_city, trip.destination_country]
-          .filter((d): d is string => Boolean(d))
+      : [trip.destination_city, trip.destination_country].filter((d): d is string => Boolean(d))
 
-    if (destinations.length === 0) continue
+    if (allDestinations.length === 0) continue
 
-    // Finn mottakere for denne turen som skal ha e-post i dag
-    const eligibleEmails = new Map<string, string>() // email → userId
+    // Finn alle brukere som skal ha e-post for denne turen i dag
+    const eligibleUsers: Array<{ email: string; userId: string }> = []
 
     const ownerProfile = profileMap.get(trip.owner_id)
     if (ownerProfile?.email && shouldSend(trip.owner_id, trip.id)) {
-      eligibleEmails.set(ownerProfile.email, trip.owner_id)
+      eligibleUsers.push({ email: ownerProfile.email, userId: trip.owner_id })
     }
-
     for (const traveler of tripTravelers) {
       if (!traveler.linked_user_id) continue
       const p = profileMap.get(traveler.linked_user_id)
       if (p?.email && shouldSend(traveler.linked_user_id, trip.id)) {
-        eligibleEmails.set(p.email, traveler.linked_user_id)
+        eligibleUsers.push({ email: p.email, userId: traveler.linked_user_id })
       }
     }
 
-    if (eligibleEmails.size === 0) continue
-
-    // Generer AI-tips én gang per tur
-    let cityTips: CityTips[] = []
-    try {
-      cityTips = await generateDestinationTips(anthropic, trip.name, destinations)
-    } catch (err) {
-      console.error('[ai-destination-tips] Anthropic error for trip', trip.id, err)
-      // Send e-post uten AI-innhold heller enn å hoppe over
-    }
+    if (eligibleUsers.length === 0) continue
 
     const daysLabel = buildDaysLabel(trip.date_from, trip.year, today)
-    const html      = buildEmailHtml({ tripName: trip.name, daysLabel, cityTips, appUrl })
 
-    for (const [email, userId] of eligibleEmails.entries()) {
+    // Generer og send én e-post per bruker — hver bruker er på sitt eget stopp i rotasjonen
+    for (const { email, userId } of eligibleUsers) {
+      const sub = subscriptionMap.get(`${userId}:${trip.id}`)
+      const currentIndex = sub?.current_stop_index ?? 0
+      const stopIndex    = currentIndex % allDestinations.length
+      const nextIndex    = currentIndex + 1
+      const destination  = allDestinations[stopIndex]
+      const stopNumber   = stopIndex + 1
+
+      // Generer AI-tips for dette ene stoppestedet
+      let cityTips: CityTips | null = null
+      try {
+        cityTips = await generateDestinationTips(anthropic, trip.name, destination)
+      } catch (err) {
+        console.error('[ai-destination-tips] Anthropic error for trip', trip.id, 'stop', destination, err)
+      }
+
+      const html = buildEmailHtml({
+        tripName: trip.name,
+        daysLabel,
+        cityTips,
+        stopNumber,
+        totalStops: allDestinations.length,
+        appUrl,
+      })
+
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -424,33 +463,31 @@ export async function GET(req: NextRequest) {
         body: JSON.stringify({
           from: 'Reiseplanlegger <noreply@sirkussand.com>',
           to:   email,
-          subject: `🗺️ Reisedestinasjonsnips – ${trip.name}`,
+          subject: `🗺️ Reisedestinasjonsnips – ${destination} (${trip.name})`,
           html,
         }),
       })
 
       if (res.ok) {
         sentCount++
-        // Oppdater last_sent_at for denne brukeren
+        // Oppdater last_sent_at og flytt til neste stopp
         await supabase
           .from('newsletter_subscriptions')
           .upsert(
             {
-              user_id:          userId,
-              trip_id:          trip.id,
-              newsletter_type:  'ai_destination_tips',
-              enabled:          true,
-              last_sent_at:     nowIso,
-              updated_at:       nowIso,
+              user_id:             userId,
+              trip_id:             trip.id,
+              newsletter_type:     'ai_destination_tips',
+              enabled:             true,
+              last_sent_at:        nowIso,
+              current_stop_index:  nextIndex,
+              updated_at:          nowIso,
             },
             { onConflict: 'user_id,trip_id,newsletter_type' }
           )
+        console.log(`[ai-destination-tips] Sent to ${email} — ${trip.name} → stop ${stopNumber}/${allDestinations.length}: ${destination}`)
       } else {
-        console.error(
-          '[ai-destination-tips] Resend error for trip', trip.id,
-          'to', email,
-          await res.text()
-        )
+        console.error('[ai-destination-tips] Resend error for trip', trip.id, 'to', email, await res.text())
       }
     }
   }
