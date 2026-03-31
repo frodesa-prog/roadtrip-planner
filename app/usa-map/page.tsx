@@ -136,7 +136,7 @@ function TripRoute({
       const city  = stop.state ? `${stop.city}, ${stop.state}` : stop.city
 
       const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 32 40">
           <circle cx="16" cy="16" r="14" fill="${trip.color}" stroke="white" stroke-width="2.5"/>
           <text x="16" y="21" text-anchor="middle" fill="white"
                 font-size="${label.length > 2 ? '9' : '11'}" font-weight="700"
@@ -152,8 +152,8 @@ function TripRoute({
         zIndex:    i + 1,
         icon: {
           url:         `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-          scaledSize:  new google.maps.Size(32, 40),
-          anchor:      new google.maps.Point(16, 40),
+          scaledSize:  new google.maps.Size(16, 20),
+          anchor:      new google.maps.Point(8, 20),
         },
       })
 
