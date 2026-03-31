@@ -185,6 +185,7 @@ export function useTrips() {
       if (prefs?.other_info) aiParts.push(prefs.other_info)
 
       // Legg til tureier som første deltaker i turfølget
+      console.log('[createTrip] Starter traveler-insert for trip:', newTrip.id, 'bruker:', user.id)
       const { error: travelerErr } = await supabase.from('travelers').insert({
         trip_id: newTrip.id,
         name: displayName,
@@ -195,7 +196,9 @@ export function useTrips() {
         description: prefs?.interests_extra ?? null,
         ai_context: aiParts.length > 0 ? aiParts.join('\n') : null,
       })
-      if (travelerErr) {
+      if (!travelerErr) {
+        console.log('[createTrip] Traveler-insert OK ✓')
+      } else {
         console.error('[createTrip] Primær traveler-insert feilet:', JSON.stringify(travelerErr))
         // Fallback 1: uten ekstra profilfelter
         const { error: fallback1Err } = await supabase.from('travelers').insert({
