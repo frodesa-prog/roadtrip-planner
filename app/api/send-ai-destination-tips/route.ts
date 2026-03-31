@@ -447,14 +447,14 @@ export async function GET(req: NextRequest) {
 
     const sub = subscriptionMap.get(`${userId}:${tripId}`)
 
-    // Explicit opt-out
-    if (sub && !sub.enabled) return false
+    // Opt-in-modell: ingen rad eller enabled=false → ikke send
+    if (!sub || !sub.enabled) return false
 
-    // Determine frequency (default 3 days)
-    const frequencyDays = sub?.frequency_days ?? 3
+    // Determine frequency
+    const frequencyDays = sub.frequency_days ?? 3
 
     // If never sent, send now
-    if (!sub?.last_sent_at) return true
+    if (!sub.last_sent_at) return true
 
     // Check if enough days have passed
     const lastSent = new Date(sub.last_sent_at)

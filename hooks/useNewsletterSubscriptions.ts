@@ -38,11 +38,11 @@ export function useNewsletterSubscriptions(userId: string | null) {
 
   /**
    * Returns whether the user is subscribed to a newsletter type for a trip.
-   * Default (no record) = true (opted in).
+   * Default (no record) = false (opt-in model — must explicitly enable).
    */
   function isEnabled(tripId: string, type: NewsletterType): boolean {
     const sub = subs.find((s) => s.trip_id === tripId && s.newsletter_type === type)
-    return sub ? sub.enabled : true
+    return sub ? sub.enabled : false
   }
 
   /**

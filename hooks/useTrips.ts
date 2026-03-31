@@ -184,7 +184,6 @@ export function useTrips() {
       if (prefs?.other_info) aiParts.push(prefs.other_info)
 
       // Legg til tureier som første deltaker i turfølget
-      console.log('[createTrip] Starter traveler-insert for trip:', newTrip.id, 'bruker:', user.id)
       const { error: travelerErr } = await supabase.from('travelers').insert({
         trip_id: newTrip.id,
         name: displayName,
@@ -195,40 +194,15 @@ export function useTrips() {
         description: prefs?.interests_extra ?? null,
         ai_context: aiParts.length > 0 ? aiParts.join('\n') : null,
       })
-      if (!travelerErr) {
-        console.log('[createTrip] Traveler-insert OK ✓')
-      }
-
       // Bytt aktiv tur ETTER at traveler er lagret i DB, slik at
       // useTravelers ikke henter deltakere før raden finnes
       setCurrentTrip(newTrip)
 
-      if (travelerErr) {
-        console.error('[createTrip] Primær traveler-insert feilet:', JSON.stringify(travelerErr))
-        // Fallback 1: uten ekstra profilfelter
-        const { error: fallback1Err } = await supabase.from('travelers').insert({
-          trip_id: newTrip.id,
-          name: displayName,
-          linked_user_id: user.id,
-          age,
-          gender: prof?.gender ?? null,
-        })
-        if (fallback1Err) {
-          console.error('[createTrip] Fallback-1 feilet:', JSON.stringify(fallback1Err))
-          // Fallback 2: uten linked_user_id (hvis kolonnen mangler i DB)
-          const { error: fallback2Err } = await supabase.from('travelers').insert({
-            trip_id: newTrip.id,
-            name: displayName,
-            age,
-            gender: prof?.gender ?? null,
-          })
-          if (fallback2Err) {
-            console.error('[createTrip] Fallback-2 feilet:', JSON.stringify(fallback2Err))
-          } else {
-            console.log('[createTrip] Fallback-2 OK – linked_user_id-kolonnen mangler trolig i DB')
-          }
-        }
-      }
+      // Sett alle nyhetsbrev til AV som standard (opt-in-modell)
+      await supabase.from('newsletter_subscriptions').insert([
+        { user_id: user.id, trip_id: newTrip.id, newsletter_type: 'weekly_reminder',    enabled: false },
+        { user_id: user.id, trip_id: newTrip.id, newsletter_type: 'ai_destination_tips', enabled: false },
+      ])
 
       return newTrip
     },

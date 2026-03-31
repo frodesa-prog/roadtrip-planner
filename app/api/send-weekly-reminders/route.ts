@@ -213,18 +213,18 @@ export async function GET(req: NextRequest) {
     .in('trip_id', tripIds)
     .eq('completed', false)
 
-  // ── 5b. Hent opt-out abonnementer ───────────────────────────────────────────
-  // Brukere som eksplisitt har slått AV ukentlig påminnelse for en spesifikk tur
-  const { data: optOuts } = await supabase
+  // ── 5b. Hent opt-in abonnementer ────────────────────────────────────────────
+  // Kun brukere som eksplisitt har slått PÅ ukentlig påminnelse for en tur
+  const { data: optIns } = await supabase
     .from('newsletter_subscriptions')
     .select('user_id, trip_id')
     .in('trip_id', tripIds)
     .eq('newsletter_type', 'weekly_reminder')
-    .eq('enabled', false)
+    .eq('enabled', true)
 
   // Set med "user_id:trip_id"-nøkler for rask oppslag
-  const optOutSet = new Set<string>(
-    (optOuts ?? []).map((o: { user_id: string; trip_id: string }) => `${o.user_id}:${o.trip_id}`)
+  const optInSet = new Set<string>(
+    (optIns ?? []).map((o: { user_id: string; trip_id: string }) => `${o.user_id}:${o.trip_id}`)
   )
 
   // ── Bygg oppslags-maps ──────────────────────────────────────────────────────
@@ -280,9 +280,9 @@ export async function GET(req: NextRequest) {
     const html = buildEmailHtml({ tripName: trip.name, daysLabel, travelerNames, uncompletedTodos, appUrl })
 
     for (const email of recipientEmails) {
-      // Hopp over brukere som har slått av ukentlig påminnelse for denne turen
+      // Send kun til brukere som eksplisitt har slått PÅ ukentlig påminnelse
       const uid = emailToUserId.get(email)
-      if (uid && optOutSet.has(`${uid}:${trip.id}`)) continue
+      if (!uid || !optInSet.has(`${uid}:${trip.id}`)) continue
 
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
