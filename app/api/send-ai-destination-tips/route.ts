@@ -148,6 +148,7 @@ function buildEmailHtml({
   cityTips,
   stopNumber,
   totalStops,
+  visitNumber,
   appUrl,
 }: {
   tripName: string
@@ -155,6 +156,7 @@ function buildEmailHtml({
   cityTips: CityTips | null
   stopNumber: number
   totalStops: number
+  visitNumber: number
   appUrl: string
 }): string {
   const mapsLink = (query: string) =>
@@ -183,7 +185,10 @@ function buildEmailHtml({
           <div style="background:#1e293b;border-radius:10px;padding:16px 20px;margin-bottom:14px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;border-bottom:1px solid #334155;padding-bottom:8px;">
               <h2 style="color:#60a5fa;font-size:1rem;margin:0;">📍 ${cityTips.city}</h2>
-              <span style="font-size:0.7rem;color:#475569;">Stopp ${stopNumber} av ${totalStops}</span>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+                <span style="font-size:0.7rem;color:#475569;">Stopp ${stopNumber} av ${totalStops}</span>
+                ${visitNumber > 1 ? `<span style="font-size:0.68rem;background:#1d4ed8;color:#93c5fd;padding:1px 7px;border-radius:10px;">Besøk ${visitNumber}</span>` : ''}
+              </div>
             </div>
             ${cityTips.general_info ? `
             <p style="font-size:0.82rem;color:#94a3b8;margin:0 0 14px;line-height:1.55;">
@@ -447,6 +452,7 @@ export async function GET(req: NextRequest) {
       const currentIndex = sub?.current_stop_index ?? 0
       const stopIndex    = currentIndex % allDestinations.length
       const nextIndex    = currentIndex + 1
+      const visitNumber  = Math.floor(currentIndex / allDestinations.length) + 1
       const destination  = allDestinations[stopIndex]
       const stopNumber   = stopIndex + 1
 
@@ -464,8 +470,12 @@ export async function GET(req: NextRequest) {
         cityTips,
         stopNumber,
         totalStops: allDestinations.length,
+        visitNumber,
         appUrl,
       })
+
+      const visitSuffix = visitNumber > 1 ? ` (besøk ${visitNumber})` : ''
+      const subject     = `🗺️ Reisedestinasjonsnips – ${destination}${visitSuffix} · ${trip.name}`
 
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -476,7 +486,7 @@ export async function GET(req: NextRequest) {
         body: JSON.stringify({
           from: 'Reiseplanlegger <noreply@sirkussand.com>',
           to:   email,
-          subject: `🗺️ Reisedestinasjonsnips – ${destination} (${trip.name})`,
+          subject,
           html,
         }),
       })
