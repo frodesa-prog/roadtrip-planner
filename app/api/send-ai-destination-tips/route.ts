@@ -71,6 +71,27 @@ function formatTipItem(item: TipItem): string {
     : item.name
 }
 
+// ── Helper: fetch city photos from Pexels ─────────────────────────────────────
+
+async function fetchCityPhotos(city: string, apiKey: string): Promise<string[]> {
+  try {
+    const query = encodeURIComponent(`${city} city travel`)
+    const res = await fetch(
+      `https://api.pexels.com/v1/search?query=${query}&per_page=6&orientation=landscape`,
+      { headers: { Authorization: apiKey } }
+    )
+    if (!res.ok) {
+      console.error('[ai-destination-tips] Pexels error:', res.status, await res.text())
+      return []
+    }
+    const data = await res.json() as { photos: Array<{ src: { medium: string } }> }
+    return (data.photos ?? []).map((p) => p.src.medium)
+  } catch (err) {
+    console.error('[ai-destination-tips] Pexels fetch error:', err)
+    return []
+  }
+}
+
 // ── Helper: days-until label ───────────────────────────────────────────────────
 
 function buildDaysLabel(dateFrom: string | null, year: number | null, today: string): string {
@@ -142,6 +163,28 @@ Ingen ekstra tekst utenfor JSON-objektet.`
 
 // ── Helper: build HTML email ───────────────────────────────────────────────────
 
+function buildPhotoGrid(photos: string[]): string {
+  if (photos.length === 0) return ''
+  // 3 columns × 2 rows — HTML table for email client compatibility
+  const rows: string[][] = []
+  for (let i = 0; i < photos.length; i += 3) {
+    rows.push(photos.slice(i, i + 3))
+  }
+  const rowsHtml = rows.map((row) => `
+    <tr>
+      ${row.map((url) => `
+        <td style="padding:2px;">
+          <img src="${url}" width="100%" style="display:block;border-radius:6px;object-fit:cover;height:110px;" alt="">
+        </td>`).join('')}
+      ${row.length < 3 ? '<td></td>'.repeat(3 - row.length) : ''}
+    </tr>`).join('')
+
+  return `
+    <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:16px;border-collapse:collapse;">
+      ${rowsHtml}
+    </table>`
+}
+
 function buildEmailHtml({
   tripName,
   daysLabel,
@@ -149,6 +192,7 @@ function buildEmailHtml({
   stopNumber,
   totalStops,
   visitNumber,
+  photos,
   appUrl,
 }: {
   tripName: string
@@ -157,6 +201,7 @@ function buildEmailHtml({
   stopNumber: number
   totalStops: number
   visitNumber: number
+  photos: string[]
   appUrl: string
 }): string {
   const mapsLink = (query: string) =>
@@ -194,6 +239,7 @@ function buildEmailHtml({
             <p style="font-size:0.82rem;color:#94a3b8;margin:0 0 14px;line-height:1.55;">
               ${cityTips.general_info}
             </p>` : ''}
+            ${buildPhotoGrid(photos)}
             <p style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin:0 0 6px;">
               🍽️ Restauranttips
             </p>
@@ -262,6 +308,7 @@ export async function GET(req: NextRequest) {
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY
   const serviceRoleKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
   const supabaseUrl     = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const pexelsApiKey    = process.env.PEXELS_API_KEY  // valgfri — bilder utelates hvis ikke satt
 
   if (!resendApiKey || !anthropicApiKey || !serviceRoleKey || !supabaseUrl) {
     return NextResponse.json({ error: 'Missing env vars' }, { status: 500 })
@@ -456,12 +503,16 @@ export async function GET(req: NextRequest) {
       const destination  = allDestinations[stopIndex]
       const stopNumber   = stopIndex + 1
 
-      // Generer AI-tips for dette ene stoppestedet
+      // Hent AI-tips og bilder parallelt
       let cityTips: CityTips | null = null
+      let photos: string[] = []
       try {
-        cityTips = await generateDestinationTips(anthropic, trip.name, destination)
+        [cityTips, photos] = await Promise.all([
+          generateDestinationTips(anthropic, trip.name, destination),
+          pexelsApiKey ? fetchCityPhotos(destination, pexelsApiKey) : Promise.resolve([]),
+        ])
       } catch (err) {
-        console.error('[ai-destination-tips] Anthropic error for trip', trip.id, 'stop', destination, err)
+        console.error('[ai-destination-tips] Error for trip', trip.id, 'stop', destination, err)
       }
 
       const html = buildEmailHtml({
@@ -471,6 +522,7 @@ export async function GET(req: NextRequest) {
         stopNumber,
         totalStops: allDestinations.length,
         visitNumber,
+        photos,
         appUrl,
       })
 
