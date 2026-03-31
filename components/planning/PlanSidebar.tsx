@@ -99,7 +99,7 @@ export default function PlanSidebar({
     if (stops.length < 2) return
     stops.forEach((stop, i) => {
       if (i === stops.length - 1) return
-      if (!stop.arrival_date || stop.nights < 1) return
+      if (!stop.arrival_date) return  // 0 netter tillatt – neste stopp får samme dato
       const next = stops[i + 1]
       const d = new Date(stop.arrival_date + 'T12:00:00')
       d.setDate(d.getDate() + stop.nights)

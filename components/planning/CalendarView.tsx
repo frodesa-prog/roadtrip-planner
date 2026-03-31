@@ -52,6 +52,7 @@ interface DayInfo {
   stop: Stop | null
   stopOrder: number   // 1-based position in sorted stop list
   isArrival: boolean  // true = arrival day, false = "staying" day
+  transitCity: string | null  // city of 0-nights transit stop arriving same day
 }
 
 interface CalendarViewProps {
@@ -101,11 +102,24 @@ export default function CalendarView({
     let stop: Stop | null = null
     let stopOrder = 0
     let isArrival = false
+    let transitCity: string | null = null
 
     for (let i = 0; i < dated.length; i++) {
       const s = dated[i]
       const arrival = new Date(s.arrival_date! + 'T12:00:00')
-      const departure = addDays(arrival, s.nights)
+
+      // 0-netter-stopp: sjekk om neste stopp har samme ankomstdato
+      // → bruk dette stoppets bynavn som transit og gå videre
+      if (s.nights === 0 && sameDay(date, arrival)) {
+        const next = dated[i + 1]
+        if (next?.arrival_date === s.arrival_date) {
+          transitCity = s.city
+          continue  // neste stopp er primærstopp for denne dagen
+        }
+      }
+
+      // Normalt stopp: bruk minst 1 dag slik at 0-netter-stopp uten neste stopp vises
+      const departure = addDays(arrival, Math.max(1, s.nights))
       if (date >= arrival && date < departure) {
         stop = s
         stopOrder = i + 1
@@ -114,7 +128,7 @@ export default function CalendarView({
       }
     }
 
-    days.push({ date, stop, stopOrder, isArrival })
+    days.push({ date, stop, stopOrder, isArrival, transitCity })
   }
 
   // Group into weeks (each array has exactly 7 entries)
@@ -208,9 +222,9 @@ export default function CalendarView({
                         </div>
                       </div>
 
-                      {/* City name */}
+                      {/* City name – vis "transit → by" hvis 0-netter-stopp samme dag */}
                       <p className="text-[10px] font-semibold text-slate-100 truncate leading-tight">
-                        {cell.stop.city}
+                        {cell.transitCity ? `${cell.transitCity} → ${cell.stop.city}` : cell.stop.city}
                       </p>
 
                       {/* Arrival: show drive time if available, else plain arrival indicator */}
