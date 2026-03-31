@@ -157,13 +157,26 @@ function buildEmailHtml({
   totalStops: number
   appUrl: string
 }): string {
+  const mapsLink = (query: string) =>
+    `https://www.google.com/maps/search/${encodeURIComponent(query)}`
+
   const cityHtml = cityTips
     ? (() => {
         const restaurantItems = (cityTips.restaurants ?? [])
-          .map((r) => `<li style="margin:6px 0;color:#cbd5e1;">${formatTipItem(r)}</li>`)
+          .map((r) => {
+            const text = formatTipItem(r)
+            const name = typeof r === 'string' ? r.split('–')[0].split('—')[0].trim() : r.name
+            const url  = mapsLink(`${name} ${cityTips.city}`)
+            return `<li style="margin:6px 0;color:#cbd5e1;">${text} <a href="${url}" style="color:#60a5fa;font-size:0.75rem;text-decoration:none;white-space:nowrap;">🗺 Kart</a></li>`
+          })
           .join('')
         const activityItems = (cityTips.activities ?? [])
-          .map((a) => `<li style="margin:6px 0;color:#cbd5e1;">${formatTipItem(a)}</li>`)
+          .map((a) => {
+            const text = formatTipItem(a)
+            const name = typeof a === 'string' ? a.split('–')[0].split('—')[0].trim() : a.name
+            const url  = mapsLink(`${name} ${cityTips.city}`)
+            return `<li style="margin:6px 0;color:#cbd5e1;">${text} <a href="${url}" style="color:#60a5fa;font-size:0.75rem;text-decoration:none;white-space:nowrap;">🗺 Kart</a></li>`
+          })
           .join('')
 
         return `
