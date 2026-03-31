@@ -196,14 +196,30 @@ export function useTrips() {
         ai_context: aiParts.length > 0 ? aiParts.join('\n') : null,
       })
       if (travelerErr) {
-        // Fallback: insert med kjernefelter (linked_user_id bevares alltid)
-        await supabase.from('travelers').insert({
+        console.error('[createTrip] Primær traveler-insert feilet:', JSON.stringify(travelerErr))
+        // Fallback 1: uten ekstra profilfelter
+        const { error: fallback1Err } = await supabase.from('travelers').insert({
           trip_id: newTrip.id,
           name: displayName,
           linked_user_id: user.id,
           age,
           gender: prof?.gender ?? null,
         })
+        if (fallback1Err) {
+          console.error('[createTrip] Fallback-1 feilet:', JSON.stringify(fallback1Err))
+          // Fallback 2: uten linked_user_id (hvis kolonnen mangler i DB)
+          const { error: fallback2Err } = await supabase.from('travelers').insert({
+            trip_id: newTrip.id,
+            name: displayName,
+            age,
+            gender: prof?.gender ?? null,
+          })
+          if (fallback2Err) {
+            console.error('[createTrip] Fallback-2 feilet:', JSON.stringify(fallback2Err))
+          } else {
+            console.log('[createTrip] Fallback-2 OK – linked_user_id-kolonnen mangler trolig i DB')
+          }
+        }
       }
 
       return newTrip
