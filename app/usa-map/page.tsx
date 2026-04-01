@@ -274,8 +274,8 @@ function Legend({
         color: 'white',
         boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
         zIndex: 10,
-        minWidth: open ? 260 : 'auto',
-        maxWidth: 340,
+        minWidth: open ? 420 : 'auto',
+        maxWidth: 520,
       }}
     >
       <button
@@ -328,7 +328,7 @@ function Legend({
                 </div>
                 {/* Color bar */}
                 <div style={{ width: 22, height: 4, borderRadius: 2, background: t.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1, lineHeight: 1.3 }}>
+                <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1, minWidth: 0, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {t.name}
                 </span>
                 {(() => {
