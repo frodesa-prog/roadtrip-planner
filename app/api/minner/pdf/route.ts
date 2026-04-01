@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
 
     const pdfBuffer = await buildPDF(m, entries, stops)
 
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type':        'application/pdf',
         'Content-Disposition': `attachment; filename="${(m.title ?? 'Minnebok').replace(/[^a-zA-Z0-9 _æøåÆØÅ-]/g, '_')}.pdf"`,
