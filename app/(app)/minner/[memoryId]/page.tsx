@@ -13,7 +13,7 @@ import CollageGenerator from '@/components/minner/CollageGenerator'
 import PublicSharePanel from '@/components/minner/PublicSharePanel'
 import MemoryPDFButton from '@/components/minner/MemoryPDFButton'
 import PhotoUploadZone from '@/components/minner/PhotoUploadZone'
-import PhotoGrid from '@/components/minner/PhotoGrid'
+import PhotoManageGrid from '@/components/minner/PhotoManageGrid'
 import { ArrowLeft, Sparkles, BookOpen, Image, Map, Share2 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -45,7 +45,7 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
 
   const {
     photos, favoritePhotos, photosByStop,
-    addPhoto, toggleFavorite, updateCaption, deletePhoto,
+    addPhoto, toggleFavorite, updateCaption, deletePhoto, assignToStop,
   } = useMemoryPhotos(memoryId)
 
   // Overstyr memory fra memoryId direkte
@@ -215,7 +215,7 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
 
         {/* ── Bilder ── */}
         {activeTab === 'bilder' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-300">
                 Alle bilder ({photos.length})
@@ -228,11 +228,13 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
                 <p>Ingen bilder ennå. Last opp bilder fra turen din!</p>
               </div>
             ) : (
-              <PhotoGrid
+              <PhotoManageGrid
                 photos={photos}
+                stops={stops}
                 onToggleFavorite={toggleFavorite}
                 onUpdateCaption={updateCaption}
                 onDelete={deletePhoto}
+                onAssignToStop={assignToStop}
               />
             )}
           </div>
