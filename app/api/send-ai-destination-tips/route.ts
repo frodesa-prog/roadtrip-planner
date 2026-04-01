@@ -480,17 +480,22 @@ export async function GET(req: NextRequest) {
     if (allDestinations.length === 0) continue
 
     // Finn alle brukere som skal ha e-post for denne turen i dag
+    // Bruk Set for å unngå dubletter (eier kan også ligge i travelers med linked_user_id)
     const eligibleUsers: Array<{ email: string; userId: string }> = []
+    const addedUserIds = new Set<string>()
 
     const ownerProfile = profileMap.get(trip.owner_id)
     if (ownerProfile?.email && shouldSend(trip.owner_id, trip.id)) {
       eligibleUsers.push({ email: ownerProfile.email, userId: trip.owner_id })
+      addedUserIds.add(trip.owner_id)
     }
     for (const traveler of tripTravelers) {
       if (!traveler.linked_user_id) continue
+      if (addedUserIds.has(traveler.linked_user_id)) continue  // allerede lagt til
       const p = profileMap.get(traveler.linked_user_id)
       if (p?.email && shouldSend(traveler.linked_user_id, trip.id)) {
         eligibleUsers.push({ email: p.email, userId: traveler.linked_user_id })
+        addedUserIds.add(traveler.linked_user_id)
       }
     }
 
