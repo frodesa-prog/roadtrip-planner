@@ -109,10 +109,28 @@ function shiftPolyline(
   })
 }
 
-// ── TripRoute: draws directions + markers for one trip ────────────────────────
+// ── Zoom-adaptive offset & stroke helpers ────────────────────────────────────
 
-// Avstand mellom parallelle ruter i meter (synlig på delstatsnivå, knapt merkbar på USA-nivå)
-const LANE_SPACING = 80
+/**
+ * Returnerer forskyvning i meter basert på nåværende zoom-nivå.
+ * Bruker 5 piksler mellomrom per rute, omregnet til meter ved gjeldende zoom.
+ * Referansebreddegrad 38° (midten av kontinental-USA).
+ */
+function computeOffsetMeters(zoom: number, offsetIndex: number, totalTrips: number): number {
+  const PIXEL_SPACING   = 5
+  const metersPerPixel  = 156543 * Math.cos(38 * Math.PI / 180) / Math.pow(2, zoom)
+  return (offsetIndex - (totalTrips - 1) / 2) * PIXEL_SPACING * metersPerPixel
+}
+
+/** Linjeverdi tilpasset zoom-nivå: tynnere på USA-oversikt, tykkere på delstatsnivå. */
+function computeStrokeWeight(zoom: number): number {
+  if (zoom <= 6)  return 2
+  if (zoom <= 8)  return 3
+  if (zoom <= 10) return 4
+  return 5
+}
+
+// ── TripRoute: draws directions + markers for one trip ────────────────────────
 
 function TripRoute({
   trip,
@@ -132,14 +150,21 @@ function TripRoute({
   const map       = useMap()
   const routesLib = useMapsLibrary('routes')
 
-  const polylineRef        = useRef<google.maps.Polyline | null>(null)
-  const roadPolylineRef    = useRef<google.maps.Polyline | null>(null)
-  const markersRef         = useRef<google.maps.Marker[]>([])
+  const polylineRef         = useRef<google.maps.Polyline | null>(null)
+  const roadPolylineRef     = useRef<google.maps.Polyline | null>(null)
+  const markersRef          = useRef<google.maps.Marker[]>([])
   const directionsLoadedRef = useRef(false)
+  const rawPathRef          = useRef<google.maps.LatLng[]>([])
+  const zoomListenerRef     = useRef<google.maps.MapsEventListener | null>(null)
 
   // Nullstill når stoppesteder endres så ny rute hentes og fallback-polyline vises midlertidig
   useEffect(() => {
     directionsLoadedRef.current = false
+    rawPathRef.current = []
+    if (zoomListenerRef.current) {
+      google.maps.event.removeListener(zoomListenerRef.current)
+      zoomListenerRef.current = null
+    }
     roadPolylineRef.current?.setMap(null)
     roadPolylineRef.current = null
   }, [trip.stops])
@@ -175,9 +200,6 @@ function TripRoute({
   // 2. Road-based route via Directions API – tegnes som offset Polyline
   useEffect(() => {
     if (!map || !routesLib || trip.stops.length < 2) return
-
-    // Beregn forskyvning i meter: symmetrisk rundt null for alle turer
-    const offsetM = (offsetIndex - (totalTrips - 1) / 2) * LANE_SPACING
 
     // Bygg waypoints-array med lagrede via-punkter (samme mønster som RoutePolyline.tsx):
     // [via0..., stopp1(stopover), via1..., stopp2(stopover), ..., viaN...]
@@ -220,25 +242,47 @@ function TripRoute({
       },
       (result, status) => {
         if (status === 'OK' && result) {
-          // Trekk ut detaljert sti fra alle etapper/steg
+          // Trekk ut detaljert sti fra alle etapper/steg og lagre i ref
           const rawPath: google.maps.LatLng[] = []
           for (const leg of result.routes[0].legs) {
             for (const step of leg.steps) {
               rawPath.push(...step.path)
             }
           }
-          // Forskyv stien vinkelrett og tegn som vanlig Polyline
-          const shiftedPath = shiftPolyline(rawPath, offsetM)
-          roadPolylineRef.current?.setMap(null)
-          roadPolylineRef.current = new google.maps.Polyline({
-            path:          shiftedPath,
-            strokeColor:   trip.color,
-            strokeWeight:  5,
-            strokeOpacity: 0.88,
-            map,
-          })
+          rawPathRef.current = rawPath
+
+          // Funksjon som re-beregner offset og linjeverdi ved hvert zoom-skifte
+          const applyZoom = () => {
+            const zoom     = map.getZoom() ?? 4
+            const oM       = computeOffsetMeters(zoom, offsetIndex, totalTrips)
+            const weight   = computeStrokeWeight(zoom)
+            const shifted  = shiftPolyline(rawPathRef.current, oM)
+
+            if (roadPolylineRef.current) {
+              roadPolylineRef.current.setPath(shifted)
+              roadPolylineRef.current.setOptions({ strokeWeight: weight })
+            } else {
+              roadPolylineRef.current = new google.maps.Polyline({
+                path:          shifted,
+                strokeColor:   trip.color,
+                strokeWeight:  weight,
+                strokeOpacity: 0.88,
+                map,
+              })
+            }
+          }
+
+          // Første rendering
+          applyZoom()
           directionsLoadedRef.current = true
           polylineRef.current?.setMap(null)
+
+          // Abonner på zoom-endringer – fjern eventuell gammel lytter først
+          if (zoomListenerRef.current) {
+            google.maps.event.removeListener(zoomListenerRef.current)
+          }
+          zoomListenerRef.current = map.addListener('zoom_changed', applyZoom)
+
           // Summer kjøreavstand
           const totalMeters = result.routes[0].legs.reduce(
             (sum, leg) => sum + (leg.distance?.value ?? 0), 0
@@ -249,6 +293,10 @@ function TripRoute({
     )
 
     return () => {
+      if (zoomListenerRef.current) {
+        google.maps.event.removeListener(zoomListenerRef.current)
+        zoomListenerRef.current = null
+      }
       roadPolylineRef.current?.setMap(null)
       roadPolylineRef.current = null
     }
