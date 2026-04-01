@@ -14,6 +14,7 @@ interface StopData {
   lat: number
   lng: number
   order: number
+  nights: number
 }
 
 interface TripData {
@@ -330,10 +331,19 @@ function Legend({
                 <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1, lineHeight: 1.3 }}>
                   {t.name}
                 </span>
-                <span style={{ fontSize: 10, color: '#475569', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                  {t.stops.length} stopp
-                  {distances[t.id] != null && ` · ${distances[t.id].toLocaleString('nb-NO')} km`}
-                </span>
+                {(() => {
+                  const km        = distances[t.id]
+                  const nights    = t.stops.reduce((s, st) => s + (st.nights ?? 0), 0)
+                  const avgKm     = km != null && nights > 0 ? Math.round(km / nights) : null
+                  return (
+                    <span style={{ fontSize: 10, color: '#475569', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                      {t.stops.length} stopp
+                      {nights > 0 && ` · ${nights} netter`}
+                      {km      != null && ` · ${km.toLocaleString('nb-NO')} km`}
+                      {avgKm   != null && ` · ⌀ ${avgKm} km/dag`}
+                    </span>
+                  )
+                })()}
               </div>
             )
           })}
@@ -412,7 +422,7 @@ export default function UsaMapPage() {
       // Fetch ALL stops across all trips
       const { data: stops, error: stopsErr } = await supabase
         .from('stops')
-        .select('id, trip_id, city, state, lat, lng, order')
+        .select('id, trip_id, city, state, lat, lng, order, nights')
         .in('trip_id', allTrips.map((t) => t.id))
         .order('order', { ascending: true })
 
