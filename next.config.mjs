@@ -8,9 +8,8 @@ const nextConfig = {
       },
     ],
   },
-  // @react-pdf/renderer må lastes direkte fra node_modules og ikke bundlet av
-  // Next.js – ellers oppstår to separate React-instanser som krasjer PDF-rendering.
-  serverExternalPackages: ['@react-pdf/renderer'],
+  // pdfkit must not be bundled by Next.js (uses Node.js streams/buffers directly)
+  serverExternalPackages: ['pdfkit'],
 };
 
 export default nextConfig;
