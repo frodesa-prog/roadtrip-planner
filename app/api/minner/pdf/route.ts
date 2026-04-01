@@ -290,7 +290,8 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (err) {
-    console.error('PDF generering feilet:', err)
-    return NextResponse.json({ error: 'PDF-generering feilet' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('PDF generering feilet:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
