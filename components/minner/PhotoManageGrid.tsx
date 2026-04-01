@@ -201,59 +201,63 @@ export default function PhotoManageGrid({
 
   return (
     <>
-      {/* ── Toolbar ── */}
-      <div className="flex items-center justify-between mb-4">
-        {selectMode ? (
-          <>
-            <div className="flex items-center gap-2">
-              <button onClick={selectAll} className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1">
-                <CheckSquare className="w-3.5 h-3.5" /> Velg alle
+      {/* ── Sticky toolbar + bulk-assign bar ── */}
+      <div className="sticky top-[40px] z-10 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 -mx-4 px-4 pb-2 pt-2 mb-4">
+
+        {/* Toolbar row */}
+        <div className="flex items-center justify-between">
+          {selectMode ? (
+            <>
+              <div className="flex items-center gap-2">
+                <button onClick={selectAll} className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1">
+                  <CheckSquare className="w-3.5 h-3.5" /> Velg alle
+                </button>
+                <span className="text-xs text-slate-500">·</span>
+                <span className="text-xs text-slate-400">{selectedIds.size} valgt</span>
+              </div>
+              <button onClick={exitSelectMode}
+                className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
+                <X className="w-3.5 h-3.5" /> Avbryt
               </button>
-              <span className="text-xs text-slate-500">·</span>
-              <span className="text-xs text-slate-400">{selectedIds.size} valgt</span>
-            </div>
-            <button onClick={exitSelectMode}
-              className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
-              <X className="w-3.5 h-3.5" /> Avbryt
+            </>
+          ) : (
+            <button
+              onClick={() => setSelectMode(true)}
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+            >
+              <Square className="w-3.5 h-3.5" /> Velg bilder
             </button>
-          </>
-        ) : (
-          <button
-            onClick={() => setSelectMode(true)}
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
-          >
-            <Square className="w-3.5 h-3.5" /> Velg bilder
-          </button>
+          )}
+        </div>
+
+        {/* Bulk assign bar – only when photos are selected */}
+        {selectMode && selectedIds.size > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 p-3 bg-slate-800/80 rounded-xl border border-amber-700/30">
+            <Tag className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span className="text-xs text-slate-300 flex-shrink-0">
+              Koble <span className="font-semibold text-amber-300">{selectedIds.size}</span> bilde{selectedIds.size !== 1 ? 'r' : ''} til:
+            </span>
+            <select
+              value={assignTarget}
+              onChange={e => setAssignTarget(e.target.value)}
+              className="flex-1 min-w-[160px] text-xs bg-slate-700 text-slate-200 rounded-lg px-2 py-1.5 border border-slate-600 focus:outline-none focus:border-amber-600"
+            >
+              <option value="__none__">Uten stoppested</option>
+              {stops.map((s, i) => (
+                <option key={s.id} value={s.id}>
+                  {i + 1}. {s.city}{s.state ? `, ${s.state}` : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleBulkAssign}
+              className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition-colors"
+            >
+              Koble til
+            </button>
+          </div>
         )}
       </div>
-
-      {/* ── Bulk assign bar (shown when photos are selected) ── */}
-      {selectMode && selectedIds.size > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 p-3 bg-slate-800/80 rounded-xl border border-amber-700/30">
-          <Tag className="w-4 h-4 text-amber-400 flex-shrink-0" />
-          <span className="text-xs text-slate-300 flex-shrink-0">
-            Koble <span className="font-semibold text-amber-300">{selectedIds.size}</span> bilde{selectedIds.size !== 1 ? 'r' : ''} til:
-          </span>
-          <select
-            value={assignTarget}
-            onChange={e => setAssignTarget(e.target.value)}
-            className="flex-1 min-w-[160px] text-xs bg-slate-700 text-slate-200 rounded-lg px-2 py-1.5 border border-slate-600 focus:outline-none focus:border-amber-600"
-          >
-            <option value="__none__">Uten stoppested</option>
-            {stops.map((s, i) => (
-              <option key={s.id} value={s.id}>
-                {i + 1}. {s.city}{s.state ? `, ${s.state}` : ''}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={handleBulkAssign}
-            className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition-colors"
-          >
-            Koble til
-          </button>
-        </div>
-      )}
 
       {/* ── Photo groups ── */}
       {flat ? (
