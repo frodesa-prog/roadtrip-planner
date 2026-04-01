@@ -329,7 +329,7 @@ function Legend({
         }}
       >
         <span>🗺️ Reiser</span>
-        <span style={{ fontSize: 10, color: '#475569' }}>{open ? '▾' : '▸'}</span>
+        <span style={{ fontSize: 10, color: '#94a3b8' }}>{open ? '▾' : '▸'}</span>
       </button>
 
       {open && (
@@ -369,7 +369,7 @@ function Legend({
                   const nights    = t.stops.reduce((s, st) => s + (st.nights ?? 0), 0)
                   const avgKm     = km != null && nights > 0 ? Math.round(km / nights) : null
                   return (
-                    <span style={{ fontSize: 10, color: '#475569', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }}>
                       {t.stops.length} stopp
                       {nights > 0 && ` · ${nights} netter`}
                       {km      != null && ` · ${km.toLocaleString('nb-NO')} km`}
