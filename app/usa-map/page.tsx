@@ -57,72 +57,36 @@ const ROUTE_COLORS = [
   '#84cc16',
 ]
 
-// ── Geometry helpers: perpendicular polyline offset ──────────────────────────
+// ── Zoom-adaptive offset & stroke helpers ────────────────────────────────────
 
 const DEG = Math.PI / 180
 
-function bearingRad(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-): number {
-  const dLng = (b.lng - a.lng) * DEG
-  const lat1 = a.lat * DEG, lat2 = b.lat * DEG
-  return Math.atan2(
-    Math.sin(dLng) * Math.cos(lat2),
-    Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng),
-  )
-}
-
-function movePoint(
-  p: { lat: number; lng: number },
-  bearing: number,
-  meters: number,
-): { lat: number; lng: number } {
-  const R = 6_371_000
-  const d = meters / R
-  const lat1 = p.lat * DEG, lng1 = p.lng * DEG
-  const lat2 = Math.asin(
-    Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(bearing),
-  )
-  const lng2 = lng1 + Math.atan2(
-    Math.sin(bearing) * Math.sin(d) * Math.cos(lat1),
-    Math.cos(d) - Math.sin(lat1) * Math.sin(lat2),
-  )
-  return { lat: lat2 / DEG, lng: lng2 / DEG }
-}
-
-/** Forskyver en polyline vinkelrett på retningen med `offsetM` meter (+ = høyre, − = venstre). */
-function shiftPolyline(
+/**
+ * Forskyver hele stien øst/vest med `dLng` grader – enkel translasjon uten
+ * vinkelberegninger. Gir rene parallelle linjer uten kantete artefakter.
+ */
+function shiftPolylineLng(
   path: google.maps.LatLng[],
-  offsetM: number,
+  dLng: number,
 ): google.maps.LatLng[] {
-  if (offsetM === 0 || path.length < 2) return path
-  return path.map((pt, i) => {
-    const prev = path[Math.max(0, i - 1)]
-    const next = path[Math.min(path.length - 1, i + 1)]
-    const bear = bearingRad(
-      { lat: prev.lat(), lng: prev.lng() },
-      { lat: next.lat(), lng: next.lng() },
-    )
-    const shifted = movePoint({ lat: pt.lat(), lng: pt.lng() }, bear + Math.PI / 2, offsetM)
-    return new google.maps.LatLng(shifted.lat, shifted.lng)
-  })
+  if (dLng === 0 || path.length === 0) return path
+  return path.map((p) => new google.maps.LatLng(p.lat(), p.lng() + dLng))
 }
-
-// ── Zoom-adaptive offset & stroke helpers ────────────────────────────────────
 
 /**
- * Returnerer forskyvning i meter basert på nåværende zoom-nivå.
- * Bruker 5 piksler mellomrom per rute, omregnet til meter ved gjeldende zoom.
- * Referansebreddegrad 38° (midten av kontinental-USA).
+ * Returnerer øst/vest-forskyvning i grader basert på nåværende zoom-nivå.
+ * 8 piksler pr. fil · Web Mercator · referansebreddegrad 38°.
  */
-function computeOffsetMeters(zoom: number, offsetIndex: number, totalTrips: number): number {
-  const PIXEL_SPACING   = 5
-  const metersPerPixel  = 156543 * Math.cos(38 * Math.PI / 180) / Math.pow(2, zoom)
-  return (offsetIndex - (totalTrips - 1) / 2) * PIXEL_SPACING * metersPerPixel
+function computeOffsetDeg(zoom: number, offsetIndex: number, totalTrips: number): number {
+  if (totalTrips <= 1) return 0
+  const PIXEL_SPACING  = 8
+  const metersPerPixel = 156543 * Math.cos(38 * DEG) / Math.pow(2, zoom)
+  const offsetMeters   = (offsetIndex - (totalTrips - 1) / 2) * PIXEL_SPACING * metersPerPixel
+  // meter → lengdegrader ved 38° N
+  return offsetMeters / (111320 * Math.cos(38 * DEG))
 }
 
-/** Linjeverdi tilpasset zoom-nivå: tynnere på USA-oversikt, tykkere på delstatsnivå. */
+/** Linjeverdi tilpasset zoom-nivå: tynnere på USA-oversikt, tykkere innzoomed. */
 function computeStrokeWeight(zoom: number): number {
   if (zoom <= 6)  return 2
   if (zoom <= 8)  return 3
@@ -251,12 +215,14 @@ function TripRoute({
           }
           rawPathRef.current = rawPath
 
-          // Funksjon som re-beregner offset og linjeverdi ved hvert zoom-skifte
+          // Re-beregner offset og linjeverdi etter at brukeren har sluttet å zoome/panorere.
+          // Bruker 'idle' (ikke 'zoom_changed') – fyrer én gang når kartet stopper, ikke
+          // kontinuerlig under zoom-animasjonen, slik at kartet forblir responsivt.
           const applyZoom = () => {
-            const zoom     = map.getZoom() ?? 4
-            const oM       = computeOffsetMeters(zoom, offsetIndex, totalTrips)
-            const weight   = computeStrokeWeight(zoom)
-            const shifted  = shiftPolyline(rawPathRef.current, oM)
+            const zoom    = map.getZoom() ?? 5
+            const dLng    = computeOffsetDeg(zoom, offsetIndex, totalTrips)
+            const weight  = computeStrokeWeight(zoom)
+            const shifted = shiftPolylineLng(rawPathRef.current, dLng)
 
             if (roadPolylineRef.current) {
               roadPolylineRef.current.setPath(shifted)
@@ -277,11 +243,11 @@ function TripRoute({
           directionsLoadedRef.current = true
           polylineRef.current?.setMap(null)
 
-          // Abonner på zoom-endringer – fjern eventuell gammel lytter først
+          // Abonner på idle (kart ferdig med å animere) – fjern eventuell gammel lytter først
           if (zoomListenerRef.current) {
             google.maps.event.removeListener(zoomListenerRef.current)
           }
-          zoomListenerRef.current = map.addListener('zoom_changed', applyZoom)
+          zoomListenerRef.current = map.addListener('idle', applyZoom)
 
           // Summer kjøreavstand
           const totalMeters = result.routes[0].legs.reduce(
