@@ -426,6 +426,8 @@ export interface MemoryPhoto {
   id: string
   memory_id: string
   stop_id: string | null
+  activity_id: string | null
+  dining_id: string | null
   uploaded_by: string
   cloudinary_public_id: string
   cloudinary_url: string

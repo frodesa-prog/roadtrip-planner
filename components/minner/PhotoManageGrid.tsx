@@ -1,6 +1,6 @@
 'use client'
 
-import { MemoryPhoto, Stop } from '@/types'
+import { MemoryPhoto, Stop, Activity, Dining } from '@/types'
 import {
   Star, Trash2, Pencil, Check, X,
   ChevronLeft, ChevronRight, CheckSquare, Square, Tag,
@@ -9,44 +9,90 @@ import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type AssignUpdates = { stop_id?: string | null; activity_id?: string | null; dining_id?: string | null }
+
 interface Props {
-  photos:           MemoryPhoto[]
-  stops:            Stop[]
+  photos:         MemoryPhoto[]
+  stops:          Stop[]
+  activities:     Activity[]
+  dining:         Dining[]
   onToggleFavorite: (id: string) => void
   onUpdateCaption:  (id: string, caption: string) => void
   onDelete:         (id: string) => void
-  onAssignToStop:   (id: string, stopId: string | null) => void
+  onAssignPhoto:    (id: string, updates: AssignUpdates) => void
+  onBulkAssign:     (ids: string[], updates: AssignUpdates) => void
 }
 
+// ── Encode / decode assignment value for <select> ─────────────────────────────
+
+function encodeAssign(type: 'none' | 'stop' | 'activity' | 'dining', id?: string): string {
+  return type === 'none' ? '' : `${type}:${id}`
+}
+
+function decodeAssign(val: string, activities: Activity[], dining: Dining[]): AssignUpdates {
+  if (!val) return { stop_id: null, activity_id: null, dining_id: null }
+  const [type, id] = val.split(':')
+  if (type === 'stop')     return { stop_id: id,   activity_id: null, dining_id: null }
+  if (type === 'activity') {
+    const act = activities.find(a => a.id === id)
+    return { stop_id: act?.stop_id ?? null, activity_id: id, dining_id: null }
+  }
+  if (type === 'dining') {
+    const d = dining.find(d => d.id === id)
+    return { stop_id: d?.stop_id ?? null, activity_id: null, dining_id: id }
+  }
+  return { stop_id: null, activity_id: null, dining_id: null }
+}
+
+// ── Label helpers for badges ──────────────────────────────────────────────────
+
+function photoLabel(
+  photo: MemoryPhoto,
+  stopMap: Map<string, Stop>,
+  actMap: Map<string, Activity>,
+  dinMap: Map<string, Dining>,
+): string | null {
+  if (photo.activity_id) return actMap.get(photo.activity_id)?.name ?? null
+  if (photo.dining_id)   return dinMap.get(photo.dining_id)?.name ?? null
+  if (photo.stop_id)     return stopMap.get(photo.stop_id)?.city ?? null
+  return null
+}
+
+// ── Date formatter ────────────────────────────────────────────────────────────
+
+function shortDate(d: string | null): string {
+  if (!d) return ''
+  return new Date(d).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function PhotoManageGrid({
-  photos, stops, onToggleFavorite, onUpdateCaption, onDelete, onAssignToStop,
+  photos, stops, activities, dining,
+  onToggleFavorite, onUpdateCaption, onDelete, onAssignPhoto, onBulkAssign,
 }: Props) {
+
+  // ── Lookup maps ───────────────────────────────────────────────────────────
+  const stopMap = new Map(stops.map(s => [s.id, s]))
+  const actMap  = new Map(activities.map(a => [a.id, a]))
+  const dinMap  = new Map(dining.map(d => [d.id, d]))
+
   // ── Select mode ───────────────────────────────────────────────────────────
   const [selectMode, setSelectMode]     = useState(false)
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
-  const [assignTarget, setAssignTarget] = useState<string>('__none__')
+  const [assignValue, setAssignValue]   = useState('')
 
   const toggleSelect = (id: string) =>
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-
-  const selectAll = () => setSelectedIds(new Set(photos.map(p => p.id)))
-  const clearSelection = () => setSelectedIds(new Set())
-
-  const exitSelectMode = () => {
-    setSelectMode(false)
-    clearSelection()
-    setAssignTarget('__none__')
-  }
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const selectAll    = () => setSelectedIds(new Set(photos.map(p => p.id)))
+  const exitSelect   = () => { setSelectMode(false); setSelectedIds(new Set()); setAssignValue('') }
 
   function handleBulkAssign() {
-    if (selectedIds.size === 0) return
-    const stopId = assignTarget === '__none__' ? null : assignTarget
-    selectedIds.forEach(id => onAssignToStop(id, stopId))
-    exitSelectMode()
+    if (!selectedIds.size) return
+    onBulkAssign([...selectedIds], decodeAssign(assignValue, activities, dining))
+    exitSelect()
   }
 
   // ── Caption editing ───────────────────────────────────────────────────────
@@ -80,34 +126,36 @@ export default function PhotoManageGrid({
     return () => window.removeEventListener('keydown', h)
   }, [lightboxIndex, goPrev, goNext])
 
-  // ── Group photos by stop ──────────────────────────────────────────────────
-  const stopMap = new Map(stops.map(s => [s.id, s]))
-
-  const groups: Array<{ stop: Stop | null; photos: MemoryPhoto[] }> = []
-
-  // Ordered stops first
-  for (const stop of stops) {
-    const sp = photos.filter(p => p.stop_id === stop.id)
-    if (sp.length > 0) groups.push({ stop, photos: sp })
+  // ── Build <select> option value for a given photo ─────────────────────────
+  function currentAssignValue(photo: MemoryPhoto): string {
+    if (photo.activity_id) return encodeAssign('activity', photo.activity_id)
+    if (photo.dining_id)   return encodeAssign('dining',   photo.dining_id)
+    if (photo.stop_id)     return encodeAssign('stop',     photo.stop_id)
+    return ''
   }
 
-  // Unassigned last
+  // ── Group photos by stop (activities/dining grouped under their stop) ──────
+  const groups: Array<{ stop: Stop | null; photos: MemoryPhoto[] }> = []
+  for (const stop of stops) {
+    const sp = photos.filter(p => {
+      if (p.stop_id !== stop.id) return false
+      return true
+    })
+    if (sp.length > 0) groups.push({ stop, photos: sp })
+  }
   const unassigned = photos.filter(p => !p.stop_id)
   if (unassigned.length > 0) groups.push({ stop: null, photos: unassigned })
 
-  // If no groups at all, show flat grid
-  const flat = groups.length === 0
-
   if (photos.length === 0) return null
 
-  // ── Photo card renderer ───────────────────────────────────────────────────
+  // ── Photo card ────────────────────────────────────────────────────────────
   function PhotoCard({ photo }: { photo: MemoryPhoto }) {
     const isSelected = selectedIds.has(photo.id)
-    const stopName   = photo.stop_id ? (stopMap.get(photo.stop_id)?.city ?? null) : null
+    const badge      = photoLabel(photo, stopMap, actMap, dinMap)
+    const showBadge  = !!photo.activity_id || !!photo.dining_id
 
     return (
       <div
-        key={photo.id}
         onClick={() => selectMode ? toggleSelect(photo.id) : openLightbox(photo)}
         className={`relative group rounded-xl overflow-hidden aspect-square bg-slate-800 cursor-pointer transition-all ${
           isSelected ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-900' : ''
@@ -121,7 +169,7 @@ export default function PhotoManageGrid({
           sizes="(max-width: 640px) 50vw, 33vw"
         />
 
-        {/* Select mode: checkbox overlay */}
+        {/* Select overlay */}
         {selectMode && (
           <div className={`absolute inset-0 flex items-center justify-center transition-colors ${
             isSelected ? 'bg-amber-500/30' : 'bg-black/20 group-hover:bg-black/40'
@@ -134,22 +182,56 @@ export default function PhotoManageGrid({
           </div>
         )}
 
-        {/* Normal mode: hover actions */}
+        {/* Normal hover actions */}
         {!selectMode && (
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
             <div className="flex justify-between items-start">
-              <button
-                onClick={e => { e.stopPropagation(); onToggleFavorite(photo.id) }}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  photo.is_favorite ? 'bg-amber-500 text-white' : 'bg-black/40 hover:bg-amber-500/70 text-white'
-                }`}
-              >
+              <button onClick={e => { e.stopPropagation(); onToggleFavorite(photo.id) }}
+                className={`p-1.5 rounded-lg transition-colors ${photo.is_favorite ? 'bg-amber-500 text-white' : 'bg-black/40 hover:bg-amber-500/70 text-white'}`}>
                 <Star className="w-3 h-3" fill={photo.is_favorite ? 'currentColor' : 'none'} />
               </button>
-              <button
-                onClick={e => { e.stopPropagation(); onDelete(photo.id) }}
-                className="p-1.5 rounded-lg bg-black/40 hover:bg-red-500/80 text-white transition-colors"
+              {/* Per-photo quick assign */}
+              <select
+                value={currentAssignValue(photo)}
+                onChange={e => { e.stopPropagation(); onAssignPhoto(photo.id, decodeAssign(e.target.value, activities, dining)) }}
+                onClick={e => e.stopPropagation()}
+                className="text-[10px] bg-black/70 text-amber-200 rounded px-1 py-0.5 border border-amber-700/40 focus:outline-none max-w-[110px] truncate"
               >
+                <option value="">Uten tilknytning</option>
+                <optgroup label="─ Stoppesteder ─">
+                  {stops.map((s, i) => (
+                    <option key={s.id} value={encodeAssign('stop', s.id)}>
+                      {i + 1}. {s.city}
+                    </option>
+                  ))}
+                </optgroup>
+                {activities.length > 0 && (
+                  <optgroup label="─ Aktiviteter ─">
+                    {activities.map(a => {
+                      const sIdx = stops.findIndex(s => s.id === a.stop_id)
+                      return (
+                        <option key={a.id} value={encodeAssign('activity', a.id)}>
+                          {a.name}{a.activity_date ? ` (${shortDate(a.activity_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
+                        </option>
+                      )
+                    })}
+                  </optgroup>
+                )}
+                {dining.length > 0 && (
+                  <optgroup label="─ Spisesteder ─">
+                    {dining.map(d => {
+                      const sIdx = stops.findIndex(s => s.id === d.stop_id)
+                      return (
+                        <option key={d.id} value={encodeAssign('dining', d.id)}>
+                          {d.name}{d.booking_date ? ` (${shortDate(d.booking_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
+                        </option>
+                      )
+                    })}
+                  </optgroup>
+                )}
+              </select>
+              <button onClick={e => { e.stopPropagation(); onDelete(photo.id) }}
+                className="p-1.5 rounded-lg bg-black/40 hover:bg-red-500/80 text-white transition-colors">
                 <Trash2 className="w-3 h-3" />
               </button>
             </div>
@@ -157,13 +239,9 @@ export default function PhotoManageGrid({
             <div onClick={e => e.stopPropagation()}>
               {editingId === photo.id ? (
                 <div className="flex gap-1">
-                  <input
-                    value={captionDraft}
-                    onChange={e => setCaptionDraft(e.target.value)}
+                  <input value={captionDraft} onChange={e => setCaptionDraft(e.target.value)}
                     className="flex-1 text-xs bg-black/60 text-white rounded px-2 py-1 outline-none"
-                    placeholder="Bildetekst…"
-                    autoFocus
-                  />
+                    placeholder="Bildetekst…" autoFocus />
                   <button onClick={() => { onUpdateCaption(photo.id, captionDraft); setEditingId(null) }}
                     className="p-1 rounded bg-amber-600 text-white"><Check className="w-3 h-3" /></button>
                   <button onClick={() => setEditingId(null)}
@@ -180,16 +258,18 @@ export default function PhotoManageGrid({
           </div>
         )}
 
-        {/* Stop badge (normal mode, unassigned photos or when shown in flat view) */}
-        {!selectMode && stopName && groups.length > 1 && (
+        {/* Activity / dining badge */}
+        {!selectMode && showBadge && badge && (
           <div className="absolute bottom-1.5 left-1.5 pointer-events-none">
-            <span className="text-[10px] bg-black/60 text-amber-300 px-1.5 py-0.5 rounded-full truncate max-w-[80px]">
-              {stopName}
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full truncate max-w-[80px] ${
+              photo.activity_id ? 'bg-blue-900/80 text-blue-200' : 'bg-purple-900/80 text-purple-200'
+            }`}>
+              {badge}
             </span>
           </div>
         )}
 
-        {/* Favorite indicator */}
+        {/* Favourite indicator */}
         {photo.is_favorite && (
           <div className="absolute top-1.5 left-1.5 pointer-events-none">
             <Star className="w-3.5 h-3.5 text-amber-400" fill="currentColor" />
@@ -199,9 +279,10 @@ export default function PhotoManageGrid({
     )
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── Sticky toolbar + bulk-assign bar ── */}
+      {/* ── Sticky toolbar ── */}
       <div className="sticky top-[40px] z-10 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 -mx-4 px-4 pb-2 pt-2 mb-4">
 
         {/* Toolbar row */}
@@ -215,22 +296,19 @@ export default function PhotoManageGrid({
                 <span className="text-xs text-slate-500">·</span>
                 <span className="text-xs text-slate-400">{selectedIds.size} valgt</span>
               </div>
-              <button onClick={exitSelectMode}
-                className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
+              <button onClick={exitSelect} className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
                 <X className="w-3.5 h-3.5" /> Avbryt
               </button>
             </>
           ) : (
-            <button
-              onClick={() => setSelectMode(true)}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
-            >
+            <button onClick={() => setSelectMode(true)}
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors">
               <Square className="w-3.5 h-3.5" /> Velg bilder
             </button>
           )}
         </div>
 
-        {/* Bulk assign bar – only when photos are selected */}
+        {/* Bulk assign bar */}
         {selectMode && selectedIds.size > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-2 p-3 bg-slate-800/80 rounded-xl border border-amber-700/30">
             <Tag className="w-4 h-4 text-amber-400 flex-shrink-0" />
@@ -238,21 +316,45 @@ export default function PhotoManageGrid({
               Koble <span className="font-semibold text-amber-300">{selectedIds.size}</span> bilde{selectedIds.size !== 1 ? 'r' : ''} til:
             </span>
             <select
-              value={assignTarget}
-              onChange={e => setAssignTarget(e.target.value)}
-              className="flex-1 min-w-[160px] text-xs bg-slate-700 text-slate-200 rounded-lg px-2 py-1.5 border border-slate-600 focus:outline-none focus:border-amber-600"
+              value={assignValue}
+              onChange={e => setAssignValue(e.target.value)}
+              className="flex-1 min-w-[180px] text-xs bg-slate-700 text-slate-200 rounded-lg px-2 py-1.5 border border-slate-600 focus:outline-none focus:border-amber-600"
             >
-              <option value="__none__">Uten stoppested</option>
-              {stops.map((s, i) => (
-                <option key={s.id} value={s.id}>
-                  {i + 1}. {s.city}{s.state ? `, ${s.state}` : ''}
-                </option>
-              ))}
+              <option value="">Uten tilknytning</option>
+              <optgroup label="─ Stoppesteder ─">
+                {stops.map((s, i) => (
+                  <option key={s.id} value={encodeAssign('stop', s.id)}>
+                    {i + 1}. {s.city}{s.state ? `, ${s.state}` : ''}
+                  </option>
+                ))}
+              </optgroup>
+              {activities.length > 0 && (
+                <optgroup label="─ Aktiviteter ─">
+                  {activities.map(a => {
+                    const sIdx = stops.findIndex(s => s.id === a.stop_id)
+                    return (
+                      <option key={a.id} value={encodeAssign('activity', a.id)}>
+                        {a.name}{a.activity_date ? ` (${shortDate(a.activity_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
+                      </option>
+                    )
+                  })}
+                </optgroup>
+              )}
+              {dining.length > 0 && (
+                <optgroup label="─ Spisesteder ─">
+                  {dining.map(d => {
+                    const sIdx = stops.findIndex(s => s.id === d.stop_id)
+                    return (
+                      <option key={d.id} value={encodeAssign('dining', d.id)}>
+                        {d.name}{d.booking_date ? ` (${shortDate(d.booking_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
+                      </option>
+                    )
+                  })}
+                </optgroup>
+              )}
             </select>
-            <button
-              onClick={handleBulkAssign}
-              className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition-colors"
-            >
+            <button onClick={handleBulkAssign}
+              className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition-colors">
               Koble til
             </button>
           </div>
@@ -260,26 +362,33 @@ export default function PhotoManageGrid({
       </div>
 
       {/* ── Photo groups ── */}
-      {flat ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {photos.map(p => <PhotoCard key={p.id} photo={p} />)}
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {groups.map(({ stop, photos: gp }) => (
+      <div className="space-y-8">
+        {groups.length === 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {photos.map(p => <PhotoCard key={p.id} photo={p} />)}
+          </div>
+        ) : groups.map(({ stop, photos: gp }) => {
+          // Sub-groups within this stop: activity groups, dining groups, then just "stop" photos
+          const actGroups = activities
+            .filter(a => a.stop_id === stop?.id)
+            .map(a => ({ act: a, photos: gp.filter(p => p.activity_id === a.id) }))
+            .filter(g => g.photos.length > 0)
+          const dinGroups = dining
+            .filter(d => d.stop_id === stop?.id)
+            .map(d => ({ din: d, photos: gp.filter(p => p.dining_id === d.id) }))
+            .filter(g => g.photos.length > 0)
+          const stopOnlyPhotos = gp.filter(p => !p.activity_id && !p.dining_id)
+
+          return (
             <div key={stop?.id ?? '__none__'}>
-              {/* Section header */}
+              {/* Stop header */}
               <div className="flex items-center gap-2 mb-3">
                 {stop ? (
                   <>
                     <div className="w-6 h-6 rounded-full bg-amber-900/70 flex items-center justify-center flex-shrink-0">
-                      <span className="text-[10px] font-bold text-amber-300">
-                        {stops.findIndex(s => s.id === stop.id) + 1}
-                      </span>
+                      <span className="text-[10px] font-bold text-amber-300">{stops.findIndex(s => s.id === stop.id) + 1}</span>
                     </div>
-                    <span className="text-sm font-semibold text-slate-200">
-                      {stop.city}{stop.state ? `, ${stop.state}` : ''}
-                    </span>
+                    <span className="text-sm font-semibold text-slate-200">{stop.city}{stop.state ? `, ${stop.state}` : ''}</span>
                     <span className="text-xs text-slate-500">· {gp.length} bilde{gp.length !== 1 ? 'r' : ''}</span>
                   </>
                 ) : (
@@ -293,14 +402,52 @@ export default function PhotoManageGrid({
                 )}
               </div>
 
-              {/* Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {gp.map(p => <PhotoCard key={p.id} photo={p} />)}
+              <div className="space-y-4 pl-2 border-l border-slate-800">
+
+                {/* Activity sub-sections */}
+                {actGroups.map(({ act, photos: ap }) => (
+                  <div key={act.id}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                      <span className="text-xs font-medium text-blue-300">{act.name}</span>
+                      {act.activity_date && <span className="text-xs text-slate-500">· {shortDate(act.activity_date)}</span>}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {ap.map(p => <PhotoCard key={p.id} photo={p} />)}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Dining sub-sections */}
+                {dinGroups.map(({ din, photos: dp }) => (
+                  <div key={din.id}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0" />
+                      <span className="text-xs font-medium text-purple-300">{din.name}</span>
+                      {din.booking_date && <span className="text-xs text-slate-500">· {shortDate(din.booking_date)}</span>}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {dp.map(p => <PhotoCard key={p.id} photo={p} />)}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Stop-only photos (not tied to activity/dining) */}
+                {stopOnlyPhotos.length > 0 && (
+                  <div>
+                    {(actGroups.length > 0 || dinGroups.length > 0) && (
+                      <p className="text-xs text-slate-500 mb-2">Øvrige bilder fra stedet</p>
+                    )}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {stopOnlyPhotos.map(p => <PhotoCard key={p.id} photo={p} />)}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          )
+        })}
+      </div>
 
       {/* ── Lightbox ── */}
       {lightboxPhoto && lightboxIndex !== null && createPortal(

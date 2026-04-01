@@ -116,18 +116,27 @@ export function useMemoryPhotos(memoryId: string | null) {
     if (error) toast.error('Kunne ikke lagre bildetekst')
   }, [supabase])
 
-  // ── Update stop assignment ────────────────────────────────────────────────
+  // ── Assign photo (stop / activity / dining) ───────────────────────────────
 
-  const assignToStop = useCallback(async (photoId: string, stopId: string | null) => {
-    setPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, stop_id: stopId } : p))
+  type AssignUpdates = { stop_id?: string | null; activity_id?: string | null; dining_id?: string | null }
 
-    const { error } = await supabase
-      .from('memory_photos')
-      .update({ stop_id: stopId })
-      .eq('id', photoId)
-
-    if (error) toast.error('Kunne ikke flytte bilde')
+  const assignPhoto = useCallback(async (photoId: string, updates: AssignUpdates) => {
+    setPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, ...updates } : p))
+    const { error } = await supabase.from('memory_photos').update(updates).eq('id', photoId)
+    if (error) toast.error('Kunne ikke oppdatere bilde')
   }, [supabase])
+
+  const bulkAssignPhotos = useCallback(async (photoIds: string[], updates: AssignUpdates) => {
+    if (!photoIds.length) return
+    setPhotos((prev) => prev.map((p) => photoIds.includes(p.id) ? { ...p, ...updates } : p))
+    const { error } = await supabase.from('memory_photos').update(updates).in('id', photoIds)
+    if (error) toast.error('Kunne ikke oppdatere bilder')
+  }, [supabase])
+
+  // Kept for backward compatibility
+  const assignToStop = useCallback(async (photoId: string, stopId: string | null) => {
+    return assignPhoto(photoId, { stop_id: stopId, activity_id: null, dining_id: null })
+  }, [assignPhoto])
 
   // ── Delete photo ──────────────────────────────────────────────────────────
 
@@ -181,6 +190,8 @@ export function useMemoryPhotos(memoryId: string | null) {
     addPhoto,
     toggleFavorite,
     updateCaption,
+    assignPhoto,
+    bulkAssignPhotos,
     assignToStop,
     deletePhoto,
   }

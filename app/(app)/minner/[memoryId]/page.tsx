@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useTripMemories } from '@/hooks/useTripMemories'
 import { useMemoryPhotos } from '@/hooks/useMemoryPhotos'
 import { useDrivingInfo } from '@/hooks/useDrivingInfo'
-import { Trip, TripMemory, Stop, RouteLeg } from '@/types'
+import { Trip, TripMemory, Stop, RouteLeg, Activity, Dining } from '@/types'
 import MemoryTimeline from '@/components/minner/MemoryTimeline'
 import MemoryStats from '@/components/minner/MemoryStats'
 import MapReplay from '@/components/minner/MapReplay'
@@ -22,10 +22,12 @@ type Tab = 'dagbok' | 'bilder' | 'kart' | 'del'
 export default function MemoryDetailPage({ params }: { params: Promise<{ memoryId: string }> }) {
   const { memoryId } = use(params)
 
-  const [trip, setTrip]         = useState<Trip | null>(null)
-  const [stops, setStops]       = useState<Stop[]>([])
+  const [trip, setTrip]           = useState<Trip | null>(null)
+  const [stops, setStops]         = useState<Stop[]>([])
   const [routeLegs, setRouteLegs] = useState<RouteLeg[]>([])
-  const [loading, setLoading]   = useState(true)
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [dining, setDining]         = useState<Dining[]>([])
+  const [loading, setLoading]     = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('dagbok')
 
   const supabase = useMemo(() => createClient(), [])
@@ -45,7 +47,7 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
 
   const {
     photos, favoritePhotos, photosByStop,
-    addPhoto, toggleFavorite, updateCaption, deletePhoto, assignToStop,
+    addPhoto, toggleFavorite, updateCaption, deletePhoto, assignPhoto, bulkAssignPhotos,
   } = useMemoryPhotos(memoryId)
 
   // Overstyr memory fra memoryId direkte
@@ -68,9 +70,28 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
         supabase.from('route_legs').select('*').eq('trip_id', mem.trip_id),
       ])
 
+      const stops = (stopsData ?? []) as Stop[]
       setTrip(tripData as Trip)
-      setStops((stopsData ?? []) as Stop[])
+      setStops(stops)
       setRouteLegs((legsData ?? []) as RouteLeg[])
+
+      // Fetch activities + dining keyed by stop_id
+      if (stops.length > 0) {
+        const stopIds = stops.map(s => s.id)
+        const [{ data: actsData }, { data: dinData }] = await Promise.all([
+          supabase.from('activities')
+            .select('id, stop_id, name, activity_type, activity_date, activity_time, notes, url, cost, remaining_amount, map_lat, map_lng, stadium, section, seat_row, seat')
+            .in('stop_id', stopIds)
+            .order('activity_date', { ascending: true }),
+          supabase.from('dining')
+            .select('id, stop_id, name, url, booking_date, booking_time, map_lat, map_lng, notes')
+            .in('stop_id', stopIds)
+            .order('booking_date', { ascending: true }),
+        ])
+        setActivities((actsData ?? []) as Activity[])
+        setDining((dinData ?? []) as Dining[])
+      }
+
       setLoading(false)
     }
     load()
@@ -231,10 +252,13 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
               <PhotoManageGrid
                 photos={photos}
                 stops={stops}
+                activities={activities}
+                dining={dining}
                 onToggleFavorite={toggleFavorite}
                 onUpdateCaption={updateCaption}
                 onDelete={deletePhoto}
-                onAssignToStop={assignToStop}
+                onAssignPhoto={assignPhoto}
+                onBulkAssign={bulkAssignPhotos}
               />
             )}
           </div>
