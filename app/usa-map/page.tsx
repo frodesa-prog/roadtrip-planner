@@ -17,6 +17,12 @@ interface StopData {
   nights: number
 }
 
+interface RouteLegData {
+  from_stop_id: string
+  to_stop_id: string
+  waypoints: Array<{ lat: number; lng: number }>
+}
+
 interface TripData {
   id: string
   name: string
@@ -24,6 +30,7 @@ interface TripData {
 
 interface TripWithStops extends TripData {
   stops: StopData[]
+  routeLegs: RouteLegData[]
   color: string
 }
 
@@ -119,9 +126,35 @@ function TripRoute({
     })
     rendererRef.current = renderer
 
-    const allWaypoints: google.maps.DirectionsWaypoint[] = trip.stops
-      .slice(1, -1)
-      .map((s) => ({ location: { lat: s.lat, lng: s.lng }, stopover: true }))
+    // Bygg waypoints-array med lagrede via-punkter (samme mønster som RoutePolyline.tsx):
+    // [via0..., stopp1(stopover), via1..., stopp2(stopover), ..., viaN...]
+    const allWaypoints: google.maps.DirectionsWaypoint[] = []
+    for (let i = 1; i < trip.stops.length - 1; i++) {
+      const fromId = trip.stops[i - 1].id
+      const toId   = trip.stops[i].id
+      const saved  = trip.routeLegs.find(
+        (l) => l.from_stop_id === fromId && l.to_stop_id === toId
+      )
+      if (saved?.waypoints?.length) {
+        for (const wp of saved.waypoints) {
+          allWaypoints.push({ location: new google.maps.LatLng(wp.lat, wp.lng), stopover: false })
+        }
+      }
+      allWaypoints.push({ location: new google.maps.LatLng(trip.stops[i].lat, trip.stops[i].lng), stopover: true })
+    }
+    // Via-punkter for siste etappe
+    if (trip.stops.length >= 2) {
+      const lastFromId = trip.stops[trip.stops.length - 2].id
+      const lastToId   = trip.stops[trip.stops.length - 1].id
+      const lastSaved  = trip.routeLegs.find(
+        (l) => l.from_stop_id === lastFromId && l.to_stop_id === lastToId
+      )
+      if (lastSaved?.waypoints?.length) {
+        for (const wp of lastSaved.waypoints) {
+          allWaypoints.push({ location: new google.maps.LatLng(wp.lat, wp.lng), stopover: false })
+        }
+      }
+    }
 
     const service = new routesLib.DirectionsService()
     service.route(
@@ -148,7 +181,7 @@ function TripRoute({
 
     return () => { renderer.setMap(null) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, routesLib, trip.stops, trip.color])
+  }, [map, routesLib, trip.stops, trip.routeLegs, trip.color])
 
   // 3. Stop markers
   useEffect(() => {
@@ -437,6 +470,23 @@ export default function UsaMapPage() {
         stopsByTrip.set(s.trip_id, list)
       }
 
+      // Fetch custom route waypoints (dragged routes) for all trips
+      const tripIds = allTrips.map((t) => t.id)
+      const { data: routeLegsRaw } = await supabase
+        .from('route_legs')
+        .select('trip_id, from_stop_id, to_stop_id, waypoints')
+        .in('trip_id', tripIds)
+
+      if (cancelled) return
+
+      // Group route legs by trip
+      const routeLegsByTrip = new Map<string, RouteLegData[]>()
+      for (const leg of routeLegsRaw ?? []) {
+        const list = routeLegsByTrip.get(leg.trip_id) ?? []
+        list.push(leg as RouteLegData)
+        routeLegsByTrip.set(leg.trip_id, list)
+      }
+
       // Keep only trips where the majority of stops fall within US bounding box
       // Continental US + Alaska + Hawaii: lat 18–72, lng –180 to –65
       function isInUSA(lat: number, lng: number): boolean {
@@ -454,10 +504,11 @@ export default function UsaMapPage() {
         // Include if more than half the stops are in the USA
         if (usaStops.length === 0 || usaStops.length < tripStops.length / 2) continue
         result.push({
-          id:    trip.id,
-          name:  trip.name,
-          stops: tripStops,
-          color: ROUTE_COLORS[colorIdx % ROUTE_COLORS.length],
+          id:        trip.id,
+          name:      trip.name,
+          stops:     tripStops,
+          routeLegs: routeLegsByTrip.get(trip.id) ?? [],
+          color:     ROUTE_COLORS[colorIdx % ROUTE_COLORS.length],
         })
         colorIdx++
       }
@@ -476,6 +527,9 @@ export default function UsaMapPage() {
         if (!cancelled) load()
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => {
+        if (!cancelled) load()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'route_legs' }, () => {
         if (!cancelled) load()
       })
       .subscribe()
