@@ -57,16 +57,75 @@ const ROUTE_COLORS = [
   '#84cc16',
 ]
 
+// ── Geometry helpers: perpendicular polyline offset ──────────────────────────
+
+const DEG = Math.PI / 180
+
+function bearingRad(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const dLng = (b.lng - a.lng) * DEG
+  const lat1 = a.lat * DEG, lat2 = b.lat * DEG
+  return Math.atan2(
+    Math.sin(dLng) * Math.cos(lat2),
+    Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng),
+  )
+}
+
+function movePoint(
+  p: { lat: number; lng: number },
+  bearing: number,
+  meters: number,
+): { lat: number; lng: number } {
+  const R = 6_371_000
+  const d = meters / R
+  const lat1 = p.lat * DEG, lng1 = p.lng * DEG
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(bearing),
+  )
+  const lng2 = lng1 + Math.atan2(
+    Math.sin(bearing) * Math.sin(d) * Math.cos(lat1),
+    Math.cos(d) - Math.sin(lat1) * Math.sin(lat2),
+  )
+  return { lat: lat2 / DEG, lng: lng2 / DEG }
+}
+
+/** Forskyver en polyline vinkelrett på retningen med `offsetM` meter (+ = høyre, − = venstre). */
+function shiftPolyline(
+  path: google.maps.LatLng[],
+  offsetM: number,
+): google.maps.LatLng[] {
+  if (offsetM === 0 || path.length < 2) return path
+  return path.map((pt, i) => {
+    const prev = path[Math.max(0, i - 1)]
+    const next = path[Math.min(path.length - 1, i + 1)]
+    const bear = bearingRad(
+      { lat: prev.lat(), lng: prev.lng() },
+      { lat: next.lat(), lng: next.lng() },
+    )
+    const shifted = movePoint({ lat: pt.lat(), lng: pt.lng() }, bear + Math.PI / 2, offsetM)
+    return new google.maps.LatLng(shifted.lat, shifted.lng)
+  })
+}
+
 // ── TripRoute: draws directions + markers for one trip ────────────────────────
+
+// Avstand mellom parallelle ruter i meter (synlig på delstatsnivå, knapt merkbar på USA-nivå)
+const LANE_SPACING = 80
 
 function TripRoute({
   trip,
   visible,
+  offsetIndex,
+  totalTrips,
   onMarkerClick,
   onDistanceReady,
 }: {
   trip: TripWithStops
   visible: boolean
+  offsetIndex: number
+  totalTrips: number
   onMarkerClick: (info: InfoState) => void
   onDistanceReady: (tripId: string, km: number) => void
 }) {
@@ -74,13 +133,15 @@ function TripRoute({
   const routesLib = useMapsLibrary('routes')
 
   const polylineRef        = useRef<google.maps.Polyline | null>(null)
-  const rendererRef        = useRef<google.maps.DirectionsRenderer | null>(null)
+  const roadPolylineRef    = useRef<google.maps.Polyline | null>(null)
   const markersRef         = useRef<google.maps.Marker[]>([])
   const directionsLoadedRef = useRef(false)
 
   // Nullstill når stoppesteder endres så ny rute hentes og fallback-polyline vises midlertidig
   useEffect(() => {
     directionsLoadedRef.current = false
+    roadPolylineRef.current?.setMap(null)
+    roadPolylineRef.current = null
   }, [trip.stops])
 
   // Toggle visibility without re-fetching routes
@@ -90,7 +151,7 @@ function TripRoute({
     if (!directionsLoadedRef.current) {
       polylineRef.current?.setMap(targetMap)
     }
-    rendererRef.current?.setMap(targetMap)
+    roadPolylineRef.current?.setMap(targetMap)
     markersRef.current.forEach((m) => m.setMap(targetMap))
   }, [visible, map])
 
@@ -111,20 +172,12 @@ function TripRoute({
     return () => { polylineRef.current?.setMap(null) }
   }, [map, trip.stops, trip.color])
 
-  // 2. Road-based route via Directions API (replaces fallback)
+  // 2. Road-based route via Directions API – tegnes som offset Polyline
   useEffect(() => {
     if (!map || !routesLib || trip.stops.length < 2) return
 
-    const renderer = new routesLib.DirectionsRenderer({
-      map,
-      suppressMarkers: true,
-      polylineOptions: {
-        strokeColor:   trip.color,
-        strokeWeight:  5,
-        strokeOpacity: 0.88,
-      },
-    })
-    rendererRef.current = renderer
+    // Beregn forskyvning i meter: symmetrisk rundt null for alle turer
+    const offsetM = (offsetIndex - (totalTrips - 1) / 2) * LANE_SPACING
 
     // Bygg waypoints-array med lagrede via-punkter (samme mønster som RoutePolyline.tsx):
     // [via0..., stopp1(stopover), via1..., stopp2(stopover), ..., viaN...]
@@ -167,21 +220,40 @@ function TripRoute({
       },
       (result, status) => {
         if (status === 'OK' && result) {
-          renderer.setDirections(result)
+          // Trekk ut detaljert sti fra alle etapper/steg
+          const rawPath: google.maps.LatLng[] = []
+          for (const leg of result.routes[0].legs) {
+            for (const step of leg.steps) {
+              rawPath.push(...step.path)
+            }
+          }
+          // Forskyv stien vinkelrett og tegn som vanlig Polyline
+          const shiftedPath = shiftPolyline(rawPath, offsetM)
+          roadPolylineRef.current?.setMap(null)
+          roadPolylineRef.current = new google.maps.Polyline({
+            path:          shiftedPath,
+            strokeColor:   trip.color,
+            strokeWeight:  5,
+            strokeOpacity: 0.88,
+            map,
+          })
           directionsLoadedRef.current = true
           polylineRef.current?.setMap(null)
-          // Sum distance across all legs
-          const totalMeters = result.routes[0]?.legs.reduce(
+          // Summer kjøreavstand
+          const totalMeters = result.routes[0].legs.reduce(
             (sum, leg) => sum + (leg.distance?.value ?? 0), 0
-          ) ?? 0
+          )
           onDistanceReady(trip.id, Math.round(totalMeters / 1000))
         }
       }
     )
 
-    return () => { renderer.setMap(null) }
+    return () => {
+      roadPolylineRef.current?.setMap(null)
+      roadPolylineRef.current = null
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, routesLib, trip.stops, trip.routeLegs, trip.color])
+  }, [map, routesLib, trip.stops, trip.routeLegs, trip.color, offsetIndex, totalTrips])
 
   // 3. Stop markers
   useEffect(() => {
@@ -408,11 +480,13 @@ function MapContent({ trips }: { trips: TripWithStops[] }) {
 
   return (
     <>
-      {trips.map((trip) => (
+      {trips.map((trip, index) => (
         <TripRoute
           key={trip.id}
           trip={trip}
           visible={!hidden.has(trip.id)}
+          offsetIndex={index}
+          totalTrips={trips.length}
           onMarkerClick={setActiveInfo}
           onDistanceReady={handleDistance}
         />
