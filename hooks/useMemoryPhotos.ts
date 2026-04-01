@@ -138,6 +138,20 @@ export function useMemoryPhotos(memoryId: string | null) {
     return assignPhoto(photoId, { stop_id: stopId, activity_id: null, dining_id: null })
   }, [assignPhoto])
 
+  // ── Bulk delete photos ────────────────────────────────────────────────────
+
+  const bulkDeletePhotos = useCallback(async (photoIds: string[]) => {
+    if (!photoIds.length) return
+    const targets = photos.filter(p => photoIds.includes(p.id))
+    setPhotos(prev => prev.filter(p => !photoIds.includes(p.id)))
+    await Promise.all(targets.map(async photo => {
+      try {
+        await fetch(`/api/minner/delete-photo?publicId=${encodeURIComponent(photo.cloudinary_public_id)}&id=${photo.id}`, { method: 'DELETE' })
+      } catch { /* ignore cloudinary errors */ }
+      await supabase.from('memory_photos').delete().eq('id', photo.id)
+    }))
+  }, [photos, supabase])
+
   // ── Delete photo ──────────────────────────────────────────────────────────
 
   const deletePhoto = useCallback(async (photoId: string) => {
@@ -194,5 +208,6 @@ export function useMemoryPhotos(memoryId: string | null) {
     bulkAssignPhotos,
     assignToStop,
     deletePhoto,
+    bulkDeletePhotos,
   }
 }

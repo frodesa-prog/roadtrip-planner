@@ -47,7 +47,7 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
 
   const {
     photos, favoritePhotos, photosByStop,
-    addPhoto, toggleFavorite, updateCaption, deletePhoto, assignPhoto, bulkAssignPhotos,
+    addPhoto, toggleFavorite, updateCaption, deletePhoto, bulkDeletePhotos, assignPhoto, bulkAssignPhotos,
   } = useMemoryPhotos(memoryId)
 
   // Overstyr memory fra memoryId direkte
@@ -257,6 +257,7 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
                 onToggleFavorite={toggleFavorite}
                 onUpdateCaption={updateCaption}
                 onDelete={deletePhoto}
+                onBulkDelete={bulkDeletePhotos}
                 onAssignPhoto={assignPhoto}
                 onBulkAssign={bulkAssignPhotos}
               />

@@ -3,7 +3,7 @@
 import { MemoryPhoto, Stop, Activity, Dining } from '@/types'
 import {
   Star, Trash2, Pencil, Check, X,
-  ChevronLeft, ChevronRight, CheckSquare, Square, Tag,
+  ChevronLeft, ChevronRight, CheckSquare, Square, Tag, ArrowUpDown,
 } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
@@ -21,9 +21,12 @@ interface Props {
   onToggleFavorite: (id: string) => void
   onUpdateCaption:  (id: string, caption: string) => void
   onDelete:         (id: string) => void
+  onBulkDelete:     (ids: string[]) => void
   onAssignPhoto:    (id: string, updates: AssignUpdates) => void
   onBulkAssign:     (ids: string[], updates: AssignUpdates) => void
 }
+
+type SortMode = 'stop' | 'taken' | 'newest' | 'favorites'
 
 // ── Encode / decode assignment value for <select> ─────────────────────────────
 
@@ -71,7 +74,7 @@ function shortDate(d: string | null): string {
 
 export default function PhotoManageGrid({
   photos, stops, activities, dining,
-  onToggleFavorite, onUpdateCaption, onDelete, onAssignPhoto, onBulkAssign,
+  onToggleFavorite, onUpdateCaption, onDelete, onBulkDelete, onAssignPhoto, onBulkAssign,
 }: Props) {
 
   // ── Lookup maps ───────────────────────────────────────────────────────────
@@ -79,19 +82,37 @@ export default function PhotoManageGrid({
   const actMap  = new Map(activities.map(a => [a.id, a]))
   const dinMap  = new Map(dining.map(d => [d.id, d]))
 
+  // ── Sort ──────────────────────────────────────────────────────────────────
+  const [sortMode, setSortMode] = useState<SortMode>('stop')
+
+  function sortedPhotos(list: MemoryPhoto[]): MemoryPhoto[] {
+    const copy = [...list]
+    if (sortMode === 'taken')     return copy.sort((a, b) => (a.taken_at ?? a.created_at) < (b.taken_at ?? b.created_at) ? -1 : 1)
+    if (sortMode === 'newest')    return copy.sort((a, b) => a.created_at < b.created_at ? 1 : -1)
+    if (sortMode === 'favorites') return copy.sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0))
+    return copy // 'stop' — keep existing order (grouped by stop below)
+  }
+
   // ── Select mode ───────────────────────────────────────────────────────────
   const [selectMode, setSelectMode]     = useState(false)
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
   const [assignValue, setAssignValue]   = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const toggleSelect = (id: string) =>
     setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   const selectAll    = () => setSelectedIds(new Set(photos.map(p => p.id)))
-  const exitSelect   = () => { setSelectMode(false); setSelectedIds(new Set()); setAssignValue('') }
+  const exitSelect   = () => { setSelectMode(false); setSelectedIds(new Set()); setAssignValue(''); setConfirmDelete(false) }
 
   function handleBulkAssign() {
     if (!selectedIds.size) return
     onBulkAssign([...selectedIds], decodeAssign(assignValue, activities, dining))
+    exitSelect()
+  }
+
+  function handleBulkDelete() {
+    if (!confirmDelete) { setConfirmDelete(true); return }
+    onBulkDelete([...selectedIds])
     exitSelect()
   }
 
@@ -134,17 +155,21 @@ export default function PhotoManageGrid({
     return ''
   }
 
-  // ── Group photos by stop (activities/dining grouped under their stop) ──────
+  // ── Apply sort then group ─────────────────────────────────────────────────
+  const sorted = sortedPhotos(photos)
+
   const groups: Array<{ stop: Stop | null; photos: MemoryPhoto[] }> = []
-  for (const stop of stops) {
-    const sp = photos.filter(p => {
-      if (p.stop_id !== stop.id) return false
-      return true
-    })
-    if (sp.length > 0) groups.push({ stop, photos: sp })
+  if (sortMode === 'stop') {
+    for (const stop of stops) {
+      const sp = sorted.filter(p => p.stop_id === stop.id)
+      if (sp.length > 0) groups.push({ stop, photos: sp })
+    }
+    const unassigned = sorted.filter(p => !p.stop_id)
+    if (unassigned.length > 0) groups.push({ stop: null, photos: unassigned })
+  } else {
+    // Flat list for non-stop sort modes
+    groups.push({ stop: null, photos: sorted })
   }
-  const unassigned = photos.filter(p => !p.stop_id)
-  if (unassigned.length > 0) groups.push({ stop: null, photos: unassigned })
 
   if (photos.length === 0) return null
 
@@ -286,7 +311,7 @@ export default function PhotoManageGrid({
       <div className="sticky top-[40px] z-10 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 -mx-4 px-4 pb-2 pt-2 mb-4">
 
         {/* Toolbar row */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           {selectMode ? (
             <>
               <div className="flex items-center gap-2">
@@ -296,79 +321,128 @@ export default function PhotoManageGrid({
                 <span className="text-xs text-slate-500">·</span>
                 <span className="text-xs text-slate-400">{selectedIds.size} valgt</span>
               </div>
-              <button onClick={exitSelect} className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1">
+              <button onClick={exitSelect} className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 ml-auto">
                 <X className="w-3.5 h-3.5" /> Avbryt
               </button>
             </>
           ) : (
-            <button onClick={() => setSelectMode(true)}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors">
-              <Square className="w-3.5 h-3.5" /> Velg bilder
-            </button>
+            <>
+              {/* Sort dropdown */}
+              <div className="flex items-center gap-1.5">
+                <ArrowUpDown className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                <select
+                  value={sortMode}
+                  onChange={e => setSortMode(e.target.value as SortMode)}
+                  className="text-xs bg-slate-800 text-slate-300 rounded-lg px-2 py-1.5 border border-slate-700 focus:outline-none focus:border-amber-600"
+                >
+                  <option value="stop">Gruppert per stopp</option>
+                  <option value="taken">Dato tatt (eldst først)</option>
+                  <option value="newest">Opplastingsdato (nyest først)</option>
+                  <option value="favorites">Favoritter først</option>
+                </select>
+              </div>
+              <button onClick={() => setSelectMode(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors">
+                <Square className="w-3.5 h-3.5" /> Velg bilder
+              </button>
+            </>
           )}
         </div>
 
-        {/* Bulk assign bar */}
+        {/* Actions bar – shown when photos are selected */}
         {selectMode && selectedIds.size > 0 && (
-          <div className="mt-2 flex flex-wrap items-center gap-2 p-3 bg-slate-800/80 rounded-xl border border-amber-700/30">
-            <Tag className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <span className="text-xs text-slate-300 flex-shrink-0">
-              Koble <span className="font-semibold text-amber-300">{selectedIds.size}</span> bilde{selectedIds.size !== 1 ? 'r' : ''} til:
-            </span>
-            <select
-              value={assignValue}
-              onChange={e => setAssignValue(e.target.value)}
-              className="flex-1 min-w-[180px] text-xs bg-slate-700 text-slate-200 rounded-lg px-2 py-1.5 border border-slate-600 focus:outline-none focus:border-amber-600"
-            >
-              <option value="">Uten tilknytning</option>
-              <optgroup label="─ Stoppesteder ─">
-                {stops.map((s, i) => (
-                  <option key={s.id} value={encodeAssign('stop', s.id)}>
-                    {i + 1}. {s.city}{s.state ? `, ${s.state}` : ''}
-                  </option>
-                ))}
-              </optgroup>
-              {activities.length > 0 && (
-                <optgroup label="─ Aktiviteter ─">
-                  {activities.map(a => {
-                    const sIdx = stops.findIndex(s => s.id === a.stop_id)
-                    return (
-                      <option key={a.id} value={encodeAssign('activity', a.id)}>
-                        {a.name}{a.activity_date ? ` (${shortDate(a.activity_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
-                      </option>
-                    )
-                  })}
+          <div className="mt-2 space-y-2">
+            {/* Bulk assign */}
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-800/80 rounded-xl border border-amber-700/30">
+              <Tag className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <span className="text-xs text-slate-300 flex-shrink-0">
+                Koble <span className="font-semibold text-amber-300">{selectedIds.size}</span> bilde{selectedIds.size !== 1 ? 'r' : ''} til:
+              </span>
+              <select
+                value={assignValue}
+                onChange={e => setAssignValue(e.target.value)}
+                className="flex-1 min-w-[180px] text-xs bg-slate-700 text-slate-200 rounded-lg px-2 py-1.5 border border-slate-600 focus:outline-none focus:border-amber-600"
+              >
+                <option value="">Uten tilknytning</option>
+                <optgroup label="─ Stoppesteder ─">
+                  {stops.map((s, i) => (
+                    <option key={s.id} value={encodeAssign('stop', s.id)}>
+                      {i + 1}. {s.city}{s.state ? `, ${s.state}` : ''}
+                    </option>
+                  ))}
                 </optgroup>
+                {activities.length > 0 && (
+                  <optgroup label="─ Aktiviteter ─">
+                    {activities.map(a => {
+                      const sIdx = stops.findIndex(s => s.id === a.stop_id)
+                      return (
+                        <option key={a.id} value={encodeAssign('activity', a.id)}>
+                          {a.name}{a.activity_date ? ` (${shortDate(a.activity_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
+                        </option>
+                      )
+                    })}
+                  </optgroup>
+                )}
+                {dining.length > 0 && (
+                  <optgroup label="─ Spisesteder ─">
+                    {dining.map(d => {
+                      const sIdx = stops.findIndex(s => s.id === d.stop_id)
+                      return (
+                        <option key={d.id} value={encodeAssign('dining', d.id)}>
+                          {d.name}{d.booking_date ? ` (${shortDate(d.booking_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
+                        </option>
+                      )
+                    })}
+                  </optgroup>
+                )}
+              </select>
+              <button onClick={handleBulkAssign}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition-colors">
+                Koble til
+              </button>
+            </div>
+
+            {/* Bulk delete */}
+            <div className="flex items-center gap-2 p-3 bg-slate-800/80 rounded-xl border border-red-900/40">
+              <Trash2 className="w-4 h-4 text-red-400 flex-shrink-0" />
+              <span className="text-xs text-slate-300 flex-1">
+                {confirmDelete
+                  ? <span className="text-red-300 font-medium">Er du sikker? Dette kan ikke angres.</span>
+                  : <>Slett <span className="font-semibold text-red-300">{selectedIds.size}</span> valgte bilde{selectedIds.size !== 1 ? 'r' : ''}</>
+                }
+              </span>
+              {confirmDelete && (
+                <button onClick={() => setConfirmDelete(false)}
+                  className="px-2 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors">
+                  Avbryt
+                </button>
               )}
-              {dining.length > 0 && (
-                <optgroup label="─ Spisesteder ─">
-                  {dining.map(d => {
-                    const sIdx = stops.findIndex(s => s.id === d.stop_id)
-                    return (
-                      <option key={d.id} value={encodeAssign('dining', d.id)}>
-                        {d.name}{d.booking_date ? ` (${shortDate(d.booking_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
-                      </option>
-                    )
-                  })}
-                </optgroup>
-              )}
-            </select>
-            <button onClick={handleBulkAssign}
-              className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition-colors">
-              Koble til
-            </button>
+              <button onClick={handleBulkDelete}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-colors ${
+                  confirmDelete ? 'bg-red-600 hover:bg-red-500' : 'bg-red-900/60 hover:bg-red-800'
+                }`}>
+                {confirmDelete ? 'Ja, slett' : 'Slett valgte'}
+              </button>
+            </div>
           </div>
         )}
       </div>
 
       {/* ── Photo groups ── */}
       <div className="space-y-8">
-        {groups.length === 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {photos.map(p => <PhotoCard key={p.id} photo={p} />)}
-          </div>
-        ) : groups.map(({ stop, photos: gp }) => {
-          // Sub-groups within this stop: activity groups, dining groups, then just "stop" photos
+        {groups.map(({ stop, photos: gp }, gi) => {
+          // Flat mode (non-stop sort): just a simple grid, no sub-grouping
+          if (sortMode !== 'stop') {
+            return (
+              <div key={gi}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {gp.map(p => <PhotoCard key={p.id} photo={p} />)}
+                </div>
+              </div>
+            )
+          }
+
+          // Stop-grouped mode with activity/dining sub-sections
           const actGroups = activities
             .filter(a => a.stop_id === stop?.id)
             .map(a => ({ act: a, photos: gp.filter(p => p.activity_id === a.id) }))
@@ -403,8 +477,6 @@ export default function PhotoManageGrid({
               </div>
 
               <div className="space-y-4 pl-2 border-l border-slate-800">
-
-                {/* Activity sub-sections */}
                 {actGroups.map(({ act, photos: ap }) => (
                   <div key={act.id}>
                     <div className="flex items-center gap-1.5 mb-2">
@@ -417,8 +489,6 @@ export default function PhotoManageGrid({
                     </div>
                   </div>
                 ))}
-
-                {/* Dining sub-sections */}
                 {dinGroups.map(({ din, photos: dp }) => (
                   <div key={din.id}>
                     <div className="flex items-center gap-1.5 mb-2">
@@ -431,8 +501,6 @@ export default function PhotoManageGrid({
                     </div>
                   </div>
                 ))}
-
-                {/* Stop-only photos (not tied to activity/dining) */}
                 {stopOnlyPhotos.length > 0 && (
                   <div>
                     {(actGroups.length > 0 || dinGroups.length > 0) && (
