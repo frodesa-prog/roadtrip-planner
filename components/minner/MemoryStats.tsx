@@ -5,9 +5,12 @@ import { MapPin, Moon, Route, Calendar } from 'lucide-react'
 
 interface Props {
   memory: TripMemory
+  computedTotalKm?: number | null
 }
 
-export default function MemoryStats({ memory }: Props) {
+export default function MemoryStats({ memory, computedTotalKm }: Props) {
+  const totalKm = computedTotalKm ?? memory.total_km
+
   const stats = [
     {
       icon: <MapPin className="w-5 h-5 text-amber-400" />,
@@ -22,8 +25,8 @@ export default function MemoryStats({ memory }: Props) {
     {
       icon: <Route className="w-5 h-5 text-emerald-400" />,
       label: 'Kjørt',
-      value: memory.total_km != null
-        ? `${Math.round(memory.total_km).toLocaleString('nb-NO')} km`
+      value: totalKm != null
+        ? `${Math.round(totalKm).toLocaleString('nb-NO')} km`
         : '–',
     },
     {

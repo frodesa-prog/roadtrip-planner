@@ -28,6 +28,28 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
 
   const supabase = useMemo(() => createClient(), [])
 
+  // Beregn total kjørelengde fra stopp-koordinater (Haversine)
+  const computedTotalKm = useMemo(() => {
+    if (stops.length < 2) return null
+    function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+      const R = 6371
+      const dLat = (lat2 - lat1) * Math.PI / 180
+      const dLng = (lng2 - lng1) * Math.PI / 180
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    }
+    let total = 0
+    const sorted = [...stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    for (let i = 1; i < sorted.length; i++) {
+      const p = sorted[i - 1], c = sorted[i]
+      if (p.lat != null && p.lng != null && c.lat != null && c.lng != null) {
+        total += haversineKm(p.lat, p.lng, c.lat, c.lng)
+      }
+    }
+    return total > 0 ? Math.round(total) : null
+  }, [stops])
+
   const {
     memory, entries, generating,
     updateMemory, updateEntry, togglePublic, generateMemory,
@@ -191,7 +213,7 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
         {/* ── Dagbok ── */}
         {activeTab === 'dagbok' && (
           <div className="space-y-6">
-            <MemoryStats memory={activeMemory} />
+            <MemoryStats memory={activeMemory} computedTotalKm={computedTotalKm} />
             <MemoryTimeline
               memory={activeMemory}
               entries={entries}

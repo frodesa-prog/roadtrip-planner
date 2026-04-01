@@ -4,6 +4,7 @@ import { MemoryPhoto } from '@/types'
 import { Star, Trash2, Pencil, Check, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 interface Props {
   photos: MemoryPhoto[]
@@ -135,10 +136,10 @@ export default function PhotoGrid({ photos, onToggleFavorite, onUpdateCaption, o
         ))}
       </div>
 
-      {/* Lightbox */}
-      {lightboxPhoto && lightboxIndex !== null && (
+      {/* Lightbox – rendret på document.body via portal for å unngå z-index-konflikter */}
+      {lightboxPhoto && lightboxIndex !== null && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95"
           onClick={closeLightbox}
         >
           {/* Lukk-knapp */}
@@ -211,7 +212,8 @@ export default function PhotoGrid({ photos, onToggleFavorite, onUpdateCaption, o
               ))}
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
