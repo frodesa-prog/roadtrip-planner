@@ -40,6 +40,27 @@ export async function POST(req: NextRequest) {
 
     const totalNights = stops.reduce((s: number, st: { nights: number }) => s + (st.nights ?? 0), 0)
 
+    // ── Beregn total kjørelengde med Haversine-formelen ──────────────────────
+    function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+      const R = 6371
+      const dLat = (lat2 - lat1) * Math.PI / 180
+      const dLng = (lng2 - lng1) * Math.PI / 180
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) ** 2
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    }
+
+    let totalKm = 0
+    for (let i = 1; i < stops.length; i++) {
+      const prev = stops[i - 1] as { lat: number | null; lng: number | null }
+      const curr = stops[i]     as { lat: number | null; lng: number | null }
+      if (prev.lat != null && prev.lng != null && curr.lat != null && curr.lng != null) {
+        totalKm += haversineKm(prev.lat, prev.lng, curr.lat, curr.lng)
+      }
+    }
+
     // ── Hjelpefunksjon: hent per-stopp-data ──────────────────────────────────
 
     const stopContext = (stopId: string) => {
@@ -164,6 +185,7 @@ Stop-IDer i denne bolken: ${batch.map((s: { id: string }) => s.id).join(', ')}
       summary,
       total_nights: totalNights,
       total_stops:  stops.length,
+      total_km:     totalKm > 0 ? Math.round(totalKm) : null,
       generated_at: new Date().toISOString(),
       updated_at:   new Date().toISOString(),
     }
