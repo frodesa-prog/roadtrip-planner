@@ -229,6 +229,8 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
               memory={activeMemory}
               entries={entries}
               stops={stops}
+              activities={activities}
+              dining={dining}
               onUpdateEntry={updateEntry}
             />
           </div>

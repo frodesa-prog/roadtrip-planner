@@ -1,20 +1,23 @@
 'use client'
 
-import { TripMemory, MemoryEntry, Stop } from '@/types'
+import { TripMemory, MemoryEntry, Stop, Activity, Dining } from '@/types'
 import { useMemoryPhotos } from '@/hooks/useMemoryPhotos'
 import MemoryEntryEditor from './MemoryEntryEditor'
+import StopActivityList from './StopActivityList'
 import PhotoGrid from './PhotoGrid'
 import PhotoUploadZone from './PhotoUploadZone'
 import { MapPin, Moon } from 'lucide-react'
 
 interface Props {
-  memory: TripMemory
-  entries: MemoryEntry[]
-  stops: Stop[]
+  memory:     TripMemory
+  entries:    MemoryEntry[]
+  stops:      Stop[]
+  activities: Activity[]
+  dining:     Dining[]
   onUpdateEntry: (entryId: string, patch: { diary_text?: string; highlight?: string; mood_emoji?: string }) => void
 }
 
-export default function MemoryTimeline({ memory, entries, stops, onUpdateEntry }: Props) {
+export default function MemoryTimeline({ memory, entries, stops, activities, dining, onUpdateEntry }: Props) {
   const { photosByStop, addPhoto, toggleFavorite, updateCaption, deletePhoto } = useMemoryPhotos(memory.id)
 
   // Sorter stopp etter rekkefølge
@@ -86,6 +89,13 @@ export default function MemoryTimeline({ memory, entries, stops, onUpdateEntry }
                     Ingen dagbokinnføring for dette stoppet. Generer minnebok for å lage innhold.
                   </p>
                 )}
+
+                {/* Aktiviteter og spisesteder */}
+                <StopActivityList
+                  stopId={stop.id}
+                  activities={activities}
+                  dining={dining}
+                />
 
                 {/* Bildegalleri */}
                 {stopPhotos.length > 0 && (
