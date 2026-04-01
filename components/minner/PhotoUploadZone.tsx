@@ -2,16 +2,16 @@
 
 import { CldUploadWidget } from 'next-cloudinary'
 import { ImagePlus } from 'lucide-react'
-import { useMemoryPhotos, NewPhotoData } from '@/hooks/useMemoryPhotos'
+import { NewPhotoData } from '@/hooks/useMemoryPhotos'
 
 interface Props {
   memoryId: string
   stopId?: string | null
   onUploaded?: () => void
+  addPhoto: (data: NewPhotoData) => Promise<unknown>
 }
 
-export default function PhotoUploadZone({ memoryId, stopId, onUploaded }: Props) {
-  const { addPhoto } = useMemoryPhotos(memoryId)
+export default function PhotoUploadZone({ stopId, onUploaded, addPhoto }: Props) {
 
   const cloudName   = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET

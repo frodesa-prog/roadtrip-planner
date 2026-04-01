@@ -15,7 +15,7 @@ interface Props {
 }
 
 export default function MemoryTimeline({ memory, entries, stops, onUpdateEntry }: Props) {
-  const { photosByStop, toggleFavorite, updateCaption, deletePhoto } = useMemoryPhotos(memory.id)
+  const { photosByStop, addPhoto, toggleFavorite, updateCaption, deletePhoto } = useMemoryPhotos(memory.id)
 
   // Sorter stopp etter rekkefølge
   const sortedStops = [...stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
@@ -101,7 +101,7 @@ export default function MemoryTimeline({ memory, entries, stops, onUpdateEntry }
 
                 {/* Last opp bilder */}
                 <div className="mt-3">
-                  <PhotoUploadZone memoryId={memory.id} stopId={stop.id} />
+                  <PhotoUploadZone memoryId={memory.id} stopId={stop.id} addPhoto={addPhoto} />
                 </div>
               </div>
             </div>
