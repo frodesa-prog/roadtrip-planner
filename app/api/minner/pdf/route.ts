@@ -9,25 +9,19 @@ export const runtime = 'nodejs'
 
 // ── Fonter ────────────────────────────────────────────────────────────────────
 
-Font.register({
-  family: 'Inter',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYAZ9hiJ-Ek-_EeA.woff', fontWeight: 700 },
-  ],
-})
+// Bruker Helvetica – innebygd i alle PDF-lesere, krever ingen nedlasting
 
 // ── Stiler ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   page: {
-    fontFamily:      'Inter',
+    fontFamily:      'Helvetica',
     backgroundColor: '#0f172a',
     color:           '#e2e8f0',
     padding:         40,
   },
   coverPage: {
-    fontFamily:      'Inter',
+    fontFamily:      'Helvetica',
     backgroundColor: '#0f172a',
     color:           '#e2e8f0',
     padding:         0,
@@ -104,7 +98,7 @@ const styles = StyleSheet.create({
     lineHeight: 1.7,
   },
   stopPage: {
-    fontFamily:      'Inter',
+    fontFamily:      'Helvetica',
     backgroundColor: '#0f172a',
     color:           '#e2e8f0',
     padding:         40,

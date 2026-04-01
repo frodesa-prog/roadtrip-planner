@@ -4,7 +4,8 @@ import { use, useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useTripMemories } from '@/hooks/useTripMemories'
 import { useMemoryPhotos } from '@/hooks/useMemoryPhotos'
-import { Trip, TripMemory, Stop } from '@/types'
+import { useDrivingInfo } from '@/hooks/useDrivingInfo'
+import { Trip, TripMemory, Stop, RouteLeg } from '@/types'
 import MemoryTimeline from '@/components/minner/MemoryTimeline'
 import MemoryStats from '@/components/minner/MemoryStats'
 import MapReplay from '@/components/minner/MapReplay'
@@ -21,34 +22,21 @@ type Tab = 'dagbok' | 'bilder' | 'kart' | 'del'
 export default function MemoryDetailPage({ params }: { params: Promise<{ memoryId: string }> }) {
   const { memoryId } = use(params)
 
-  const [trip, setTrip]     = useState<Trip | null>(null)
-  const [stops, setStops]   = useState<Stop[]>([])
-  const [loading, setLoading] = useState(true)
+  const [trip, setTrip]         = useState<Trip | null>(null)
+  const [stops, setStops]       = useState<Stop[]>([])
+  const [routeLegs, setRouteLegs] = useState<RouteLeg[]>([])
+  const [loading, setLoading]   = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('dagbok')
 
   const supabase = useMemo(() => createClient(), [])
 
-  // Beregn total kjørelengde fra stopp-koordinater (Haversine)
+  // Faktisk kjørevei fra Google Directions (samme kilde som planleggeren)
+  const drivingLegs = useDrivingInfo(stops, routeLegs)
   const computedTotalKm = useMemo(() => {
-    if (stops.length < 2) return null
-    function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
-      const R = 6371
-      const dLat = (lat2 - lat1) * Math.PI / 180
-      const dLng = (lng2 - lng1) * Math.PI / 180
-      const a = Math.sin(dLat / 2) ** 2 +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    }
-    let total = 0
-    const sorted = [...stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    for (let i = 1; i < sorted.length; i++) {
-      const p = sorted[i - 1], c = sorted[i]
-      if (p.lat != null && p.lng != null && c.lat != null && c.lng != null) {
-        total += haversineKm(p.lat, p.lng, c.lat, c.lng)
-      }
-    }
+    if (!drivingLegs.length) return null
+    const total = drivingLegs.reduce((sum, l) => sum + (l?.distanceKm ?? 0), 0)
     return total > 0 ? Math.round(total) : null
-  }, [stops])
+  }, [drivingLegs])
 
   const {
     memory, entries, generating,
@@ -74,13 +62,15 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
       if (!mem) { setLoading(false); return }
       setDirectMemory(mem as TripMemory)
 
-      const [{ data: tripData }, { data: stopsData }] = await Promise.all([
+      const [{ data: tripData }, { data: stopsData }, { data: legsData }] = await Promise.all([
         supabase.from('trips').select('*').eq('id', mem.trip_id).single(),
         supabase.from('stops').select('*').eq('trip_id', mem.trip_id).order('order'),
+        supabase.from('route_legs').select('*').eq('trip_id', mem.trip_id),
       ])
 
       setTrip(tripData as Trip)
       setStops((stopsData ?? []) as Stop[])
+      setRouteLegs((legsData ?? []) as RouteLeg[])
       setLoading(false)
     }
     load()
