@@ -38,7 +38,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/kostnader') ||
     pathname.startsWith('/minside') ||
     pathname.startsWith('/todo') ||
-    pathname.startsWith('/pakkeliste')
+    pathname.startsWith('/pakkeliste') ||
+    pathname.startsWith('/minner')
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone()
@@ -56,5 +57,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/plan/:path*', '/archive/:path*', '/summary/:path*', '/notes/:path*', '/kostnader/:path*', '/minside/:path*', '/todo/:path*', '/pakkeliste/:path*', '/login'],
+  matcher: ['/plan/:path*', '/archive/:path*', '/summary/:path*', '/notes/:path*', '/kostnader/:path*', '/minside/:path*', '/todo/:path*', '/pakkeliste/:path*', '/minner/:path*', '/login'],
 }

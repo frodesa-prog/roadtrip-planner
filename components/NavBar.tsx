@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronDown, Check, Plus } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronDown, Check, Plus, BookHeart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useChat } from '@/components/chat/ChatContext'
@@ -165,6 +165,7 @@ const links = [
   { href: '/kostnader', label: 'Kostnader', icon: Receipt },
   { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
   { href: '/notes', label: 'Notater', icon: FileText },
+  { href: '/minner', label: 'Minner', icon: BookHeart },
   { href: '/hjelp', label: 'Hjelp', icon: HelpCircle },
 ]
 
@@ -173,7 +174,7 @@ const bottomNavLinks = [
   { href: '/plan', label: 'Plan', icon: Map },
   { href: '/todo', label: 'ToDo', icon: ClipboardList },
   { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
-  { href: '/notes', label: 'Notater', icon: FileText },
+  { href: '/minner', label: 'Minner', icon: BookHeart },
   { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
 ]
 

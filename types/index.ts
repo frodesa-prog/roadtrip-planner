@@ -390,3 +390,51 @@ export interface MessageReaction {
   emoji: string
   created_at: string
 }
+
+// ── Reiseminner ────────────────────────────────────────────────────────────────
+
+export interface TripMemory {
+  id: string
+  trip_id: string
+  created_by: string
+  title: string | null
+  summary: string | null
+  cover_image_url: string | null
+  public_slug: string
+  is_public: boolean
+  total_km: number | null
+  total_nights: number | null
+  total_stops: number | null
+  generated_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MemoryEntry {
+  id: string
+  memory_id: string
+  stop_id: string
+  diary_text: string | null
+  highlight: string | null
+  mood_emoji: string | null
+  stop_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MemoryPhoto {
+  id: string
+  memory_id: string
+  stop_id: string | null
+  uploaded_by: string
+  cloudinary_public_id: string
+  cloudinary_url: string
+  thumbnail_url: string | null
+  caption: string | null
+  taken_at: string | null
+  exif_lat: number | null
+  exif_lng: number | null
+  is_favorite: boolean
+  sort_order: number
+  created_at: string
+}
