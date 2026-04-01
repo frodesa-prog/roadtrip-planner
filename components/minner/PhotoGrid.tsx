@@ -55,6 +55,7 @@ export default function PhotoGrid({ photos, onToggleFavorite, onUpdateCaption, o
           <div
             key={photo.id}
             className="relative group rounded-xl overflow-hidden aspect-square bg-slate-800 cursor-pointer"
+            onClick={() => openLightbox(photo)}
           >
             {/* Bilde */}
             <Image
@@ -62,7 +63,6 @@ export default function PhotoGrid({ photos, onToggleFavorite, onUpdateCaption, o
               alt={photo.caption ?? 'Reisebilde'}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
-              onClick={() => openLightbox(photo)}
               sizes="(max-width: 640px) 50vw, 33vw"
             />
 
