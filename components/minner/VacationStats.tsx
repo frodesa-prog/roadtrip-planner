@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { X, Globe, Car, MapPin, Flag, Navigation, Map, ChevronDown, ChevronRight } from 'lucide-react'
+import { X, Globe, Car, MapPin, Flag, Navigation, Map as MapIcon, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Trip, Stop } from '@/types'
 
 // ── Haversine km mellom to koordinater ───────────────────────────────────────
@@ -159,7 +159,7 @@ function GroupedWorldModal({ groups, onClose }: { groups: GroupedCountry[]; onCl
       <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-amber-400"><Map className="w-4 h-4" /></span>
+            <span className="text-amber-400"><MapIcon className="w-4 h-4" /></span>
             <h2 className="text-sm font-semibold text-slate-100">Alle steder i verden</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors">
@@ -223,7 +223,7 @@ export default function VacationStats({ trips, stops }: Props) {
 
   const stats = useMemo(() => {
     // Kart: tripId → trip
-    const tripMap = new Map(trips.map(t => [t.id, t]))
+    const tripMap = new Map<string, Trip>(trips.map(t => [t.id, t] as [string, Trip]))
 
     // ── Land ──────────────────────────────────────────────────────────────────
     // Samle land fra destination_country OG fra stopp med US-delstat
@@ -409,7 +409,7 @@ export default function VacationStats({ trips, stops }: Props) {
           />
 
           <StatCard
-            icon={<Map className="w-4 h-4" />}
+            icon={<MapIcon className="w-4 h-4" />}
             value={stats.totalWorldCities}
             label="Steder i verden"
             color="text-purple-400" bgColor="bg-purple-400/10"
