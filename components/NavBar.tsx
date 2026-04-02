@@ -165,7 +165,7 @@ const links = [
   { href: '/kostnader', label: 'Kostnader', icon: Receipt },
   { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
   { href: '/notes', label: 'Notater', icon: FileText },
-  { href: '/minner', label: 'Minner', icon: BookHeart },
+  { href: '/minner', label: 'Minner', icon: BookHeart, newTab: true },
   { href: '/hjelp', label: 'Hjelp', icon: HelpCircle },
 ]
 
@@ -174,7 +174,7 @@ const bottomNavLinks = [
   { href: '/plan', label: 'Plan', icon: Map },
   { href: '/todo', label: 'ToDo', icon: ClipboardList },
   { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
-  { href: '/minner', label: 'Minner', icon: BookHeart },
+  { href: '/minner', label: 'Minner', icon: BookHeart, newTab: true },
   { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
 ]
 
@@ -209,18 +209,18 @@ export default function NavBar() {
 
         {/* Nav links – kun synlig på desktop */}
         <div className="hidden md:flex items-center gap-1 flex-1 overflow-x-auto">
-          {links.map(({ href, label, icon: Icon }) => {
+          {links.map(({ href, label, icon: Icon, newTab }) => {
             const isActive = pathname === href
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-                }`}
-              >
+            const cls = `flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+              isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+            }`
+            return newTab ? (
+              <a key={href} href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </a>
+            ) : (
+              <Link key={href} href={href} className={cls}>
                 <Icon className="w-3.5 h-3.5" />
                 {label}
               </Link>
@@ -279,16 +279,16 @@ export default function NavBar() {
 
       {/* ── Bottom tab bar (mobil) ────────────────────────────────────────── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-800 flex h-16">
-        {bottomNavLinks.map(({ href, label, icon: Icon }) => {
+        {bottomNavLinks.map(({ href, label, icon: Icon, newTab }) => {
           const isActive = pathname === href
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
-                isActive ? 'text-blue-400' : 'text-slate-500'
-              }`}
-            >
+          const cls = `flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${isActive ? 'text-blue-400' : 'text-slate-500'}`
+          return newTab ? (
+            <a key={href} href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px]">{label}</span>
+            </a>
+          ) : (
+            <Link key={href} href={href} className={cls}>
               <Icon className="w-5 h-5" />
               <span className="text-[10px]">{label}</span>
             </Link>
@@ -337,18 +337,29 @@ export default function NavBar() {
 
         {/* Nav-lenker */}
         <nav className="flex-1 overflow-y-auto py-2">
-          {links.map(({ href, label, icon: Icon }) => {
+          {links.map(({ href, label, icon: Icon, newTab }) => {
             const isActive = pathname === href
-            return (
+            const cls = `flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+              isActive ? 'bg-blue-600/20 text-blue-400 border-r-2 border-blue-500' : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
+            }`
+            return newTab ? (
+              <a
+                key={href}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setDrawerOpen(false)}
+                className={cls}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                {label}
+              </a>
+            ) : (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setDrawerOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-blue-600/20 text-blue-400 border-r-2 border-blue-500'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
-                }`}
+                className={cls}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {label}
