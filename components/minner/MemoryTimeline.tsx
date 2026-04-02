@@ -6,7 +6,7 @@ import MemoryEntryEditor from './MemoryEntryEditor'
 import StopActivityList from './StopActivityList'
 import PhotoGrid from './PhotoGrid'
 import PhotoUploadZone from './PhotoUploadZone'
-import { MapPin, Moon } from 'lucide-react'
+import { MapPin, Moon, Images } from 'lucide-react'
 
 interface Props {
   memory:     TripMemory
@@ -25,6 +25,9 @@ function shortDate(d: string | null): string {
 
 export default function MemoryTimeline({ memory, entries, stops, activities, dining, hotels, onUpdateEntry }: Props) {
   const { photosByStop, addPhoto, toggleFavorite, updateCaption, deletePhoto } = useMemoryPhotos(memory.id)
+
+  // Bilder uten tilknyttet stopp
+  const unassignedPhotos = photosByStop.get(null) ?? []
 
   const sortedStops = [...stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 
@@ -208,6 +211,33 @@ export default function MemoryTimeline({ memory, entries, stops, activities, din
           </div>
         )
       })}
+
+      {/* ── Andre bilder fra turen (uten tilknyttet stopp) ────────────── */}
+      {unassignedPhotos.length > 0 && (
+        <div className="relative pt-4">
+          {/* Skillelinje */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 h-px bg-slate-800" />
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900">
+              <Images className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-xs font-semibold text-slate-400">Andre bilder fra turen</span>
+            </div>
+            <div className="flex-1 h-px bg-slate-800" />
+          </div>
+
+          <PhotoGrid
+            photos={unassignedPhotos}
+            onToggleFavorite={toggleFavorite}
+            onUpdateCaption={updateCaption}
+            onDelete={deletePhoto}
+          />
+
+          {/* Last opp bilder uten stopp */}
+          <div className="mt-3">
+            <PhotoUploadZone memoryId={memory.id} stopId={null} addPhoto={addPhoto} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
