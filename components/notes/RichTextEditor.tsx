@@ -4,7 +4,7 @@ import { useEditor, EditorContent, Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import { TextStyle, Color, FontSize } from '@tiptap/extension-text-style'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   List, ListOrdered, Quote, RemoveFormatting, ChevronDown,
@@ -69,6 +69,9 @@ function ToolbarBtn({
 }
 
 function HeadingDropdown({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
   const level = editor.isActive('heading', { level: 1 }) ? 1
     : editor.isActive('heading', { level: 2 }) ? 2
     : editor.isActive('heading', { level: 3 }) ? 3
@@ -77,90 +80,119 @@ function HeadingDropdown({ editor }: { editor: Editor }) {
   const label = level ? `H${level}` : 'Tekst'
 
   const options = [
-    { id: 0, name: 'Brødtekst',   action: () => editor.chain().focus().setParagraph().run() },
+    { id: 0, name: 'Brødtekst',    action: () => editor.chain().focus().setParagraph().run() },
     { id: 1, name: 'Overskrift 1', action: () => editor.chain().focus().toggleHeading({ level: 1 }).run() },
     { id: 2, name: 'Overskrift 2', action: () => editor.chain().focus().toggleHeading({ level: 2 }).run() },
     { id: 3, name: 'Overskrift 3', action: () => editor.chain().focus().toggleHeading({ level: 3 }).run() },
   ]
 
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
   return (
-    <div className="relative group flex-shrink-0">
+    <div ref={ref} className="relative flex-shrink-0">
       <button
         type="button"
-        onMouseDown={(e) => e.preventDefault()}
+        onMouseDown={(e) => { e.preventDefault(); setOpen(v => !v) }}
         className="flex items-center gap-1 px-2 py-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors w-[4.5rem] justify-between"
       >
         <span className="font-medium">{label}</span>
-        <ChevronDown className="w-3 h-3 opacity-60" />
+        <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      <div className="absolute left-0 top-full mt-0.5 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl z-20 hidden group-hover:block w-36">
-        {options.map(({ id, name, action }) => (
-          <button
-            key={id}
-            type="button"
-            onMouseDown={(e) => { e.preventDefault(); action() }}
-            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 first:rounded-t-lg last:rounded-b-lg transition-colors ${
-              level === id ? 'text-amber-300' : 'text-slate-300'
-            }`}
-          >
-            {name}
-          </button>
-        ))}
-      </div>
+      {open && (
+        <div className="absolute left-0 top-full mt-0.5 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl z-20 w-36">
+          {options.map(({ id, name, action }) => (
+            <button
+              key={id}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                action()
+                setOpen(false)
+              }}
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                level === id ? 'text-amber-300' : 'text-slate-300'
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 function FontSizePicker({ editor }: { editor: Editor }) {
-  const current = editor.getAttributes('textStyle').fontSize
-    ? parseInt(editor.getAttributes('textStyle').fontSize, 10)
-    : null
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
+  const rawSize = editor.getAttributes('textStyle').fontSize
+  const current = rawSize ? parseInt(rawSize, 10) : null
   const label = current ? `${current}` : 'pt'
 
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
   return (
-    <div className="relative group flex-shrink-0">
+    <div ref={ref} className="relative flex-shrink-0">
       <button
         type="button"
-        onMouseDown={(e) => e.preventDefault()}
+        onMouseDown={(e) => { e.preventDefault(); setOpen(v => !v) }}
         title="Skriftstørrelse"
         className="flex items-center gap-0.5 px-1.5 py-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors w-[3.2rem] justify-between"
       >
         <span className="font-medium tabular-nums">{label}</span>
-        <ChevronDown className="w-3 h-3 opacity-60 flex-shrink-0" />
+        <ChevronDown className={`w-3 h-3 opacity-60 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Scrollable dropdown */}
-      <div className="absolute left-0 top-full mt-0.5 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl z-20 hidden group-hover:block w-20 max-h-56 overflow-y-auto">
-        {/* Reset option */}
-        <button
-          type="button"
-          onMouseDown={(e) => {
-            e.preventDefault()
-            editor.chain().focus().unsetFontSize().run()
-          }}
-          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 rounded-t-lg transition-colors sticky top-0 bg-slate-800 border-b border-slate-700/60 ${
-            !current ? 'text-amber-300' : 'text-slate-400'
-          }`}
-        >
-          Standard
-        </button>
-        {FONT_SIZES.map(size => (
+      {open && (
+        <div className="absolute left-0 top-full mt-0.5 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl z-20 w-20 max-h-56 overflow-y-auto">
           <button
-            key={size}
             type="button"
             onMouseDown={(e) => {
               e.preventDefault()
-              editor.chain().focus().setFontSize(`${size}px`).run()
+              editor.chain().focus().unsetFontSize().run()
+              setOpen(false)
             }}
-            className={`w-full text-left px-3 py-1 text-xs hover:bg-slate-700 last:rounded-b-lg transition-colors tabular-nums ${
-              current === size ? 'text-amber-300 font-semibold' : 'text-slate-300'
+            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 rounded-t-lg transition-colors sticky top-0 bg-slate-800 border-b border-slate-700/60 ${
+              !current ? 'text-amber-300' : 'text-slate-400'
             }`}
           >
-            {size}
+            Standard
           </button>
-        ))}
-      </div>
+          {FONT_SIZES.map(size => (
+            <button
+              key={size}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                editor.chain().focus().setFontSize(`${size}px`).run()
+                setOpen(false)
+              }}
+              className={`w-full text-left px-3 py-1 text-xs hover:bg-slate-700 last:rounded-b-lg transition-colors tabular-nums ${
+                current === size ? 'text-amber-300 font-semibold' : 'text-slate-300'
+              }`}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
