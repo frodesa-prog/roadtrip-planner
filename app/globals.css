@@ -986,3 +986,15 @@
   font-style: italic;
   margin: 0.5rem 0;
 }
+
+.rte-content a,
+.rte-content .rte-link {
+  color: #60a5fa;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.rte-content a:hover,
+.rte-content .rte-link:hover {
+  color: #93c5fd;
+}

@@ -4,10 +4,11 @@ import { useEditor, EditorContent, Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import { TextStyle, Color, FontSize } from '@tiptap/extension-text-style'
+import Link from '@tiptap/extension-link'
 import { useEffect, useRef, useState } from 'react'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
-  List, ListOrdered, Quote, RemoveFormatting, ChevronDown,
+  List, ListOrdered, Quote, RemoveFormatting, ChevronDown, Link as LinkIcon, Unlink,
 } from 'lucide-react'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -29,13 +30,13 @@ const FONT_SIZES = [4, 6, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 
 // ── Colour palette ────────────────────────────────────────────────────────────
 
 const TEXT_COLORS = [
-  { label: 'Standard',    color: null,      bg: '#64748b', border: true },
-  { label: 'Amber',       color: '#f59e0b', bg: '#f59e0b', border: false },
-  { label: 'Blå',         color: '#38bdf8', bg: '#38bdf8', border: false },
-  { label: 'Grønn',       color: '#34d399', bg: '#34d399', border: false },
-  { label: 'Rød',         color: '#f87171', bg: '#f87171', border: false },
-  { label: 'Lilla',       color: '#a78bfa', bg: '#a78bfa', border: false },
-  { label: 'Grå',         color: '#94a3b8', bg: '#94a3b8', border: false },
+  { label: 'Standard', color: null,      bg: '#64748b', border: true },
+  { label: 'Amber',    color: '#f59e0b', bg: '#f59e0b', border: false },
+  { label: 'Blå',      color: '#38bdf8', bg: '#38bdf8', border: false },
+  { label: 'Grønn',    color: '#34d399', bg: '#34d399', border: false },
+  { label: 'Rød',      color: '#f87171', bg: '#f87171', border: false },
+  { label: 'Lilla',    color: '#a78bfa', bg: '#a78bfa', border: false },
+  { label: 'Grå',      color: '#94a3b8', bg: '#94a3b8', border: false },
 ]
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -86,7 +87,6 @@ function HeadingDropdown({ editor }: { editor: Editor }) {
     { id: 3, name: 'Overskrift 3', action: () => editor.chain().focus().toggleHeading({ level: 3 }).run() },
   ]
 
-  // Close on click outside
   useEffect(() => {
     if (!open) return
     function handleClick(e: MouseEvent) {
@@ -112,11 +112,7 @@ function HeadingDropdown({ editor }: { editor: Editor }) {
             <button
               key={id}
               type="button"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                action()
-                setOpen(false)
-              }}
+              onMouseDown={(e) => { e.preventDefault(); action(); setOpen(false) }}
               className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 first:rounded-t-lg last:rounded-b-lg transition-colors ${
                 level === id ? 'text-amber-300' : 'text-slate-300'
               }`}
@@ -138,7 +134,6 @@ function FontSizePicker({ editor }: { editor: Editor }) {
   const current = rawSize ? parseInt(rawSize, 10) : null
   const label = current ? `${current}` : 'pt'
 
-  // Close on click outside
   useEffect(() => {
     if (!open) return
     function handleClick(e: MouseEvent) {
@@ -159,16 +154,11 @@ function FontSizePicker({ editor }: { editor: Editor }) {
         <span className="font-medium tabular-nums">{label}</span>
         <ChevronDown className={`w-3 h-3 opacity-60 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-
       {open && (
         <div className="absolute left-0 top-full mt-0.5 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl z-20 w-20 max-h-56 overflow-y-auto">
           <button
             type="button"
-            onMouseDown={(e) => {
-              e.preventDefault()
-              editor.chain().focus().unsetFontSize().run()
-              setOpen(false)
-            }}
+            onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().unsetFontSize().run(); setOpen(false) }}
             className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 rounded-t-lg transition-colors sticky top-0 bg-slate-800 border-b border-slate-700/60 ${
               !current ? 'text-amber-300' : 'text-slate-400'
             }`}
@@ -179,11 +169,7 @@ function FontSizePicker({ editor }: { editor: Editor }) {
             <button
               key={size}
               type="button"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                editor.chain().focus().setFontSize(`${size}px`).run()
-                setOpen(false)
-              }}
+              onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().setFontSize(`${size}px`).run(); setOpen(false) }}
               className={`w-full text-left px-3 py-1 text-xs hover:bg-slate-700 last:rounded-b-lg transition-colors tabular-nums ${
                 current === size ? 'text-amber-300 font-semibold' : 'text-slate-300'
               }`}
@@ -196,6 +182,49 @@ function FontSizePicker({ editor }: { editor: Editor }) {
     </div>
   )
 }
+
+// ── Link button ───────────────────────────────────────────────────────────────
+
+function LinkButton({ editor }: { editor: Editor }) {
+  const isLink = editor.isActive('link')
+
+  function handleSetLink() {
+    // If a link is already active, offer to edit it
+    const existingHref = editor.getAttributes('link').href ?? ''
+    const url = window.prompt('Legg inn nettadresse:', existingHref)
+    if (url === null) return          // cancelled
+    if (url.trim() === '') {
+      editor.chain().focus().unsetLink().run()
+      return
+    }
+    // Ensure protocol
+    const href = /^https?:\/\//i.test(url) ? url : `https://${url}`
+    editor.chain().focus().setLink({ href, target: '_blank' }).run()
+  }
+
+  return (
+    <>
+      <ToolbarBtn
+        onClick={handleSetLink}
+        active={isLink}
+        title={isLink ? 'Rediger lenke' : 'Legg til lenke'}
+      >
+        <LinkIcon className="w-3.5 h-3.5" />
+      </ToolbarBtn>
+      {isLink && (
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().unsetLink().run()}
+          active={false}
+          title="Fjern lenke"
+        >
+          <Unlink className="w-3.5 h-3.5" />
+        </ToolbarBtn>
+      )}
+    </>
+  )
+}
+
+// ── Toolbar ───────────────────────────────────────────────────────────────────
 
 function Toolbar({ editor }: { editor: Editor }) {
   return (
@@ -240,6 +269,10 @@ function Toolbar({ editor }: { editor: Editor }) {
 
       <Divider />
 
+      <LinkButton editor={editor} />
+
+      <Divider />
+
       {/* Colour swatches */}
       {TEXT_COLORS.map(({ label, color, bg, border }) => (
         <button
@@ -280,7 +313,6 @@ interface Props {
   placeholder?: string
   className?: string
   autoFocus?: boolean
-  /** Called when user pastes an image file (to trigger upload) */
   onPasteImage?: (file: File) => void
 }
 
@@ -294,6 +326,16 @@ export default function RichTextEditor({
       TextStyle,
       Color,
       FontSize,
+      Link.configure({
+        autolink: true,           // auto-convert typed/pasted URLs
+        openOnClick: false,       // don't navigate while editing
+        linkOnPaste: true,        // wrap pasted URLs as links
+        HTMLAttributes: {
+          class: 'rte-link',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
+      }),
     ],
     content: normalizeToHtml(content),
     onUpdate({ editor }) {
