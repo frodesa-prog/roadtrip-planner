@@ -1473,6 +1473,24 @@ export default function PlanningMap({
     setPendingStop(null)
   }
 
+  // Handlers for adding activity/dining/hotel/possible from map popup
+  function handleMapAddActivity(stopId: string, name: string, lat: number, lng: number) {
+    onPoiAction?.addActivity(stopId, { name, map_lat: lat, map_lng: lng })
+    setPendingStop(null)
+  }
+  function handleMapAddDining(stopId: string, name: string, lat: number, lng: number) {
+    onPoiAction?.addDining(stopId, { name, map_lat: lat, map_lng: lng })
+    setPendingStop(null)
+  }
+  function handleMapAddHotel(stopId: string, name: string, lat: number, lng: number) {
+    onPoiAction?.saveHotel(stopId, name, null, null, lat, lng)
+    setPendingStop(null)
+  }
+  function handleMapAddPossible(stopId: string, description: string, lat: number, lng: number) {
+    onPoiAction?.addPossible(stopId, { description, map_lat: lat, map_lng: lng })
+    setPendingStop(null)
+  }
+
   const pinnedActivities = activities.filter((a) => a.map_lat != null && a.map_lng != null)
 
   return (
@@ -1612,7 +1630,7 @@ export default function PlanningMap({
           />
         )}
 
-        {/* Popup for å bekrefte nytt stopp */}
+        {/* Popup for å bekrefte nytt stopp / legge til aktivitet, spisestad, hotell, mulig */}
         {pendingStop && !readOnly && (
           <AddStopPopup
             lat={pendingStop.lat}
@@ -1620,7 +1638,13 @@ export default function PlanningMap({
             initialCity={pendingStop.city}
             initialState={pendingStop.state}
             fromSearch={pendingStop.fromSearch}
+            stops={stops}
+            activeStopId={selectedStopId}
             onConfirm={handleConfirmStop}
+            onAddActivity={onPoiAction ? handleMapAddActivity : undefined}
+            onAddDining={onPoiAction ? handleMapAddDining : undefined}
+            onAddHotel={onPoiAction ? handleMapAddHotel : undefined}
+            onAddPossible={onPoiAction ? handleMapAddPossible : undefined}
             onCancel={() => setPendingStop(null)}
           />
         )}
