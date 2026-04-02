@@ -184,6 +184,9 @@ export default function NavBar() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const { toggle: toggleChat, unreadCount } = useChat()
 
+  // Ikke vis NavBar på minnebok-detaljsider (åpnes i egen fane)
+  if (/^\/minner\/[^/]+/.test(pathname ?? '')) return null
+
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
