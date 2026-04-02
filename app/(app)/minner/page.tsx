@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import VacationStats from '@/components/minner/VacationStats'
 import { Trip, TripMemory, Stop, Dining } from '@/types'
-import { BookHeart, Map, ArrowRight } from 'lucide-react'
+import { BookHeart, Map, Globe, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 export default function MinnerPage() {
@@ -82,7 +82,7 @@ export default function MinnerPage() {
       <div className="max-w-5xl mx-auto px-4 pt-5 space-y-4">
 
         {/* Snarveier */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Minnebøker */}
           <Link
             href="/minner/minneboker"
@@ -99,8 +99,10 @@ export default function MinnerPage() {
           </Link>
 
           {/* USA-kart */}
-          <Link
+          <a
             href="/usa-map"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-amber-700/40 transition-all group"
           >
             <span className="text-xl flex-shrink-0">🇺🇸</span>
@@ -109,7 +111,22 @@ export default function MinnerPage() {
               <p className="text-xs text-slate-500">Se reisene dine på interaktivt kart</p>
             </div>
             <Map className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors flex-shrink-0" />
-          </Link>
+          </a>
+
+          {/* Verdenskart */}
+          <a
+            href="/verden-kart"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-amber-700/40 transition-all group"
+          >
+            <span className="text-xl flex-shrink-0">🌍</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-200 group-hover:text-amber-300 transition-colors">Verdenskart</p>
+              <p className="text-xs text-slate-500">Landene du har besøkt uthevet</p>
+            </div>
+            <Globe className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors flex-shrink-0" />
+          </a>
         </div>
 
         {/* Feriestatistikk */}
