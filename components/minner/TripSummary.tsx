@@ -224,6 +224,34 @@ function FlightCard({ flight }: { flight: Flight }) {
   )
 }
 
+// ── Map zoom controls ─────────────────────────────────────────────────────────
+
+function ZoomControls() {
+  const map = useMap()
+
+  function zoomIn()  { if (map) map.setZoom((map.getZoom() ?? 5) + 1) }
+  function zoomOut() { if (map) map.setZoom((map.getZoom() ?? 5) - 1) }
+
+  return (
+    <div className="absolute bottom-3 right-3 z-10 flex flex-col gap-1">
+      <button
+        onClick={zoomIn}
+        aria-label="Zoom inn"
+        className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/90 border border-slate-600 text-slate-200 text-base font-bold hover:bg-slate-700 active:scale-95 transition shadow-md select-none"
+      >
+        +
+      </button>
+      <button
+        onClick={zoomOut}
+        aria-label="Zoom ut"
+        className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/90 border border-slate-600 text-slate-200 text-base font-bold hover:bg-slate-700 active:scale-95 transition shadow-md select-none"
+      >
+        −
+      </button>
+    </div>
+  )
+}
+
 // ── Static route map ──────────────────────────────────────────────────────────
 
 function RouteMapInner({ stops }: { stops: Stop[] }) {
@@ -315,6 +343,7 @@ function RouteStaticMap({ stops }: { stops: Stop[] }) {
           ]}
         >
           <RouteMapInner stops={stops} />
+          <ZoomControls />
         </GoogleMap>
       </div>
     </APIProvider>
