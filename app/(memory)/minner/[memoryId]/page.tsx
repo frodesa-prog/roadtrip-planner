@@ -243,6 +243,7 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
               stops={stops}
               activities={activities}
               dining={dining}
+              hotels={hotels}
               onUpdateEntry={updateEntry}
             />
           </div>

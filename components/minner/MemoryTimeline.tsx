@@ -1,6 +1,6 @@
 'use client'
 
-import { TripMemory, MemoryEntry, Stop, Activity, Dining } from '@/types'
+import { TripMemory, MemoryEntry, Stop, Activity, Dining, Hotel } from '@/types'
 import { useMemoryPhotos } from '@/hooks/useMemoryPhotos'
 import MemoryEntryEditor from './MemoryEntryEditor'
 import StopActivityList from './StopActivityList'
@@ -14,13 +14,18 @@ interface Props {
   stops:      Stop[]
   activities: Activity[]
   dining:     Dining[]
+  hotels:     Hotel[]
   onUpdateEntry: (entryId: string, patch: { diary_text?: string; highlight?: string; mood_emoji?: string }) => void
 }
 
-export default function MemoryTimeline({ memory, entries, stops, activities, dining, onUpdateEntry }: Props) {
+function shortDate(d: string | null): string {
+  if (!d) return ''
+  return new Date(d).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
+}
+
+export default function MemoryTimeline({ memory, entries, stops, activities, dining, hotels, onUpdateEntry }: Props) {
   const { photosByStop, addPhoto, toggleFavorite, updateCaption, deletePhoto } = useMemoryPhotos(memory.id)
 
-  // Sorter stopp etter rekkefølge
   const sortedStops = [...stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 
   return (
@@ -41,8 +46,30 @@ export default function MemoryTimeline({ memory, entries, stops, activities, din
 
       {/* Stopp */}
       {sortedStops.map((stop, i) => {
-        const entry = entries.find((e) => e.stop_id === stop.id)
+        const entry      = entries.find((e) => e.stop_id === stop.id)
         const stopPhotos = photosByStop.get(stop.id) ?? []
+
+        // ── Grupper bilder per aktivitet / spisestad / hotell ──────────────
+        const actGroups = activities
+          .filter(a => a.stop_id === stop.id)
+          .map(a => ({ act: a, photos: stopPhotos.filter(p => p.activity_id === a.id) }))
+          .filter(g => g.photos.length > 0)
+
+        const dinGroups = dining
+          .filter(d => d.stop_id === stop.id)
+          .map(d => ({ din: d, photos: stopPhotos.filter(p => p.dining_id === d.id) }))
+          .filter(g => g.photos.length > 0)
+
+        const hotelGroups = hotels
+          .filter(h => h.stop_id === stop.id)
+          .map(h => ({ hotel: h, photos: stopPhotos.filter(p => p.hotel_id === h.id) }))
+          .filter(g => g.photos.length > 0)
+
+        const stopOnlyPhotos = stopPhotos.filter(
+          p => !p.activity_id && !p.dining_id && !p.hotel_id
+        )
+
+        const hasSubGroups = actGroups.length > 0 || dinGroups.length > 0 || hotelGroups.length > 0
 
         return (
           <div key={stop.id} className="relative">
@@ -90,22 +117,85 @@ export default function MemoryTimeline({ memory, entries, stops, activities, din
                   </p>
                 )}
 
-                {/* Aktiviteter og spisesteder */}
+                {/* Aktiviteter og spisesteder (liste) */}
                 <StopActivityList
                   stopId={stop.id}
                   activities={activities}
                   dining={dining}
                 />
 
-                {/* Bildegalleri */}
+                {/* ── Bildegalleri gruppert ────────────────────────────────── */}
                 {stopPhotos.length > 0 && (
-                  <div className="mt-4">
-                    <PhotoGrid
-                      photos={stopPhotos}
-                      onToggleFavorite={toggleFavorite}
-                      onUpdateCaption={updateCaption}
-                      onDelete={deletePhoto}
-                    />
+                  <div className="mt-4 space-y-4">
+
+                    {/* Aktivitet-bilder */}
+                    {actGroups.map(({ act, photos }) => (
+                      <div key={act.id}>
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                          <span className="text-xs font-medium text-blue-300">{act.name}</span>
+                          {act.activity_date && (
+                            <span className="text-xs text-slate-500">· {shortDate(act.activity_date)}</span>
+                          )}
+                        </div>
+                        <PhotoGrid
+                          photos={photos}
+                          onToggleFavorite={toggleFavorite}
+                          onUpdateCaption={updateCaption}
+                          onDelete={deletePhoto}
+                        />
+                      </div>
+                    ))}
+
+                    {/* Spisestad-bilder */}
+                    {dinGroups.map(({ din, photos }) => (
+                      <div key={din.id}>
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0" />
+                          <span className="text-xs font-medium text-purple-300">{din.name}</span>
+                          {din.booking_date && (
+                            <span className="text-xs text-slate-500">· {shortDate(din.booking_date)}</span>
+                          )}
+                        </div>
+                        <PhotoGrid
+                          photos={photos}
+                          onToggleFavorite={toggleFavorite}
+                          onUpdateCaption={updateCaption}
+                          onDelete={deletePhoto}
+                        />
+                      </div>
+                    ))}
+
+                    {/* Hotell-bilder */}
+                    {hotelGroups.map(({ hotel, photos }) => (
+                      <div key={hotel.id}>
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                          <span className="text-xs font-medium text-emerald-300">{hotel.name}</span>
+                        </div>
+                        <PhotoGrid
+                          photos={photos}
+                          onToggleFavorite={toggleFavorite}
+                          onUpdateCaption={updateCaption}
+                          onDelete={deletePhoto}
+                        />
+                      </div>
+                    ))}
+
+                    {/* Bilder kun knyttet til stoppestedet */}
+                    {stopOnlyPhotos.length > 0 && (
+                      <div>
+                        {hasSubGroups && (
+                          <p className="text-xs text-slate-500 mb-2">Øvrige bilder fra stedet</p>
+                        )}
+                        <PhotoGrid
+                          photos={stopOnlyPhotos}
+                          onToggleFavorite={toggleFavorite}
+                          onUpdateCaption={updateCaption}
+                          onDelete={deletePhoto}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
