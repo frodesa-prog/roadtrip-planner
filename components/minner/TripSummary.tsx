@@ -12,6 +12,7 @@ import {
   Moon, MapPin, Calendar, Clock, Route, ChevronRight, Info,
   ArrowRight,
 } from 'lucide-react'
+import { getOffset, calcFlightMinutes, calcStopoverMinutes, formatDuration } from '@/data/airports'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,17 +52,6 @@ function nightLabel(n: number): string {
   return `${n} ${n === 1 ? 'natt' : 'netter'}`
 }
 
-/** Calculate duration string between two HH:MM times (handles crossing midnight) */
-function flightDuration(dep: string | null, arr: string | null): string | null {
-  if (!dep || !arr) return null
-  const [dh, dm] = dep.split(':').map(Number)
-  const [ah, am] = arr.split(':').map(Number)
-  let mins = (ah * 60 + am) - (dh * 60 + dm)
-  if (mins < 0) mins += 24 * 60
-  const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return `${h}t${m > 0 ? ` ${m}min` : ''}`
-}
 
 // ── Wikipedia city facts ─────────────────────────────────────────────────────
 
@@ -99,14 +89,32 @@ async function fetchWikiFact(city: string, state?: string): Promise<WikiFact | n
 function FlightCard({ flight }: { flight: Flight }) {
   const isOut = flight.direction === 'outbound'
   const label = isOut ? 'Utreise' : 'Hjemreise'
-  const accentText   = isOut ? 'text-sky-300'    : 'text-violet-300'
+  const accentText   = isOut ? 'text-sky-300'      : 'text-violet-300'
   const borderColor  = isOut ? 'border-sky-700/40' : 'border-violet-700/40'
   const bgGradient   = isOut ? 'from-sky-950/40'   : 'from-violet-950/40'
 
-  const leg1Duration = flightDuration(flight.leg1_departure, flight.leg1_arrival)
-  const leg2Duration = flight.has_stopover
-    ? flightDuration(flight.leg2_departure, flight.leg2_arrival)
+  // Timezone-aware duration using the same logic as FlightPanel
+  const fromOffset  = getOffset(flight.leg1_from)
+  const viaOffset   = getOffset(flight.leg1_to)
+  const finalOffset = getOffset(flight.leg2_to)
+
+  const leg1Min = calcFlightMinutes(
+    flight.leg1_departure, fromOffset,
+    flight.leg1_arrival,   viaOffset,
+  )
+  const leg2Min = flight.has_stopover
+    ? calcFlightMinutes(
+        flight.leg2_departure, viaOffset,
+        flight.leg2_arrival,   finalOffset,
+      )
     : null
+  const stopoverMin = flight.has_stopover
+    ? calcStopoverMinutes(flight.leg1_arrival, flight.leg2_departure)
+    : null
+
+  const leg1Duration    = leg1Min    != null ? formatDuration(leg1Min)    : null
+  const leg2Duration    = leg2Min    != null ? formatDuration(leg2Min)    : null
+  const stopoverDuration = stopoverMin != null ? formatDuration(stopoverMin) : null
 
   return (
     <div className={`rounded-xl border ${borderColor} bg-gradient-to-br ${bgGradient} to-slate-900/60 p-3 flex flex-col gap-2.5`}>
@@ -169,7 +177,7 @@ function FlightCard({ flight }: { flight: Flight }) {
         <div className="pl-2 border-l-2 border-slate-700 space-y-1.5">
           <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">
             Mellomlanding på {flight.leg1_to}
-            {flight.stopover_duration ? ` · ${flight.stopover_duration} ventetid` : ''}
+            {stopoverDuration ? ` · ${stopoverDuration} ventetid` : flight.stopover_duration ? ` · ${flight.stopover_duration} ventetid` : ''}
           </p>
 
           {(flight.leg2_departure || flight.leg2_to) && (
