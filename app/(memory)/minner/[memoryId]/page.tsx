@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useTripMemories } from '@/hooks/useTripMemories'
 import { useMemoryPhotos } from '@/hooks/useMemoryPhotos'
 import { useDrivingInfo } from '@/hooks/useDrivingInfo'
-import { Trip, TripMemory, Stop, RouteLeg, Activity, Dining, Hotel } from '@/types'
+import { Trip, TripMemory, Stop, RouteLeg, Activity, Dining, Hotel, Flight, CarRental } from '@/types'
 import MemoryTimeline from '@/components/minner/MemoryTimeline'
 import MemoryStats from '@/components/minner/MemoryStats'
 import MapReplay from '@/components/minner/MapReplay'
@@ -14,10 +14,11 @@ import PublicSharePanel from '@/components/minner/PublicSharePanel'
 import MemoryPDFButton from '@/components/minner/MemoryPDFButton'
 import PhotoUploadZone from '@/components/minner/PhotoUploadZone'
 import PhotoManageGrid from '@/components/minner/PhotoManageGrid'
-import { ArrowLeft, Sparkles, BookOpen, Image, Map, Share2 } from 'lucide-react'
+import TripSummary from '@/components/minner/TripSummary'
+import { ArrowLeft, Sparkles, BookOpen, Image, Map, Share2, LayoutList } from 'lucide-react'
 import Link from 'next/link'
 
-type Tab = 'dagbok' | 'bilder' | 'kart' | 'del'
+type Tab = 'oppsummering' | 'dagbok' | 'bilder' | 'kart' | 'del'
 
 export default function MemoryDetailPage({ params }: { params: Promise<{ memoryId: string }> }) {
   const { memoryId } = use(params)
@@ -28,8 +29,10 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
   const [activities, setActivities] = useState<Activity[]>([])
   const [dining, setDining]         = useState<Dining[]>([])
   const [hotels, setHotels]         = useState<Hotel[]>([])
+  const [flights, setFlights]       = useState<Flight[]>([])
+  const [carRentals, setCarRentals] = useState<CarRental[]>([])
   const [loading, setLoading]     = useState(true)
-  const [activeTab, setActiveTab] = useState<Tab>('dagbok')
+  const [activeTab, setActiveTab] = useState<Tab>('oppsummering')
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -65,16 +68,23 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
       if (!mem) { setLoading(false); return }
       setDirectMemory(mem as TripMemory)
 
-      const [{ data: tripData }, { data: stopsData }, { data: legsData }] = await Promise.all([
+      const [
+        { data: tripData }, { data: stopsData }, { data: legsData },
+        { data: flightsData }, { data: carRentalsData },
+      ] = await Promise.all([
         supabase.from('trips').select('*').eq('id', mem.trip_id).single(),
         supabase.from('stops').select('*').eq('trip_id', mem.trip_id).order('order'),
         supabase.from('route_legs').select('*').eq('trip_id', mem.trip_id),
+        supabase.from('flights').select('*').eq('trip_id', mem.trip_id).order('direction'),
+        supabase.from('car_rentals').select('*').eq('trip_id', mem.trip_id),
       ])
 
       const stops = (stopsData ?? []) as Stop[]
       setTrip(tripData as Trip)
       setStops(stops)
       setRouteLegs((legsData ?? []) as RouteLeg[])
+      setFlights((flightsData ?? []) as Flight[])
+      setCarRentals((carRentalsData ?? []) as CarRental[])
 
       // Fetch activities, dining, hotels keyed by stop_id
       if (stops.length > 0) {
@@ -159,10 +169,11 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
   }
 
   const TABS = [
-    { id: 'dagbok' as Tab, label: 'Dagbok',   icon: BookOpen },
-    { id: 'bilder' as Tab, label: 'Bilder',   icon: Image },
-    { id: 'kart'   as Tab, label: 'Kart',     icon: Map },
-    { id: 'del'    as Tab, label: 'Del & Eksporter', icon: Share2 },
+    { id: 'oppsummering' as Tab, label: 'Oppsummering', icon: LayoutList },
+    { id: 'dagbok'       as Tab, label: 'Dagbok',        icon: BookOpen },
+    { id: 'bilder'       as Tab, label: 'Bilder',        icon: Image },
+    { id: 'kart'         as Tab, label: 'Kart',          icon: Map },
+    { id: 'del'          as Tab, label: 'Del & Eksporter', icon: Share2 },
   ]
 
   return (
@@ -232,6 +243,22 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
 
       {/* Innhold */}
       <div className="max-w-4xl mx-auto px-4 pt-6">
+
+        {/* ── Oppsummering ── */}
+        {activeTab === 'oppsummering' && trip && (
+          <TripSummary
+            trip={trip}
+            stops={stops}
+            routeLegs={routeLegs}
+            activities={activities}
+            dining={dining}
+            hotels={hotels}
+            flights={flights}
+            carRentals={carRentals}
+            drivingLegs={drivingLegs}
+            computedTotalKm={computedTotalKm}
+          />
+        )}
 
         {/* ── Dagbok ── */}
         {activeTab === 'dagbok' && (
