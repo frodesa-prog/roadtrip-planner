@@ -116,9 +116,9 @@ export function useMemoryPhotos(memoryId: string | null) {
     if (error) toast.error('Kunne ikke lagre bildetekst')
   }, [supabase])
 
-  // ── Assign photo (stop / activity / dining) ───────────────────────────────
+  // ── Assign photo (stop / activity / dining / hotel) ──────────────────────
 
-  type AssignUpdates = { stop_id?: string | null; activity_id?: string | null; dining_id?: string | null }
+  type AssignUpdates = { stop_id?: string | null; activity_id?: string | null; dining_id?: string | null; hotel_id?: string | null }
 
   const assignPhoto = useCallback(async (photoId: string, updates: AssignUpdates) => {
     setPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, ...updates } : p))
@@ -135,7 +135,7 @@ export function useMemoryPhotos(memoryId: string | null) {
 
   // Kept for backward compatibility
   const assignToStop = useCallback(async (photoId: string, stopId: string | null) => {
-    return assignPhoto(photoId, { stop_id: stopId, activity_id: null, dining_id: null })
+    return assignPhoto(photoId, { stop_id: stopId, activity_id: null, dining_id: null, hotel_id: null })
   }, [assignPhoto])
 
   // ── Bulk delete photos ────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 'use client'
 
-import { MemoryPhoto, Stop, Activity, Dining } from '@/types'
+import { MemoryPhoto, Stop, Activity, Dining, Hotel } from '@/types'
 import {
   Star, Trash2, Pencil, Check, X,
   ChevronLeft, ChevronRight, CheckSquare, Square, Tag, ArrowUpDown,
@@ -11,13 +11,19 @@ import { createPortal } from 'react-dom'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type AssignUpdates = { stop_id?: string | null; activity_id?: string | null; dining_id?: string | null }
+type AssignUpdates = {
+  stop_id?: string | null
+  activity_id?: string | null
+  dining_id?: string | null
+  hotel_id?: string | null
+}
 
 interface Props {
   photos:         MemoryPhoto[]
   stops:          Stop[]
   activities:     Activity[]
   dining:         Dining[]
+  hotels:         Hotel[]
   onToggleFavorite: (id: string) => void
   onUpdateCaption:  (id: string, caption: string) => void
   onDelete:         (id: string) => void
@@ -30,37 +36,55 @@ type SortMode = 'stop' | 'taken' | 'newest' | 'favorites'
 
 // ── Encode / decode assignment value for <select> ─────────────────────────────
 
-function encodeAssign(type: 'none' | 'stop' | 'activity' | 'dining', id?: string): string {
+function encodeAssign(type: 'none' | 'stop' | 'activity' | 'dining' | 'hotel', id?: string): string {
   return type === 'none' ? '' : `${type}:${id}`
 }
 
-function decodeAssign(val: string, activities: Activity[], dining: Dining[]): AssignUpdates {
-  if (!val) return { stop_id: null, activity_id: null, dining_id: null }
+function decodeAssign(
+  val: string,
+  activities: Activity[],
+  dining: Dining[],
+  hotels: Hotel[],
+): AssignUpdates {
+  if (!val) return { stop_id: null, activity_id: null, dining_id: null, hotel_id: null }
   const [type, id] = val.split(':')
-  if (type === 'stop')     return { stop_id: id,   activity_id: null, dining_id: null }
+  if (type === 'stop')     return { stop_id: id,   activity_id: null, dining_id: null, hotel_id: null }
   if (type === 'activity') {
     const act = activities.find(a => a.id === id)
-    return { stop_id: act?.stop_id ?? null, activity_id: id, dining_id: null }
+    return { stop_id: act?.stop_id ?? null, activity_id: id, dining_id: null, hotel_id: null }
   }
   if (type === 'dining') {
     const d = dining.find(d => d.id === id)
-    return { stop_id: d?.stop_id ?? null, activity_id: null, dining_id: id }
+    return { stop_id: d?.stop_id ?? null, activity_id: null, dining_id: id, hotel_id: null }
   }
-  return { stop_id: null, activity_id: null, dining_id: null }
+  if (type === 'hotel') {
+    const h = hotels.find(h => h.id === id)
+    return { stop_id: h?.stop_id ?? null, activity_id: null, dining_id: null, hotel_id: id }
+  }
+  return { stop_id: null, activity_id: null, dining_id: null, hotel_id: null }
 }
 
 // ── Label helpers for badges ──────────────────────────────────────────────────
 
 function photoLabel(
   photo: MemoryPhoto,
-  stopMap: Map<string, Stop>,
-  actMap: Map<string, Activity>,
-  dinMap: Map<string, Dining>,
+  stopMap:  Map<string, Stop>,
+  actMap:   Map<string, Activity>,
+  dinMap:   Map<string, Dining>,
+  hotelMap: Map<string, Hotel>,
 ): string | null {
   if (photo.activity_id) return actMap.get(photo.activity_id)?.name ?? null
-  if (photo.dining_id)   return dinMap.get(photo.dining_id)?.name ?? null
-  if (photo.stop_id)     return stopMap.get(photo.stop_id)?.city ?? null
+  if (photo.dining_id)   return dinMap.get(photo.dining_id)?.name   ?? null
+  if (photo.hotel_id)    return hotelMap.get(photo.hotel_id)?.name  ?? null
+  if (photo.stop_id)     return stopMap.get(photo.stop_id)?.city    ?? null
   return null
+}
+
+function photoBadgeStyle(photo: MemoryPhoto): string {
+  if (photo.activity_id) return 'bg-blue-900/80 text-blue-200'
+  if (photo.dining_id)   return 'bg-purple-900/80 text-purple-200'
+  if (photo.hotel_id)    return 'bg-emerald-900/80 text-emerald-200'
+  return ''
 }
 
 // ── Date formatter ────────────────────────────────────────────────────────────
@@ -70,17 +94,61 @@ function shortDate(d: string | null): string {
   return new Date(d).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
 }
 
+// ── Per-stop grouped <select> options ────────────────────────────────────────
+// Renders optgroups per stop with activities, dining, hotels sorted underneath.
+
+function StopGroupedOptions({
+  stops, activities, dining, hotels,
+}: {
+  stops: Stop[]; activities: Activity[]; dining: Dining[]; hotels: Hotel[]
+}) {
+  return (
+    <>
+      <option value="">Uten tilknytning</option>
+      {stops.map((stop, i) => {
+        const stopActs    = activities.filter(a => a.stop_id === stop.id)
+        const stopDining  = dining.filter(d => d.stop_id === stop.id)
+        const stopHotels  = hotels.filter(h => h.stop_id === stop.id)
+        const label = `${i + 1}. ${stop.city}${stop.state ? `, ${stop.state}` : ''}`
+        return (
+          <optgroup key={stop.id} label={label}>
+            <option value={encodeAssign('stop', stop.id)}>
+              📍 {stop.city} (stopp)
+            </option>
+            {stopActs.map(a => (
+              <option key={a.id} value={encodeAssign('activity', a.id)}>
+                🎯 {a.name}{a.activity_date ? ` · ${shortDate(a.activity_date)}` : ''}
+              </option>
+            ))}
+            {stopDining.map(d => (
+              <option key={d.id} value={encodeAssign('dining', d.id)}>
+                🍽 {d.name}{d.booking_date ? ` · ${shortDate(d.booking_date)}` : ''}
+              </option>
+            ))}
+            {stopHotels.map(h => (
+              <option key={h.id} value={encodeAssign('hotel', h.id)}>
+                🏨 {h.name}
+              </option>
+            ))}
+          </optgroup>
+        )
+      })}
+    </>
+  )
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PhotoManageGrid({
-  photos, stops, activities, dining,
+  photos, stops, activities, dining, hotels,
   onToggleFavorite, onUpdateCaption, onDelete, onBulkDelete, onAssignPhoto, onBulkAssign,
 }: Props) {
 
   // ── Lookup maps ───────────────────────────────────────────────────────────
-  const stopMap = new Map(stops.map(s => [s.id, s]))
-  const actMap  = new Map(activities.map(a => [a.id, a]))
-  const dinMap  = new Map(dining.map(d => [d.id, d]))
+  const stopMap  = new Map(stops.map(s => [s.id, s]))
+  const actMap   = new Map(activities.map(a => [a.id, a]))
+  const dinMap   = new Map(dining.map(d => [d.id, d]))
+  const hotelMap = new Map(hotels.map(h => [h.id, h]))
 
   // ── Sort ──────────────────────────────────────────────────────────────────
   const [sortMode, setSortMode] = useState<SortMode>('stop')
@@ -106,7 +174,7 @@ export default function PhotoManageGrid({
 
   function handleBulkAssign() {
     if (!selectedIds.size) return
-    onBulkAssign([...selectedIds], decodeAssign(assignValue, activities, dining))
+    onBulkAssign([...selectedIds], decodeAssign(assignValue, activities, dining, hotels))
     exitSelect()
   }
 
@@ -151,6 +219,7 @@ export default function PhotoManageGrid({
   function currentAssignValue(photo: MemoryPhoto): string {
     if (photo.activity_id) return encodeAssign('activity', photo.activity_id)
     if (photo.dining_id)   return encodeAssign('dining',   photo.dining_id)
+    if (photo.hotel_id)    return encodeAssign('hotel',    photo.hotel_id)
     if (photo.stop_id)     return encodeAssign('stop',     photo.stop_id)
     return ''
   }
@@ -167,7 +236,6 @@ export default function PhotoManageGrid({
     const unassigned = sorted.filter(p => !p.stop_id)
     if (unassigned.length > 0) groups.push({ stop: null, photos: unassigned })
   } else {
-    // Flat list for non-stop sort modes
     groups.push({ stop: null, photos: sorted })
   }
 
@@ -176,8 +244,8 @@ export default function PhotoManageGrid({
   // ── Photo card ────────────────────────────────────────────────────────────
   function PhotoCard({ photo }: { photo: MemoryPhoto }) {
     const isSelected = selectedIds.has(photo.id)
-    const badge      = photoLabel(photo, stopMap, actMap, dinMap)
-    const showBadge  = !!photo.activity_id || !!photo.dining_id
+    const badge      = photoLabel(photo, stopMap, actMap, dinMap, hotelMap)
+    const showBadge  = !!(photo.activity_id || photo.dining_id || photo.hotel_id)
 
     return (
       <div
@@ -215,45 +283,14 @@ export default function PhotoManageGrid({
                 className={`p-1.5 rounded-lg transition-colors ${photo.is_favorite ? 'bg-amber-500 text-white' : 'bg-black/40 hover:bg-amber-500/70 text-white'}`}>
                 <Star className="w-3 h-3" fill={photo.is_favorite ? 'currentColor' : 'none'} />
               </button>
-              {/* Per-photo quick assign */}
+              {/* Per-photo quick assign — grouped per stop */}
               <select
                 value={currentAssignValue(photo)}
-                onChange={e => { e.stopPropagation(); onAssignPhoto(photo.id, decodeAssign(e.target.value, activities, dining)) }}
+                onChange={e => { e.stopPropagation(); onAssignPhoto(photo.id, decodeAssign(e.target.value, activities, dining, hotels)) }}
                 onClick={e => e.stopPropagation()}
                 className="text-[10px] bg-black/70 text-amber-200 rounded px-1 py-0.5 border border-amber-700/40 focus:outline-none max-w-[110px] truncate"
               >
-                <option value="">Uten tilknytning</option>
-                <optgroup label="─ Stoppesteder ─">
-                  {stops.map((s, i) => (
-                    <option key={s.id} value={encodeAssign('stop', s.id)}>
-                      {i + 1}. {s.city}
-                    </option>
-                  ))}
-                </optgroup>
-                {activities.length > 0 && (
-                  <optgroup label="─ Aktiviteter ─">
-                    {activities.map(a => {
-                      const sIdx = stops.findIndex(s => s.id === a.stop_id)
-                      return (
-                        <option key={a.id} value={encodeAssign('activity', a.id)}>
-                          {a.name}{a.activity_date ? ` (${shortDate(a.activity_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
-                        </option>
-                      )
-                    })}
-                  </optgroup>
-                )}
-                {dining.length > 0 && (
-                  <optgroup label="─ Spisesteder ─">
-                    {dining.map(d => {
-                      const sIdx = stops.findIndex(s => s.id === d.stop_id)
-                      return (
-                        <option key={d.id} value={encodeAssign('dining', d.id)}>
-                          {d.name}{d.booking_date ? ` (${shortDate(d.booking_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
-                        </option>
-                      )
-                    })}
-                  </optgroup>
-                )}
+                <StopGroupedOptions stops={stops} activities={activities} dining={dining} hotels={hotels} />
               </select>
               <button onClick={e => { e.stopPropagation(); onDelete(photo.id) }}
                 className="p-1.5 rounded-lg bg-black/40 hover:bg-red-500/80 text-white transition-colors">
@@ -283,12 +320,10 @@ export default function PhotoManageGrid({
           </div>
         )}
 
-        {/* Activity / dining badge */}
+        {/* Activity / dining / hotel badge */}
         {!selectMode && showBadge && badge && (
           <div className="absolute bottom-1.5 left-1.5 pointer-events-none">
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full truncate max-w-[80px] ${
-              photo.activity_id ? 'bg-blue-900/80 text-blue-200' : 'bg-purple-900/80 text-purple-200'
-            }`}>
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full truncate max-w-[80px] ${photoBadgeStyle(photo)}`}>
               {badge}
             </span>
           </div>
@@ -352,7 +387,7 @@ export default function PhotoManageGrid({
         {/* Actions bar – shown when photos are selected */}
         {selectMode && selectedIds.size > 0 && (
           <div className="mt-2 space-y-2">
-            {/* Bulk assign */}
+            {/* Bulk assign — grouped per stop */}
             <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-800/80 rounded-xl border border-amber-700/30">
               <Tag className="w-4 h-4 text-amber-400 flex-shrink-0" />
               <span className="text-xs text-slate-300 flex-shrink-0">
@@ -363,38 +398,7 @@ export default function PhotoManageGrid({
                 onChange={e => setAssignValue(e.target.value)}
                 className="flex-1 min-w-[180px] text-xs bg-slate-700 text-slate-200 rounded-lg px-2 py-1.5 border border-slate-600 focus:outline-none focus:border-amber-600"
               >
-                <option value="">Uten tilknytning</option>
-                <optgroup label="─ Stoppesteder ─">
-                  {stops.map((s, i) => (
-                    <option key={s.id} value={encodeAssign('stop', s.id)}>
-                      {i + 1}. {s.city}{s.state ? `, ${s.state}` : ''}
-                    </option>
-                  ))}
-                </optgroup>
-                {activities.length > 0 && (
-                  <optgroup label="─ Aktiviteter ─">
-                    {activities.map(a => {
-                      const sIdx = stops.findIndex(s => s.id === a.stop_id)
-                      return (
-                        <option key={a.id} value={encodeAssign('activity', a.id)}>
-                          {a.name}{a.activity_date ? ` (${shortDate(a.activity_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
-                        </option>
-                      )
-                    })}
-                  </optgroup>
-                )}
-                {dining.length > 0 && (
-                  <optgroup label="─ Spisesteder ─">
-                    {dining.map(d => {
-                      const sIdx = stops.findIndex(s => s.id === d.stop_id)
-                      return (
-                        <option key={d.id} value={encodeAssign('dining', d.id)}>
-                          {d.name}{d.booking_date ? ` (${shortDate(d.booking_date)})` : ''}{sIdx >= 0 ? ` · ${stops[sIdx].city}` : ''}
-                        </option>
-                      )
-                    })}
-                  </optgroup>
-                )}
+                <StopGroupedOptions stops={stops} activities={activities} dining={dining} hotels={hotels} />
               </select>
               <button onClick={handleBulkAssign}
                 className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium transition-colors">
@@ -442,16 +446,25 @@ export default function PhotoManageGrid({
             )
           }
 
-          // Stop-grouped mode with activity/dining sub-sections
+          // Stop-grouped mode with activity / dining / hotel sub-sections
           const actGroups = activities
             .filter(a => a.stop_id === stop?.id)
             .map(a => ({ act: a, photos: gp.filter(p => p.activity_id === a.id) }))
             .filter(g => g.photos.length > 0)
+
           const dinGroups = dining
             .filter(d => d.stop_id === stop?.id)
             .map(d => ({ din: d, photos: gp.filter(p => p.dining_id === d.id) }))
             .filter(g => g.photos.length > 0)
-          const stopOnlyPhotos = gp.filter(p => !p.activity_id && !p.dining_id)
+
+          const hotelGroups = hotels
+            .filter(h => h.stop_id === stop?.id)
+            .map(h => ({ hotel: h, photos: gp.filter(p => p.hotel_id === h.id) }))
+            .filter(g => g.photos.length > 0)
+
+          const stopOnlyPhotos = gp.filter(
+            p => !p.activity_id && !p.dining_id && !p.hotel_id
+          )
 
           return (
             <div key={stop?.id ?? '__none__'}>
@@ -489,6 +502,7 @@ export default function PhotoManageGrid({
                     </div>
                   </div>
                 ))}
+
                 {dinGroups.map(({ din, photos: dp }) => (
                   <div key={din.id}>
                     <div className="flex items-center gap-1.5 mb-2">
@@ -501,9 +515,22 @@ export default function PhotoManageGrid({
                     </div>
                   </div>
                 ))}
+
+                {hotelGroups.map(({ hotel, photos: hp }) => (
+                  <div key={hotel.id}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                      <span className="text-xs font-medium text-emerald-300">{hotel.name}</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {hp.map(p => <PhotoCard key={p.id} photo={p} />)}
+                    </div>
+                  </div>
+                ))}
+
                 {stopOnlyPhotos.length > 0 && (
                   <div>
-                    {(actGroups.length > 0 || dinGroups.length > 0) && (
+                    {(actGroups.length > 0 || dinGroups.length > 0 || hotelGroups.length > 0) && (
                       <p className="text-xs text-slate-500 mb-2">Øvrige bilder fra stedet</p>
                     )}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

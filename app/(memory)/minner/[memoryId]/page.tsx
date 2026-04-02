@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useTripMemories } from '@/hooks/useTripMemories'
 import { useMemoryPhotos } from '@/hooks/useMemoryPhotos'
 import { useDrivingInfo } from '@/hooks/useDrivingInfo'
-import { Trip, TripMemory, Stop, RouteLeg, Activity, Dining } from '@/types'
+import { Trip, TripMemory, Stop, RouteLeg, Activity, Dining, Hotel } from '@/types'
 import MemoryTimeline from '@/components/minner/MemoryTimeline'
 import MemoryStats from '@/components/minner/MemoryStats'
 import MapReplay from '@/components/minner/MapReplay'
@@ -27,6 +27,7 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
   const [routeLegs, setRouteLegs] = useState<RouteLeg[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [dining, setDining]         = useState<Dining[]>([])
+  const [hotels, setHotels]         = useState<Hotel[]>([])
   const [loading, setLoading]     = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('dagbok')
 
@@ -75,10 +76,10 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
       setStops(stops)
       setRouteLegs((legsData ?? []) as RouteLeg[])
 
-      // Fetch activities + dining keyed by stop_id
+      // Fetch activities, dining, hotels keyed by stop_id
       if (stops.length > 0) {
         const stopIds = stops.map(s => s.id)
-        const [{ data: actsData }, { data: dinData }] = await Promise.all([
+        const [{ data: actsData }, { data: dinData }, { data: hotelData }] = await Promise.all([
           supabase.from('activities')
             .select('id, stop_id, name, activity_type, activity_date, activity_time, notes, url, cost, remaining_amount, map_lat, map_lng, stadium, section, seat_row, seat')
             .in('stop_id', stopIds)
@@ -87,9 +88,14 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
             .select('id, stop_id, name, url, booking_date, booking_time, map_lat, map_lng, notes')
             .in('stop_id', stopIds)
             .order('booking_date', { ascending: true }),
+          supabase.from('hotels')
+            .select('id, stop_id, name, address, url, status, cost, remaining_amount, confirmation_number, parking_cost_per_night')
+            .in('stop_id', stopIds)
+            .order('created_at', { ascending: true }),
         ])
         setActivities((actsData ?? []) as Activity[])
         setDining((dinData ?? []) as Dining[])
+        setHotels((hotelData ?? []) as Hotel[])
       }
 
       setLoading(false)
@@ -262,6 +268,7 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
                 stops={stops}
                 activities={activities}
                 dining={dining}
+                hotels={hotels}
                 onToggleFavorite={toggleFavorite}
                 onUpdateCaption={updateCaption}
                 onDelete={deletePhoto}
