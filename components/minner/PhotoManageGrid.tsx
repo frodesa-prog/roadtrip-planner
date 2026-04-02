@@ -150,6 +150,16 @@ export default function PhotoManageGrid({
   const dinMap   = new Map(dining.map(d => [d.id, d]))
   const hotelMap = new Map(hotels.map(h => [h.id, h]))
 
+  // ── Filter: vis bare uknyttede bilder ────────────────────────────────────
+  const [onlyUnassigned, setOnlyUnassigned] = useState(false)
+
+  const isUnassigned = (p: MemoryPhoto) =>
+    !p.stop_id && !p.activity_id && !p.dining_id && !p.hotel_id
+
+  const unassignedCount = photos.filter(isUnassigned).length
+
+  const visiblePhotos = onlyUnassigned ? photos.filter(isUnassigned) : photos
+
   // ── Sort ──────────────────────────────────────────────────────────────────
   const [sortMode, setSortMode] = useState<SortMode>('stop')
 
@@ -169,7 +179,7 @@ export default function PhotoManageGrid({
 
   const toggleSelect = (id: string) =>
     setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
-  const selectAll    = () => setSelectedIds(new Set(photos.map(p => p.id)))
+  const selectAll    = () => setSelectedIds(new Set(visiblePhotos.map(p => p.id)))
   const exitSelect   = () => { setSelectMode(false); setSelectedIds(new Set()); setAssignValue(''); setConfirmDelete(false) }
 
   function handleBulkAssign() {
@@ -225,10 +235,10 @@ export default function PhotoManageGrid({
   }
 
   // ── Apply sort then group ─────────────────────────────────────────────────
-  const sorted = sortedPhotos(photos)
+  const sorted = sortedPhotos(visiblePhotos)
 
   const groups: Array<{ stop: Stop | null; photos: MemoryPhoto[] }> = []
-  if (sortMode === 'stop') {
+  if (sortMode === 'stop' && !onlyUnassigned) {
     for (const stop of stops) {
       const sp = sorted.filter(p => p.stop_id === stop.id)
       if (sp.length > 0) groups.push({ stop, photos: sp })
@@ -376,10 +386,33 @@ export default function PhotoManageGrid({
                   <option value="favorites">Favoritter først</option>
                 </select>
               </div>
-              <button onClick={() => setSelectMode(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors">
-                <Square className="w-3.5 h-3.5" /> Velg bilder
-              </button>
+
+              <div className="flex items-center gap-2 ml-auto">
+                {/* Filter: vis bare uknyttede */}
+                {unassignedCount > 0 && (
+                  <button
+                    onClick={() => setOnlyUnassigned(v => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                      onlyUnassigned
+                        ? 'bg-orange-600/20 border-orange-600/50 text-orange-300'
+                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${onlyUnassigned ? 'bg-orange-400' : 'bg-slate-500'}`} />
+                    Uten tilknytning
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      onlyUnassigned ? 'bg-orange-600/40 text-orange-200' : 'bg-slate-700 text-slate-400'
+                    }`}>
+                      {unassignedCount}
+                    </span>
+                  </button>
+                )}
+
+                <button onClick={() => setSelectMode(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors">
+                  <Square className="w-3.5 h-3.5" /> Velg bilder
+                </button>
+              </div>
             </>
           )}
         </div>
