@@ -233,16 +233,6 @@ export default function NavBar() {
 
         {/* Min Side + Chat + Logout – høyre side */}
         <div className="ml-auto flex items-center gap-1">
-          <a
-            href="/usa-map"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
-            title="USA Roadtrip-kart"
-          >
-            <span>🇺🇸</span>
-            <span className="hidden sm:inline">USA-kart</span>
-          </a>
           <Link
             href="/minside"
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
