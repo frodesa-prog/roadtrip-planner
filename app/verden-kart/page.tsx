@@ -47,36 +47,57 @@ function normalize(s: string): string {
 
 // ── Data-layer component (must be inside APIProvider + GoogleMap) ──────────────
 
+// GeoJSON source: Natural Earth 110m (has ADMIN, NAME, ISO_A3, ISO_A2)
+const GEOJSON_URL =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson'
+
+function getStr(feature: google.maps.Data.Feature, key: string): string {
+  return ((feature.getProperty(key) as string) ?? '').toLowerCase().trim()
+}
+
 function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set<string> }) {
   const map = useMap()
 
   useEffect(() => {
     if (!map || visitedCountries.size === 0) return
 
+    // normalizedVisited: aliases applied ("USA" → "united states of america")
     const normalizedVisited = new globalThis.Set(
       [...visitedCountries].map(normalize),
+    )
+    // rawVisited: just lowercase — lets "usa" match ISO_A3 "usa" directly
+    const rawVisited = new globalThis.Set(
+      [...visitedCountries].map(c => c.toLowerCase().trim()),
     )
 
     let active = true
 
-    fetch(
-      'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson',
-    )
-      .then(r => r.json())
+    fetch(GEOJSON_URL)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((geojson: unknown) => {
         if (!active) return
 
         map.data.addGeoJson(geojson as object)
 
         map.data.setStyle(feature => {
-          const name = normalize((feature.getProperty('NAME')   as string) ?? '')
-          const iso3 = normalize((feature.getProperty('ISO_A3') as string) ?? '').toLowerCase()
-          const iso2 = normalize((feature.getProperty('ISO_A2') as string) ?? '').toLowerCase()
+          // Natural Earth uses ADMIN for the full name, NAME for the short name
+          const admin = getStr(feature, 'ADMIN')  // "united states of america"
+          const name  = getStr(feature, 'NAME')   // "united states"
+          const iso3  = getStr(feature, 'ISO_A3') // "usa"
+          const iso2  = getStr(feature, 'ISO_A2') // "us"
 
           const isVisited =
-            normalizedVisited.has(name) ||
-            normalizedVisited.has(iso3) ||
-            normalizedVisited.has(iso2)
+            normalizedVisited.has(admin) ||          // alias-normalized match
+            normalizedVisited.has(name)  ||
+            normalizedVisited.has(normalize(admin)) ||
+            normalizedVisited.has(normalize(name))  ||
+            rawVisited.has(iso3) ||                  // direct ISO-3 match ("usa")
+            rawVisited.has(iso2) ||                  // direct ISO-2 match ("us")
+            rawVisited.has(admin) ||                 // raw full-name match
+            rawVisited.has(name)                     // raw short-name match
 
           return {
             fillColor:    isVisited ? '#f59e0b' : '#1e3a5f',
@@ -86,19 +107,21 @@ function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set
           }
         })
 
-        // Click → show country name
+        // Click → show country name tooltip
         map.data.addListener('click', (e: google.maps.Data.MouseEvent) => {
-          const name = (e.feature.getProperty('NAME') as string) ?? ''
-          if (!name) return
+          const label =
+            (e.feature.getProperty('ADMIN') as string) ??
+            (e.feature.getProperty('NAME')  as string) ?? ''
+          if (!label) return
           const iv = new google.maps.InfoWindow({
-            content: `<div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;padding:2px 4px">${name}</div>`,
+            content:  `<div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;padding:2px 4px">${label}</div>`,
             position: e.latLng,
           })
           iv.open(map)
           setTimeout(() => iv.close(), 2500)
         })
       })
-      .catch(err => console.error('Failed to load world GeoJSON', err))
+      .catch(err => console.error('[verden-kart] Failed to load GeoJSON:', err))
 
     return () => {
       active = false
