@@ -3,7 +3,7 @@
 import { useEditor, EditorContent, Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
-import { TextStyle, Color } from '@tiptap/extension-text-style'
+import { TextStyle, Color, FontSize } from '@tiptap/extension-text-style'
 import { useEffect } from 'react'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
@@ -21,6 +21,10 @@ export function normalizeToHtml(content: string): string {
     .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
     .join('')
 }
+
+// ── Font size list (4–48) ─────────────────────────────────────────────────────
+
+const FONT_SIZES = [4, 6, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48]
 
 // ── Colour palette ────────────────────────────────────────────────────────────
 
@@ -107,11 +111,66 @@ function HeadingDropdown({ editor }: { editor: Editor }) {
   )
 }
 
+function FontSizePicker({ editor }: { editor: Editor }) {
+  const current = editor.getAttributes('textStyle').fontSize
+    ? parseInt(editor.getAttributes('textStyle').fontSize, 10)
+    : null
+
+  const label = current ? `${current}` : 'pt'
+
+  return (
+    <div className="relative group flex-shrink-0">
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()}
+        title="Skriftstørrelse"
+        className="flex items-center gap-0.5 px-1.5 py-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors w-[3.2rem] justify-between"
+      >
+        <span className="font-medium tabular-nums">{label}</span>
+        <ChevronDown className="w-3 h-3 opacity-60 flex-shrink-0" />
+      </button>
+
+      {/* Scrollable dropdown */}
+      <div className="absolute left-0 top-full mt-0.5 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl z-20 hidden group-hover:block w-20 max-h-56 overflow-y-auto">
+        {/* Reset option */}
+        <button
+          type="button"
+          onMouseDown={(e) => {
+            e.preventDefault()
+            editor.chain().focus().unsetFontSize().run()
+          }}
+          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700 rounded-t-lg transition-colors sticky top-0 bg-slate-800 border-b border-slate-700/60 ${
+            !current ? 'text-amber-300' : 'text-slate-400'
+          }`}
+        >
+          Standard
+        </button>
+        {FONT_SIZES.map(size => (
+          <button
+            key={size}
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault()
+              editor.chain().focus().setFontSize(`${size}px`).run()
+            }}
+            className={`w-full text-left px-3 py-1 text-xs hover:bg-slate-700 last:rounded-b-lg transition-colors tabular-nums ${
+              current === size ? 'text-amber-300 font-semibold' : 'text-slate-300'
+            }`}
+          >
+            {size}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Toolbar({ editor }: { editor: Editor }) {
   return (
     <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-slate-800 flex-wrap flex-shrink-0 bg-slate-900/80">
 
       <HeadingDropdown editor={editor} />
+      <FontSizePicker editor={editor} />
 
       <Divider />
 
@@ -202,6 +261,7 @@ export default function RichTextEditor({
       Underline,
       TextStyle,
       Color,
+      FontSize,
     ],
     content: normalizeToHtml(content),
     onUpdate({ editor }) {
