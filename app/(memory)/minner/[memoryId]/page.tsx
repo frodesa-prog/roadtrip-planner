@@ -97,6 +97,12 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
     load()
   }, [memoryId, supabase])
 
+  // Sett fanens tittel til reisens navn
+  useEffect(() => {
+    const title = directMemory?.title ?? trip?.name
+    if (title) document.title = title
+  }, [directMemory, trip])
+
   // Bruk direktehentet memory hvis tilgjengelig, ellers fra hook
   const activeMemory = directMemory
 

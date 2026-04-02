@@ -16,6 +16,8 @@ export default function MinnerPage() {
 
   const supabase = useMemo(() => createClient(), [])
 
+  useEffect(() => { document.title = 'Ferieminner' }, [])
+
   // ── Last inn turer og minnebøker ─────────────────────────────────────────
 
   useEffect(() => {
