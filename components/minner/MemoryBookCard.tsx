@@ -3,7 +3,6 @@
 import { TripMemory, Trip } from '@/types'
 import { BookHeart, Globe, Lock, Sparkles, Trash2, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
-import Link from 'next/link'
 
 interface Props {
   memory: TripMemory | null
@@ -93,12 +92,14 @@ export default function MemoryBookCard({ memory, trip, onGenerate, onDelete, gen
         <div className="flex gap-2 mt-auto pt-1 flex-wrap">
           {hasMemory ? (
             <>
-              <Link
+              <a
                 href={`/minner/${memory!.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition-colors"
               >
                 Åpne minnebok <ArrowRight className="w-3 h-3" />
-              </Link>
+              </a>
               <button
                 onClick={onGenerate}
                 disabled={generating}
