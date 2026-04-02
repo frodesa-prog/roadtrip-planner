@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { FileText, X, Loader2, ImagePlus, Trash2, Pencil, Check } from 'lucide-react'
 import { Stop, Note } from '@/types'
 import { useNoteImages } from '@/hooks/useNoteImages'
+import RichTextEditor, { RichTextRenderer } from '@/components/notes/RichTextEditor'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -16,34 +17,6 @@ function getStopDateRange(stop: Stop): string[] {
     dates.push(d.toISOString().split('T')[0])
   }
   return dates
-}
-
-const LINK_PATTERN = new RegExp(
-  '(https?://[^\\s<>"]+' +
-  '|www\\.[^\\s<>"]+' +
-  '|[a-zA-Z0-9][a-zA-Z0-9-]*\\.(?:no|com|net|org|io|co|uk|de|fr|se|dk|fi|is|gov|edu|app|dev|ai|tv|info|biz|me|ly|gg|xyz|online|tech|media|news|sport|store|site|cloud|digital|studio|design|shop|travel|hotel|booking)(?:/[^\\s<>"]*)?)',
-  'g'
-)
-
-function renderWithLinks(text: string) {
-  const parts = text.split(LINK_PATTERN)
-  return parts.map((part, i) => {
-    if (!part) return null
-    if (i % 2 === 0) return <span key={i}>{part}</span>
-    const href = /^https?:\/\//.test(part) ? part : `https://${part}`
-    return (
-      <a
-        key={i}
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-400 underline hover:text-blue-300 break-all"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {part}
-      </a>
-    )
-  })
 }
 
 // ─── NoteModal ────────────────────────────────────────────────────────────────
@@ -180,19 +153,19 @@ export default function NoteModal({
 
               {/* Content — read mode or edit mode */}
               {isEditing ? (
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Skriv notat her…"
-                  rows={7}
-                  autoFocus
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-colors resize-none"
-                />
+                <div className="rounded-lg border border-slate-700 overflow-hidden bg-slate-800 focus-within:border-amber-500/60 transition-colors min-h-[180px]">
+                  <RichTextEditor
+                    content={content}
+                    onChange={setContent}
+                    placeholder="Skriv notat her…"
+                    autoFocus
+                  />
+                </div>
               ) : (
-                <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap break-words min-h-[4rem]">
+                <div className="min-h-[4rem]">
                   {content
-                    ? renderWithLinks(content)
-                    : <span className="text-slate-600 italic">Ingen tekst</span>
+                    ? <RichTextRenderer html={content} className="text-sm" />
+                    : <span className="text-slate-600 italic text-sm">Ingen tekst</span>
                   }
                 </div>
               )}

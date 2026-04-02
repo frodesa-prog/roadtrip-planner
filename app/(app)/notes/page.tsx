@@ -11,106 +11,10 @@ import { useActivities } from '@/hooks/useActivities'
 import { useDining } from '@/hooks/useDining'
 import { usePossibleActivities } from '@/hooks/usePossibleActivities'
 import TripManager from '@/components/planning/TripManager'
+import RichTextEditor from '@/components/notes/RichTextEditor'
 import { Note, Stop, Activity, Dining, PossibleActivity } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// Common TLDs for bare-domain detection (e.g. vg.no, google.com)
-const LINK_PATTERN = new RegExp(
-  '(https?://[^\\s<>"]+' +
-  '|www\\.[^\\s<>"]+' +
-  '|[a-zA-Z0-9][a-zA-Z0-9-]*\\.(?:no|com|net|org|io|co|uk|de|fr|se|dk|fi|is|gov|edu|app|dev|ai|tv|info|biz|me|ly|gg|xyz|online|tech|media|news|sport|store|site|cloud|digital|studio|design|shop|travel|hotel|booking)(?:/[^\\s<>"]*)?)',
-  'g'
-)
-
-/** Split text on URLs (including bare domains like vg.no) and return spans/anchors */
-function renderWithLinks(text: string) {
-  const parts = text.split(LINK_PATTERN)
-  return parts.map((part, i) => {
-    if (!part) return null
-    // Odd-indexed parts are the captured URL matches
-    if (i % 2 === 0) return <span key={i}>{part}</span>
-    const href = /^https?:\/\//.test(part) ? part : `https://${part}`
-    return (
-      <a
-        key={i}
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-400 underline hover:text-blue-300 break-all"
-        style={{ pointerEvents: 'auto' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {part}
-      </a>
-    )
-  })
-}
-
-const NOTE_PLACEHOLDER = 'Skriv notater her…\n\nBruk dette til å notere mulige aktiviteter, steder du vil besøke, restauranter, tips eller andre ting du vurderer å legge inn i turen.\n\nLim inn bilder med ⌘V eller last opp via ikonet nedenfor.'
-
-/**
- * Textarea with a transparent overlay that renders URLs as clickable links.
- * The textarea handles all editing; the mirror div on top shows the styled text.
- * Links in the mirror have pointer-events:auto so they intercept clicks even
- * while the user is actively editing.
- */
-function LinkifyTextarea({
-  value,
-  onChange,
-  onPaste,
-  autoFocus,
-  placeholder = NOTE_PLACEHOLDER,
-  className = '',
-}: {
-  value: string
-  onChange: (v: string) => void
-  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
-  autoFocus?: boolean
-  placeholder?: string
-  className?: string
-}) {
-  const mirrorRef = useRef<HTMLDivElement>(null)
-
-  function syncScroll(e: React.UIEvent<HTMLTextAreaElement>) {
-    if (mirrorRef.current) {
-      mirrorRef.current.style.transform = `translateY(-${e.currentTarget.scrollTop}px)`
-    }
-  }
-
-  return (
-    <div className={`relative overflow-hidden ${className}`}>
-      {/* Textarea FIRST = below in stacking order */}
-      <textarea
-        autoFocus={autoFocus}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onPaste={onPaste}
-        onScroll={syncScroll}
-        className="absolute inset-0 w-full h-full bg-transparent resize-none outline-none text-sm px-4 md:px-6 py-4 leading-relaxed"
-        style={{ color: 'transparent', caretColor: '#94a3b8', fontFamily: 'inherit' }}
-      />
-
-      {/* Mirror LAST = on top in stacking order.
-          pointer-events:none passes clicks through to textarea,
-          EXCEPT on <a> tags which have pointer-events:auto and intercept link clicks. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none overflow-hidden px-4 md:px-6 py-4"
-      >
-        <div
-          ref={mirrorRef}
-          className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap break-words select-none"
-        >
-          {value
-            ? renderWithLinks(value)
-            : <span className="text-slate-700">{placeholder}</span>
-          }
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function getStopDateRange(stop: Stop): string[] {
   if (!stop.arrival_date) return []
@@ -583,9 +487,11 @@ function DraftEditor({
         </button>
       </div>
 
-      <LinkifyTextarea
-        value={content}
+      <RichTextEditor
+        content={content}
         onChange={handleContentChange}
+        placeholder="Skriv notater her…"
+        autoFocus
         className="flex-1 min-h-0"
       />
 
@@ -731,19 +637,6 @@ function NoteEditor({
     setNoteDate(newDate)
     if (saveTimer.current) clearTimeout(saveTimer.current)
     onUpdate(note.id, { note_date: newDate })
-  }
-
-  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const items = Array.from(e.clipboardData.items)
-    const imageItem = items.find((item) => item.type.startsWith('image/'))
-    if (imageItem) {
-      e.preventDefault()
-      const file = imageItem.getAsFile()
-      if (file) {
-        const namedFile = new File([file], `paste-${Date.now()}.png`, { type: file.type })
-        uploadImage(namedFile)
-      }
-    }
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -901,12 +794,12 @@ function NoteEditor({
         )}
       </div>
 
-      {/* Textarea + image gallery */}
+      {/* Editor + image gallery */}
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-        <LinkifyTextarea
-          value={content}
+        <RichTextEditor
+          content={content}
           onChange={handleContentChange}
-          onPaste={handlePaste}
+          onPasteImage={(file) => uploadImage(file)}
           className="flex-1 min-h-0"
         />
 
