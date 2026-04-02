@@ -74,6 +74,7 @@ function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set
 
   useEffect(() => {
     if (!map || visitedCountries.size === 0) return
+    const m = map // capture non-null reference for async callbacks
 
     // Build two lookup sets:
     // 1. aliased: "USA" → "united states of america"
@@ -99,7 +100,7 @@ function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set
     }
 
     const styleLayer = () =>
-      map.data.setStyle(f => ({
+      m.data.setStyle(f => ({
         fillColor:    isVisited(f) ? '#f59e0b' : '#1e3a5f',
         fillOpacity:  isVisited(f) ? 0.75 : 0.2,
         strokeColor:  isVisited(f) ? '#fbbf24' : '#334155',
@@ -116,11 +117,11 @@ function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set
           if (!r.ok) throw new Error(`HTTP ${r.status}`)
           const geojson = await r.json()
           if (!active) return
-          map.data.addGeoJson(geojson as object)
+          m.data.addGeoJson(geojson as object)
           styleLayer()
 
           // Click → tooltip with country name
-          map.data.addListener('click', (e: google.maps.Data.MouseEvent) => {
+          m.data.addListener('click', (e: google.maps.Data.MouseEvent) => {
             const label =
               (e.feature.getProperty('name')  as string) ??
               (e.feature.getProperty('ADMIN') as string) ??
@@ -130,7 +131,7 @@ function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set
               content:  `<div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;padding:2px 6px">${label}</div>`,
               position: e.latLng,
             })
-            iv.open(map)
+            iv.open(m)
             setTimeout(() => iv.close(), 2500)
           })
           return // success
@@ -146,7 +147,7 @@ function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set
 
     return () => {
       active = false
-      map.data.forEach(f => map.data.remove(f))
+      m.data.forEach(f => m.data.remove(f))
     }
   }, [map, visitedCountries])
 
