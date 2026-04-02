@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { X, Globe, Car, MapPin, Flag, Navigation, Map as MapIcon, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
-import type { Trip, Stop } from '@/types'
+import { X, Globe, Car, MapPin, Flag, Navigation, Map as MapIcon, ChevronDown, ChevronRight, Loader2, UtensilsCrossed } from 'lucide-react'
+import type { Trip, Stop, Dining } from '@/types'
 
 // ── US-delstat forkortelse → fullt navn ───────────────────────────────────────
 const US_STATE_FULL: Record<string, string> = {
@@ -68,7 +68,7 @@ const COUNTRY_FLAG: Record<string, string> = {
 const countryFlag = (name: string) => COUNTRY_FLAG[name.toLowerCase().trim()] ?? '🌍'
 
 // ── Typer ─────────────────────────────────────────────────────────────────────
-interface Props { trips: Trip[]; stops: Stop[] }
+interface Props { trips: Trip[]; stops: Stop[]; dining: Dining[] }
 interface GroupedSection { header: string; cities: string[] }
 
 // ── StatCard ──────────────────────────────────────────────────────────────────
@@ -198,10 +198,10 @@ function GroupedModal({ title, icon, groups, footer, onClose }: {
   )
 }
 
-type ModalType = 'countries' | 'trips' | 'km' | 'states' | 'usacities' | 'world' | null
+type ModalType = 'countries' | 'trips' | 'km' | 'states' | 'usacities' | 'world' | 'dining' | null
 
 // ── Hoved-komponent ───────────────────────────────────────────────────────────
-export default function VacationStats({ trips, stops }: Props) {
+export default function VacationStats({ trips, stops, dining }: Props) {
   const [activeModal, setActiveModal] = useState<ModalType>(null)
   // Faktisk kjørelengde fra Google Directions (beregnes asynkront)
   const [drivingKm, setDrivingKm] = useState<number | null>(null)
@@ -334,12 +334,40 @@ export default function VacationStats({ trips, stops }: Props) {
       }))
     const totalWorldCities = worldGroups.reduce((s, g) => s + g.cities.length, 0)
 
+    // Spisesteder gruppert per land (med stoppested i parentes)
+    // stopMap: stop_id → { city, country }
+    const stopMeta = new globalThis.Map<string, { city: string; country: string }>()
+    stops.forEach(s => {
+      const trip = tripMap.get(s.trip_id)
+      let country = trip?.destination_country?.trim() || ''
+      if (!country && isUSAStop(s)) country = 'USA'
+      if (!country) country = 'Ukjent'
+      stopMeta.set(s.id, { city: s.city?.trim() || 'Ukjent sted', country })
+    })
+
+    // Grupper dining per land → liste med "Navn (Stoppested)"
+    const diningByCountry = new globalThis.Map<string, string[]>()
+    dining.forEach(d => {
+      const meta = stopMeta.get(d.stop_id)
+      const country = meta?.country ?? 'Ukjent'
+      const city    = meta?.city    ?? 'Ukjent sted'
+      if (!diningByCountry.has(country)) diningByCountry.set(country, [])
+      diningByCountry.get(country)!.push(`${d.name} (${city})`)
+    })
+    const diningGroups: GroupedSection[] = Array.from(diningByCountry.entries())
+      .sort(([a], [b]) => a.localeCompare(b, 'nb'))
+      .map(([country, names]) => ({
+        header: `${countryFlag(country)} ${country}`,
+        cities: names.sort(),
+      }))
+
     return {
       countryList, roadtrips, storbyturer, resorts,
       usaStateList, usaCityGroups, usaTotalCities,
       worldGroups, totalWorldCities,
+      diningGroups, totalDining: dining.length,
     }
-  }, [trips, stops])
+  }, [trips, stops, dining])
 
   // ── Modal-innhold ──────────────────────────────────────────────────────────
   const countriesItems: FlatItem[] = stats.countryList.map(c => ({ label: `${countryFlag(c)} ${c}` }))
@@ -438,6 +466,14 @@ export default function VacationStats({ trips, stops }: Props) {
             onClick={() => setActiveModal('world')}
           />
 
+          <StatCard
+            icon={<UtensilsCrossed className="w-4 h-4" />}
+            value={stats.totalDining}
+            label="Spisesteder besøkt"
+            color="text-pink-400" bgColor="bg-pink-400/10"
+            onClick={() => setActiveModal('dining')}
+          />
+
         </div>
       </div>
 
@@ -472,6 +508,15 @@ export default function VacationStats({ trips, stops }: Props) {
           icon={<MapIcon className="w-4 h-4" />}
           groups={stats.worldGroups}
           footer={`${stats.totalWorldCities} steder i ${stats.worldGroups.length} land`}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+      {activeModal === 'dining' && (
+        <GroupedModal
+          title="Spisesteder besøkt"
+          icon={<UtensilsCrossed className="w-4 h-4" />}
+          groups={stats.diningGroups}
+          footer={`${stats.totalDining} spisesteder i ${stats.diningGroups.length} land`}
           onClose={() => setActiveModal(null)}
         />
       )}

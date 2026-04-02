@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import MemoryBookCard from '@/components/minner/MemoryBookCard'
 import VacationStats from '@/components/minner/VacationStats'
-import { Trip, TripMemory, Stop } from '@/types'
+import { Trip, TripMemory, Stop, Dining } from '@/types'
 import { BookHeart, Map } from 'lucide-react'
 import Link from 'next/link'
 
@@ -12,6 +12,7 @@ export default function MinnerPage() {
   const [trips, setTrips]       = useState<Trip[]>([])
   const [memories, setMemories] = useState<TripMemory[]>([])
   const [stops, setStops]       = useState<Stop[]>([])
+  const [dining, setDining]     = useState<Dining[]>([])
   const [loading, setLoading]   = useState(true)
   const [generatingId, setGeneratingId] = useState<string | null>(null)
 
@@ -39,14 +40,24 @@ export default function MinnerPage() {
       setTrips(loadedTrips)
       setMemories((memoriesData ?? []) as TripMemory[])
 
-      // Hent alle stoppesteder på tvers av alle turer (for statistikk)
+      // Hent alle stoppesteder og spisesteder på tvers av alle turer (for statistikk)
       if (loadedTrips.length > 0) {
         const tripIds = loadedTrips.map(t => t.id)
         const { data: stopsData } = await supabase
           .from('stops')
           .select('id, trip_id, city, state, lat, lng, order, arrival_date, nights, notes, created_at')
           .in('trip_id', tripIds)
-        setStops((stopsData ?? []) as Stop[])
+        const loadedStops = (stopsData ?? []) as Stop[]
+        setStops(loadedStops)
+
+        if (loadedStops.length > 0) {
+          const stopIds = loadedStops.map(s => s.id)
+          const { data: diningData } = await supabase
+            .from('dining')
+            .select('id, stop_id, name, url, booking_date, booking_time, notes, map_lat, map_lng')
+            .in('stop_id', stopIds)
+          setDining((diningData ?? []) as Dining[])
+        }
       }
 
       setLoading(false)
@@ -154,7 +165,7 @@ export default function MinnerPage() {
         </Link>
 
         {/* Feriestatistikk */}
-        {!loading && <VacationStats trips={trips} stops={stops} />}
+        {!loading && <VacationStats trips={trips} stops={stops} dining={dining} />}
       </div>
 
       {/* Minnebøker */}
