@@ -2,21 +2,22 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useTripMemories } from '@/hooks/useTripMemories'
 import MemoryBookCard from '@/components/minner/MemoryBookCard'
-import { Trip, TripMemory } from '@/types'
+import VacationStats from '@/components/minner/VacationStats'
+import { Trip, TripMemory, Stop } from '@/types'
 import { BookHeart, Map } from 'lucide-react'
 import Link from 'next/link'
 
 export default function MinnerPage() {
   const [trips, setTrips]       = useState<Trip[]>([])
   const [memories, setMemories] = useState<TripMemory[]>([])
+  const [stops, setStops]       = useState<Stop[]>([])
   const [loading, setLoading]   = useState(true)
   const [generatingId, setGeneratingId] = useState<string | null>(null)
 
   const supabase = useMemo(() => createClient(), [])
 
-  // ── Last inn turer og minnebøker ─────────────────────────────────────────
+  // ── Last inn turer, minnebøker og stoppesteder ────────────────────────────
 
   useEffect(() => {
     async function load() {
@@ -27,7 +28,6 @@ export default function MinnerPage() {
         supabase
           .from('trips')
           .select('*')
-          .neq('status', 'archived')
           .order('created_at', { ascending: false }),
         supabase
           .from('trip_memories')
@@ -35,8 +35,20 @@ export default function MinnerPage() {
           .order('created_at', { ascending: false }),
       ])
 
-      setTrips((tripsData ?? []) as Trip[])
+      const loadedTrips = (tripsData ?? []) as Trip[]
+      setTrips(loadedTrips)
       setMemories((memoriesData ?? []) as TripMemory[])
+
+      // Hent alle stoppesteder på tvers av alle turer (for statistikk)
+      if (loadedTrips.length > 0) {
+        const tripIds = loadedTrips.map(t => t.id)
+        const { data: stopsData } = await supabase
+          .from('stops')
+          .select('id, trip_id, city, state, lat, lng, order, arrival_date, nights, notes, created_at')
+          .in('trip_id', tripIds)
+        setStops((stopsData ?? []) as Stop[])
+      }
+
       setLoading(false)
     }
     load()
@@ -127,8 +139,8 @@ export default function MinnerPage() {
         </div>
       </div>
 
-      {/* USA-kart snarvei */}
-      <div className="max-w-5xl mx-auto px-4 pt-5">
+      <div className="max-w-5xl mx-auto px-4 pt-5 space-y-4">
+        {/* USA-kart snarvei */}
         <Link
           href="/usa-map"
           className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-amber-700/40 transition-all group"
@@ -140,9 +152,12 @@ export default function MinnerPage() {
           </div>
           <Map className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors flex-shrink-0" />
         </Link>
+
+        {/* Feriestatistikk */}
+        {!loading && <VacationStats trips={trips} memories={memories} stops={stops} />}
       </div>
 
-      {/* Innhold */}
+      {/* Minnebøker */}
       <div className="max-w-5xl mx-auto px-4 pt-4">
         {trips.length === 0 ? (
           <div className="text-center py-16 text-slate-500">
