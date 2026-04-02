@@ -154,7 +154,7 @@ export default function MinnerPage() {
         </Link>
 
         {/* Feriestatistikk */}
-        {!loading && <VacationStats trips={trips} memories={memories} stops={stops} />}
+        {!loading && <VacationStats trips={trips} stops={stops} />}
       </div>
 
       {/* Minnebøker */}
