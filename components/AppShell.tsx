@@ -1,9 +1,10 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import NavBar from './NavBar'
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   // Memory detail pages (/minner/[memoryId]) should have no NavBar
   const isMemoryDetail = /^\/minner\/[^/]+(\/.*)?$/.test(pathname ?? '')
