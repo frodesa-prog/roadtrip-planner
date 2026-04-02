@@ -8,6 +8,7 @@ import {
 import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { toWebUrl } from '@/lib/cloudinaryUtils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -265,7 +266,7 @@ export default function PhotoManageGrid({
         }`}
       >
         <Image
-          src={photo.thumbnail_url ?? photo.cloudinary_url}
+          src={toWebUrl(photo.thumbnail_url ?? photo.cloudinary_url)}
           alt={photo.caption ?? 'Reisebilde'}
           fill
           className={`object-cover transition-transform duration-300 ${selectMode ? '' : 'group-hover:scale-105'}`}
@@ -595,7 +596,7 @@ export default function PhotoManageGrid({
           )}
           <div className="relative flex items-center justify-center px-16 sm:px-24 w-full h-full"
             onClick={e => e.stopPropagation()}>
-            <img src={lightboxPhoto.cloudinary_url} alt={lightboxPhoto.caption ?? ''}
+            <img src={toWebUrl(lightboxPhoto.cloudinary_url)} alt={lightboxPhoto.caption ?? ''}
               className="max-w-full max-h-[85vh] object-contain rounded-lg select-none" />
             {lightboxPhoto.caption && (
               <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-sm text-white/70 bg-black/50 px-4 py-1.5 rounded-full whitespace-nowrap">
@@ -616,7 +617,7 @@ export default function PhotoManageGrid({
                   className={`flex-shrink-0 w-10 h-10 rounded-md overflow-hidden border-2 transition-all ${
                     i === lightboxIndex ? 'border-amber-400 opacity-100' : 'border-transparent opacity-50 hover:opacity-80'
                   }`}>
-                  <img src={p.thumbnail_url ?? p.cloudinary_url} alt="" className="w-full h-full object-cover" />
+                  <img src={toWebUrl(p.thumbnail_url ?? p.cloudinary_url)} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>

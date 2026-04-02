@@ -5,6 +5,7 @@ import { Star, Trash2, Pencil, Check, X, ChevronLeft, ChevronRight } from 'lucid
 import Image from 'next/image'
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { toWebUrl } from '@/lib/cloudinaryUtils'
 
 interface Props {
   photos: MemoryPhoto[]
@@ -60,7 +61,7 @@ export default function PhotoGrid({ photos, onToggleFavorite, onUpdateCaption, o
           >
             {/* Bilde */}
             <Image
-              src={photo.thumbnail_url ?? photo.cloudinary_url}
+              src={toWebUrl(photo.thumbnail_url ?? photo.cloudinary_url)}
               alt={photo.caption ?? 'Reisebilde'}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -171,7 +172,7 @@ export default function PhotoGrid({ photos, onToggleFavorite, onUpdateCaption, o
             onClick={(e) => e.stopPropagation()}
           >
             <img
-              src={lightboxPhoto.cloudinary_url}
+              src={toWebUrl(lightboxPhoto.cloudinary_url)}
               alt={lightboxPhoto.caption ?? ''}
               className="max-w-full max-h-[85vh] object-contain rounded-lg select-none"
             />
@@ -204,7 +205,7 @@ export default function PhotoGrid({ photos, onToggleFavorite, onUpdateCaption, o
                   }`}
                 >
                   <img
-                    src={p.thumbnail_url ?? p.cloudinary_url}
+                    src={toWebUrl(p.thumbnail_url ?? p.cloudinary_url)}
                     alt=""
                     className="w-full h-full object-cover"
                   />

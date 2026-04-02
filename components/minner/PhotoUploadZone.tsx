@@ -34,8 +34,9 @@ export default function PhotoUploadZone({ stopId, onUploaded, addPhoto }: Props)
     const exif_lng: number | null = null
     const taken_at: string | null = (info as { created_at?: string }).created_at ?? null
 
-    // Lag thumbnail via Cloudinary transform
-    const thumbnail_url = info.secure_url.replace('/upload/', '/upload/c_fill,w_400,h_400,q_auto/')
+    // Lag thumbnail via Cloudinary transform.
+    // f_auto konverterer HEIC/HEIF til WebP/JPEG automatisk.
+    const thumbnail_url = info.secure_url.replace('/upload/', '/upload/c_fill,w_400,h_400,q_auto,f_auto/')
 
     const photoData: NewPhotoData = {
       cloudinary_public_id: info.public_id,
@@ -60,6 +61,7 @@ export default function PhotoUploadZone({ stopId, onUploaded, addPhoto }: Props)
         maxFiles: 20,
         resourceType: 'image',
         sources: ['local', 'camera'],
+        clientAllowedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'],
         styles: {
           palette: {
             window: '#1e293b',
