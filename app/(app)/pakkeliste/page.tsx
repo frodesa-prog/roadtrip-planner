@@ -189,9 +189,6 @@ function PackingColumn({
   onDelete: (id: string) => Promise<void>
   fullWidth?: boolean
 }) {
-  const [newItem, setNewItem] = useState('')
-  const [category, setCategory] = useState<PackingCategory>('other')
-
   // Quick-add at top
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [quickItem, setQuickItem] = useState('')
@@ -212,12 +209,6 @@ function PackingColumn({
   const unpacked = items.filter((i) => !i.packed).sort((a, b) => a.sort_order - b.sort_order)
   const packed = items.filter((i) => i.packed).sort((a, b) => a.sort_order - b.sort_order)
 
-  async function handleAdd() {
-    if (!newItem.trim()) return
-    await onAdd(newItem.trim(), category, travelerId)
-    setNewItem('')
-  }
-
   // Group unpacked items by category (only show categories that have items)
   const grouped = CATEGORIES
     .map((cat) => ({
@@ -227,24 +218,26 @@ function PackingColumn({
     .filter((g) => g.items.length > 0)
 
   return (
-    <div className={`${fullWidth ? 'w-full' : 'w-[285px]'} flex-shrink-0 bg-slate-900 rounded-xl border border-slate-800 flex flex-col overflow-hidden h-full`}>
+    <div className={`${fullWidth ? 'w-full' : 'w-[285px]'} flex-shrink-0 flex flex-col gap-1.5 h-full`}>
+      {/* Counter above box */}
+      <p className="text-xs text-slate-500 text-center">{unpacked.length} ting igjen å pakke</p>
+
+      <div className="flex-1 bg-slate-900 rounded-xl border border-slate-800 flex flex-col overflow-hidden min-h-0">
       {/* Column header */}
       <div className="px-3 py-2.5 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
         <h2 className="text-sm font-semibold text-slate-200">{title}</h2>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">{unpacked.length} igjen</span>
-          <button
-            onClick={() => { setShowQuickAdd((v) => !v); setQuickItem('') }}
-            title="Legg til"
-            className={`p-1 rounded-md transition-colors ${
-              showQuickAdd
-                ? 'bg-blue-600/20 text-blue-400'
-                : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800'
-            }`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <button
+          onClick={() => { setShowQuickAdd((v) => !v); setQuickItem('') }}
+          title="Legg til"
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-colors text-xs font-medium ${
+            showQuickAdd
+              ? 'bg-blue-600/20 border-blue-500/50 text-blue-400'
+              : 'border-slate-600 text-slate-400 hover:border-slate-400 hover:text-slate-200 hover:bg-slate-800'
+          }`}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Legg til
+        </button>
       </div>
 
       {/* Quick-add form – fixed below header, never scrolls away */}
@@ -256,15 +249,17 @@ function PackingColumn({
               value={quickItem}
               onChange={(e) => setQuickItem(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleQuickAdd()
+                if (e.key === 'Enter') e.preventDefault()
                 if (e.key === 'Escape') { setShowQuickAdd(false); setQuickItem('') }
               }}
               placeholder="Legg til..."
+              tabIndex={1}
               className="flex-1 bg-slate-800 border border-slate-700 rounded-md text-xs text-slate-300 placeholder:text-slate-600 px-2.5 py-1.5 outline-none focus:border-blue-500 transition-colors"
             />
             <button
               onClick={handleQuickAdd}
               disabled={!quickItem.trim()}
+              tabIndex={3}
               className="p-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded-md transition-colors flex-shrink-0"
               title="Legg til"
             >
@@ -272,6 +267,7 @@ function PackingColumn({
             </button>
             <button
               onClick={() => { setShowQuickAdd(false); setQuickItem('') }}
+              tabIndex={4}
               className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-md transition-colors flex-shrink-0"
               title="Avbryt"
             >
@@ -281,6 +277,8 @@ function PackingColumn({
           <select
             value={quickCategory}
             onChange={(e) => setQuickCategory(e.target.value as PackingCategory)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleQuickAdd() } }}
+            tabIndex={2}
             className="w-full bg-slate-800/50 border border-slate-700/50 rounded text-[11px] text-slate-500 px-2 py-1 outline-none focus:border-blue-500 transition-colors"
           >
             {CATEGORIES.map((c) => (
@@ -322,59 +320,46 @@ function PackingColumn({
         ))}
 
         {/* Packed section */}
-        {packed.length > 0 && (
-          <div className="border-t border-slate-800 mx-2 mt-3 pt-2 pb-2">
-            <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide px-1 mb-1 flex items-center gap-1">
-              <Check className="w-3 h-3" /> Pakket ({packed.length})
-            </p>
-            <div className="space-y-0.5">
-              {packed.map((item) => (
-                <PackingItem
-                  key={item.id}
-                  item={item}
-                  isFirst={false}
-                  isLast={false}
-                  onToggle={onToggle}
-                  onUpdate={onUpdate}
-                  onMove={onMove}
-                  onDelete={onDelete}
-                />
+        {packed.length > 0 && (() => {
+          const packedGrouped = CATEGORIES
+            .map((cat) => ({
+              ...cat,
+              items: packed.filter((i) => i.category === cat.value),
+            }))
+            .filter((g) => g.items.length > 0)
+          return (
+            <div className="border-t border-slate-800 mx-2 mt-3 pb-2">
+              <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide px-1 pt-2 mb-1 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Pakket ({packed.length})
+              </p>
+              {packedGrouped.map((group) => (
+                <div key={group.value} className="pt-2">
+                  <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide px-1 mb-1">
+                    {group.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => (
+                      <PackingItem
+                        key={item.id}
+                        item={item}
+                        isFirst={false}
+                        isLast={false}
+                        onToggle={onToggle}
+                        onUpdate={onUpdate}
+                        onMove={onMove}
+                        onDelete={onDelete}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         <div className="h-2" />
       </div>
 
-      {/* Add item input */}
-      <div className="p-2 border-t border-slate-800 flex-shrink-0 space-y-1.5">
-        <div className="flex gap-1">
-          <input
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
-            placeholder="Legg til..."
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-md text-xs text-slate-300 placeholder:text-slate-600 px-2.5 py-1.5 outline-none focus:border-blue-500 transition-colors"
-          />
-          <button
-            onClick={handleAdd}
-            disabled={!newItem.trim()}
-            className="p-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded-md transition-colors flex-shrink-0"
-            title="Legg til"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        </div>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value as PackingCategory)}
-          className="w-full bg-slate-800/50 border border-slate-700/50 rounded text-[11px] text-slate-500 px-2 py-1 outline-none focus:border-blue-500 transition-colors"
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c.value} value={c.value}>{c.label}</option>
-          ))}
-        </select>
       </div>
     </div>
   )
@@ -476,7 +461,7 @@ function PackingItem({
           ) : (
             <span
               className={`flex-1 text-xs truncate cursor-pointer ${
-                item.packed ? 'text-slate-600 line-through' : 'text-slate-300'
+                item.packed ? 'text-slate-500' : 'text-slate-300'
               }`}
               onDoubleClick={handleEditStart}
               title="Dobbeltklikk for å redigere"
