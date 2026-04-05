@@ -801,6 +801,7 @@ function DayCell({
               onClick={(e) => { e.stopPropagation(); onActivityClick(a) }}
               className="flex items-center gap-0.5 text-left hover:opacity-80 transition-opacity min-w-0"
             >
+              <span className="flex-shrink-0 leading-none"><ActivityTypeIcon type={a.activity_type} size={9} /></span>
               {a.activity_time && (
                 <span className="text-[8px] text-slate-500 flex-shrink-0 leading-tight">
                   {a.activity_time.slice(0, 5)}
@@ -817,12 +818,13 @@ function DayCell({
               onClick={(e) => { e.stopPropagation(); onDiningClick(d) }}
               className="flex items-center gap-0.5 text-left hover:opacity-80 transition-opacity min-w-0"
             >
+              <UtensilsCrossed className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />
               {d.booking_time && (
-                <span className="text-[8px] text-slate-500 flex-shrink-0 leading-tight">
+                <span className="text-[8px] text-red-300/60 flex-shrink-0 leading-tight">
                   {d.booking_time.slice(0, 5)}
                 </span>
               )}
-              <span className="text-[9px] text-purple-400 truncate leading-tight">{d.name}</span>
+              <span className="text-[9px] text-red-400 truncate leading-tight">{d.name}</span>
             </button>
           ))}
 
@@ -849,18 +851,20 @@ function DayCell({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className={`text-[9px] truncate leading-tight block hover:opacity-80 transition-opacity ${
+                  className={`flex items-center gap-0.5 text-[9px] truncate leading-tight hover:opacity-80 transition-opacity ${
                     hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
                   }`}
                 >
-                  {hasConfirmedHotel ? '✓ ' : ''}{hotelName}
+                  <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                  <span className="truncate">{hotelName}</span>
                 </a>
               ) : (
-                <p className={`text-[9px] truncate leading-tight ${
+                <div className={`flex items-center gap-0.5 text-[9px] truncate leading-tight ${
                   hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
                 }`}>
-                  {hasConfirmedHotel ? '✓ ' : ''}{hotelName}
-                </p>
+                  <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                  <span className="truncate">{hotelName}</span>
+                </div>
               )
             ) : (
               <p className="text-[9px] text-red-600/70 leading-tight">Mangler hotell</p>
