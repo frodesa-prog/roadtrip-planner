@@ -30,6 +30,7 @@ interface StopRow {
   nights: number
   arrival_date: string | null
   order: number
+  stop_type: string | null
 }
 
 interface ProfileRow {
@@ -336,7 +337,7 @@ export async function GET(req: NextRequest) {
   const { data: trips, error: tripsError } = await supabase
     .from('trips')
     .select('id, name, owner_id, date_from, date_to, year, destination_city, destination_country')
-    .eq('status', 'planning')
+    .neq('status', 'archived')
     .or(`date_to.is.null,date_to.gte.${today}`)
 
   if (tripsError) {
@@ -378,7 +379,7 @@ export async function GET(req: NextRequest) {
   // ── 3. Hent alle eksplisitte abonnement for ai_destination_tips ─────────────
   const { data: subscriptions } = await supabase
     .from('newsletter_subscriptions')
-    .select('user_id, trip_id, frequency_days, last_sent_at, enabled')
+    .select('user_id, trip_id, frequency_days, last_sent_at, enabled, current_stop_index')
     .in('trip_id', tripIds)
     .eq('newsletter_type', 'ai_destination_tips')
 
@@ -474,7 +475,9 @@ export async function GET(req: NextRequest) {
 
     // Bygg liste over alle destinasjoner (stopp-byer, eller fallback til trip-felt)
     const allDestinations: string[] = tripStops.length > 0
-      ? tripStops.map((s) => s.state ? `${s.city}, ${s.state}` : s.city)
+      ? tripStops
+          .filter((s) => s.stop_type === 'stop' || !s.stop_type)
+          .map((s) => s.state ? `${s.city}, ${s.state}` : s.city)
       : [trip.destination_city, trip.destination_country].filter((d): d is string => Boolean(d))
 
     if (allDestinations.length === 0) continue

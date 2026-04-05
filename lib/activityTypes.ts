@@ -10,12 +10,15 @@ export interface ActivityTypeConfig {
 }
 
 export const ACTIVITY_TYPE_PRESETS: ActivityTypeConfig[] = [
-  { value: 'baseball',    label: 'Baseball',    emoji: '⚾', color: '#f97316', isSoulCycle: false },
+  { value: 'baseball',    label: 'Baseball',    emoji: '⚾',  color: '#f97316', isSoulCycle: false },
   { value: 'trening',     label: 'Trening',     emoji: '🚴', color: '#eab308', isSoulCycle: true  },
   { value: 'hiking',      label: 'Hiking',      emoji: '🥾', color: '#22c55e', isSoulCycle: false },
   { value: 'sightseeing', label: 'Sightseeing', emoji: '📸', color: '#3b82f6', isSoulCycle: false },
   { value: 'shopping',    label: 'Shopping',    emoji: '🛍️', color: '#ec4899', isSoulCycle: false },
   { value: 'mat',         label: 'Mat',         emoji: '🍴', color: '#ea580c', isSoulCycle: false },
+  { value: 'kjoring',     label: 'Kjøring',     emoji: '🚗', color: '#64748b', isSoulCycle: false },
+  { value: 'admin',       label: 'Admin',       emoji: '📋', color: '#6366f1', isSoulCycle: false },
+  { value: 'show',        label: 'Show',        emoji: '🎭', color: '#a855f7', isSoulCycle: false },
 ]
 
 const FALLBACK: ActivityTypeConfig = {
