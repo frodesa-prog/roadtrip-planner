@@ -68,6 +68,8 @@ interface PlanningMapProps {
   onCityMapClick?: (lat: number, lng: number) => void
   /** When true, marks the first stop pin with a hotel bed icon instead of a number */
   cityTripMode?: boolean
+  /** When true, store country name (not state) when adding stops (international road trips) */
+  useCountryForState?: boolean
 }
 
 
@@ -1416,6 +1418,7 @@ export default function PlanningMap({
   onCitySearch,
   onCityMapClick,
   cityTripMode = false,
+  useCountryForState = false,
   tripDateFrom = null,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
@@ -1640,6 +1643,7 @@ export default function PlanningMap({
             fromSearch={pendingStop.fromSearch}
             stops={stops}
             activeStopId={selectedStopId}
+            useCountry={useCountryForState}
             onConfirm={handleConfirmStop}
             onAddActivity={onPoiAction ? handleMapAddActivity : undefined}
             onAddDining={onPoiAction ? handleMapAddDining : undefined}

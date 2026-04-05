@@ -608,6 +608,7 @@ export default function PlanPage() {
               onRouteLegsChange={handleRouteLegsChange}
               onRouteStatesChange={setRouteStates}
               onPoiAction={poiAction()}
+              useCountryForState={currentTrip?.road_trip_region === 'international'}
             />
           )}
         </div>

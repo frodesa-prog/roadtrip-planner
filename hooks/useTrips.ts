@@ -88,7 +88,7 @@ export function useTrips() {
 
       const { name, year, trip_type, has_flight, has_car_rental, transport_type,
               date_from, date_to, destination_city, destination_country,
-              description, city_lat, city_lng } = tripData
+              description, city_lat, city_lng, road_trip_region } = tripData
 
       const { data, error } = await supabase
         .from('trips')
@@ -104,6 +104,7 @@ export function useTrips() {
           destination_country: destination_country ?? null,
           description: description ?? null,
           group_description: description ?? null,
+          road_trip_region: road_trip_region ?? null,
         })
         .select()
         .single()

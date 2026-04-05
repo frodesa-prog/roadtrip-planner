@@ -26,6 +26,8 @@ interface AddStopPopupProps {
   fromSearch?: boolean
   stops?: Stop[]
   activeStopId?: string | null
+  /** When true, store country name in the state field (for international road trips) */
+  useCountry?: boolean
   onConfirm: (city: string, state: string, nights: number) => void
   onAddActivity?: (stopId: string, name: string, lat: number, lng: number) => void
   onAddDining?:   (stopId: string, name: string, lat: number, lng: number) => void
@@ -40,6 +42,7 @@ export default function AddStopPopup({
   fromSearch = false,
   stops = [],
   activeStopId,
+  useCountry = false,
   onConfirm,
   onAddActivity,
   onAddDining,
@@ -72,20 +75,28 @@ export default function AddStopPopup({
       setLoading(false)
       if (status === 'OK' && results && results[0]) {
         const components = results[0].address_components
-        const cityComp  = components.find((c) =>
+        const cityComp    = components.find((c) =>
           c.types.includes('locality') || c.types.includes('administrative_area_level_2')
         )
-        const stateComp = components.find((c) =>
+        const stateComp   = components.find((c) =>
           c.types.includes('administrative_area_level_1')
         )
+        const countryComp = components.find((c) =>
+          c.types.includes('country')
+        )
         const resolved = cityComp?.long_name ?? ''
-        if (cityComp)  setCity(resolved)
-        if (stateComp) setState(stateComp.short_name)
+        if (cityComp) setCity(resolved)
+        // International trips: store country name; US trips: store state short name
+        if (useCountry) {
+          if (countryComp) setState(countryComp.long_name)
+        } else {
+          if (stateComp) setState(stateComp.short_name)
+        }
         // Pre-fill non-stop name with resolved location
         setItemName(resolved)
       }
     })
-  }, [lat, lng, initialCity])
+  }, [lat, lng, initialCity, useCountry])
 
   // Pre-fill non-stop name when city resolves or when switching to initialCity
   useEffect(() => {
@@ -167,7 +178,7 @@ export default function AddStopPopup({
                   className="h-8 text-sm bg-slate-800 border-slate-600 text-slate-100 placeholder:text-slate-600" autoFocus />
               </div>
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Stat</label>
+                <label className="text-xs text-slate-400 mb-1 block">{useCountry ? 'Land' : 'Stat'}</label>
                 <Input value={state} onChange={(e) => setState(e.target.value)}
                   className="h-8 text-sm bg-slate-800 border-slate-600 text-slate-100 placeholder:text-slate-600" />
               </div>
@@ -257,9 +268,9 @@ export default function AddStopPopup({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Stat</label>
+                <label className="text-xs text-slate-400 mb-1 block">{useCountry ? 'Land' : 'Stat'}</label>
                 <Input value={state} onChange={(e) => setState(e.target.value)}
-                  placeholder="f.eks. NV"
+                  placeholder={useCountry ? 'f.eks. Frankrike' : 'f.eks. NV'}
                   className="h-8 text-sm bg-slate-800 border-slate-600 text-slate-100 placeholder:text-slate-600" />
               </div>
               <div>

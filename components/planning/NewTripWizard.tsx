@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { X, ChevronRight, ChevronLeft, Check, Loader2, UserCheck, UserX, Mail, Users } from 'lucide-react'
-import { Trip, NewTripData, TripType, TransportType } from '@/types'
+import { Trip, NewTripData, TripType, TransportType, RoadTripRegion } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 
 interface NewTripWizardProps {
@@ -85,6 +85,7 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
 
   const [step, setStep] = useState(0)
   const [tripType, setTripType] = useState<TripType>('road_trip')
+  const [roadTripRegion, setRoadTripRegion] = useState<RoadTripRegion>('usa')
   const [name, setName] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -117,6 +118,7 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
   function reset() {
     setStep(0)
     setTripType('road_trip')
+    setRoadTripRegion('usa')
     setName('')
     setDateFrom('')
     setDateTo('')
@@ -240,6 +242,7 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
       description: description.trim() || null,
       city_lat: cityLat,
       city_lng: cityLng,
+      road_trip_region: tripType === 'road_trip' ? roadTripRegion : null,
     }
 
     const result = await onCreateTrip(data)
@@ -439,6 +442,36 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
                   )}
                 </button>
               ))}
+
+              {/* USA / International sub-choice – only for road trip */}
+              {tripType === 'road_trip' && (
+                <div className="mt-1">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                    Hvilke land kjører du i?
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { value: 'usa', emoji: '🇺🇸', label: 'USA', desc: 'Teller antall stater' },
+                      { value: 'international', emoji: '🌍', label: 'Andre land', desc: 'Teller antall land' },
+                    ] as const).map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setRoadTripRegion(opt.value)}
+                        className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-center transition-all ${
+                          roadTripRegion === opt.value
+                            ? 'border-blue-500 bg-blue-900/30'
+                            : 'border-slate-700 hover:border-slate-500 bg-slate-800/50'
+                        }`}
+                      >
+                        <span className="text-2xl">{opt.emoji}</span>
+                        <p className="font-bold text-slate-100 text-xs">{opt.label}</p>
+                        <p className="text-[10px] text-slate-500">{opt.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -3,6 +3,8 @@ export type TripType = 'road_trip' | 'storbytur' | 'resort'
 export type BookingStatus = 'not_booked' | 'confirmed'
 export type TransportType = 'fly' | 'tog' | 'ingen'
 
+export type RoadTripRegion = 'usa' | 'international'
+
 export interface Trip {
   id: string
   name: string
@@ -22,6 +24,7 @@ export interface Trip {
   destination_country: string | null
   description: string | null
   transport_type: TransportType
+  road_trip_region: RoadTripRegion | null  // 'usa' | 'international', null = legacy
 }
 
 export interface NewTripData {
@@ -38,6 +41,7 @@ export interface NewTripData {
   description: string | null
   city_lat?: number | null
   city_lng?: number | null
+  road_trip_region?: RoadTripRegion | null
 }
 
 export interface Stop {

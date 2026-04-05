@@ -241,7 +241,8 @@ export default function PlanSidebar({
               </span>
             </div>
             <span className="text-xs text-slate-400">
-              <span className="font-semibold text-slate-200">{statesVisited}</span> stater
+              <span className="font-semibold text-slate-200">{statesVisited}</span>{' '}
+              {currentTrip?.road_trip_region === 'international' ? 'land' : 'stater'}
             </span>
             <span className="text-xs text-slate-400">
               <span className="font-semibold text-slate-200">{totalNights}</span> netter
