@@ -217,15 +217,17 @@ function AuthModal({ mode: initialMode, onClose }: { mode: 'login' | 'register';
       if (error) { toast.error('Feil e-post eller passord'); setLoading(false); return }
       router.push('/plan'); router.refresh()
     } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://myvacayplanner.com'}/plan`,
-        },
-      })
+      const { error } = await supabase.auth.signUp({ email, password })
       if (error) { toast.error(error.message); setLoading(false); return }
-      toast.success('Konto opprettet! Sjekk e-posten for bekreftelse.')
+
+      // Send velkomstmail via Resend (Supabase-bekreftelsesemail er deaktivert)
+      await fetch('/api/send-welcome-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      toast.success('Konto opprettet! Du kan nå logge inn.')
       setMode('login'); setLoading(false)
     }
   }
