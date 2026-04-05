@@ -566,6 +566,11 @@ export default function SummaryPage() {
                               ? homeEnd.city
                               : undefined
                           }
+                          firstStopCity={
+                            homeStart?.arrival_date && dateStr === homeStart.arrival_date
+                              ? regularStops[0]?.city
+                              : undefined
+                          }
                         />
                       )
                     })}
@@ -765,6 +770,7 @@ function DayCell({
   isHomeDeparture = false,
   isHomeArrival = false,
   homeCity,
+  firstStopCity,
 }: {
   date: Date
   stop: Stop | null
@@ -792,6 +798,8 @@ function DayCell({
   /** Show a teal home-arrival banner (road trip end date) */
   isHomeArrival?: boolean
   homeCity?: string
+  /** First overnight stop city – shown in departure box instead of home address */
+  firstStopCity?: string
 }) {
   const isFirstOfMonth = date.getDate() === 1
 
@@ -832,9 +840,13 @@ function DayCell({
       </div>
 
       {/* City name – always on line 2, same position for all days */}
-      {stop && (
+      {(stop || (isHomeDeparture && firstStopCity)) && (
         <p className="text-[11px] font-semibold truncate leading-tight mt-0.5 text-slate-200">
-          {isArrival && fromCity ? `${fromCity} – ${stop.city}` : stop.city}
+          {isHomeDeparture && firstStopCity
+            ? firstStopCity
+            : isArrival && fromCity
+              ? `${fromCity} – ${stop!.city}`
+              : stop!.city}
         </p>
       )}
 
