@@ -134,7 +134,12 @@ export default function PlanSidebar({
   const totalKm = drivingLegs.reduce((sum, l) => sum + (l?.distanceKm ?? 0), 0)
   const statesVisited = (() => {
     const all = new Set(stops.map((s) => s.state).filter(Boolean) as string[])
-    for (const s of (routeStates ?? [])) all.add(s)
+    // For USA-turer telles delstater langs hele ruten (ikke bare ved stopp).
+    // For internasjonale turer telles kun land ved faktiske stoppesteder –
+    // transittland langs veien er ikke meningsfullt å telle.
+    if (currentTrip?.road_trip_region !== 'international') {
+      for (const s of (routeStates ?? [])) all.add(s)
+    }
     return all.size
   })()
 
