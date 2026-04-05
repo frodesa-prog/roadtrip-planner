@@ -1,6 +1,6 @@
 'use client'
 
-import { Stop, Hotel, Activity } from '@/types'
+import { Stop, Hotel, Activity, Dining } from '@/types'
 import { LegInfo } from '@/hooks/useDrivingInfo'
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -27,10 +27,14 @@ function sameDay(a: Date, b: Date) {
   )
 }
 
+function toDateStr(d: Date): string {
+  return d.toISOString().split('T')[0]
+}
+
 /** Returns the Monday on or before the given date */
 function mondayOf(date: Date): Date {
   const d = new Date(date)
-  const dow = d.getDay() // 0 = Sun
+  const dow = d.getDay()
   const offset = dow === 0 ? -6 : 1 - dow
   d.setDate(d.getDate() + offset)
   return d
@@ -50,18 +54,20 @@ function sundayOf(date: Date): Date {
 interface DayInfo {
   date: Date
   stop: Stop | null
-  stopOrder: number   // 1-based position in sorted stop list
-  isArrival: boolean  // true = arrival day, false = "staying" day
-  transitCity: string | null  // city of 0-nights transit stop arriving same day
+  stopOrder: number
+  isArrival: boolean
+  transitCity: string | null
 }
 
 interface CalendarViewProps {
   stops: Stop[]
   hotels: Hotel[]
   activities: Activity[]
+  dining: Dining[]
   drivingLegs: (LegInfo | null)[]
   selectedStopId: string | null
   onSelectStop: (id: string) => void
+  detailed?: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -70,11 +76,12 @@ export default function CalendarView({
   stops,
   hotels,
   activities,
+  dining,
   drivingLegs,
   selectedStopId,
   onSelectStop,
+  detailed = false,
 }: CalendarViewProps) {
-  // Only consider stops that have a date set
   const dated = [...stops]
     .filter((s) => s.arrival_date)
     .sort((a, b) => a.order - b.order)
@@ -90,11 +97,11 @@ export default function CalendarView({
   // ── Build the calendar grid ─────────────────────────────────────────────────
 
   const tripStart = new Date(dated[0].arrival_date! + 'T12:00:00')
-  const lastStop = dated[dated.length - 1]
-  const tripEnd = addDays(new Date(lastStop.arrival_date! + 'T12:00:00'), lastStop.nights)
+  const lastStop  = dated[dated.length - 1]
+  const tripEnd   = addDays(new Date(lastStop.arrival_date! + 'T12:00:00'), lastStop.nights)
 
   const gridStart = mondayOf(tripStart)
-  const gridEnd = sundayOf(tripEnd)
+  const gridEnd   = sundayOf(tripEnd)
 
   const days: DayInfo[] = []
   for (let d = new Date(gridStart); d <= gridEnd; d = addDays(d, 1)) {
@@ -108,17 +115,14 @@ export default function CalendarView({
       const s = dated[i]
       const arrival = new Date(s.arrival_date! + 'T12:00:00')
 
-      // 0-netter-stopp: sjekk om neste stopp har samme ankomstdato
-      // → bruk dette stoppets bynavn som transit og gå videre
       if (s.nights === 0 && sameDay(date, arrival)) {
         const next = dated[i + 1]
         if (next?.arrival_date === s.arrival_date) {
           transitCity = s.city
-          continue  // neste stopp er primærstopp for denne dagen
+          continue
         }
       }
 
-      // Normalt stopp: bruk minst 1 dag slik at 0-netter-stopp uten neste stopp vises
       const departure = addDays(arrival, Math.max(1, s.nights))
       if (date >= arrival && date < departure) {
         stop = s
@@ -131,11 +135,13 @@ export default function CalendarView({
     days.push({ date, stop, stopOrder, isArrival, transitCity })
   }
 
-  // Group into weeks (each array has exactly 7 entries)
   const weeks: DayInfo[][] = []
   for (let i = 0; i < days.length; i += 7) {
     weeks.push(days.slice(i, i + 7))
   }
+
+  // Height class: fixed in compact mode, min-height in detailed (grid row stretches to tallest cell)
+  const cellH = detailed ? 'min-h-[72px]' : 'h-[72px]'
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -156,7 +162,6 @@ export default function CalendarView({
       {/* Week rows */}
       <div className="space-y-2">
         {weeks.map((week, wi) => {
-          // Show month label when the week's Monday is in a new month
           const prevMonth = wi > 0 ? weeks[wi - 1][0].date.getMonth() : -1
           const showMonth = week[0].date.getMonth() !== prevMonth
 
@@ -168,14 +173,15 @@ export default function CalendarView({
                 </p>
               )}
 
-              <div className="grid grid-cols-7 gap-1">
+              {/* items-stretch ensures all cells in the same row share the tallest cell's height */}
+              <div className="grid grid-cols-7 gap-1 items-stretch">
                 {week.map((cell, ci) => {
-                  // ── Empty cell (outside the trip) ──────────────────────────
+                  // ── Empty cell ──────────────────────────────────────────────
                   if (!cell.stop) {
                     return (
                       <div
                         key={ci}
-                        className="h-[72px] rounded-xl border border-slate-800/40 bg-slate-900/20 p-1.5"
+                        className={`${cellH} rounded-xl border border-slate-800/40 bg-slate-900/20 p-1.5`}
                       >
                         <span className="text-[10px] text-slate-700 leading-none">
                           {cell.date.getDate()}
@@ -185,22 +191,39 @@ export default function CalendarView({
                   }
 
                   // ── Stop cell ──────────────────────────────────────────────
-                  const hotel = hotels.find((h) => h.stop_id === cell.stop!.id) ?? null
-                  const stopActivities = activities.filter((a) => a.stop_id === cell.stop!.id)
-                  const isSelected = cell.stop.id === selectedStopId
-                  const hotelBooked = hotel?.status === 'confirmed'
+                  const hotel         = hotels.find((h) => h.stop_id === cell.stop!.id) ?? null
+                  const hotelBooked   = hotel?.status === 'confirmed'
+                  const isSelected    = cell.stop.id === selectedStopId
+                  const dayStr        = toDateStr(cell.date)
 
-                  // Driving leg: drivingLegs[i] goes from stops[i] → stops[i+1]
-                  const globalIdx = stops.findIndex((s) => s.id === cell.stop!.id)
+                  const globalIdx  = stops.findIndex((s) => s.id === cell.stop!.id)
                   const drivingLeg = cell.isArrival && globalIdx > 0
                     ? (drivingLegs[globalIdx - 1] ?? null)
                     : null
+
+                  // In compact mode: count all activities for the stop
+                  const stopActivities = activities.filter((a) => a.stop_id === cell.stop!.id)
+
+                  // In detailed mode: filter activities/dining to this specific day
+                  const dayActivities = detailed
+                    ? activities.filter((a) => {
+                        if (a.stop_id !== cell.stop!.id) return false
+                        return a.activity_date ? a.activity_date === dayStr : cell.isArrival
+                      })
+                    : []
+
+                  const dayDining = detailed
+                    ? dining.filter((d) => {
+                        if (d.stop_id !== cell.stop!.id) return false
+                        return d.booking_date ? d.booking_date === dayStr : cell.isArrival
+                      })
+                    : []
 
                   return (
                     <div
                       key={ci}
                       onClick={() => onSelectStop(cell.stop!.id)}
-                      className={`h-[72px] rounded-xl border cursor-pointer transition-all duration-150 p-1.5 flex flex-col ${
+                      className={`${cellH} rounded-xl border cursor-pointer transition-all duration-150 p-1.5 flex flex-col ${
                         isSelected
                           ? 'border-blue-500 bg-blue-950/40 shadow-md shadow-blue-900/30'
                           : cell.isArrival
@@ -222,33 +245,77 @@ export default function CalendarView({
                         </div>
                       </div>
 
-                      {/* City name – vis "transit → by" hvis 0-netter-stopp samme dag */}
+                      {/* City name */}
                       <p className="text-[10px] font-semibold text-slate-100 truncate leading-tight">
-                        {cell.transitCity ? `${cell.transitCity} → ${cell.stop.city}` : cell.stop.city}
+                        {cell.transitCity
+                          ? `${cell.transitCity} → ${cell.stop.city}`
+                          : cell.stop.city}
                       </p>
 
-                      {/* Arrival: show drive time if available, else plain arrival indicator */}
+                      {/* Arrival indicator */}
                       {cell.isArrival && (
                         <p className="text-[9px] text-blue-400/80 leading-tight">
                           {drivingLeg ? `🚗 ${drivingLeg.durationText}` : '↓ Ankomst'}
                         </p>
                       )}
 
-                      {/* Bottom: hotel + activities */}
+                      {/* ── Bottom section ──────────────────────────────────── */}
                       <div className="flex-1 flex flex-col justify-end mt-0.5 gap-0.5 overflow-hidden">
-                        {hotel?.name ? (
-                          <p className={`text-[9px] truncate leading-tight ${
-                            hotelBooked ? 'text-green-400' : 'text-slate-500'
-                          }`}>
-                            {hotelBooked ? '✓ ' : ''}{hotel.name}
-                          </p>
+
+                        {detailed ? (
+                          /* ── Detailed mode ─────────────────────────────────── */
+                          <>
+                            {/* Activities for this day */}
+                            {dayActivities.map((a) => (
+                              <p key={a.id} className="text-[9px] text-violet-400 leading-tight truncate">
+                                {a.activity_time
+                                  ? <><span className="text-slate-500">{a.activity_time}</span> {a.name}</>
+                                  : a.name
+                                }
+                              </p>
+                            ))}
+
+                            {/* Dining for this day */}
+                            {dayDining.map((d) => (
+                              <p key={d.id} className="text-[9px] text-purple-400 leading-tight truncate">
+                                {d.booking_time
+                                  ? <><span className="text-slate-500">{d.booking_time}</span> {d.name}</>
+                                  : d.name
+                                }
+                              </p>
+                            ))}
+
+                            {/* Hotel – always shown in detailed mode */}
+                            {hotel?.name ? (
+                              <p className={`text-[9px] truncate leading-tight mt-auto pt-0.5 border-t border-slate-700/50 ${
+                                hotelBooked ? 'text-green-400' : 'text-slate-500'
+                              }`}>
+                                {hotelBooked ? '✓ ' : ''}{hotel.name}
+                              </p>
+                            ) : (
+                              <p className="text-[9px] text-red-600/70 leading-tight mt-auto pt-0.5 border-t border-slate-700/50">
+                                Mangler hotell
+                              </p>
+                            )}
+                          </>
                         ) : (
-                          <p className="text-[9px] text-red-600/70 leading-tight">Mangler hotell</p>
-                        )}
-                        {stopActivities.length > 0 && (
-                          <p className="text-[9px] text-purple-400 leading-tight">
-                            {stopActivities.length} akt.
-                          </p>
+                          /* ── Compact mode (existing) ───────────────────────── */
+                          <>
+                            {hotel?.name ? (
+                              <p className={`text-[9px] truncate leading-tight ${
+                                hotelBooked ? 'text-green-400' : 'text-slate-500'
+                              }`}>
+                                {hotelBooked ? '✓ ' : ''}{hotel.name}
+                              </p>
+                            ) : (
+                              <p className="text-[9px] text-red-600/70 leading-tight">Mangler hotell</p>
+                            )}
+                            {stopActivities.length > 0 && (
+                              <p className="text-[9px] text-purple-400 leading-tight">
+                                {stopActivities.length} akt.
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>

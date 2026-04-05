@@ -56,6 +56,7 @@ export default function PlanSidebar({
   const [departureTimes, setDepartureTimes] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [showDetailed, setShowDetailed] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
 
   // Open wizard when navigated with ?new=1 (reads URL directly, avoids useSearchParams/Suspense)
@@ -253,21 +254,38 @@ export default function PlanSidebar({
           </div>
 
           {/* Toggle list ↔ calendar */}
-          <button
-            onClick={() => setShowCalendar((v) => !v)}
-            title={showCalendar ? 'Vis liste' : 'Vis kalender'}
-            className={`flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
-              showCalendar
-                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'
-            }`}
-          >
-            {showCalendar ? (
-              <><List className="w-3 h-3" />Liste</>
-            ) : (
-              <><CalendarDays className="w-3 h-3" />Kalender</>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Detaljert-toggle – kun synlig i kalendervisning */}
+            {showCalendar && (
+              <button
+                onClick={() => setShowDetailed((v) => !v)}
+                title={showDetailed ? 'Vis kompakt' : 'Vis mer detaljert info'}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+                  showDetailed
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'
+                }`}
+              >
+                {showDetailed ? 'Kompakt' : 'Detaljert'}
+              </button>
             )}
-          </button>
+
+            <button
+              onClick={() => setShowCalendar((v) => !v)}
+              title={showCalendar ? 'Vis liste' : 'Vis kalender'}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+                showCalendar
+                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/50'
+              }`}
+            >
+              {showCalendar ? (
+                <><List className="w-3 h-3" />Liste</>
+              ) : (
+                <><CalendarDays className="w-3 h-3" />Kalender</>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
@@ -277,9 +295,11 @@ export default function PlanSidebar({
           stops={stops}
           hotels={hotels}
           activities={activities}
+          dining={dining}
           drivingLegs={drivingLegs}
           selectedStopId={selectedStopId}
           onSelectStop={onSelectStop}
+          detailed={showDetailed}
         />
       ) : (
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5">
