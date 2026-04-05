@@ -161,11 +161,11 @@ const links = [
   { href: '/summary', label: 'Oversikt', icon: CalendarDays },
   { href: '/notes', label: 'Notater', icon: FileText },
   { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
+  { href: '/kostnader', label: 'Kostnader', icon: Receipt },
   { href: '/todo', label: 'ToDo', icon: ClipboardList },
   { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
   { href: '/minner', label: 'Minner', icon: BookHeart, newTab: true },
   { href: '/hjelp', label: 'Hjelp', icon: HelpCircle },
-  { href: '/kostnader', label: 'Kostnader', icon: Receipt },
 ]
 
 // Vises i bottom tab bar på mobil
