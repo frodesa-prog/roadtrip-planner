@@ -69,7 +69,7 @@ const COUNTRY_ISO: Record<string, string> = {
   India: 'IN',
   Turkey: 'TR', Tyrkia: 'TR',
   Israel: 'IL',
-  Jordan: 'JO', Jordan: 'JO',
+  Jordan: 'JO',
   'Saudi Arabia': 'SA',
   'United Arab Emirates': 'AE',
   // Africa
