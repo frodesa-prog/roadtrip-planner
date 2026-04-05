@@ -22,15 +22,18 @@ interface RoutePolylineProps {
   routeLegsLoaded?: boolean
   /** Sett for å aktivere dra-støtte; utelatt = kun visning */
   onLegsChange?: (legs: LegWaypoints[]) => void
-  /** Kalles med liste over stater ruten passerer gjennom (kortform, f.eks. "CA") */
+  /** Kalles med liste over stater/land ruten passerer gjennom */
   onRouteStatesChange?: (states: string[]) => void
+  /** Bruk land (country) i stedet for delstat ved geocoding – for internasjonale turer */
+  useCountry?: boolean
 }
 
 // ─── Geocode states along the route overview path ────────────────────────────
 
 async function geocodeRouteStates(
   result: google.maps.DirectionsResult,
-  cb: (states: string[]) => void
+  cb: (states: string[]) => void,
+  useCountry = false,
 ): Promise<void> {
   const path = result.routes[0]?.overview_path
   if (!path?.length) return
@@ -40,7 +43,8 @@ async function geocodeRouteStates(
   const step        = Math.max(1, Math.floor(path.length / sampleCount))
   const sampled     = path.filter((_, i) => i % step === 0)
 
-  const geocoder = new google.maps.Geocoder()
+  const geocoder   = new google.maps.Geocoder()
+  const typeFilter = useCountry ? 'country' : 'administrative_area_level_1'
 
   const states = await Promise.all(
     sampled.map((point) =>
@@ -48,9 +52,9 @@ async function geocodeRouteStates(
         .geocode({ location: point })
         .then(({ results }) => {
           const comp = results[0]?.address_components.find((c) =>
-            c.types.includes('administrative_area_level_1')
+            c.types.includes(typeFilter)
           )
-          return comp?.short_name ?? null
+          return useCountry ? (comp?.long_name ?? null) : (comp?.short_name ?? null)
         })
         .catch(() => null)
     )
@@ -68,6 +72,7 @@ export default function RoutePolyline({
   routeLegsLoaded = true,
   onLegsChange,
   onRouteStatesChange,
+  useCountry = false,
 }: RoutePolylineProps) {
   const map        = useMap()
   const routesLib  = useMapsLibrary('routes')
@@ -193,7 +198,7 @@ export default function RoutePolyline({
 
           // Geocode ruten umiddelbart ved første lasting
           const cb = onRouteStatesRef.current
-          if (cb) geocodeRouteStates(result, cb)
+          if (cb) geocodeRouteStates(result, cb, useCountry)
         } else {
           console.warn('Directions API ikke tilgjengelig. Status:', status)
         }
@@ -236,7 +241,7 @@ export default function RoutePolyline({
         if (statesCb && res) {
           if (statesTimerRef.current) clearTimeout(statesTimerRef.current)
           statesTimerRef.current = setTimeout(
-            () => geocodeRouteStates(res, statesCb),
+            () => geocodeRouteStates(res, statesCb, useCountry),
             800
           )
         }

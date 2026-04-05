@@ -1600,6 +1600,7 @@ export default function PlanningMap({
               routeLegsLoaded={routeLegsLoaded}
               onLegsChange={onRouteLegsChange}
               onRouteStatesChange={onRouteStatesChange}
+              useCountry={useCountryForState}
             />
           )}
 
