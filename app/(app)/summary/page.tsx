@@ -345,7 +345,7 @@ export default function SummaryPage() {
                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pal.dot}`} />
                     <div className="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
                       <button
-                        onClick={() => setSidebarStopId(stop.id)}
+                        onClick={() => { setSelectedDate(null); setSidebarStopId((prev) => prev === stop.id ? null : stop.id) }}
                         className="text-xs font-semibold truncate flex-shrink-0 max-w-[70%] text-slate-200 hover:text-blue-300 transition-colors text-left"
                       >
                         {stop.city}
@@ -507,7 +507,7 @@ export default function SummaryPage() {
                           onDiningClick={setDiningModal}
                           showHotelWarning={currentTrip?.trip_type === 'road_trip'}
                           showDetailed={showDetailed}
-                          onClick={stop ? () => setSelectedDate(isSelected ? null : dateStr) : undefined}
+                          onClick={stop ? () => { setSidebarStopId(null); setSelectedDate(isSelected ? null : dateStr) } : undefined}
                         />
                       )
                     })}
@@ -520,55 +520,6 @@ export default function SummaryPage() {
             </>
           )}
         </div>
-
-        {/* ── Sidebar stop modal ──────────────────────────────────────── */}
-        {sidebarStopId && (() => {
-          const sbStop = stops.find((s) => s.id === sidebarStopId) ?? null
-          if (!sbStop) return null
-          const sbLeg = sbStop.arrival_date ? (legByArrivalDate[sbStop.arrival_date] ?? null) : null
-          return (
-            <div
-              className="fixed inset-0 z-50 flex items-start justify-end bg-black/60 backdrop-blur-sm"
-              onClick={() => setSidebarStopId(null)}
-            >
-              <div
-                className="h-full w-full max-w-sm flex flex-col bg-slate-900 shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <StopDetailPanel
-                  stop={sbStop}
-                  hotel={hotels.find((h) => h.stop_id === sbStop.id) ?? null}
-                  activities={activities.filter((a) => a.stop_id === sbStop.id)}
-                  dining={dining.filter((d) => d.stop_id === sbStop.id)}
-                  possibleActivities={possibleActivities.filter((a) => a.stop_id === sbStop.id)}
-                  leg={sbLeg}
-                  selectedDate={sbStop.arrival_date ?? ''}
-                  stopIndex={stopPaletteIndex[sbStop.id] ?? 0}
-                  onUpdateStop={(updates) => updateStop(sbStop.id, updates)}
-                  onSaveHotel={(updates, lat, lng) => {
-                    saveHotel(sbStop.id, updates)
-                    if (lat != null && lng != null) updateStop(sbStop.id, { lat, lng })
-                  }}
-                  onAddActivity={(data) => addActivity(sbStop.id, data)}
-                  onRemoveActivity={removeActivity}
-                  onUpdateActivity={updateActivity}
-                  onAddDining={(data) => addDining(sbStop.id, data)}
-                  onRemoveDining={removeDining}
-                  onUpdateDining={updateDining}
-                  onAddPossibleActivity={(data) => addPossibleActivity(sbStop.id, data)}
-                  onRemovePossibleActivity={removePossibleActivity}
-                  onUpdatePossibleActivity={updatePossibleActivity}
-                  stopNotes={notes.filter((n) => n.stop_id === sbStop.id)}
-                  onAddNote={addNote}
-                  onUpdateNote={updateNote}
-                  onDeleteNote={deleteNote}
-                  onClose={() => setSidebarStopId(null)}
-                  hideArrivalDate
-                />
-              </div>
-            </div>
-          )
-        })()}
 
         {/* Flight modal */}
         {flightModal && (
@@ -636,46 +587,92 @@ export default function SummaryPage() {
           />
         )}
 
-        {/* Detail panel */}
-        {selectedStop && selectedDate && (
-          <div className="w-[320px] flex-shrink-0 overflow-hidden">
-            <StopDetailPanel
-              stop={selectedStop}
-              hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
-              activities={activities.filter((a) => a.stop_id === selectedStop.id && a.activity_date === selectedDate)}
-              dining={dining.filter((d) => d.stop_id === selectedStop.id && d.booking_date === selectedDate)}
-              possibleActivities={possibleActivities.filter((a) =>
-                a.stop_id === selectedStop.id &&
-                (a.activity_date == null || a.activity_date === selectedDate)
-              )}
-              leg={selectedStopLeg}
-              selectedDate={selectedDate}
-              stopIndex={selectedStopIndex}
-              tripDayLabel={tripDayLabel}
-              nightOfStayLabel={nightOfStayLabel}
-              hideArrivalDate
-              onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
-              onSaveHotel={(updates, lat, lng) => {
-                saveHotel(selectedStop.id, updates)
-                if (lat != null && lng != null) updateStop(selectedStop.id, { lat, lng })
-              }}
-              onAddActivity={(data) => addActivity(selectedStop.id, data)}
-              onRemoveActivity={removeActivity}
-              onUpdateActivity={updateActivity}
-              onAddDining={(data) => addDining(selectedStop.id, data)}
-              onRemoveDining={removeDining}
-              onUpdateDining={updateDining}
-              onAddPossibleActivity={(data) => addPossibleActivity(selectedStop.id, data)}
-              onRemovePossibleActivity={removePossibleActivity}
-              onUpdatePossibleActivity={updatePossibleActivity}
-              stopNotes={notes.filter((n) => n.stop_id === selectedStop.id)}
-              onAddNote={addNote}
-              onUpdateNote={updateNote}
-              onDeleteNote={deleteNote}
-              onClose={() => setSelectedDate(null)}
-            />
-          </div>
-        )}
+        {/* Detail panel – shown when a calendar date OR a sidebar stop is clicked */}
+        {(() => {
+          // Sidebar stop click: show all activities/dining for the whole stop
+          if (sidebarStopId) {
+            const sbStop = stops.find((s) => s.id === sidebarStopId) ?? null
+            if (!sbStop) return null
+            const sbLeg = sbStop.arrival_date ? (legByArrivalDate[sbStop.arrival_date] ?? null) : null
+            return (
+              <div className="w-[320px] flex-shrink-0 overflow-hidden">
+                <StopDetailPanel
+                  stop={sbStop}
+                  hotel={hotels.find((h) => h.stop_id === sbStop.id) ?? null}
+                  activities={activities.filter((a) => a.stop_id === sbStop.id)}
+                  dining={dining.filter((d) => d.stop_id === sbStop.id)}
+                  possibleActivities={possibleActivities.filter((a) => a.stop_id === sbStop.id)}
+                  leg={sbLeg}
+                  selectedDate={sbStop.arrival_date ?? ''}
+                  stopIndex={stopPaletteIndex[sbStop.id] ?? 0}
+                  hideArrivalDate
+                  onUpdateStop={(updates) => updateStop(sbStop.id, updates)}
+                  onSaveHotel={(updates, lat, lng) => {
+                    saveHotel(sbStop.id, updates)
+                    if (lat != null && lng != null) updateStop(sbStop.id, { lat, lng })
+                  }}
+                  onAddActivity={(data) => addActivity(sbStop.id, data)}
+                  onRemoveActivity={removeActivity}
+                  onUpdateActivity={updateActivity}
+                  onAddDining={(data) => addDining(sbStop.id, data)}
+                  onRemoveDining={removeDining}
+                  onUpdateDining={updateDining}
+                  onAddPossibleActivity={(data) => addPossibleActivity(sbStop.id, data)}
+                  onRemovePossibleActivity={removePossibleActivity}
+                  onUpdatePossibleActivity={updatePossibleActivity}
+                  stopNotes={notes.filter((n) => n.stop_id === sbStop.id)}
+                  onAddNote={addNote}
+                  onUpdateNote={updateNote}
+                  onDeleteNote={deleteNote}
+                  onClose={() => setSidebarStopId(null)}
+                />
+              </div>
+            )
+          }
+          // Calendar date click: show activities/dining for that specific date
+          if (selectedStop && selectedDate) {
+            return (
+              <div className="w-[320px] flex-shrink-0 overflow-hidden">
+                <StopDetailPanel
+                  stop={selectedStop}
+                  hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
+                  activities={activities.filter((a) => a.stop_id === selectedStop.id && a.activity_date === selectedDate)}
+                  dining={dining.filter((d) => d.stop_id === selectedStop.id && d.booking_date === selectedDate)}
+                  possibleActivities={possibleActivities.filter((a) =>
+                    a.stop_id === selectedStop.id &&
+                    (a.activity_date == null || a.activity_date === selectedDate)
+                  )}
+                  leg={selectedStopLeg}
+                  selectedDate={selectedDate}
+                  stopIndex={selectedStopIndex}
+                  tripDayLabel={tripDayLabel}
+                  nightOfStayLabel={nightOfStayLabel}
+                  hideArrivalDate
+                  onUpdateStop={(updates) => updateStop(selectedStop.id, updates)}
+                  onSaveHotel={(updates, lat, lng) => {
+                    saveHotel(selectedStop.id, updates)
+                    if (lat != null && lng != null) updateStop(selectedStop.id, { lat, lng })
+                  }}
+                  onAddActivity={(data) => addActivity(selectedStop.id, data)}
+                  onRemoveActivity={removeActivity}
+                  onUpdateActivity={updateActivity}
+                  onAddDining={(data) => addDining(selectedStop.id, data)}
+                  onRemoveDining={removeDining}
+                  onUpdateDining={updateDining}
+                  onAddPossibleActivity={(data) => addPossibleActivity(selectedStop.id, data)}
+                  onRemovePossibleActivity={removePossibleActivity}
+                  onUpdatePossibleActivity={updatePossibleActivity}
+                  stopNotes={notes.filter((n) => n.stop_id === selectedStop.id)}
+                  onAddNote={addNote}
+                  onUpdateNote={updateNote}
+                  onDeleteNote={deleteNote}
+                  onClose={() => setSelectedDate(null)}
+                />
+              </div>
+            )
+          }
+          return null
+        })()}
       </div>
     </div>
   )
