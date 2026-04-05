@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen, Globe } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen, Globe, ListChecks } from 'lucide-react'
 import { countryFlag } from '@/lib/countryFlag'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -481,6 +481,13 @@ export default function SummaryPage() {
                   >
                     {showDetailed ? 'Kompakt' : 'Detaljert'}
                   </button>
+                  <Link
+                    href="/aktiviteter"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-700 text-sm font-medium transition-colors"
+                  >
+                    <ListChecks className="w-3.5 h-3.5" />
+                    Avstand og rute til aktiviteter
+                  </Link>
                   <Link
                     href="/beskrivelse"
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-700 text-sm font-medium transition-colors"

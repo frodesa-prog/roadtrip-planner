@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, ListChecks, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronDown, Check, Plus, BookHeart } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronDown, Check, Plus, BookHeart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useChat } from '@/components/chat/ChatContext'
@@ -159,14 +159,13 @@ function TripDropdown() {
 const links = [
   { href: '/plan', label: 'Planlegg', icon: Map },
   { href: '/summary', label: 'Oversikt', icon: CalendarDays },
+  { href: '/notes', label: 'Notater', icon: FileText },
+  { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
   { href: '/todo', label: 'ToDo', icon: ClipboardList },
   { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
-  { href: '/aktiviteter', label: 'Aktiviteter', icon: ListChecks },
-  { href: '/kostnader', label: 'Kostnader', icon: Receipt },
-  { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
-  { href: '/notes', label: 'Notater', icon: FileText },
   { href: '/minner', label: 'Minner', icon: BookHeart, newTab: true },
   { href: '/hjelp', label: 'Hjelp', icon: HelpCircle },
+  { href: '/kostnader', label: 'Kostnader', icon: Receipt },
 ]
 
 // Vises i bottom tab bar på mobil
@@ -243,7 +242,6 @@ export default function NavBar() {
             title="Min Side"
           >
             <UserCircle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Min side</span>
           </Link>
           {/* Chat-knapp med ulest-badge */}
           <button
@@ -252,7 +250,6 @@ export default function NavBar() {
             title="Chat"
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline text-sm font-medium">Chat</span>
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-red-500 rounded-full
                 text-[9px] text-white flex items-center justify-center font-bold px-0.5 leading-none">
