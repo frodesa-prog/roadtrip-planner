@@ -283,7 +283,13 @@ export default function MemoryDetailPage({ params }: { params: Promise<{ memoryI
               <h2 className="text-sm font-semibold text-slate-300">
                 Alle bilder ({photos.length})
               </h2>
-              <PhotoUploadZone memoryId={memoryId} stopId={null} addPhoto={addPhoto} />
+              <PhotoUploadZone
+                memoryId={memoryId}
+                stops={stops.filter(s => s.stop_type === 'stop')}
+                activities={activities}
+                dining={dining}
+                addPhoto={addPhoto}
+              />
             </div>
 
             {photos.length === 0 ? (

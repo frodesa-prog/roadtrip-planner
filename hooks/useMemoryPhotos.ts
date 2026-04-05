@@ -12,6 +12,8 @@ export interface NewPhotoData {
   cloudinary_url: string
   thumbnail_url?: string
   stop_id?: string | null
+  activity_id?: string | null
+  dining_id?: string | null
   caption?: string
   taken_at?: string | null
   exif_lat?: number | null
@@ -62,7 +64,9 @@ export function useMemoryPhotos(memoryId: string | null) {
       .from('memory_photos')
       .insert({
         memory_id:            memoryId,
-        stop_id:              data.stop_id ?? null,
+        stop_id:              data.stop_id     ?? null,
+        activity_id:          data.activity_id ?? null,
+        dining_id:            data.dining_id   ?? null,
         uploaded_by:          user.id,
         cloudinary_public_id: data.cloudinary_public_id,
         cloudinary_url:       data.cloudinary_url,

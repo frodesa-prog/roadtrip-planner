@@ -204,7 +204,7 @@ export default function MemoryTimeline({ memory, entries, stops, activities, din
 
                 {/* Last opp bilder */}
                 <div className="mt-3">
-                  <PhotoUploadZone memoryId={memory.id} stopId={stop.id} addPhoto={addPhoto} />
+                  <PhotoUploadZone memoryId={memory.id} stops={stops} activities={activities} dining={dining} addPhoto={addPhoto} />
                 </div>
               </div>
             </div>
@@ -234,7 +234,7 @@ export default function MemoryTimeline({ memory, entries, stops, activities, din
 
           {/* Last opp bilder uten stopp */}
           <div className="mt-3">
-            <PhotoUploadZone memoryId={memory.id} stopId={null} addPhoto={addPhoto} />
+            <PhotoUploadZone memoryId={memory.id} stops={stops} activities={activities} dining={dining} addPhoto={addPhoto} />
           </div>
         </div>
       )}
