@@ -72,6 +72,8 @@ interface PlanningMapProps {
   cityTripMode?: boolean
   /** When true, store country name (not state) when adding stops (international road trips) */
   useCountryForState?: boolean
+  /** When true, home_end pin shows a number (N+1) instead of the return arrow */
+  differentEndLocation?: boolean
 }
 
 
@@ -1424,6 +1426,7 @@ export default function PlanningMap({
   cityTripMode = false,
   useCountryForState = false,
   tripDateFrom = null,
+  differentEndLocation = false,
 }: PlanningMapProps) {
   const [pendingStop, setPendingStop] = useState<PendingStop | null>(null)
   const [poiPlaceId, setPoiPlaceId] = useState<string | null>(null)
@@ -1475,6 +1478,7 @@ export default function PlanningMap({
       nights,
       notes: null,
       created_at: new Date().toISOString(),
+      stop_type: 'stop',
     }
     onAddStop(newStop)
     setPendingStop(null)
@@ -1519,17 +1523,35 @@ export default function PlanningMap({
           <MapController center={mapCenter} stops={stops} fitPoints={mapFitPoints} forcePanVersion={mapForcePanVersion} />
 
           {/* Stoppesteder */}
-          {stops.map((stop, index) => (
-            <StopMarker
-              key={stop.id}
-              stop={stop}
-              index={index}
-              isSelected={stop.id === selectedStopId}
-              onClick={() => onSelectStop(stop.id)}
-              hotelName={hotels.find((h) => h.stop_id === stop.id)?.name || undefined}
-              showHotelIcon={cityTripMode && index === 0}
-            />
-          ))}
+          {(() => {
+            const regularCount = stops.filter((s) => s.stop_type === 'stop').length
+            let regularIndex = 0
+            return stops.map((stop) => {
+              const isHomeStart = stop.stop_type === 'home_start'
+              const isHomeEnd   = stop.stop_type === 'home_end'
+              const isRegular   = stop.stop_type === 'stop'
+              const idx = isRegular ? regularIndex : 0
+              if (isRegular) regularIndex++
+              const pinLabel = isHomeStart
+                ? '0'
+                : isHomeEnd
+                ? (differentEndLocation ? String(regularCount + 1) : '↩')
+                : undefined
+              return (
+                <StopMarker
+                  key={stop.id}
+                  stop={stop}
+                  index={idx}
+                  isSelected={stop.id === selectedStopId}
+                  onClick={() => onSelectStop(stop.id)}
+                  hotelName={hotels.find((h) => h.stop_id === stop.id)?.name || undefined}
+                  showHotelIcon={cityTripMode && isRegular && idx === 0}
+                  stopType={stop.stop_type}
+                  pinLabel={pinLabel}
+                />
+              )
+            })
+          })()}
 
           {/* Aktivitetsmarkører */}
           {pinnedActivities.map((activity) => (
@@ -1588,6 +1610,7 @@ export default function PlanningMap({
                 nights: 0,
                 notes: null,
                 created_at: '',
+                stop_type: 'stop',
               }}
               index={-1}
               isSelected={false}

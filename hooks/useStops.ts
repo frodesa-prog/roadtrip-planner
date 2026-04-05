@@ -75,10 +75,14 @@ export function useStops(tripId: string | null) {
 
   const reorderStops = useCallback(
     async (reordered: Stop[]) => {
-      setStops(reordered)
-      // Oppdater order-felt for alle berørte stopp
+      // Only reorder regular stops – never touch home_start / home_end order values
+      const regularOnly = reordered.filter((s) => s.stop_type === 'stop')
+      setStops((prev) => {
+        const homeStops = prev.filter((s) => s.stop_type !== 'stop')
+        return [...homeStops, ...regularOnly].sort((a, b) => a.order - b.order)
+      })
       await Promise.all(
-        reordered.map((s, i) =>
+        regularOnly.map((s, i) =>
           supabase.from('stops').update({ order: i }).eq('id', s.id)
         )
       )
@@ -97,10 +101,15 @@ export function useStops(tripId: string | null) {
     [supabase]
   )
 
+  // Derived lists for consumers
+  const homeStart     = useMemo(() => stops.find((s) => s.stop_type === 'home_start') ?? null, [stops])
+  const homeEnd       = useMemo(() => stops.find((s) => s.stop_type === 'home_end')   ?? null, [stops])
+  const regularStops  = useMemo(() => stops.filter((s) => s.stop_type === 'stop'),              [stops])
+
   // Last inn stopp når tripId endres
   useEffect(() => {
     loadStops()
   }, [loadStops])
 
-  return { stops, loading, addStop, removeStop, reorderStops, updateStop }
+  return { stops, loading, addStop, removeStop, reorderStops, updateStop, homeStart, homeEnd, regularStops }
 }

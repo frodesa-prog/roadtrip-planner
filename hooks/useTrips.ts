@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Trip, NewTripData } from '@/types'
+import { Trip, NewTripData, GeoResult } from '@/types'
 import { toast } from 'sonner'
 import { logActivity } from '@/hooks/useActivityLog'
 
@@ -88,7 +88,8 @@ export function useTrips() {
 
       const { name, year, trip_type, has_flight, has_car_rental, transport_type,
               date_from, date_to, destination_city, destination_country,
-              description, city_lat, city_lng, road_trip_region } = tripData
+              description, city_lat, city_lng, road_trip_region,
+              different_end_location, start_stop, end_stop } = tripData
 
       const { data, error } = await supabase
         .from('trips')
@@ -105,6 +106,7 @@ export function useTrips() {
           description: description ?? null,
           group_description: description ?? null,
           road_trip_region: road_trip_region ?? null,
+          different_end_location: different_end_location ?? false,
         })
         .select()
         .single()
@@ -118,6 +120,35 @@ export function useTrips() {
       setTrips((prev) => [newTrip, ...prev])
       toast.success(`"${name}" er opprettet! 🗺️`)
       logActivity({ log_type: 'database', action: 'INSERT', entity_type: 'trip', entity_name: name, trip_id: newTrip.id })
+
+      // For road trips: create home_start and home_end stops if a start location was given
+      if (trip_type === 'road_trip' && start_stop) {
+        const endData: GeoResult = (different_end_location && end_stop) ? end_stop : start_stop
+        await Promise.all([
+          supabase.from('stops').insert({
+            trip_id: newTrip.id,
+            city: start_stop.city,
+            state: start_stop.state,
+            lat: start_stop.lat,
+            lng: start_stop.lng,
+            order: -1,
+            stop_type: 'home_start',
+            nights: 0,
+            arrival_date: date_from ?? null,
+          }),
+          supabase.from('stops').insert({
+            trip_id: newTrip.id,
+            city: endData.city,
+            state: endData.state,
+            lat: endData.lat,
+            lng: endData.lng,
+            order: 10000,
+            stop_type: 'home_end',
+            nights: 0,
+            arrival_date: date_to ?? null,
+          }),
+        ])
+      }
 
       // For city trips (storbytur/resort): auto-create single city stop from geocoded coordinates
       if (trip_type !== 'road_trip' && city_lat != null && city_lng != null && destination_city) {

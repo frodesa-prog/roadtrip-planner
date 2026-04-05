@@ -98,12 +98,17 @@ export default function SummaryPage() {
     | { mode: 'edit'; note: Note }
   const [noteModal, setNoteModal] = useState<NoteModalState | null>(null)
 
+  // ── Home stops derived ───────────────────────────────────────────────────────
+  const homeStart    = useMemo(() => stops.find((s) => s.stop_type === 'home_start') ?? null, [stops])
+  const homeEnd      = useMemo(() => stops.find((s) => s.stop_type === 'home_end')   ?? null, [stops])
+  const regularStops = useMemo(() => stops.filter((s) => s.stop_type === 'stop'), [stops])
+
   // ── Derived data ────────────────────────────────────────────────────────────
 
-  // Map: ISO date → Stop active on that day
+  // Map: ISO date → Stop active on that day (regular stops only for color/hotel logic)
   const stopsByDate = useMemo(() => {
     const map: Record<string, Stop> = {}
-    stops.forEach((stop) => {
+    regularStops.forEach((stop) => {
       if (!stop.arrival_date) return
       for (let n = 0; n < Math.max(1, stop.nights); n++) {
         const d = new Date(stop.arrival_date + 'T12:00:00')
@@ -113,21 +118,21 @@ export default function SummaryPage() {
     })
     // Siste dag (date_to / utreisedag) merkes med siste stopp
     if (currentTrip?.date_to) {
-      const lastStop = stops.filter((s) => s.arrival_date).at(-1)
+      const lastStop = regularStops.filter((s) => s.arrival_date).at(-1)
       if (lastStop && !map[currentTrip.date_to]) {
         map[currentTrip.date_to] = lastStop
       }
     }
     return map
-  }, [stops, currentTrip?.date_to])
+  }, [regularStops, currentTrip?.date_to])
 
-  // Set of arrival dates
+  // Set of arrival dates (regular stops only)
   const arrivalDates = useMemo(
-    () => new Set(stops.filter((s) => s.arrival_date).map((s) => s.arrival_date!)),
-    [stops]
+    () => new Set(regularStops.filter((s) => s.arrival_date).map((s) => s.arrival_date!)),
+    [regularStops]
   )
 
-  // Map: arrival ISO date → driving leg arriving at that stop
+  // Map: arrival ISO date → driving leg arriving at that stop (use full stops for leg indexing)
   const legByArrivalDate = useMemo(() => {
     const map: Record<string, LegInfo | null> = {}
     stops.forEach((stop, i) => {
@@ -150,11 +155,11 @@ export default function SummaryPage() {
     return map
   }, [stops])
 
-  // Map: stop id → palette index
+  // Map: stop id → palette index (regular stops only)
   // Strategy: first use a color no other stop has ever received (prefer unique);
   // only recycle when all 11 colors are exhausted, avoiding proximity conflicts.
   const stopPaletteIndex = useMemo(() => {
-    const sorted = [...stops].sort((a, b) => a.order - b.order)
+    const sorted = [...regularStops].sort((a, b) => a.order - b.order)
     const assigned: number[] = []
     sorted.forEach((stop, i) => {
       // Colors forbidden by proximity (calendar adjacency ≤ 21 days or adjacent in sequence)
@@ -210,7 +215,7 @@ export default function SummaryPage() {
   const activitiesByDate = useMemo(() => {
     const map: Record<string, Activity[]> = {}
     activities.forEach((act) => {
-      const date = act.activity_date ?? (stops.find((s) => s.id === act.stop_id)?.arrival_date ?? null)
+      const date = act.activity_date ?? (regularStops.find((s) => s.id === act.stop_id)?.arrival_date ?? null)
       if (!date) return
       if (!map[date]) map[date] = []
       map[date].push(act)
@@ -222,7 +227,7 @@ export default function SummaryPage() {
   const diningByDate = useMemo(() => {
     const map: Record<string, Dining[]> = {}
     dining.forEach((d) => {
-      const date = d.booking_date ?? (stops.find((s) => s.id === d.stop_id)?.arrival_date ?? null)
+      const date = d.booking_date ?? (regularStops.find((s) => s.id === d.stop_id)?.arrival_date ?? null)
       if (!date) return
       if (!map[date]) map[date] = []
       map[date].push(d)
@@ -230,8 +235,8 @@ export default function SummaryPage() {
     return map
   }, [dining, stops])
 
-  // Calendar week grid
-  const weeks = useMemo(() => buildWeeks(stops), [stops])
+  // Calendar week grid (build from regular stops only to avoid extending for home stops)
+  const weeks = useMemo(() => buildWeeks(regularStops), [regularStops])
 
   // Map: ISO date → Flight on that day
   const flightsByDate = useMemo(() => {
@@ -246,7 +251,7 @@ export default function SummaryPage() {
     const map: Record<string, Note[]> = {}
     notes.filter((n) => n.stop_id).forEach((note) => {
       const date = note.note_date
-        ?? stops.find((s) => s.id === note.stop_id)?.arrival_date
+        ?? regularStops.find((s) => s.id === note.stop_id)?.arrival_date
         ?? null
       if (!date) return
       if (!map[date]) map[date] = []
@@ -257,11 +262,11 @@ export default function SummaryPage() {
 
   const unattachedNotes = useMemo(() => notes.filter((n) => !n.stop_id), [notes])
 
-  // Unique countries for international road trips
+  // Unique countries for international road trips (regular stops only, exclude home origin)
   const countriesVisited = useMemo(() => {
     if (currentTrip?.road_trip_region !== 'international') return null
-    return [...new Set(stops.map((s) => s.state).filter(Boolean) as string[])]
-  }, [stops, currentTrip?.road_trip_region])
+    return [...new Set(regularStops.map((s) => s.state).filter(Boolean) as string[])]
+  }, [regularStops, currentTrip?.road_trip_region])
 
   // Selected stop (from clicked date)
   const selectedStop = selectedDate ? (stopsByDate[selectedDate] ?? null) : null
@@ -271,7 +276,7 @@ export default function SummaryPage() {
     : null
   const selectedStopIndex = selectedStop ? (stopPaletteIndex[selectedStop.id] ?? 0) : 0
 
-  const hasEnoughData = stops.length > 0 && stops.some((s) => s.arrival_date)
+  const hasEnoughData = regularStops.length > 0 && regularStops.some((s) => s.arrival_date)
 
   // Detail panel labels for clicked day
   const tripDayLabel = useMemo(() => {
@@ -297,8 +302,8 @@ export default function SummaryPage() {
     return `${nightNum} av ${selectedStop.nights} netter`
   }, [selectedDate, selectedStop])
 
-  // Date range label
-  const dated = stops.filter((s) => s.arrival_date)
+  // Date range label (use regular stops only)
+  const dated = regularStops.filter((s) => s.arrival_date)
   const firstStop = dated[0]
   const lastStop = dated[dated.length - 1]
   const dateRange = firstStop && lastStop
@@ -331,13 +336,13 @@ export default function SummaryPage() {
       `}>
         <TripManager currentTrip={currentTrip} loading={tripsLoading} />
 
-        {currentTrip && !stopsLoading && stops.filter((s) => s.arrival_date).length > 0 && (
+        {currentTrip && !stopsLoading && regularStops.filter((s) => s.arrival_date).length > 0 && (
           <div className="flex-1 overflow-y-auto py-3 flex flex-col">
             <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide px-4 mb-2">
               Stoppesteder
             </p>
             <div className="px-2">
-              {stops.filter((s) => s.arrival_date).map((stop) => {
+              {regularStops.filter((s) => s.arrival_date).map((stop) => {
                 const pal = PALETTES[stopPaletteIndex[stop.id] ?? 0]
                 const hotel = hotels.find((h) => h.stop_id === stop.id)
                 const hotelUrl = hotel?.url ?? null
@@ -409,7 +414,7 @@ export default function SummaryPage() {
           </div>
         )}
 
-        {(!currentTrip || stopsLoading || stops.filter((s) => s.arrival_date).length === 0) && (
+        {(!currentTrip || stopsLoading || regularStops.filter((s) => s.arrival_date).length === 0) && (
           <div className="flex-1" />
         )}
       </div>
@@ -487,7 +492,7 @@ export default function SummaryPage() {
               </div>
 
               {/* Missing-hotel legend – vises kun hvis minst ett stopp mangler bekreftet hotell */}
-              {stops.some((s) => s.arrival_date && !confirmedHotelStopIds.has(s.id)) && (
+              {regularStops.some((s) => s.arrival_date && !confirmedHotelStopIds.has(s.id)) && (
                 <div className="flex items-center gap-2 text-xs mb-4 px-2.5 py-1.5 rounded-md bg-red-950/30 border border-red-800/30 w-fit">
                   <span className="w-3.5 h-3.5 rounded border-2 border-red-600/70 flex-shrink-0" />
                   <span className="text-slate-400">Dager med rød ring mangler bekreftet hotell</span>
@@ -540,6 +545,15 @@ export default function SummaryPage() {
                           showHotelWarning={currentTrip?.trip_type === 'road_trip'}
                           showDetailed={showDetailed}
                           onClick={stop ? () => { setSidebarStopId(null); setSelectedDate(isSelected ? null : dateStr) } : undefined}
+                          isHomeDeparture={!!(homeStart?.arrival_date && dateStr === homeStart.arrival_date)}
+                          isHomeArrival={!!(homeEnd?.arrival_date && dateStr === homeEnd.arrival_date)}
+                          homeCity={
+                            homeStart?.arrival_date && dateStr === homeStart.arrival_date
+                              ? homeStart.city
+                              : homeEnd?.arrival_date && dateStr === homeEnd.arrival_date
+                              ? homeEnd.city
+                              : undefined
+                          }
                         />
                       )
                     })}
@@ -736,6 +750,9 @@ function DayCell({
   showHotelWarning = false,
   showDetailed = false,
   onClick,
+  isHomeDeparture = false,
+  isHomeArrival = false,
+  homeCity,
 }: {
   date: Date
   stop: Stop | null
@@ -758,6 +775,11 @@ function DayCell({
   showHotelWarning?: boolean
   showDetailed?: boolean
   onClick?: () => void
+  /** Show a green home-departure banner (road trip start date) */
+  isHomeDeparture?: boolean
+  /** Show a teal home-arrival banner (road trip end date) */
+  isHomeArrival?: boolean
+  homeCity?: string
 }) {
   const isFirstOfMonth = date.getDate() === 1
 
@@ -801,6 +823,18 @@ function DayCell({
       {stop && (
         <p className="text-[11px] font-semibold truncate leading-tight mt-0.5 text-slate-200">
           {isArrival && fromCity ? `${fromCity} – ${stop.city}` : stop.city}
+        </p>
+      )}
+
+      {/* Home departure / arrival banner */}
+      {isHomeDeparture && (
+        <p className="text-[9px] font-semibold text-green-400 mt-0.5 truncate">
+          🏠 Avreise{homeCity ? ` fra ${homeCity}` : ''}
+        </p>
+      )}
+      {isHomeArrival && (
+        <p className="text-[9px] font-semibold text-teal-400 mt-0.5 truncate">
+          🏠 Hjemkomst{homeCity ? ` til ${homeCity}` : ''}
         </p>
       )}
 

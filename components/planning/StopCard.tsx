@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
-import { Stop, Hotel as HotelType, Activity, Dining, PossibleActivity } from '@/types'
+import { ChevronUp, ChevronDown, Trash2, Home } from 'lucide-react'
+import { Stop, Hotel as HotelType, Activity, Dining, PossibleActivity, StopType } from '@/types'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { countryFlag } from '@/lib/countryFlag'
 
@@ -16,6 +16,9 @@ interface StopCardProps {
   dining: Dining[]
   possibleActivities: PossibleActivity[]
   isInternational?: boolean
+  /** For home_start / home_end stops – custom pin label and suppressed controls */
+  stopType?: StopType
+  pinLabel?: string
   onSelect: () => void
   onRemove: () => void
   onMoveUp: () => void
@@ -32,12 +35,15 @@ export default function StopCard({
   dining,
   possibleActivities,
   isInternational = false,
+  stopType = 'stop',
+  pinLabel,
   onSelect,
   onRemove,
   onMoveUp,
   onMoveDown,
 }: StopCardProps) {
   const [showConfirm, setShowConfirm] = useState(false)
+  const isHomeStop = stopType === 'home_start' || stopType === 'home_end'
 
   const displayDate = stop.arrival_date
     ? new Date(stop.arrival_date + 'T12:00:00').toLocaleDateString('nb-NO', {
@@ -51,9 +57,17 @@ export default function StopCard({
     <>
       <div
         className={`rounded-xl border transition-all duration-150 ${
-          isSelected
-            ? 'border-blue-500 bg-blue-950/40 shadow-md shadow-blue-900/30'
-            : 'border-slate-700 bg-slate-800/80 hover:border-slate-500 hover:bg-slate-800'
+          isHomeStop
+            ? isSelected
+              ? stopType === 'home_start'
+                ? 'border-green-500 bg-green-950/40'
+                : 'border-teal-500 bg-teal-950/40'
+              : stopType === 'home_start'
+                ? 'border-green-800/60 bg-slate-800/60 hover:border-green-600'
+                : 'border-teal-800/60 bg-slate-800/60 hover:border-teal-600'
+            : isSelected
+              ? 'border-blue-500 bg-blue-950/40 shadow-md shadow-blue-900/30'
+              : 'border-slate-700 bg-slate-800/80 hover:border-slate-500 hover:bg-slate-800'
         }`}
       >
         {/* Main clickable row */}
@@ -61,11 +75,19 @@ export default function StopCard({
           className="flex items-center gap-3 px-3 py-2.5 cursor-pointer"
           onClick={onSelect}
         >
-          {/* Index badge */}
+          {/* Index / home badge */}
           <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-            isSelected ? 'bg-orange-500' : 'bg-blue-600'
+            isHomeStop
+              ? stopType === 'home_start'
+                ? 'bg-green-600'
+                : 'bg-teal-600'
+              : isSelected
+                ? 'bg-orange-500'
+                : 'bg-blue-600'
           }`}>
-            {index + 1}
+            {isHomeStop
+              ? (pinLabel ?? (stopType === 'home_start' ? '0' : '↩'))
+              : (index + 1)}
           </div>
 
           {/* Stop info */}
@@ -82,70 +104,85 @@ export default function StopCard({
               )}
             </p>
 
-            {/* Date · nights · hotel — all on one line */}
-            <div className="flex items-center gap-2 mt-0.5 min-w-0 overflow-hidden">
-              {displayDate && (
-                <span className="text-xs text-slate-400 flex-shrink-0">{displayDate}</span>
-              )}
-              <span className="text-xs text-slate-500 flex-shrink-0">
-                {stop.nights} {stop.nights === 1 ? 'natt' : 'netter'}
-              </span>
-              {hotel?.name ? (
-                <span className={`text-xs truncate min-w-0 ${hotelBooked ? 'text-green-400' : 'text-slate-400'}`}>
-                  {hotelBooked ? '✓ ' : ''}{hotel.name}
+            {/* Date — home stops show date only, no nights/hotel */}
+            {isHomeStop ? (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Home className={`w-3 h-3 flex-shrink-0 ${stopType === 'home_start' ? 'text-green-500' : 'text-teal-500'}`} />
+                <span className="text-xs text-slate-400">
+                  {stopType === 'home_start' ? 'Startsted' : 'Sluttsted'}
+                  {displayDate ? ` · ${displayDate}` : ''}
                 </span>
-              ) : hotelBooked ? (
-                <span className="text-xs text-green-400 flex-shrink-0">✓ Hotell</span>
-              ) : (
-                <span className="text-xs text-red-600 flex-shrink-0">Mangler hotell</span>
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                {/* Date · nights · hotel — all on one line */}
+                <div className="flex items-center gap-2 mt-0.5 min-w-0 overflow-hidden">
+                  {displayDate && (
+                    <span className="text-xs text-slate-400 flex-shrink-0">{displayDate}</span>
+                  )}
+                  <span className="text-xs text-slate-500 flex-shrink-0">
+                    {stop.nights} {stop.nights === 1 ? 'natt' : 'netter'}
+                  </span>
+                  {hotel?.name ? (
+                    <span className={`text-xs truncate min-w-0 ${hotelBooked ? 'text-green-400' : 'text-slate-400'}`}>
+                      {hotelBooked ? '✓ ' : ''}{hotel.name}
+                    </span>
+                  ) : hotelBooked ? (
+                    <span className="text-xs text-green-400 flex-shrink-0">✓ Hotell</span>
+                  ) : (
+                    <span className="text-xs text-red-600 flex-shrink-0">Mangler hotell</span>
+                  )}
+                </div>
 
-            {/* Aktiviteter · spisesteder · mulige aktiviteter — én rad */}
-            {(activities.length > 0 || dining.length > 0 || possibleActivities.length > 0) && (
-              <p className="text-xs text-purple-400 mt-0.5 flex items-center gap-1.5">
-                {activities.length > 0 && (
-                  <span>{activities.length} aktivitet{activities.length !== 1 ? 'er' : ''}</span>
+                {/* Aktiviteter · spisesteder · mulige aktiviteter — én rad */}
+                {(activities.length > 0 || dining.length > 0 || possibleActivities.length > 0) && (
+                  <p className="text-xs text-purple-400 mt-0.5 flex items-center gap-1.5">
+                    {activities.length > 0 && (
+                      <span>{activities.length} aktivitet{activities.length !== 1 ? 'er' : ''}</span>
+                    )}
+                    {activities.length > 0 && dining.length > 0 && (
+                      <span className="text-purple-700">·</span>
+                    )}
+                    {dining.length > 0 && (
+                      <span>{dining.length} spise{dining.length !== 1 ? 'steder' : 'sted'}</span>
+                    )}
+                    {(activities.length > 0 || dining.length > 0) && possibleActivities.length > 0 && (
+                      <span className="text-purple-700">·</span>
+                    )}
+                    {possibleActivities.length > 0 && (
+                      <span>{possibleActivities.length} mulig{possibleActivities.length !== 1 ? 'e' : ''}</span>
+                    )}
+                  </p>
                 )}
-                {activities.length > 0 && dining.length > 0 && (
-                  <span className="text-purple-700">·</span>
-                )}
-                {dining.length > 0 && (
-                  <span>{dining.length} spise{dining.length !== 1 ? 'steder' : 'sted'}</span>
-                )}
-                {(activities.length > 0 || dining.length > 0) && possibleActivities.length > 0 && (
-                  <span className="text-purple-700">·</span>
-                )}
-                {possibleActivities.length > 0 && (
-                  <span>{possibleActivities.length} mulig{possibleActivities.length !== 1 ? 'e' : ''}</span>
-                )}
-              </p>
+              </>
             )}
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={onMoveUp}
-              disabled={index === 0}
-              className="p-1 rounded hover:bg-slate-700 disabled:opacity-20 text-slate-500"
-            >
-              <ChevronUp className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onMoveDown}
-              disabled={index === totalStops - 1}
-              className="p-1 rounded hover:bg-slate-700 disabled:opacity-20 text-slate-500"
-            >
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setShowConfirm(true)}
-              className="p-1 rounded hover:bg-red-900/30 text-slate-600 hover:text-red-400"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          {/* Action buttons – hidden for home stops */}
+          {!isHomeStop && (
+            <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={onMoveUp}
+                disabled={index === 0}
+                className="p-1 rounded hover:bg-slate-700 disabled:opacity-20 text-slate-500"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={onMoveDown}
+                disabled={index === totalStops - 1}
+                className="p-1 rounded hover:bg-slate-700 disabled:opacity-20 text-slate-500"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setShowConfirm(true)}
+                className="p-1 rounded hover:bg-red-900/30 text-slate-600 hover:text-red-400"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

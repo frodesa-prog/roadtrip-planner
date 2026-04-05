@@ -613,6 +613,7 @@ export default function PlanPage() {
               }}
               onPoiAction={poiAction()}
               useCountryForState={currentTrip?.road_trip_region === 'international'}
+              differentEndLocation={currentTrip?.different_end_location ?? false}
             />
           )}
         </div>

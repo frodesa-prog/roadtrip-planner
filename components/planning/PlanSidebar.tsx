@@ -102,13 +102,18 @@ export default function PlanSidebar({
   }
   const drivingLegs = useDrivingInfo(stops, routeLegs)
 
-  // ── Auto-cascade arrival dates ──────────────────────────────────────────────
+  // ── Separate home stops from regular stops ──────────────────────────────────
+  const homeStart     = stops.find((s) => s.stop_type === 'home_start') ?? null
+  const homeEnd       = stops.find((s) => s.stop_type === 'home_end')   ?? null
+  const regularStops  = stops.filter((s) => s.stop_type === 'stop')
+
+  // ── Auto-cascade arrival dates (regular stops only) ─────────────────────────
   useEffect(() => {
-    if (stops.length < 2) return
-    stops.forEach((stop, i) => {
-      if (i === stops.length - 1) return
+    if (regularStops.length < 2) return
+    regularStops.forEach((stop, i) => {
+      if (i === regularStops.length - 1) return
       if (!stop.arrival_date) return  // 0 netter tillatt – neste stopp får samme dato
-      const next = stops[i + 1]
+      const next = regularStops[i + 1]
       const d = new Date(stop.arrival_date + 'T12:00:00')
       d.setDate(d.getDate() + stop.nights)
       const computed = d.toISOString().split('T')[0]
@@ -117,41 +122,49 @@ export default function PlanSidebar({
       }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stops.map((s) => `${s.id}:${s.arrival_date}:${s.nights}`).join('|')])
+  }, [regularStops.map((s) => `${s.id}:${s.arrival_date}:${s.nights}`).join('|')])
 
-  // ── Arrival times (from departure time chain) ───────────────────────────────
+  // ── Arrival times (from departure time chain, all stops) ────────────────────
   const arrivalTimes: Record<string, string> = {}
   stops.forEach((stop, i) => {
     if (i === 0) return
     const prevDeparture = departureTimes[stops[i - 1].id]
-    const leg = drivingLegs[i - 1]
+    const leg = drivingLegs[drivingLegIndex(i)]
     if (prevDeparture && leg) {
       arrivalTimes[stop.id] = addMinutes(prevDeparture, leg.durationMinutes)
     }
   })
 
-  const totalNights = stops.reduce((sum, s) => sum + s.nights, 0)
+  const totalNights = regularStops.reduce((sum, s) => sum + s.nights, 0)
   const totalKm = drivingLegs.reduce((sum, l) => sum + (l?.distanceKm ?? 0), 0)
   const statesVisited = (() => {
     if (currentTrip?.road_trip_region === 'international') {
       // For internasjonale turer brukes routeStates som er geocodet direkte
       // fra hvert stoppesteds koordinater → eksakte land uavhengig av DB-data.
       // Faller tilbake til state-feltet hvis kartet ikke er lastet ennå.
-      if (routeStates && routeStates.length > 0) return new Set(routeStates).size
-      return new Set(stops.map((s) => s.state).filter(Boolean)).size
+      const intlStates = routeStates && routeStates.length > 0
+        ? routeStates
+        : regularStops.map((s) => s.state).filter(Boolean) as string[]
+      return new Set(intlStates).size
     }
     // USA: kombiner delstater fra stopp + delstater langs hele ruten
-    const all = new Set(stops.map((s) => s.state).filter(Boolean) as string[])
+    const all = new Set(regularStops.map((s) => s.state).filter(Boolean) as string[])
     for (const s of (routeStates ?? [])) all.add(s)
     return all.size
   })()
 
-  function moveStop(index: number, direction: 'up' | 'down') {
-    const updated = [...stops]
-    const swapIndex = direction === 'up' ? index - 1 : index + 1
+  function moveStop(regularIndex: number, direction: 'up' | 'down') {
+    const updated = [...regularStops]
+    const swapIndex = direction === 'up' ? regularIndex - 1 : regularIndex + 1
     if (swapIndex < 0 || swapIndex >= updated.length) return
-    ;[updated[index], updated[swapIndex]] = [updated[swapIndex], updated[index]]
+    ;[updated[regularIndex], updated[swapIndex]] = [updated[swapIndex], updated[regularIndex]]
     onReorderStops(updated.map((s, i) => ({ ...s, order: i })))
+  }
+
+  // Helper: get driving leg index for a stop within the full stops array
+  // (home_start is index 0 in all-stops, so regular stops are offset by 1 when home_start exists)
+  function drivingLegIndex(stopInAllStops: number): number {
+    return stopInAllStops - 1
   }
 
   return (
@@ -245,7 +258,7 @@ export default function PlanSidebar({
             <div className="flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-blue-400" />
               <span className="text-xs text-slate-400">
-                <span className="font-semibold text-slate-200">{stops.length}</span> stopp
+                <span className="font-semibold text-slate-200">{regularStops.length}</span> stopp
               </span>
             </div>
             <span className="text-xs text-slate-400">
@@ -323,7 +336,7 @@ export default function PlanSidebar({
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="text-sm">Laster stopp…</span>
             </div>
-          ) : stops.length === 0 ? (
+          ) : regularStops.length === 0 && !homeStart ? (
             <div className="flex flex-col items-center justify-center h-48 text-center px-4">
               <div className="bg-slate-800 rounded-full p-4 mb-3">
                 <MapPin className="w-8 h-8 text-slate-600" />
@@ -331,13 +344,32 @@ export default function PlanSidebar({
               <p className="text-slate-400 text-sm font-medium">Ingen stopp ennå</p>
               <p className="text-slate-500 text-xs mt-1">Søk etter en by eller klikk på kartet</p>
             </div>
-          ) : (
-            stops.map((stop, index) => {
-              const leg = index > 0 ? drivingLegs[index - 1] : null
+          ) : (() => {
+            // Build an ordered render list: [homeStart?, ...regularStops, homeEnd?]
+            // For driving connectors we use the index in the full `stops` array
+            const renderItems: { stop: Stop; allStopsIndex: number }[] = []
+            if (homeStart) {
+              const idx = stops.findIndex((s) => s.id === homeStart.id)
+              renderItems.push({ stop: homeStart, allStopsIndex: idx })
+            }
+            regularStops.forEach((s) => {
+              const idx = stops.findIndex((st) => st.id === s.id)
+              renderItems.push({ stop: s, allStopsIndex: idx })
+            })
+            if (homeEnd) {
+              const idx = stops.findIndex((s) => s.id === homeEnd.id)
+              renderItems.push({ stop: homeEnd, allStopsIndex: idx })
+            }
+
+            return renderItems.map(({ stop, allStopsIndex }, renderIndex) => {
+              const isHome = stop.stop_type === 'home_start' || stop.stop_type === 'home_end'
+              const regularIndex = regularStops.findIndex((s) => s.id === stop.id)
+              const leg = renderIndex > 0 ? drivingLegs[drivingLegIndex(allStopsIndex)] : null
+
               return (
                 <div key={stop.id}>
-                  {/* Drive connector */}
-                  {index > 0 && (
+                  {/* Drive connector between items */}
+                  {renderIndex > 0 && (
                     <div className="flex items-center gap-2 px-3 py-1.5">
                       <div className="flex-1 border-t border-dashed border-slate-700" />
                       {leg === null ? (
@@ -359,23 +391,31 @@ export default function PlanSidebar({
                   )}
                   <StopCard
                     stop={stop}
-                    index={index}
-                    totalStops={stops.length}
+                    index={isHome ? 0 : regularIndex}
+                    totalStops={regularStops.length}
                     isSelected={stop.id === selectedStopId}
                     hotel={hotels.find((h) => h.stop_id === stop.id) ?? null}
                     activities={activities.filter((a) => a.stop_id === stop.id)}
                     dining={dining.filter((d) => d.stop_id === stop.id)}
                     possibleActivities={possibleActivities.filter((p) => p.stop_id === stop.id)}
                     isInternational={currentTrip?.road_trip_region === 'international'}
+                    stopType={stop.stop_type}
+                    pinLabel={
+                      stop.stop_type === 'home_start'
+                        ? '0'
+                        : stop.stop_type === 'home_end'
+                        ? (currentTrip?.different_end_location ? String(regularStops.length + 1) : '↩')
+                        : undefined
+                    }
                     onSelect={() => onSelectStop(stop.id)}
                     onRemove={() => onRemoveStop(stop.id)}
-                    onMoveUp={() => moveStop(index, 'up')}
-                    onMoveDown={() => moveStop(index, 'down')}
+                    onMoveUp={() => !isHome && moveStop(regularIndex, 'up')}
+                    onMoveDown={() => !isHome && moveStop(regularIndex, 'down')}
                   />
                 </div>
               )
             })
-          )}
+          })()}
         </div>
       )}
 

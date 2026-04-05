@@ -4,6 +4,7 @@ export type BookingStatus = 'not_booked' | 'confirmed'
 export type TransportType = 'fly' | 'tog' | 'ingen'
 
 export type RoadTripRegion = 'usa' | 'international'
+export type StopType = 'home_start' | 'stop' | 'home_end'
 
 export interface Trip {
   id: string
@@ -25,6 +26,15 @@ export interface Trip {
   description: string | null
   transport_type: TransportType
   road_trip_region: RoadTripRegion | null  // 'usa' | 'international', null = legacy
+  different_end_location: boolean          // true = home_end is a different place than home_start
+}
+
+/** Geocoded address result used for road trip home stops */
+export interface GeoResult {
+  city: string
+  state: string   // US state short name OR country long name for international
+  lat: number
+  lng: number
 }
 
 export interface NewTripData {
@@ -42,6 +52,9 @@ export interface NewTripData {
   city_lat?: number | null
   city_lng?: number | null
   road_trip_region?: RoadTripRegion | null
+  different_end_location?: boolean
+  start_stop?: GeoResult | null   // home_start for road trips
+  end_stop?: GeoResult | null     // home_end for road trips (null = same as start)
 }
 
 export interface Stop {
@@ -56,6 +69,7 @@ export interface Stop {
   nights: number
   notes: string | null
   created_at: string
+  stop_type: StopType   // 'home_start' | 'stop' | 'home_end' – defaults to 'stop'
 }
 
 export interface Hotel {
