@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen, Globe } from 'lucide-react'
+import { countryFlag } from '@/lib/countryFlag'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTrips } from '@/hooks/useTrips'
@@ -256,6 +257,12 @@ export default function SummaryPage() {
 
   const unattachedNotes = useMemo(() => notes.filter((n) => !n.stop_id), [notes])
 
+  // Unique countries for international road trips
+  const countriesVisited = useMemo(() => {
+    if (currentTrip?.road_trip_region !== 'international') return null
+    return [...new Set(stops.map((s) => s.state).filter(Boolean) as string[])]
+  }, [stops, currentTrip?.road_trip_region])
+
   // Selected stop (from clicked date)
   const selectedStop = selectedDate ? (stopsByDate[selectedDate] ?? null) : null
   // Only show driving leg when the clicked date IS the arrival date (i.e. a driving day)
@@ -350,6 +357,11 @@ export default function SummaryPage() {
                       >
                         {stop.city}
                       </button>
+                      {currentTrip?.road_trip_region === 'international' && stop.state && countryFlag(stop.state) && (
+                        <span className="text-sm flex-shrink-0" title={stop.state}>
+                          {countryFlag(stop.state)}
+                        </span>
+                      )}
                       <span className="text-[10px] text-slate-500 truncate whitespace-nowrap">
                         {dateLabel}{stop.nights > 0 && ` · ${stop.nights}n`}
                       </span>
@@ -432,6 +444,26 @@ export default function SummaryPage() {
                 <div>
                   <h1 className="text-xl font-bold text-slate-100">{currentTrip.name}</h1>
                   {dateRange && <p className="text-sm text-slate-400 mt-0.5">{dateRange}</p>}
+                  {countriesVisited && countriesVisited.length > 0 && (
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <span className="flex items-center gap-1 text-xs text-slate-500">
+                        <Globe className="w-3.5 h-3.5" />
+                        <span className="font-semibold text-slate-300">{countriesVisited.length}</span> land
+                      </span>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {countriesVisited.map((country) => (
+                          <span
+                            key={country}
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[11px] text-slate-300"
+                            title={country}
+                          >
+                            {countryFlag(country) && <span>{countryFlag(country)}</span>}
+                            {country}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button

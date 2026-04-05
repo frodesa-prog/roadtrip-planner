@@ -366,6 +366,7 @@ export default function PlanSidebar({
                     activities={activities.filter((a) => a.stop_id === stop.id)}
                     dining={dining.filter((d) => d.stop_id === stop.id)}
                     possibleActivities={possibleActivities.filter((p) => p.stop_id === stop.id)}
+                    isInternational={currentTrip?.road_trip_region === 'international'}
                     onSelect={() => onSelectStop(stop.id)}
                     onRemove={() => onRemoveStop(stop.id)}
                     onMoveUp={() => moveStop(index, 'up')}

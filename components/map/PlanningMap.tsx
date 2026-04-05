@@ -856,7 +856,8 @@ interface PendingStop {
   fromSearch?: boolean
 }
 
-const USA_CENTER = { lat: 39.5, lng: -98.35 }
+const USA_CENTER    = { lat: 39.5,  lng: -98.35 }
+const EUROPE_CENTER = { lat: 54.5,  lng: 15.0   }
 
 // ─── Custom map controls (zoom + map type) ────────────────────────────────────
 
@@ -1500,7 +1501,7 @@ export default function PlanningMap({
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="relative w-full h-full">
         <Map
-          defaultCenter={USA_CENTER}
+          defaultCenter={useCountryForState ? EUROPE_CENTER : USA_CENTER}
           defaultZoom={4}
           onClick={handleMapClick}
           className="w-full h-full"

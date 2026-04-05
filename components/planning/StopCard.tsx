@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 import { Stop, Hotel as HotelType, Activity, Dining, PossibleActivity } from '@/types'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { countryFlag } from '@/lib/countryFlag'
 
 interface StopCardProps {
   stop: Stop
@@ -14,6 +15,7 @@ interface StopCardProps {
   activities: Activity[]
   dining: Dining[]
   possibleActivities: PossibleActivity[]
+  isInternational?: boolean
   onSelect: () => void
   onRemove: () => void
   onMoveUp: () => void
@@ -29,6 +31,7 @@ export default function StopCard({
   activities,
   dining,
   possibleActivities,
+  isInternational = false,
   onSelect,
   onRemove,
   onMoveUp,
@@ -67,10 +70,16 @@ export default function StopCard({
 
           {/* Stop info */}
           <div className="flex-1 min-w-0">
-            {/* City + state */}
+            {/* City + state/country */}
             <p className="font-semibold text-slate-100 text-sm truncate">
               {stop.city}
-              {stop.state && <span className="text-slate-500 font-normal">, {stop.state}</span>}
+              {stop.state && (
+                <span className="text-slate-500 font-normal">
+                  {isInternational
+                    ? <>{' '}{countryFlag(stop.state) && <span className="not-italic">{countryFlag(stop.state)}</span>} {stop.state}</>
+                    : `, ${stop.state}`}
+                </span>
+              )}
             </p>
 
             {/* Date · nights · hotel — all on one line */}
