@@ -201,8 +201,13 @@ function GroupedModal({ title, icon, groups, footer, onClose }: {
 type ModalType = 'countries' | 'trips' | 'km' | 'states' | 'usacities' | 'world' | 'dining' | null
 
 // ── Hoved-komponent ───────────────────────────────────────────────────────────
+// { id → { state: string|null, city: string|null } } for entries with own map_lat/lng
+type GeoCache = Record<string, { state: string | null; city: string | null }>
+
 export default function VacationStats({ trips, stops, activities, dining }: Props) {
   const [activeModal, setActiveModal] = useState<ModalType>(null)
+  // Reverse-geocodede stater/byer for aktiviteter og spisesteder med egne koordinater
+  const [entryGeo, setEntryGeo] = useState<GeoCache>({})
   // Faktisk kjørelengde fra Google Directions (beregnes asynkront)
   const [drivingKm, setDrivingKm] = useState<number | null>(null)
   const [kmLoading, setKmLoading] = useState(false)
@@ -263,6 +268,35 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trips.map(t => t.id).join(','), stops.map(s => s.id).join(',')])
 
+  // ── Reverse-geocode aktiviteter/spisesteder med egne koordinater ──────────
+  useEffect(() => {
+    // Samle alle entries som har sin egen lat/lng (kan være i annen stat enn foreldrestopp)
+    const toGeocode: { id: string; lat: number; lng: number }[] = []
+    activities.forEach(a => { if (a.map_lat != null && a.map_lng != null) toGeocode.push({ id: a.id, lat: a.map_lat, lng: a.map_lng }) })
+    dining.forEach(d => { if (d.map_lat != null && d.map_lng != null) toGeocode.push({ id: d.id, lat: d.map_lat, lng: d.map_lng }) })
+    if (!toGeocode.length) return
+
+    let cancelled = false
+    Promise.all(
+      toGeocode.map(({ id, lat, lng }) =>
+        fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
+          .then(r => r.json())
+          .then((geo: { state: string | null; city: string | null }) => ({ id, ...geo }))
+          .catch(() => ({ id, state: null, city: null }))
+      )
+    ).then(results => {
+      if (cancelled) return
+      const cache: GeoCache = {}
+      results.forEach(r => { cache[r.id] = { state: r.state, city: r.city } })
+      setEntryGeo(cache)
+    })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activities.map(a => `${a.id}:${a.map_lat},${a.map_lng}`).join('|'),
+    dining.map(d => `${d.id}:${d.map_lat},${d.map_lng}`).join('|'),
+  ])
+
   // ── Beregn statistikk (synkront, fra planlegger-data) ─────────────────────
   const stats = useMemo(() => {
     const tripMap = new globalThis.Map<string, Trip>(trips.map(t => [t.id, t] as [string, Trip]))
@@ -303,9 +337,24 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
       usaCityByState.get(stateFull)!.add(s.city.trim())
     })
 
-    // Inkluder stater fra aktiviteter/spisesteder – kun gyldige US-stater
+    // Inkluder stater/byer fra aktiviteter og spisesteder.
+    // Prioritet: egne koordinater (reverse-geocodet → entryGeo), fallback: foreldrestopp sin stat.
     const stopById = new globalThis.Map<string, Stop>(stops.map(s => [s.id, s] as [string, Stop]))
-    ;[...activities.map(a => a.stop_id), ...dining.map(d => d.stop_id)].forEach(stopId => {
+
+    const addEntryToStats = (entryId: string, stopId: string) => {
+      // 1) Bruk reverse-geocodet stat fra entrys egne koordinater hvis tilgjengelig
+      const geo = entryGeo[entryId]
+      if (geo?.state && isUSState(geo.state)) {
+        const full = expandStateName(geo.state)
+        stateMap.set(full.toLowerCase(), full)
+        const city = geo.city?.trim()
+        if (city) {
+          if (!usaCityByState.has(full)) usaCityByState.set(full, new globalThis.Set())
+          usaCityByState.get(full)!.add(city)
+        }
+        return
+      }
+      // 2) Fallback: foreldrestopp sin stat
       const s = stopById.get(stopId)
       if (!s?.state?.trim() || !isUSState(s.state)) return
       const full = expandStateName(s.state)
@@ -314,7 +363,9 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
         if (!usaCityByState.has(full)) usaCityByState.set(full, new globalThis.Set())
         usaCityByState.get(full)!.add(s.city.trim())
       }
-    })
+    }
+    activities.forEach(a => addEntryToStats(a.id, a.stop_id))
+    dining.forEach(d => addEntryToStats(d.id, d.stop_id))
 
     const usaStateList = Array.from(stateMap.values()).sort()
     // Dedup på tvers av stater: samme by kan stå i to stater – behold per stat
@@ -381,7 +432,7 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
       worldGroups, totalWorldCities,
       diningGroups, totalDining: dining.length,
     }
-  }, [trips, stops, activities, dining])
+  }, [trips, stops, activities, dining, entryGeo])
 
   // ── Modal-innhold ──────────────────────────────────────────────────────────
   const countriesItems: FlatItem[] = stats.countryList.map(c => ({ label: `${countryFlag(c)} ${c}` }))
