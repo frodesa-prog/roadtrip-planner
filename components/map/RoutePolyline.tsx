@@ -28,12 +28,11 @@ interface RoutePolylineProps {
   useCountry?: boolean
 }
 
-// ─── Geocode states along the route overview path ────────────────────────────
+// ─── Geocode states along the route overview path (USA) ─────────────────────
 
 async function geocodeRouteStates(
   result: google.maps.DirectionsResult,
   cb: (states: string[]) => void,
-  useCountry = false,
 ): Promise<void> {
   const path = result.routes[0]?.overview_path
   if (!path?.length) return
@@ -43,8 +42,7 @@ async function geocodeRouteStates(
   const step        = Math.max(1, Math.floor(path.length / sampleCount))
   const sampled     = path.filter((_, i) => i % step === 0)
 
-  const geocoder   = new google.maps.Geocoder()
-  const typeFilter = useCountry ? 'country' : 'administrative_area_level_1'
+  const geocoder = new google.maps.Geocoder()
 
   const states = await Promise.all(
     sampled.map((point) =>
@@ -52,15 +50,41 @@ async function geocodeRouteStates(
         .geocode({ location: point })
         .then(({ results }) => {
           const comp = results[0]?.address_components.find((c) =>
-            c.types.includes(typeFilter)
+            c.types.includes('administrative_area_level_1')
           )
-          return useCountry ? (comp?.long_name ?? null) : (comp?.short_name ?? null)
+          return comp?.short_name ?? null
         })
         .catch(() => null)
     )
   )
 
   const unique = [...new Set(states.filter((s): s is string => s !== null))]
+  cb(unique)
+}
+
+// ─── Geocode country at each actual stop (internasjonale turer) ──────────────
+
+async function geocodeStopCountries(
+  stops: Stop[],
+  cb: (countries: string[]) => void,
+): Promise<void> {
+  const geocoder = new google.maps.Geocoder()
+
+  const countries = await Promise.all(
+    stops.map((stop) =>
+      geocoder
+        .geocode({ location: { lat: stop.lat, lng: stop.lng } })
+        .then(({ results }) => {
+          const comp = results[0]?.address_components.find((c) =>
+            c.types.includes('country')
+          )
+          return comp?.long_name ?? null
+        })
+        .catch(() => null)
+    )
+  )
+
+  const unique = [...new Set(countries.filter((s): s is string => s !== null))]
   cb(unique)
 }
 
@@ -198,7 +222,10 @@ export default function RoutePolyline({
 
           // Geocode ruten umiddelbart ved første lasting
           const cb = onRouteStatesRef.current
-          if (cb) geocodeRouteStates(result, cb, useCountry)
+          if (cb) {
+            if (useCountry) geocodeStopCountries(stops, cb)
+            else geocodeRouteStates(result, cb)
+          }
         } else {
           console.warn('Directions API ikke tilgjengelig. Status:', status)
         }
@@ -240,10 +267,17 @@ export default function RoutePolyline({
         const statesCb = onRouteStatesRef.current
         if (statesCb && res) {
           if (statesTimerRef.current) clearTimeout(statesTimerRef.current)
-          statesTimerRef.current = setTimeout(
-            () => geocodeRouteStates(res, statesCb, useCountry),
-            800
-          )
+          if (useCountry) {
+            statesTimerRef.current = setTimeout(
+              () => geocodeStopCountries(stops, statesCb),
+              800
+            )
+          } else {
+            statesTimerRef.current = setTimeout(
+              () => geocodeRouteStates(res, statesCb),
+              800
+            )
+          }
         }
       })
     }

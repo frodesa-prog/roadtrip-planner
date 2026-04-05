@@ -133,13 +133,16 @@ export default function PlanSidebar({
   const totalNights = stops.reduce((sum, s) => sum + s.nights, 0)
   const totalKm = drivingLegs.reduce((sum, l) => sum + (l?.distanceKm ?? 0), 0)
   const statesVisited = (() => {
-    const all = new Set(stops.map((s) => s.state).filter(Boolean) as string[])
-    // For USA-turer telles delstater langs hele ruten (ikke bare ved stopp).
-    // For internasjonale turer telles kun land ved faktiske stoppesteder –
-    // transittland langs veien er ikke meningsfullt å telle.
-    if (currentTrip?.road_trip_region !== 'international') {
-      for (const s of (routeStates ?? [])) all.add(s)
+    if (currentTrip?.road_trip_region === 'international') {
+      // For internasjonale turer brukes routeStates som er geocodet direkte
+      // fra hvert stoppesteds koordinater → eksakte land uavhengig av DB-data.
+      // Faller tilbake til state-feltet hvis kartet ikke er lastet ennå.
+      if (routeStates && routeStates.length > 0) return new Set(routeStates).size
+      return new Set(stops.map((s) => s.state).filter(Boolean)).size
     }
+    // USA: kombiner delstater fra stopp + delstater langs hele ruten
+    const all = new Set(stops.map((s) => s.state).filter(Boolean) as string[])
+    for (const s of (routeStates ?? [])) all.add(s)
     return all.size
   })()
 
