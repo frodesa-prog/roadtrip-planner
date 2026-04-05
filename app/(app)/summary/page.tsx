@@ -90,7 +90,7 @@ export default function SummaryPage() {
   const [activityModal, setActivityModal] = useState<Activity | null>(null)
   const [diningModal, setDiningModal] = useState<Dining | null>(null)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [showDetailed, setShowDetailed] = useState(false)
+  const [showDetailed, setShowDetailed] = useState(true)
   const [sidebarStopId, setSidebarStopId] = useState<string | null>(null)
   type NoteModalState =
     | { mode: 'new'; stopId: string | null; initialDate: string | null }
