@@ -826,17 +826,6 @@ function DayCell({
         </p>
       )}
 
-      {/* Home departure / arrival banner */}
-      {isHomeDeparture && (
-        <p className="text-[9px] font-semibold text-green-400 mt-0.5 truncate">
-          🏠 Avreise{homeCity ? ` fra ${homeCity}` : ''}
-        </p>
-      )}
-      {isHomeArrival && (
-        <p className="text-[9px] font-semibold text-teal-400 mt-0.5 truncate">
-          🏠 Hjemkomst{homeCity ? ` til ${homeCity}` : ''}
-        </p>
-      )}
 
       {/* Spacer pushes bottom section down */}
       <div className="flex-1" />
