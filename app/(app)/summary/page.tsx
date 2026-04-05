@@ -90,6 +90,7 @@ export default function SummaryPage() {
   const [activityModal, setActivityModal] = useState<Activity | null>(null)
   const [diningModal, setDiningModal] = useState<Dining | null>(null)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [showDetailed, setShowDetailed] = useState(false)
   type NoteModalState =
     | { mode: 'new'; stopId: string | null; initialDate: string | null }
     | { mode: 'edit'; note: Note }
@@ -193,6 +194,13 @@ export default function SummaryPage() {
   const confirmedHotelUrls = useMemo(() => {
     const map: Record<string, string | null> = {}
     hotels.filter((h) => h.status === 'confirmed').forEach((h) => { map[h.stop_id] = h.url ?? null })
+    return map
+  }, [hotels])
+
+  // Map: stop id → hotel name (any status)
+  const hotelNameByStopId = useMemo(() => {
+    const map: Record<string, string> = {}
+    hotels.forEach((h) => { if (h.name) map[h.stop_id] = h.name })
     return map
   }, [hotels])
 
@@ -432,13 +440,25 @@ export default function SummaryPage() {
                   <h1 className="text-xl font-bold text-slate-100">{currentTrip.name}</h1>
                   {dateRange && <p className="text-sm text-slate-400 mt-0.5">{dateRange}</p>}
                 </div>
-                <Link
-                  href="/beskrivelse"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-700 text-sm font-medium transition-colors flex-shrink-0"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  Beskrivelse
-                </Link>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => setShowDetailed((v) => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors ${
+                      showDetailed
+                        ? 'bg-amber-500/20 border-amber-500/30 text-amber-400 hover:bg-amber-500/30'
+                        : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-700'
+                    }`}
+                  >
+                    {showDetailed ? 'Kompakt' : 'Detaljert'}
+                  </button>
+                  <Link
+                    href="/beskrivelse"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-700 text-sm font-medium transition-colors"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Beskrivelse
+                  </Link>
+                </div>
               </div>
 
               {/* Missing-hotel legend – vises kun hvis minst ett stopp mangler bekreftet hotell */}
@@ -463,7 +483,7 @@ export default function SummaryPage() {
               {/* Week rows */}
               <div className="space-y-1">
                 {weeks.map((week, wi) => (
-                  <div key={wi} className="grid grid-cols-7 gap-1">
+                  <div key={wi} className="grid grid-cols-7 gap-1 items-stretch">
                     {week.map((date, di) => {
                       const dateStr = toISO(date)
                       const stop = stopsByDate[dateStr] ?? null
@@ -485,6 +505,7 @@ export default function SummaryPage() {
                           diningOnDay={diningByDate[dateStr] ?? []}
                           hasConfirmedHotel={stop ? confirmedHotelStopIds.has(stop.id) : false}
                           confirmedHotelUrl={stop ? (confirmedHotelUrls[stop.id] ?? null) : null}
+                          hotelName={stop ? (hotelNameByStopId[stop.id] ?? null) : null}
                           flight={flightsByDate[dateStr] ?? null}
                           onFlightClick={setFlightModal}
                           notesOnDay={notesByDate[dateStr] ?? []}
@@ -492,6 +513,7 @@ export default function SummaryPage() {
                           onActivityClick={setActivityModal}
                           onDiningClick={setDiningModal}
                           showHotelWarning={currentTrip?.trip_type === 'road_trip'}
+                          showDetailed={showDetailed}
                           onClick={stop ? () => setSelectedDate(isSelected ? null : dateStr) : undefined}
                         />
                       )
@@ -633,6 +655,7 @@ function DayCell({
   diningOnDay,
   hasConfirmedHotel,
   confirmedHotelUrl,
+  hotelName,
   flight,
   onFlightClick,
   notesOnDay,
@@ -640,6 +663,7 @@ function DayCell({
   onActivityClick,
   onDiningClick,
   showHotelWarning = false,
+  showDetailed = false,
   onClick,
 }: {
   date: Date
@@ -653,6 +677,7 @@ function DayCell({
   diningOnDay: Dining[]
   hasConfirmedHotel: boolean
   confirmedHotelUrl: string | null
+  hotelName: string | null
   flight: Flight | null
   onFlightClick: (f: Flight) => void
   notesOnDay: Note[]
@@ -660,6 +685,7 @@ function DayCell({
   onActivityClick: (activity: Activity) => void
   onDiningClick: (dining: Dining) => void
   showHotelWarning?: boolean
+  showDetailed?: boolean
   onClick?: () => void
 }) {
   const isFirstOfMonth = date.getDate() === 1
@@ -707,94 +733,187 @@ function DayCell({
         </p>
       )}
 
-      {/* Spacer pushes icons to bottom */}
+      {/* Spacer pushes bottom section down */}
       <div className="flex-1" />
 
-      {/* Icons row at bottom – horizontal */}
-      <div className="flex flex-row flex-wrap items-center gap-x-1 gap-y-0.5 pt-0.5">
-        {/* Flight icon */}
-        {flight && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onFlightClick(flight) }}
-            className="flex items-center gap-0.5 hover:opacity-80 transition-opacity flex-shrink-0"
-            title={flight.direction === 'outbound' ? 'Utreise – vis flyinfo' : 'Hjemreise – vis flyinfo'}
-          >
-            {flight.direction === 'outbound'
-              ? <PlaneTakeoff className="w-3 h-3 text-sky-400" />
-              : <PlaneLanding className="w-3 h-3 text-sky-400" />
-            }
-            {flight.leg1_departure && (
-              <span className="text-[8px] text-sky-200">{flight.leg1_departure}</span>
-            )}
-          </button>
-        )}
+      {showDetailed && stop ? (
+        /* ── Detailed mode: text lines for activities, dining, hotel ─── */
+        <div className="flex flex-col gap-0.5 mt-0.5 overflow-hidden">
+          {/* Flight */}
+          {flight && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onFlightClick(flight) }}
+              className="flex items-center gap-0.5 hover:opacity-80 transition-opacity text-left"
+            >
+              {flight.direction === 'outbound'
+                ? <PlaneTakeoff className="w-2.5 h-2.5 text-sky-400 flex-shrink-0" />
+                : <PlaneLanding className="w-2.5 h-2.5 text-sky-400 flex-shrink-0" />
+              }
+              {flight.leg1_departure && (
+                <span className="text-[8px] text-sky-300 leading-tight">{flight.leg1_departure}</span>
+              )}
+            </button>
+          )}
 
-        {/* Hotel icon – link if URL is registered */}
-        {hasConfirmedHotel && (
-          confirmedHotelUrl
-            ? (
-              <a
-                href={confirmedHotelUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                title="Åpne hotell"
-                className="flex-shrink-0 hover:opacity-75 transition-opacity"
-              >
-                <HotelIcon className="w-3 h-3 text-green-400" />
-              </a>
-            ) : (
-              <HotelIcon className="w-3 h-3 text-green-400 flex-shrink-0" />
-            )
-        )}
-
-        {/* Activities – type-specific icon, clickable */}
-        {activitiesOnDay.map((a) => {
-          const cfg = getActivityTypeConfig(a.activity_type)
-          return (
+          {/* Activities */}
+          {activitiesOnDay.map((a) => (
             <button
               key={a.id}
               onClick={(e) => { e.stopPropagation(); onActivityClick(a) }}
-              title={a.name}
-              className="flex items-center gap-0.5 flex-shrink-0 hover:opacity-75 transition-opacity"
+              className="flex items-center gap-0.5 text-left hover:opacity-80 transition-opacity min-w-0"
             >
-              <span className="leading-none"><ActivityTypeIcon type={a.activity_type} size={12} /></span>
               {a.activity_time && (
-                <span className="text-[8px] text-slate-100">
+                <span className="text-[8px] text-slate-500 flex-shrink-0 leading-tight">
                   {a.activity_time.slice(0, 5)}
                 </span>
               )}
+              <span className="text-[9px] text-violet-400 truncate leading-tight">{a.name}</span>
             </button>
-          )
-        })}
+          ))}
 
-        {/* Dining icons */}
-        {diningOnDay.map((d) => (
-          <button
-            key={d.id}
-            onClick={(e) => { e.stopPropagation(); onDiningClick(d) }}
-            title={d.name}
-            className="flex items-center gap-0.5 flex-shrink-0 hover:opacity-75 transition-opacity"
-          >
-            <UtensilsCrossed className="w-3 h-3 text-red-400" />
-            {d.booking_time && (
-              <span className="text-[8px] text-red-200">{d.booking_time.slice(0, 5)}</span>
+          {/* Dining */}
+          {diningOnDay.map((d) => (
+            <button
+              key={d.id}
+              onClick={(e) => { e.stopPropagation(); onDiningClick(d) }}
+              className="flex items-center gap-0.5 text-left hover:opacity-80 transition-opacity min-w-0"
+            >
+              {d.booking_time && (
+                <span className="text-[8px] text-slate-500 flex-shrink-0 leading-tight">
+                  {d.booking_time.slice(0, 5)}
+                </span>
+              )}
+              <span className="text-[9px] text-purple-400 truncate leading-tight">{d.name}</span>
+            </button>
+          ))}
+
+          {/* Notes */}
+          {notesOnDay.map((note) => (
+            <button
+              key={note.id}
+              onClick={(e) => { e.stopPropagation(); onNoteClick(note) }}
+              className="flex items-center gap-0.5 text-left hover:opacity-70 transition-opacity min-w-0"
+            >
+              <FileText className="w-2.5 h-2.5 text-amber-400 flex-shrink-0" />
+              <span className="text-[9px] text-amber-300 truncate leading-tight">
+                {note.title || 'Notat'}
+              </span>
+            </button>
+          ))}
+
+          {/* Hotel name – always at bottom in detailed mode */}
+          <div className="mt-auto pt-0.5 border-t border-slate-700/50">
+            {hotelName ? (
+              confirmedHotelUrl ? (
+                <a
+                  href={confirmedHotelUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className={`text-[9px] truncate leading-tight block hover:opacity-80 transition-opacity ${
+                    hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
+                  }`}
+                >
+                  {hasConfirmedHotel ? '✓ ' : ''}{hotelName}
+                </a>
+              ) : (
+                <p className={`text-[9px] truncate leading-tight ${
+                  hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
+                }`}>
+                  {hasConfirmedHotel ? '✓ ' : ''}{hotelName}
+                </p>
+              )
+            ) : (
+              <p className="text-[9px] text-red-600/70 leading-tight">Mangler hotell</p>
             )}
-          </button>
-        ))}
+          </div>
+        </div>
+      ) : (
+        /* ── Compact mode: icons row ──────────────────────────────────── */
+        <div className="flex flex-row flex-wrap items-center gap-x-1 gap-y-0.5 pt-0.5">
+          {/* Flight icon */}
+          {flight && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onFlightClick(flight) }}
+              className="flex items-center gap-0.5 hover:opacity-80 transition-opacity flex-shrink-0"
+              title={flight.direction === 'outbound' ? 'Utreise – vis flyinfo' : 'Hjemreise – vis flyinfo'}
+            >
+              {flight.direction === 'outbound'
+                ? <PlaneTakeoff className="w-3 h-3 text-sky-400" />
+                : <PlaneLanding className="w-3 h-3 text-sky-400" />
+              }
+              {flight.leg1_departure && (
+                <span className="text-[8px] text-sky-200">{flight.leg1_departure}</span>
+              )}
+            </button>
+          )}
 
-        {/* Note icons */}
-        {notesOnDay.map((note) => (
-          <button
-            key={note.id}
-            onClick={(e) => { e.stopPropagation(); onNoteClick(note) }}
-            title={note.title || 'Notat'}
-            className="flex-shrink-0 hover:opacity-70 transition-opacity"
-          >
-            <FileText className="w-3 h-3 text-amber-400" />
-          </button>
-        ))}
-      </div>
+          {/* Hotel icon – link if URL is registered */}
+          {hasConfirmedHotel && (
+            confirmedHotelUrl
+              ? (
+                <a
+                  href={confirmedHotelUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  title="Åpne hotell"
+                  className="flex-shrink-0 hover:opacity-75 transition-opacity"
+                >
+                  <HotelIcon className="w-3 h-3 text-green-400" />
+                </a>
+              ) : (
+                <HotelIcon className="w-3 h-3 text-green-400 flex-shrink-0" />
+              )
+          )}
+
+          {/* Activities – type-specific icon, clickable */}
+          {activitiesOnDay.map((a) => {
+            return (
+              <button
+                key={a.id}
+                onClick={(e) => { e.stopPropagation(); onActivityClick(a) }}
+                title={a.name}
+                className="flex items-center gap-0.5 flex-shrink-0 hover:opacity-75 transition-opacity"
+              >
+                <span className="leading-none"><ActivityTypeIcon type={a.activity_type} size={12} /></span>
+                {a.activity_time && (
+                  <span className="text-[8px] text-slate-100">
+                    {a.activity_time.slice(0, 5)}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+
+          {/* Dining icons */}
+          {diningOnDay.map((d) => (
+            <button
+              key={d.id}
+              onClick={(e) => { e.stopPropagation(); onDiningClick(d) }}
+              title={d.name}
+              className="flex items-center gap-0.5 flex-shrink-0 hover:opacity-75 transition-opacity"
+            >
+              <UtensilsCrossed className="w-3 h-3 text-red-400" />
+              {d.booking_time && (
+                <span className="text-[8px] text-red-200">{d.booking_time.slice(0, 5)}</span>
+              )}
+            </button>
+          ))}
+
+          {/* Note icons */}
+          {notesOnDay.map((note) => (
+            <button
+              key={note.id}
+              onClick={(e) => { e.stopPropagation(); onNoteClick(note) }}
+              title={note.title || 'Notat'}
+              className="flex-shrink-0 hover:opacity-70 transition-opacity"
+            >
+              <FileText className="w-3 h-3 text-amber-400" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
