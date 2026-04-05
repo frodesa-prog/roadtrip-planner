@@ -217,7 +217,13 @@ function AuthModal({ mode: initialMode, onClose }: { mode: 'login' | 'register';
       if (error) { toast.error('Feil e-post eller passord'); setLoading(false); return }
       router.push('/plan'); router.refresh()
     } else {
-      const { error } = await supabase.auth.signUp({ email, password })
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://myvacayplanner.com'}/plan`,
+        },
+      })
       if (error) { toast.error(error.message); setLoading(false); return }
       toast.success('Konto opprettet! Sjekk e-posten for bekreftelse.')
       setMode('login'); setLoading(false)

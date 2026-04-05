@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   }
   const { recipientEmail, tripName, senderName, accessLevel, alreadyMember } = body
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://din-app.no'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://myvacayplanner.com'
 
   const html = alreadyMember
     ? `

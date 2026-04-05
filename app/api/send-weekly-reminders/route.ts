@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
-  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sirkussand.com'
+  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? 'https://myvacayplanner.com'
 
   // "I dag" i Oslo-tidssone (YYYY-MM-DD)
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())

@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const resendApiKey = process.env.RESEND_API_KEY
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sirkussand.com'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://myvacayplanner.com'
 
   if (!resendApiKey || !serviceRoleKey || !supabaseUrl) {
     return NextResponse.json({ error: 'Missing env vars' }, { status: 500 })

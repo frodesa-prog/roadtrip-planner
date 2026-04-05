@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   }
 
   let sentCount = 0
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sirkussand.com'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://myvacayplanner.com'
 
   for (const todo of todos) {
     const trip = Array.isArray(todo.trips) ? todo.trips[0] : todo.trips

@@ -321,7 +321,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
   const anthropic = new Anthropic({ apiKey: anthropicApiKey })
-  const appUrl    = process.env.NEXT_PUBLIC_APP_URL ?? 'https://sirkussand.com'
+  const appUrl    = process.env.NEXT_PUBLIC_APP_URL ?? 'https://myvacayplanner.com'
 
   // "I dag" i Oslo-tidssone
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date())
