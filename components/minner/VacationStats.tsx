@@ -281,15 +281,9 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
     const storbyturer = trips.filter(t => t.trip_type === 'storbytur')
     const resorts     = trips.filter(t => t.trip_type === 'resort')
 
-    // USA-stopp (inkl. stopp knyttet til aktiviteter og spisesteder)
+    // USA-stopp
     const usaTripIds = new globalThis.Set(trips.filter(isUSATrip).map(t => t.id))
-    const activityDiningStopIds = new globalThis.Set([
-      ...activities.map(a => a.stop_id),
-      ...dining.map(d => d.stop_id),
-    ])
-    const usaStops = stops.filter(s =>
-      usaTripIds.has(s.trip_id) || isUSAStop(s) || activityDiningStopIds.has(s.id)
-    )
+    const usaStops = stops.filter(s => usaTripIds.has(s.trip_id) || isUSAStop(s))
 
     // Unike stater (fullt navn)
     const stateMap = new globalThis.Map<string, string>() // lower → full name
@@ -299,7 +293,6 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
         stateMap.set(full.toLowerCase(), full)
       }
     })
-    const usaStateList = Array.from(stateMap.values()).sort()
 
     // Unike byer i USA, gruppert per stat (fullt navn)
     const usaCityByState = new globalThis.Map<string, globalThis.Set<string>>()
@@ -309,6 +302,21 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
       if (!usaCityByState.has(stateFull)) usaCityByState.set(stateFull, new globalThis.Set())
       usaCityByState.get(stateFull)!.add(s.city.trim())
     })
+
+    // Inkluder stater fra aktiviteter/spisesteder – kun gyldige US-stater
+    const stopById = new globalThis.Map<string, Stop>(stops.map(s => [s.id, s] as [string, Stop]))
+    ;[...activities.map(a => a.stop_id), ...dining.map(d => d.stop_id)].forEach(stopId => {
+      const s = stopById.get(stopId)
+      if (!s?.state?.trim() || !isUSState(s.state)) return
+      const full = expandStateName(s.state)
+      stateMap.set(full.toLowerCase(), full)
+      if (s.city?.trim()) {
+        if (!usaCityByState.has(full)) usaCityByState.set(full, new globalThis.Set())
+        usaCityByState.get(full)!.add(s.city.trim())
+      }
+    })
+
+    const usaStateList = Array.from(stateMap.values()).sort()
     // Dedup på tvers av stater: samme by kan stå i to stater – behold per stat
     const usaCityGroups: GroupedSection[] = Array.from(usaCityByState.entries())
       .sort(([a], [b]) => a.localeCompare(b, 'nb'))
@@ -320,10 +328,7 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
 
     // Alle steder i verden, gruppert per land (deduplisert, inkl. stopp fra aktiviteter/spisesteder)
     const cityByCountry = new globalThis.Map<string, globalThis.Map<string, string>>() // country → Map<city_lower, city_original>
-    const allStopsForCities = stops.filter(s =>
-      s.city?.trim() || activityDiningStopIds.has(s.id)
-    )
-    allStopsForCities.forEach(s => {
+    stops.forEach(s => {
       if (!s.city?.trim()) return
       const trip = tripMap.get(s.trip_id)
       let country = trip?.destination_country?.trim() || ''
