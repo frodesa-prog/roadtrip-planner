@@ -40,9 +40,37 @@ interface InfoState {
   label: string
 }
 
+// ── US state helpers (same logic as VacationStats) ───────────────────────────
+
+const US_STATE_FULL: Record<string, string> = {
+  AL:'Alabama', AK:'Alaska', AZ:'Arizona', AR:'Arkansas',
+  CA:'California', CO:'Colorado', CT:'Connecticut', DE:'Delaware',
+  FL:'Florida', GA:'Georgia', HI:'Hawaii', ID:'Idaho',
+  IL:'Illinois', IN:'Indiana', IA:'Iowa', KS:'Kansas',
+  KY:'Kentucky', LA:'Louisiana', ME:'Maine', MD:'Maryland',
+  MA:'Massachusetts', MI:'Michigan', MN:'Minnesota', MS:'Mississippi',
+  MO:'Missouri', MT:'Montana', NE:'Nebraska', NV:'Nevada',
+  NH:'New Hampshire', NJ:'New Jersey', NM:'New Mexico', NY:'New York',
+  NC:'North Carolina', ND:'North Dakota', OH:'Ohio', OK:'Oklahoma',
+  OR:'Oregon', PA:'Pennsylvania', RI:'Rhode Island', SC:'South Carolina',
+  SD:'South Dakota', TN:'Tennessee', TX:'Texas', UT:'Utah',
+  VT:'Vermont', VA:'Virginia', WA:'Washington', WV:'West Virginia',
+  WI:'Wisconsin', WY:'Wyoming', DC:'Washington D.C.',
+}
+const US_STATES_SET = new Set([
+  ...Object.keys(US_STATE_FULL).map(k => k.toLowerCase()),
+  ...Object.values(US_STATE_FULL).map(v => v.toLowerCase()),
+])
+const expandStateName = (s: string): string =>
+  US_STATE_FULL[s.trim().toUpperCase()] ?? s.trim()
+const isUSState = (s: string) => US_STATES_SET.has(s.toLowerCase().trim())
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const USA_CENTER = { lat: 39.8, lng: -98.5 }
+// GeoJSON for US state boundaries (PublicaMundi, MIT license)
+const US_STATES_GEOJSON_URL =
+  'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json'
 
 const ROUTE_COLORS = [
   '#ef4444',
@@ -305,6 +333,63 @@ function TripRoute({
   return null
 }
 
+// ── StateHighlight: shades visited US states via Google Maps Data layer ───────
+
+function StateHighlight({
+  visitedStates,
+  visible,
+}: {
+  visitedStates: Set<string>
+  visible: boolean
+}) {
+  const map = useMap()
+  const layerRef = useRef<google.maps.Data | null>(null)
+  const [geoLoaded, setGeoLoaded] = useState(false)
+
+  // Create the Data layer and load GeoJSON once
+  useEffect(() => {
+    if (!map) return
+    const layer = new google.maps.Data()
+    layerRef.current = layer
+
+    fetch(US_STATES_GEOJSON_URL)
+      .then((r) => r.json())
+      .then((geo) => {
+        layer.addGeoJson(geo)
+        setGeoLoaded(true)
+      })
+      .catch(() => {/* silent fail */})
+
+    return () => {
+      layer.setMap(null)
+      layerRef.current = null
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map])
+
+  // Apply style and visibility whenever inputs change
+  useEffect(() => {
+    const layer = layerRef.current
+    if (!layer || !geoLoaded) return
+
+    layer.setMap(visible ? map ?? null : null)
+    layer.setStyle((feature) => {
+      const name = feature.getProperty('name') as string
+      const isVisited = visitedStates.has(name)
+      return {
+        fillColor:    isVisited ? '#3b82f6' : '#1e293b',
+        fillOpacity:  isVisited ? 0.28 : 0.05,
+        strokeColor:  isVisited ? '#60a5fa' : '#334155',
+        strokeOpacity: isVisited ? 0.7 : 0.25,
+        strokeWeight: isVisited ? 1.5 : 0.5,
+        zIndex:       1,
+      }
+    })
+  }, [map, visitedStates, visible, geoLoaded])
+
+  return null
+}
+
 // ── InfoPopup: floating label on marker click ─────────────────────────────────
 
 function InfoPopup({ info, onClose }: { info: InfoState; onClose: () => void }) {
@@ -358,11 +443,17 @@ function Legend({
   distances,
   hidden,
   onToggle,
+  showStates,
+  onToggleStates,
+  visitedStateCount,
 }: {
   trips: TripWithStops[]
   distances: Record<string, number>
   hidden: Set<string>
   onToggle: (tripId: string) => void
+  showStates: boolean
+  onToggleStates: () => void
+  visitedStateCount: number
 }) {
   const [open, setOpen] = useState(true)
 
@@ -452,6 +543,46 @@ function Legend({
               </div>
             )
           })}
+
+          {/* Separator + states toggle */}
+          <div style={{ borderTop: '1px solid rgba(51,65,85,0.6)', marginTop: 4, paddingTop: 8 }}>
+            <div
+              onClick={onToggleStates}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                cursor: 'pointer', opacity: showStates ? 1 : 0.45,
+                transition: 'opacity 0.15s',
+              }}
+            >
+              {/* Checkbox */}
+              <div style={{
+                width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                border: '2px solid #3b82f6',
+                background: showStates ? '#3b82f6' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {showStates && (
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                    <path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </div>
+              {/* Color swatch */}
+              <div style={{
+                width: 22, height: 14, borderRadius: 3, flexShrink: 0,
+                background: 'rgba(59,130,246,0.3)',
+                border: '1.5px solid rgba(96,165,250,0.6)',
+              }} />
+              <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1 }}>
+                Besøkte stater
+              </span>
+              {visitedStateCount > 0 && (
+                <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>
+                  {visitedStateCount} stater
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -464,6 +595,20 @@ function MapContent({ trips }: { trips: TripWithStops[] }) {
   const [activeInfo, setActiveInfo] = useState<InfoState | null>(null)
   const [distances, setDistances]   = useState<Record<string, number>>({})
   const [hidden, setHidden]         = useState<Set<string>>(new Set())
+  const [showStates, setShowStates] = useState(true)
+
+  // Derive visited US states (full names) from all stop data
+  const visitedStates = useMemo(() => {
+    const set = new Set<string>()
+    trips.forEach((trip) => {
+      trip.stops.forEach((stop) => {
+        if (stop.state?.trim() && isUSState(stop.state)) {
+          set.add(expandStateName(stop.state))
+        }
+      })
+    })
+    return set
+  }, [trips])
 
   const handleDistance = useCallback((tripId: string, km: number) => {
     setDistances((prev) => ({ ...prev, [tripId]: km }))
@@ -478,8 +623,12 @@ function MapContent({ trips }: { trips: TripWithStops[] }) {
     })
   }, [])
 
+  const toggleStates = useCallback(() => setShowStates((v) => !v), [])
+
   return (
     <>
+      {/* State highlights render below routes */}
+      <StateHighlight visitedStates={visitedStates} visible={showStates} />
       {trips.map((trip, index) => (
         <TripRoute
           key={trip.id}
@@ -492,7 +641,15 @@ function MapContent({ trips }: { trips: TripWithStops[] }) {
         />
       ))}
       {trips.length > 0 && (
-        <Legend trips={trips} distances={distances} hidden={hidden} onToggle={toggleTrip} />
+        <Legend
+          trips={trips}
+          distances={distances}
+          hidden={hidden}
+          onToggle={toggleTrip}
+          showStates={showStates}
+          onToggleStates={toggleStates}
+          visitedStateCount={visitedStates.size}
+        />
       )}
       {activeInfo && (
         <InfoPopup info={activeInfo} onClose={() => setActiveInfo(null)} />
