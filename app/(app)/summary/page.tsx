@@ -91,6 +91,7 @@ export default function SummaryPage() {
   const [diningModal, setDiningModal] = useState<Dining | null>(null)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [showDetailed, setShowDetailed] = useState(false)
+  const [sidebarStopId, setSidebarStopId] = useState<string | null>(null)
   type NoteModalState =
     | { mode: 'new'; stopId: string | null; initialDate: string | null }
     | { mode: 'edit'; note: Note }
@@ -343,20 +344,12 @@ export default function SummaryPage() {
                   >
                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pal.dot}`} />
                     <div className="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
-                      {hotelUrl ? (
-                        <a
-                          href={hotelUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs font-semibold truncate flex-shrink-0 max-w-[50%] hover:underline text-slate-200"
-                        >
-                          {stop.city}
-                        </a>
-                      ) : (
-                        <span className="text-xs font-semibold truncate flex-shrink-0 max-w-[50%] text-slate-200">
-                          {stop.city}
-                        </span>
-                      )}
+                      <button
+                        onClick={() => setSidebarStopId(stop.id)}
+                        className="text-xs font-semibold truncate flex-shrink-0 max-w-[70%] text-slate-200 hover:text-blue-300 transition-colors text-left"
+                      >
+                        {stop.city}
+                      </button>
                       <span className="text-[10px] text-slate-500 truncate whitespace-nowrap">
                         {dateLabel}{stop.nights > 0 && ` · ${stop.nights}n`}
                       </span>
@@ -527,6 +520,55 @@ export default function SummaryPage() {
             </>
           )}
         </div>
+
+        {/* ── Sidebar stop modal ──────────────────────────────────────── */}
+        {sidebarStopId && (() => {
+          const sbStop = stops.find((s) => s.id === sidebarStopId) ?? null
+          if (!sbStop) return null
+          const sbLeg = sbStop.arrival_date ? (legByArrivalDate[sbStop.arrival_date] ?? null) : null
+          return (
+            <div
+              className="fixed inset-0 z-50 flex items-start justify-end bg-black/60 backdrop-blur-sm"
+              onClick={() => setSidebarStopId(null)}
+            >
+              <div
+                className="h-full w-full max-w-sm flex flex-col bg-slate-900 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <StopDetailPanel
+                  stop={sbStop}
+                  hotel={hotels.find((h) => h.stop_id === sbStop.id) ?? null}
+                  activities={activities.filter((a) => a.stop_id === sbStop.id)}
+                  dining={dining.filter((d) => d.stop_id === sbStop.id)}
+                  possibleActivities={possibleActivities.filter((a) => a.stop_id === sbStop.id)}
+                  leg={sbLeg}
+                  selectedDate={sbStop.arrival_date ?? ''}
+                  stopIndex={stopPaletteIndex[sbStop.id] ?? 0}
+                  onUpdateStop={(updates) => updateStop(sbStop.id, updates)}
+                  onSaveHotel={(updates, lat, lng) => {
+                    saveHotel(sbStop.id, updates)
+                    if (lat != null && lng != null) updateStop(sbStop.id, { lat, lng })
+                  }}
+                  onAddActivity={(data) => addActivity(sbStop.id, data)}
+                  onRemoveActivity={removeActivity}
+                  onUpdateActivity={updateActivity}
+                  onAddDining={(data) => addDining(sbStop.id, data)}
+                  onRemoveDining={removeDining}
+                  onUpdateDining={updateDining}
+                  onAddPossibleActivity={(data) => addPossibleActivity(sbStop.id, data)}
+                  onRemovePossibleActivity={removePossibleActivity}
+                  onUpdatePossibleActivity={updatePossibleActivity}
+                  stopNotes={notes.filter((n) => n.stop_id === sbStop.id)}
+                  onAddNote={addNote}
+                  onUpdateNote={updateNote}
+                  onDeleteNote={deleteNote}
+                  onClose={() => setSidebarStopId(null)}
+                  hideArrivalDate
+                />
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Flight modal */}
         {flightModal && (
