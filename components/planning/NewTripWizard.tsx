@@ -103,16 +103,32 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
   const [checkingEmail, setCheckingEmail] = useState(false)
 
   const isCityTrip = tripType !== 'road_trip'
-  // Steps: 0=type, 1=grunninfo, 2=destinasjon(city only), 3=reisevalg, 4=beskrivelse, 5=deltakere
-  const steps = isCityTrip ? 6 : 5
+  // Both flows: 6 steps total
+  // Rendering slots: 0=Ferietype, 1=Region(road only), 2=Grunninfo, 3=Destinasjon(city only), 4=Reisevalg, 5=Beskrivelse, 6=Deltakere
+  const steps = 6
   const STEP_LABELS = isCityTrip
     ? ['Ferietype', 'Grunninfo', 'Destinasjon', 'Reisevalg', 'Beskrivelse', 'Deltakere']
-    : ['Ferietype', 'Grunninfo', 'Reisevalg', 'Beskrivelse', 'Deltakere']
+    : ['Ferietype', 'Region', 'Grunninfo', 'Reisevalg', 'Beskrivelse', 'Deltakere']
 
-  // Map logical step index (accounting for skipped destinasjon step for road_trip)
-  function getActualStep(logical: number) {
-    if (!isCityTrip && logical >= 2) return logical + 1
-    return logical
+  // Map logical step (0-5) → rendering slot
+  function getActualStep(logical: number): number {
+    if (isCityTrip) {
+      // City trips skip Region (slot 1): 0→0, 1→2, 2→3, 3→4, 4→5, 5→6
+      if (logical === 0) return 0
+      if (logical === 1) return 2
+      if (logical === 2) return 3
+      if (logical === 3) return 4
+      if (logical === 4) return 5
+      return 6
+    } else {
+      // Road trips skip Destinasjon (slot 3): 0→0, 1→1, 2→2, 3→4, 4→5, 5→6
+      if (logical === 0) return 0
+      if (logical === 1) return 1
+      if (logical === 2) return 2
+      if (logical === 3) return 4
+      if (logical === 4) return 5
+      return 6
+    }
   }
 
   function reset() {
@@ -145,9 +161,10 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
 
   function canNext(): boolean {
     const actual = getActualStep(step)
-    if (actual === 0) return true
-    if (actual === 1) return name.trim().length > 0
-    if (actual === 2) return city.trim().length > 0 && country.trim().length > 0
+    if (actual === 0) return true   // Ferietype
+    if (actual === 1) return true   // Region – always a default selected
+    if (actual === 2) return name.trim().length > 0  // Grunninfo
+    if (actual === 3) return city.trim().length > 0 && country.trim().length > 0  // Destinasjon
     return true
   }
 
@@ -418,7 +435,7 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
         {/* Body */}
         <div className="flex-1 px-6 py-6 overflow-y-auto min-h-[280px]">
 
-          {/* Step 0: Ferietype */}
+          {/* Slot 0: Ferietype */}
           {actualStep === 0 && (
             <div className="grid gap-3">
               {TRIP_TYPES.map((t) => (
@@ -442,41 +459,39 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
                   )}
                 </button>
               ))}
-
-              {/* USA / International sub-choice – only for road trip */}
-              {tripType === 'road_trip' && (
-                <div className="mt-1">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                    Hvilke land kjører du i?
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {([
-                      { value: 'usa', emoji: '🇺🇸', label: 'USA', desc: 'Teller antall stater' },
-                      { value: 'international', emoji: '🌍', label: 'Andre land', desc: 'Teller antall land' },
-                    ] as const).map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setRoadTripRegion(opt.value)}
-                        className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-center transition-all ${
-                          roadTripRegion === opt.value
-                            ? 'border-blue-500 bg-blue-900/30'
-                            : 'border-slate-700 hover:border-slate-500 bg-slate-800/50'
-                        }`}
-                      >
-                        <span className="text-2xl">{opt.emoji}</span>
-                        <p className="font-bold text-slate-100 text-xs">{opt.label}</p>
-                        <p className="text-[10px] text-slate-500">{opt.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Step 1: Grunninfo */}
+          {/* Slot 1: Region (road trip only) */}
           {actualStep === 1 && (
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { value: 'usa',           emoji: '🇺🇸', label: 'USA',        desc: 'Teller antall stater' },
+                { value: 'international', emoji: '🌍', label: 'Andre land', desc: 'Teller antall land'   },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setRoadTripRegion(opt.value)}
+                  className={`flex flex-col items-center gap-2 p-5 rounded-xl border-2 text-center transition-all ${
+                    roadTripRegion === opt.value
+                      ? 'border-blue-500 bg-blue-900/30'
+                      : 'border-slate-700 hover:border-slate-500 bg-slate-800/50'
+                  }`}
+                >
+                  <span className="text-4xl">{opt.emoji}</span>
+                  <p className="font-bold text-slate-100 text-sm">{opt.label}</p>
+                  <p className="text-xs text-slate-500">{opt.desc}</p>
+                  {roadTripRegion === opt.value && (
+                    <Check className="w-4 h-4 text-blue-400" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Slot 2: Grunninfo */}
+          {actualStep === 2 && (
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
@@ -534,8 +549,8 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
             </div>
           )}
 
-          {/* Step 2: Destinasjon (city trips only) */}
-          {actualStep === 2 && (
+          {/* Slot 3: Destinasjon (city trips only) */}
+          {actualStep === 3 && (
             <div className="space-y-4">
               <p className="text-sm text-slate-400">
                 Angi destinasjonen for turen. Kartet vil automatisk zoome inn hit.
@@ -574,8 +589,8 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
             </div>
           )}
 
-          {/* Step 3: Reisevalg */}
-          {actualStep === 3 && (
+          {/* Slot 4: Reisevalg */}
+          {actualStep === 4 && (
             <div className="space-y-4">
               <p className="text-sm text-slate-400">
                 Disse valgene tilpasser funksjonaliteten i appen.
@@ -622,8 +637,8 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
             </div>
           )}
 
-          {/* Step 4: Beskrivelse */}
-          {actualStep === 4 && (
+          {/* Slot 5: Beskrivelse */}
+          {actualStep === 5 && (
             <div className="space-y-4">
               <p className="text-sm text-slate-400">
                 En kort beskrivelse av turen hjelper ferietips-assistenten gi deg bedre forslag. Dette feltet er valgfritt.
@@ -649,8 +664,8 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
             </div>
           )}
 
-          {/* Step 5: Deltakere */}
-          {actualStep === 5 && (
+          {/* Slot 6: Deltakere */}
+          {actualStep === 6 && (
             <div className="space-y-4">
               <div className="flex items-start gap-2.5">
                 <Users className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
