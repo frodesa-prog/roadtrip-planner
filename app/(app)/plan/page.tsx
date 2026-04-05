@@ -607,6 +607,10 @@ export default function PlanPage() {
               routeLegsLoaded={routeLegsLoaded}
               onRouteLegsChange={handleRouteLegsChange}
               onRouteStatesChange={setRouteStates}
+              onStopCountryResolved={(stopId, country) => {
+                const stop = stops.find((s) => s.id === stopId)
+                if (stop && stop.state !== country) updateStop(stopId, { state: country })
+              }}
               onPoiAction={poiAction()}
               useCountryForState={currentTrip?.road_trip_region === 'international'}
             />

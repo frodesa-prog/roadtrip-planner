@@ -62,6 +62,8 @@ interface PlanningMapProps {
   routeLegsLoaded?: boolean
   onRouteLegsChange?: (legs: LegWaypoints[]) => void
   onRouteStatesChange?: (states: string[]) => void
+  /** Kalles per stoppested med geocodet land – for å persistere til DB */
+  onStopCountryResolved?: (stopId: string, country: string) => void
   /** When provided, shows search box even in readOnly mode but only pans the map (no stop added) */
   onCitySearch?: (result: { lat: number; lng: number; city: string; state: string }) => void
   /** When provided, a map click in readOnly mode emits the coords instead of being ignored */
@@ -1416,6 +1418,7 @@ export default function PlanningMap({
   routeLegsLoaded = true,
   onRouteLegsChange,
   onRouteStatesChange,
+  onStopCountryResolved,
   onCitySearch,
   onCityMapClick,
   cityTripMode = false,
@@ -1601,6 +1604,7 @@ export default function PlanningMap({
               routeLegsLoaded={routeLegsLoaded}
               onLegsChange={onRouteLegsChange}
               onRouteStatesChange={onRouteStatesChange}
+              onStopCountryResolved={onStopCountryResolved}
               useCountry={useCountryForState}
             />
           )}

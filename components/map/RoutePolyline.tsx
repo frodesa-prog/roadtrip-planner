@@ -24,6 +24,8 @@ interface RoutePolylineProps {
   onLegsChange?: (legs: LegWaypoints[]) => void
   /** Kalles med liste over stater/land ruten passerer gjennom */
   onRouteStatesChange?: (states: string[]) => void
+  /** Kalles per stoppested med geocodet land – for å oppdatere DB-feltet state */
+  onStopCountryResolved?: (stopId: string, country: string) => void
   /** Bruk land (country) i stedet for delstat ved geocoding – for internasjonale turer */
   useCountry?: boolean
 }
@@ -67,10 +69,11 @@ async function geocodeRouteStates(
 async function geocodeStopCountries(
   stops: Stop[],
   cb: (countries: string[]) => void,
+  perStopCb?: (stopId: string, country: string) => void,
 ): Promise<void> {
   const geocoder = new google.maps.Geocoder()
 
-  const countries = await Promise.all(
+  const results = await Promise.all(
     stops.map((stop) =>
       geocoder
         .geocode({ location: { lat: stop.lat, lng: stop.lng } })
@@ -78,13 +81,19 @@ async function geocodeStopCountries(
           const comp = results[0]?.address_components.find((c) =>
             c.types.includes('country')
           )
-          return comp?.long_name ?? null
+          return { stopId: stop.id, country: comp?.long_name ?? null }
         })
-        .catch(() => null)
+        .catch(() => ({ stopId: stop.id, country: null }))
     )
   )
 
-  const unique = [...new Set(countries.filter((s): s is string => s !== null))]
+  if (perStopCb) {
+    results.forEach(({ stopId, country }) => {
+      if (country) perStopCb(stopId, country)
+    })
+  }
+
+  const unique = [...new Set(results.map((r) => r.country).filter((s): s is string => s !== null))]
   cb(unique)
 }
 
@@ -96,6 +105,7 @@ export default function RoutePolyline({
   routeLegsLoaded = true,
   onLegsChange,
   onRouteStatesChange,
+  onStopCountryResolved,
   useCountry = false,
 }: RoutePolylineProps) {
   const map        = useMap()
@@ -223,7 +233,7 @@ export default function RoutePolyline({
           // Geocode ruten umiddelbart ved første lasting
           const cb = onRouteStatesRef.current
           if (cb) {
-            if (useCountry) geocodeStopCountries(stops, cb)
+            if (useCountry) geocodeStopCountries(stops, cb, onStopCountryResolved)
             else geocodeRouteStates(result, cb)
           }
         } else {
@@ -269,7 +279,7 @@ export default function RoutePolyline({
           if (statesTimerRef.current) clearTimeout(statesTimerRef.current)
           if (useCountry) {
             statesTimerRef.current = setTimeout(
-              () => geocodeStopCountries(stops, statesCb),
+              () => geocodeStopCountries(stops, statesCb, onStopCountryResolved),
               800
             )
           } else {
