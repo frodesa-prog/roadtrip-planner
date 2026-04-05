@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   X, Calendar, Moon, Hotel, ExternalLink,
-  Ticket, Plus, Trash2, MapPin, Car, Pencil, Check, UtensilsCrossed, Clock, Lightbulb, FileText,
+  Ticket, Plus, Trash2, MapPin, Car, Pencil, Check, UtensilsCrossed, Clock, Lightbulb, FileText, ArrowRightLeft,
 } from 'lucide-react'
 import { Stop, Hotel as HotelType, Activity, Dining, PossibleActivity, Note } from '@/types'
 import { AddActivityData, UpdateActivityData } from '@/hooks/useActivities'
@@ -213,6 +213,7 @@ export default function StopDetailPanel({
   const [editPossibleDate, setEditPossibleDate]       = useState('')
   const [editPossibleLocation, setEditPossibleLocation] = useState<{ lat: number; lng: number; name: string } | null>(null)
   const [pinningPossibleId, setPinningPossibleId]     = useState<string | null>(null)
+  const [convertingPossibleId, setConvertingPossibleId] = useState<string | null>(null)
 
   function startEditPossible(a: PossibleActivity) {
     setEditingPossibleId(a.id)
@@ -1401,10 +1402,16 @@ export default function StopDetailPanel({
                             <Pencil className="w-3 h-3" />
                           </button>
                           <button
-                            onClick={(e) => { e.stopPropagation(); setPinningPossibleId(pinningPossibleId === a.id ? null : a.id) }}
+                            onClick={(e) => { e.stopPropagation(); setPinningPossibleId(pinningPossibleId === a.id ? null : a.id); setConvertingPossibleId(null) }}
                             title={hasPin ? 'Endre kartplassering' : 'Fest på kart'}
                             className={`flex-shrink-0 transition-colors ${hasPin ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 hover:text-amber-400'}`}>
                             <MapPin className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConvertingPossibleId(convertingPossibleId === a.id ? null : a.id); setPinningPossibleId(null) }}
+                            title="Gjør om til aktivitet eller spisested"
+                            className={`flex-shrink-0 transition-colors ${convertingPossibleId === a.id ? 'text-blue-400' : 'text-slate-500 hover:text-blue-400'}`}>
+                            <ArrowRightLeft className="w-3 h-3" />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setConfirm({
@@ -1430,6 +1437,50 @@ export default function StopDetailPanel({
                             }}
                             accentColor="teal"
                           />
+                        </div>
+                      )}
+                      {convertingPossibleId === a.id && (
+                        <div className="mt-1 px-2.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 border border-slate-700/50">
+                            <span className="text-[10px] text-slate-400 mr-1">Gjør om til:</span>
+                            <button
+                              onClick={() => {
+                                onAddActivity({
+                                  name: a.description,
+                                  url: a.url ?? undefined,
+                                  notes: a.notes ?? undefined,
+                                  activity_type: a.category ?? undefined,
+                                  activity_date: a.activity_date ?? undefined,
+                                  map_lat: a.map_lat ?? undefined,
+                                  map_lng: a.map_lng ?? undefined,
+                                })
+                                onRemovePossibleActivity(a.id)
+                                setConvertingPossibleId(null)
+                              }}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-600/20 border border-violet-600/40 text-violet-300 hover:bg-violet-600/30 text-xs font-medium transition-colors"
+                            >
+                              <Ticket className="w-3 h-3" />
+                              Aktivitet
+                            </button>
+                            <button
+                              onClick={() => {
+                                onAddDining({
+                                  name: a.description,
+                                  url: a.url ?? undefined,
+                                  notes: a.notes ?? undefined,
+                                  booking_date: a.activity_date ?? undefined,
+                                  map_lat: a.map_lat ?? undefined,
+                                  map_lng: a.map_lng ?? undefined,
+                                })
+                                onRemovePossibleActivity(a.id)
+                                setConvertingPossibleId(null)
+                              }}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-600/20 border border-purple-600/40 text-purple-300 hover:bg-purple-600/30 text-xs font-medium transition-colors"
+                            >
+                              <UtensilsCrossed className="w-3 h-3" />
+                              Spisested
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
