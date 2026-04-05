@@ -18,7 +18,7 @@ import { usePossibleActivities } from '@/hooks/usePossibleActivities'
 import { useNotes } from '@/hooks/useNotes'
 import { useDrivingInfo } from '@/hooks/useDrivingInfo'
 import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
-import { Stop } from '@/types'
+import { Stop, GeoResult } from '@/types'
 import type { LegWaypoints } from '@/components/map/RoutePolyline'
 
 export default function PlanPage() {
@@ -256,6 +256,39 @@ export default function PlanPage() {
     addStop({ ...stop, trip_id: currentTrip.id })
   }
 
+  const handleAddHomeStops = useCallback(async (start: GeoResult, end: GeoResult, differentEnd: boolean) => {
+    if (!currentTrip) return
+    await Promise.all([
+      addStop({
+        id: crypto.randomUUID(),
+        trip_id: currentTrip.id,
+        city: start.city,
+        state: start.state,
+        lat: start.lat,
+        lng: start.lng,
+        order: -1,
+        stop_type: 'home_start',
+        nights: 0,
+        arrival_date: currentTrip.date_from ?? null,
+        notes: null,
+      } as Stop),
+      addStop({
+        id: crypto.randomUUID(),
+        trip_id: currentTrip.id,
+        city: end.city,
+        state: end.state,
+        lat: end.lat,
+        lng: end.lng,
+        order: 10000,
+        stop_type: 'home_end',
+        nights: 0,
+        arrival_date: currentTrip.date_to ?? null,
+        notes: null,
+      } as Stop),
+    ])
+    updateTrip(currentTrip.id, { different_end_location: differentEnd })
+  }, [currentTrip, addStop, updateTrip])
+
   function handleSelectStop(id: string) {
     setSelectedStopId((prev) => (prev === id ? null : id))
     setSelectedRoadActivityId(null)
@@ -384,6 +417,7 @@ export default function PlanPage() {
                 updateTrip(currentTrip.id, { date_from: dateFrom, date_to: dateTo, year })
                 // Road trip: stopp røres ikke
               }}
+              onAddHomeStops={handleAddHomeStops}
             />
           ) : (
             <CityPlanSidebar
@@ -486,6 +520,7 @@ export default function PlanPage() {
                 setSelectedRoadDiningId(null)
                 setRoadMapVersion((v) => v + 1)
               }}
+              isInternational={currentTrip?.road_trip_region === 'international'}
               onClose={() => { setSelectedStopId(null); setMobileView('steder') }}
             />
           </div>

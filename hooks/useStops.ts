@@ -44,6 +44,7 @@ export function useStops(tripId: string | null) {
         arrival_date: stop.arrival_date,
         nights: stop.nights,
         notes: stop.notes,
+        stop_type: stop.stop_type ?? 'stop',
       })
 
       if (error) {

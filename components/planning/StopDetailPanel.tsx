@@ -22,6 +22,7 @@ import ActivityLocationSearch from '@/components/map/ActivityLocationSearch'
 import InlineLocationPicker from '@/components/map/InlineLocationPicker'
 import NoteModal from '@/components/planning/NoteModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import LocationAutocompleteInput from '@/components/planning/LocationAutocompleteInput'
 import { toast } from 'sonner'
 
 interface StopDetailPanelProps {
@@ -35,7 +36,7 @@ interface StopDetailPanelProps {
   /** Trip start date – used as fallback default for new activity/dining dates */
   tripDateFrom?: string
   stopIndex?: number
-  onUpdateStop: (updates: Partial<Pick<Stop, 'nights' | 'arrival_date' | 'lat' | 'lng' | 'city' | 'state'>>) => void
+  onUpdateStop: (updates: Partial<Pick<Stop, 'nights' | 'arrival_date' | 'lat' | 'lng' | 'city' | 'state' | 'notes'>>) => void
   onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'address' | 'url' | 'status' | 'cost' | 'parking_cost_per_night'>>, lat?: number | null, lng?: number | null) => void
   onAddActivity: (data: AddActivityData) => void
   onRemoveActivity: (id: string) => void
@@ -63,6 +64,8 @@ interface StopDetailPanelProps {
   nightOfStayLabel?: string
   /** Hides the arrival-date field (used from summary page) */
   hideArrivalDate?: boolean
+  /** Used for address autocomplete – country vs state in place resolution */
+  isInternational?: boolean
 }
 
 function getStopDates(stop: Stop): string[] {
@@ -91,6 +94,7 @@ export default function StopDetailPanel({
   tripDayLabel,
   nightOfStayLabel,
   hideArrivalDate = false,
+  isInternational = false,
 }: StopDetailPanelProps) {
   const [hotelName, setHotelName]               = useState(hotel?.name ?? '')
   const [hotelAddress, setHotelAddress]         = useState(hotel?.address ?? '')
@@ -103,9 +107,8 @@ export default function StopDetailPanel({
   const [nights, setNights]             = useState(stop.nights)
   const [arrivalDate, setArrivalDate]   = useState(stop.arrival_date ?? '')
   const [editingStopName, setEditingStopName] = useState(false)
-  const [stopCity, setStopCity]         = useState(stop.city)
-  const [stopState, setStopState]       = useState(stop.state ?? '')
-  const stopNameInputRef = useRef<HTMLInputElement>(null)
+  const [stopEditResetKey, setStopEditResetKey] = useState(0)
+  const [homeNotes, setHomeNotes] = useState(stop.notes ?? '')
 
   const [showAddActivity, setShowAddActivity] = useState(false)
   const [newActName, setNewActName]         = useState('')
@@ -345,7 +348,11 @@ export default function StopDetailPanel({
 
   useEffect(() => { setNights(stop.nights) }, [stop.nights])
   useEffect(() => { setArrivalDate(stop.arrival_date ?? '') }, [stop.arrival_date])
-  useEffect(() => { setStopCity(stop.city); setStopState(stop.state ?? '') }, [stop.id])
+  useEffect(() => {
+    setStopEditResetKey((k) => k + 1)
+    setEditingStopName(false)
+    setHomeNotes(stop.notes ?? '')
+  }, [stop.id])
   useEffect(() => { setNewActDate(selectedDate || tripDateFrom) }, [selectedDate, tripDateFrom])
   useEffect(() => { setNewDiningDate(selectedDate || tripDateFrom) }, [selectedDate, tripDateFrom])
 
@@ -465,41 +472,27 @@ export default function StopDetailPanel({
                   <div className="flex items-center gap-1 mb-1">
                     <MapPin className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
                     <div className="flex gap-1 flex-1">
-                      <input
-                        ref={stopNameInputRef}
-                        value={stopCity}
-                        onChange={(e) => setStopCity(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') {
-                            setStopCity(stop.city)
-                            setStopState(stop.state ?? '')
-                            setEditingStopName(false)
-                          }
-                        }}
-                        className="text-sm font-bold bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-slate-100 flex-1 min-w-0 focus:outline-none focus:border-blue-500"
-                        placeholder="By"
-                      />
-                      <input
-                        value={stopState}
-                        onChange={(e) => setStopState(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') {
-                            setStopCity(stop.city)
-                            setStopState(stop.state ?? '')
-                            setEditingStopName(false)
-                          }
-                        }}
-                        className="text-sm bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-slate-400 w-16 focus:outline-none focus:border-blue-500"
-                        placeholder="Stat"
-                      />
+                      <div className="flex-1 min-w-0">
+                        <LocationAutocompleteInput
+                          placeholder={`${stop.city}${stop.state ? `, ${stop.state}` : ''}`}
+                          isIntl={isInternational}
+                          size="xs"
+                          accentColor="blue"
+                          resetKey={stopEditResetKey}
+                          onSelect={(result) => {
+                            if (result) {
+                              onUpdateStop({ city: result.city, state: result.state || undefined, lat: result.lat, lng: result.lng })
+                              setEditingStopName(false)
+                            }
+                          }}
+                        />
+                      </div>
                       <button
-                        onClick={() => {
-                          onUpdateStop({ city: stopCity.trim() || stop.city, state: stopState.trim() || undefined })
-                          setEditingStopName(false)
-                        }}
-                        className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded transition-colors"
+                        onClick={() => setEditingStopName(false)}
+                        className="px-2 py-0.5 text-slate-400 hover:text-slate-200 text-xs rounded transition-colors flex-shrink-0"
+                        title="Avbryt"
                       >
-                        OK
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -508,12 +501,12 @@ export default function StopDetailPanel({
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <MapPin className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
                   <button
-                    onClick={() => { setEditingStopName(true); setTimeout(() => stopNameInputRef.current?.focus(), 0) }}
+                    onClick={() => { setEditingStopName(true); setStopEditResetKey((k) => k + 1) }}
                     className="text-sm font-bold text-slate-100 truncate hover:text-blue-300 transition-colors text-left"
                     title="Klikk for å redigere stedsnavn"
                   >
-                    {stopCity}
-                    {stopState && <span className="text-slate-400 font-normal">, {stopState}</span>}
+                    {stop.city}
+                    {stop.state && <span className="text-slate-400 font-normal">, {stop.state}</span>}
                   </button>
                 </div>
               )}
@@ -555,7 +548,25 @@ export default function StopDetailPanel({
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 space-y-4">
 
-          {/* ── Opphold ─────────────────────────────────────────────────── */}
+          {/* ── Beskrivelse (kun startsted / sluttsted) ─────────────────── */}
+          {(stop.stop_type === 'home_start' || stop.stop_type === 'home_end') && (
+            <section>
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                {stop.stop_type === 'home_start' ? 'Beskrivelse startsted' : 'Beskrivelse sluttsted'}
+              </h3>
+              <textarea
+                value={homeNotes}
+                onChange={(e) => setHomeNotes(e.target.value)}
+                onBlur={() => onUpdateStop({ notes: homeNotes.trim() || null })}
+                placeholder={stop.stop_type === 'home_start' ? 'F.eks. hjemmefra, Oslo lufthavn…' : 'F.eks. Oslo lufthavn, hjemkomst…'}
+                rows={3}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 resize-none"
+              />
+            </section>
+          )}
+
+          {/* ── Opphold + Hotell (ikke for startsted/sluttsted) ─────────── */}
+          {stop.stop_type !== 'home_start' && stop.stop_type !== 'home_end' && (<>
           <section>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Opphold</h3>
             {(hideArrivalDate && nightOfStayLabel) ? (
@@ -718,6 +729,7 @@ export default function StopDetailPanel({
               </button>
             )}
           </section>
+          </>)}
 
           {/* ── Aktiviteter ─────────────────────────────────────────────── */}
           <section>

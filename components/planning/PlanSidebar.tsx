@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 
-import { MapPin, Loader2, Car, CalendarDays, List, Check, X } from 'lucide-react'
-import { Stop, Trip, Hotel, Activity, Dining, PossibleActivity, RouteLeg, NewTripData } from '@/types'
+import { MapPin, Loader2, Car, CalendarDays, List, Check, X, Home } from 'lucide-react'
+import { Stop, Trip, Hotel, Activity, Dining, PossibleActivity, RouteLeg, NewTripData, GeoResult } from '@/types'
 import StopCard from './StopCard'
+import LocationAutocompleteInput from './LocationAutocompleteInput'
 import CalendarView from './CalendarView'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import TripPanels from './TripPanels'
@@ -36,6 +37,8 @@ interface PlanSidebarProps {
   routeStates?: string[]
   onUpdateGroupDescription?: (desc: string) => void
   onUpdateTripDates?: (dateFrom: string, dateTo: string) => void
+  /** Create home_start and home_end stops for an existing trip */
+  onAddHomeStops?: (start: GeoResult, end: GeoResult, differentEnd: boolean) => Promise<void>
 }
 
 export default function PlanSidebar({
@@ -52,12 +55,34 @@ export default function PlanSidebar({
   routeStates,
   onUpdateGroupDescription,
   onUpdateTripDates,
+  onAddHomeStops,
 }: PlanSidebarProps) {
   const [departureTimes, setDepartureTimes] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showDetailed, setShowDetailed] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
+
+  // ── Add-home-stops state (existing road trips) ───────────────────────────────
+  const [showHomeSetup, setShowHomeSetup]       = useState(false)
+  const [startResult, setStartResult]           = useState<GeoResult | null>(null)
+  const [differentEnd, setDifferentEnd]         = useState(false)
+  const [endResult, setEndResult]               = useState<GeoResult | null>(null)
+  const [savingHomeStops, setSavingHomeStops]   = useState(false)
+  const [homeFormResetKey, setHomeFormResetKey] = useState(0)
+
+  async function handleSaveHomeStops() {
+    if (!startResult || !onAddHomeStops) return
+    setSavingHomeStops(true)
+    const endData = differentEnd && endResult ? endResult : startResult
+    await onAddHomeStops(startResult, endData, differentEnd)
+    setShowHomeSetup(false)
+    setStartResult(null)
+    setDifferentEnd(false)
+    setEndResult(null)
+    setHomeFormResetKey((k) => k + 1)
+    setSavingHomeStops(false)
+  }
 
   // Open wizard when navigated with ?new=1 (reads URL directly, avoids useSearchParams/Suspense)
   useEffect(() => {
@@ -129,7 +154,7 @@ export default function PlanSidebar({
   stops.forEach((stop, i) => {
     if (i === 0) return
     const prevDeparture = departureTimes[stops[i - 1].id]
-    const leg = drivingLegs[drivingLegIndex(i)]
+    const leg = drivingLegs[drivingLegIndex(i)] ?? null
     if (prevDeparture && leg) {
       arrivalTimes[stop.id] = addMinutes(prevDeparture, leg.durationMinutes)
     }
@@ -345,7 +370,90 @@ export default function PlanSidebar({
               <p className="text-slate-500 text-xs mt-1">Søk etter en by eller klikk på kartet</p>
             </div>
           ) : (() => {
-            // Build an ordered render list: [homeStart?, ...regularStops, homeEnd?]
+            const isIntl = currentTrip?.road_trip_region === 'international'
+            const showHomeSetupBanner =
+              currentTrip?.trip_type === 'road_trip' && !homeStart && !!onAddHomeStops
+
+            return (
+              <>
+                {/* ── Home stop setup banner for existing trips ── */}
+                {showHomeSetupBanner && (
+                  <div className="mb-2 rounded-xl border border-green-800/50 bg-green-950/30 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowHomeSetup((v) => !v)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left"
+                    >
+                      <Home className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-green-400">Startsted ikke satt</p>
+                        <p className="text-[10px] text-green-700">Klikk for å legge til</p>
+                      </div>
+                      <span className="text-xs text-green-700">{showHomeSetup ? '▲' : '▼'}</span>
+                    </button>
+
+                    {showHomeSetup && (
+                      <div className="px-3 pb-3 space-y-2.5 border-t border-green-800/40 pt-2.5">
+                        {/* Start address */}
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                            Startsted *
+                          </label>
+                          <LocationAutocompleteInput
+                            placeholder="Sted du reiser fra…"
+                            isIntl={isIntl}
+                            accentColor="green"
+                            size="xs"
+                            resetKey={homeFormResetKey}
+                            onSelect={(r) => setStartResult(r)}
+                          />
+                        </div>
+
+                        {/* Different end checkbox */}
+                        <label className="flex items-start gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={differentEnd}
+                            onChange={(e) => { setDifferentEnd(e.target.checked); setEndResult(null) }}
+                            className="mt-0.5 accent-green-500 w-3.5 h-3.5"
+                          />
+                          <span className="text-xs text-slate-300">Sluttstedet er et annet sted</span>
+                        </label>
+
+                        {/* End address */}
+                        {differentEnd && (
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                              Sluttsted
+                            </label>
+                            <LocationAutocompleteInput
+                              placeholder="Sted du reiser til…"
+                              isIntl={isIntl}
+                              accentColor="teal"
+                              size="xs"
+                              resetKey={`${homeFormResetKey}-end`}
+                              onSelect={(r) => setEndResult(r)}
+                            />
+                          </div>
+                        )}
+
+                        {/* Save button */}
+                        <button
+                          type="button"
+                          onClick={handleSaveHomeStops}
+                          disabled={!startResult || savingHomeStops}
+                          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors"
+                        >
+                          {savingHomeStops ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          Lagre startsted
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Build an ordered render list: [homeStart?, ...regularStops, homeEnd?] */}
+                {(() => {
             // For driving connectors we use the index in the full `stops` array
             const renderItems: { stop: Stop; allStopsIndex: number }[] = []
             if (homeStart) {
@@ -364,7 +472,7 @@ export default function PlanSidebar({
             return renderItems.map(({ stop, allStopsIndex }, renderIndex) => {
               const isHome = stop.stop_type === 'home_start' || stop.stop_type === 'home_end'
               const regularIndex = regularStops.findIndex((s) => s.id === stop.id)
-              const leg = renderIndex > 0 ? drivingLegs[drivingLegIndex(allStopsIndex)] : null
+              const leg = renderIndex > 0 ? drivingLegs[drivingLegIndex(allStopsIndex)] : 'skip' as const
 
               return (
                 <div key={stop.id}>
@@ -372,12 +480,12 @@ export default function PlanSidebar({
                   {renderIndex > 0 && (
                     <div className="flex items-center gap-2 px-3 py-1.5">
                       <div className="flex-1 border-t border-dashed border-slate-700" />
-                      {leg === null ? (
+                      {leg === undefined ? (
                         <div className="flex items-center gap-1 text-[10px] text-slate-500">
                           <Loader2 className="w-2.5 h-2.5 animate-spin" />
                           <span>Beregner…</span>
                         </div>
-                      ) : leg ? (
+                      ) : leg && leg !== 'skip' ? (
                         <div className="flex items-center gap-1 text-[10px] text-blue-400 font-medium whitespace-nowrap">
                           <Car className="w-2.5 h-2.5 flex-shrink-0" />
                           <span>{leg.durationText} · {leg.distanceText}</span>
@@ -415,6 +523,9 @@ export default function PlanSidebar({
                 </div>
               )
             })
+          })()}
+              </>
+            )
           })()}
         </div>
       )}

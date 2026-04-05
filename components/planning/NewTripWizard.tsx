@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { X, ChevronRight, ChevronLeft, Check, Loader2, UserCheck, UserX, Mail, Users, Search, MapPin } from 'lucide-react'
+import { X, ChevronRight, ChevronLeft, Check, Loader2, UserCheck, UserX, Mail, Users } from 'lucide-react'
 import { Trip, NewTripData, TripType, TransportType, RoadTripRegion, GeoResult } from '@/types'
+import LocationAutocompleteInput from './LocationAutocompleteInput'
 import { createClient } from '@/lib/supabase/client'
 
 interface NewTripWizardProps {
@@ -98,15 +99,10 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
   const [geocodeError, setGeocodeError] = useState('')
 
   // ── Road trip home stop state ──────────────────────────────────────────────
-  const [startQuery, setStartQuery]         = useState('')
-  const [startResult, setStartResult]       = useState<GeoResult | null>(null)
-  const [startSearching, setStartSearching] = useState(false)
-  const [startError, setStartError]         = useState('')
-  const [differentEnd, setDifferentEnd]     = useState(false)
-  const [endQuery, setEndQuery]             = useState('')
-  const [endResult, setEndResult]           = useState<GeoResult | null>(null)
-  const [endSearching, setEndSearching]     = useState(false)
-  const [endError, setEndError]             = useState('')
+  const [startResult, setStartResult]   = useState<GeoResult | null>(null)
+  const [differentEnd, setDifferentEnd] = useState(false)
+  const [endResult, setEndResult]       = useState<GeoResult | null>(null)
+  const [homeStopResetKey, setHomeStopResetKey] = useState(0)
 
   // ── Invite step state ──────────────────────────────────────────────────────
   const [inviteEntries, setInviteEntries] = useState<InviteEntry[]>([])
@@ -142,47 +138,6 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
     }
   }
 
-  // ── Geocode a free-text address for road trip home stops ───────────────────
-  async function searchHomeStop(
-    query: string,
-    isIntl: boolean,
-    setResult: (r: GeoResult | null) => void,
-    setSearching: (v: boolean) => void,
-    setError: (s: string) => void,
-  ) {
-    if (!query.trim()) return
-    setSearching(true)
-    setError('')
-    try {
-      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-      const res  = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}`
-      )
-      const json = await res.json()
-      const r    = json.results?.[0]
-      if (!r?.geometry?.location) {
-        setError(`Fant ikke «${query}». Prøv å skrive litt mer spesifikt.`)
-        setResult(null)
-      } else {
-        const comps = r.address_components as { long_name: string; short_name: string; types: string[] }[]
-        const cityComp  = comps.find((c) => c.types.includes('locality') || c.types.includes('postal_town'))
-        const stateComp = isIntl
-          ? comps.find((c) => c.types.includes('country'))
-          : comps.find((c) => c.types.includes('administrative_area_level_1'))
-        setResult({
-          city:  cityComp?.long_name ?? r.formatted_address.split(',')[0],
-          state: isIntl ? (stateComp?.long_name ?? '') : (stateComp?.short_name ?? ''),
-          lat:   r.geometry.location.lat,
-          lng:   r.geometry.location.lng,
-        })
-      }
-    } catch {
-      setError('Feil ved søk. Sjekk internettforbindelsen.')
-      setResult(null)
-    }
-    setSearching(false)
-  }
-
   function reset() {
     setStep(0)
     setTripType('road_trip')
@@ -196,15 +151,10 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
     setHasCarRental(true)
     setDescription('')
     setGeocodeError('')
-    setStartQuery('')
     setStartResult(null)
-    setStartSearching(false)
-    setStartError('')
     setDifferentEnd(false)
-    setEndQuery('')
     setEndResult(null)
-    setEndSearching(false)
-    setEndError('')
+    setHomeStopResetKey((k) => k + 1)
     setInviteEntries([])
     setInviteInput('')
   }
@@ -622,36 +572,13 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
                     <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
                       Startsted *
                     </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={startQuery}
-                        onChange={(e) => { setStartQuery(e.target.value); setStartResult(null); setStartError('') }}
-                        placeholder="F.eks. Oslo, Oslo sentrum"
-                        className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            searchHomeStop(startQuery, roadTripRegion === 'international', setStartResult, setStartSearching, setStartError)
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => searchHomeStop(startQuery, roadTripRegion === 'international', setStartResult, setStartSearching, setStartError)}
-                        disabled={!startQuery.trim() || startSearching}
-                        className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-slate-300 transition-colors"
-                      >
-                        {startSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    {startError && <p className="mt-1 text-xs text-red-400">{startError}</p>}
-                    {startResult && (
-                      <div className="mt-1.5 flex items-center gap-1.5 text-xs text-green-400">
-                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span>{startResult.city}{startResult.state ? `, ${startResult.state}` : ''}</span>
-                      </div>
-                    )}
+                    <LocationAutocompleteInput
+                      placeholder="F.eks. Oslo, New York…"
+                      isIntl={roadTripRegion === 'international'}
+                      accentColor="green"
+                      resetKey={homeStopResetKey}
+                      onSelect={(r) => setStartResult(r)}
+                    />
                   </div>
 
                   {/* Different end location checkbox */}
@@ -659,7 +586,7 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
                     <input
                       type="checkbox"
                       checked={differentEnd}
-                      onChange={(e) => { setDifferentEnd(e.target.checked); setEndResult(null); setEndError('') }}
+                      onChange={(e) => { setDifferentEnd(e.target.checked); setEndResult(null) }}
                       className="mt-0.5 accent-blue-500 w-4 h-4 rounded"
                     />
                     <span className="text-sm text-slate-300">Sluttstedet er et annet sted enn startstedet</span>
@@ -670,36 +597,13 @@ export default function NewTripWizard({ open, onClose, onCreateTrip }: NewTripWi
                       <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
                         Sluttsted
                       </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={endQuery}
-                          onChange={(e) => { setEndQuery(e.target.value); setEndResult(null); setEndError('') }}
-                          placeholder="F.eks. Bergen, Bergen sentrum"
-                          className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              searchHomeStop(endQuery, roadTripRegion === 'international', setEndResult, setEndSearching, setEndError)
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => searchHomeStop(endQuery, roadTripRegion === 'international', setEndResult, setEndSearching, setEndError)}
-                          disabled={!endQuery.trim() || endSearching}
-                          className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-slate-300 transition-colors"
-                        >
-                          {endSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      {endError && <p className="mt-1 text-xs text-red-400">{endError}</p>}
-                      {endResult && (
-                        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-teal-400">
-                          <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span>{endResult.city}{endResult.state ? `, ${endResult.state}` : ''}</span>
-                        </div>
-                      )}
+                      <LocationAutocompleteInput
+                        placeholder="F.eks. Bergen, Los Angeles…"
+                        isIntl={roadTripRegion === 'international'}
+                        accentColor="teal"
+                        resetKey={`${homeStopResetKey}-end`}
+                        onSelect={(r) => setEndResult(r)}
+                      />
                     </div>
                   )}
                 </div>

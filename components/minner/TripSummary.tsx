@@ -32,7 +32,7 @@ interface Props {
   hotels: Hotel[]
   flights: Flight[]
   carRentals: CarRental[]
-  drivingLegs: (LegInfo | null)[]
+  drivingLegs: (LegInfo | null | undefined)[]
   computedTotalKm: number | null
 }
 

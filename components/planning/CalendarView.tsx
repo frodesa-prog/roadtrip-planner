@@ -64,7 +64,7 @@ interface CalendarViewProps {
   hotels: Hotel[]
   activities: Activity[]
   dining: Dining[]
-  drivingLegs: (LegInfo | null)[]
+  drivingLegs: (LegInfo | null | undefined)[]
   selectedStopId: string | null
   onSelectStop: (id: string) => void
   detailed?: boolean

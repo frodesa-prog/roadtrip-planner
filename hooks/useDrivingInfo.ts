@@ -30,8 +30,8 @@ function fullCacheKey(from: Stop, to: Stop, waypoints: Array<{ lat: number; lng:
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-export function useDrivingInfo(stops: Stop[], routeLegs?: RouteLeg[]): (LegInfo | null)[] {
-  const [legs, setLegs] = useState<(LegInfo | null)[]>([])
+export function useDrivingInfo(stops: Stop[], routeLegs?: RouteLeg[]): (LegInfo | null | undefined)[] {
+  const [legs, setLegs] = useState<(LegInfo | null | undefined)[]>([])
   const fetchIdRef = useRef(0)
 
   // Nøkkel som endres når lagrede waypoints oppdateres (etter drag)
@@ -68,8 +68,8 @@ export function useDrivingInfo(stops: Stop[], routeLegs?: RouteLeg[]): (LegInfo 
       }
     }
 
-    // Initier med null-verdier mens vi fetcher
-    setLegs(new Array(stops.length - 1).fill(null))
+    // Initier med undefined mens vi fetcher (null = ingen rute tilgjengelig)
+    setLegs(new Array(stops.length - 1).fill(undefined))
 
     // Fetch alle benetapper parallelt, med eventuelle via-punkter
     Promise.all(
