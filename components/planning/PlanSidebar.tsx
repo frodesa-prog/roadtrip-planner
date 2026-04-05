@@ -67,6 +67,13 @@ export default function PlanSidebar({
     }
   }, [])
 
+  // Åpne veilederen automatisk når innlogget bruker ikke har noen reiser ennå
+  useEffect(() => {
+    if (!tripsLoading && userId && trips.length === 0) {
+      setShowWizard(true)
+    }
+  }, [tripsLoading, trips.length, userId])
+
   useEffect(() => {
     function onOpenWizard() { setShowWizard(true) }
     window.addEventListener(OPEN_NEW_TRIP_WIZARD_EVENT, onOpenWizard)
