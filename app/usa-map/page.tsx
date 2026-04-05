@@ -79,6 +79,9 @@ const expandStateName = (s: string): string =>
   US_STATE_FULL[s.trim().toUpperCase()] ?? s.trim()
 const isUSState = (s: string) => US_STATES_SET.has(s.toLowerCase().trim())
 
+// All US state full names sorted — used for "not visited" calculation
+const ALL_US_STATE_NAMES: string[] = Object.values(US_STATE_FULL).sort()
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const USA_CENTER = { lat: 39.8, lng: -98.5 }
@@ -351,10 +354,14 @@ function TripRoute({
 
 function StateHighlight({
   visitedStates,
-  visible,
+  allVisitedStates,
+  showVisited,
+  showUnvisited,
 }: {
-  visitedStates: Set<string>
-  visible: boolean
+  visitedStates: Set<string>      // from visible trips (blue)
+  allVisitedStates: Set<string>   // from ALL trips (determines red = never visited)
+  showVisited: boolean
+  showUnvisited: boolean
 }) {
   const map = useMap()
   const layerRef = useRef<google.maps.Data | null>(null)
@@ -386,20 +393,23 @@ function StateHighlight({
     const layer = layerRef.current
     if (!layer || !geoLoaded) return
 
-    layer.setMap(visible ? map ?? null : null)
+    const needsMap = showVisited || showUnvisited
+    layer.setMap(needsMap ? map ?? null : null)
+
     layer.setStyle((feature) => {
       const name = feature.getProperty('name') as string
-      const isVisited = visitedStates.has(name)
-      return {
-        fillColor:    isVisited ? '#3b82f6' : '#1e293b',
-        fillOpacity:  isVisited ? 0.28 : 0.05,
-        strokeColor:  isVisited ? '#60a5fa' : '#334155',
-        strokeOpacity: isVisited ? 0.7 : 0.25,
-        strokeWeight: isVisited ? 1.5 : 0.5,
-        zIndex:       1,
+      const isVisitedVisible  = showVisited  && visitedStates.has(name)
+      const isNeverVisited    = showUnvisited && !allVisitedStates.has(name)
+
+      if (isVisitedVisible) {
+        return { fillColor: '#3b82f6', fillOpacity: 0.28, strokeColor: '#60a5fa', strokeOpacity: 0.7,  strokeWeight: 1.5, zIndex: 1 }
       }
+      if (isNeverVisited) {
+        return { fillColor: '#ef4444', fillOpacity: 0.18, strokeColor: '#f87171', strokeOpacity: 0.55, strokeWeight: 1,   zIndex: 1 }
+      }
+      return   { fillColor: '#1e293b', fillOpacity: 0.05, strokeColor: '#334155', strokeOpacity: 0.25, strokeWeight: 0.5, zIndex: 1 }
     })
-  }, [map, visitedStates, visible, geoLoaded])
+  }, [map, visitedStates, allVisitedStates, showVisited, showUnvisited, geoLoaded])
 
   return null
 }
@@ -450,26 +460,141 @@ function InfoPopup({ info, onClose }: { info: InfoState; onClose: () => void }) 
   )
 }
 
+// ── StateListPanel: floating panel listing visited/unvisited states ───────────
+
+function StateListPanel({
+  title,
+  emoji,
+  states,
+  accentColor,
+  onClose,
+}: {
+  title: string
+  emoji: string
+  states: string[]
+  accentColor: string
+  onClose: () => void
+}) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 40,
+        right: 12,
+        background: 'rgba(15,23,42,0.95)',
+        border: '1px solid rgba(51,65,85,0.7)',
+        borderRadius: 12,
+        color: 'white',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+        zIndex: 11,
+        width: 220,
+        maxHeight: 420,
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'system-ui, sans-serif',
+      }}
+    >
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 14px 8px',
+        borderBottom: '1px solid rgba(51,65,85,0.5)',
+        flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>{emoji}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {title}
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}
+        >
+          ✕
+        </button>
+      </div>
+      {/* List */}
+      <div style={{ overflowY: 'auto', flex: 1, padding: '6px 0' }}>
+        {states.length === 0
+          ? <p style={{ fontSize: 12, color: '#64748b', textAlign: 'center', padding: '16px 0' }}>Ingen stater</p>
+          : states.map((s) => (
+              <div key={s} style={{
+                fontSize: 12, color: '#e2e8f0',
+                padding: '4px 14px',
+                display: 'flex', alignItems: 'center', gap: 7,
+              }}>
+                <span style={{ color: accentColor, fontSize: 10 }}>●</span>
+                {s}
+              </div>
+            ))
+        }
+      </div>
+      {/* Footer */}
+      <div style={{
+        padding: '6px 14px 10px',
+        borderTop: '1px solid rgba(51,65,85,0.4)',
+        flexShrink: 0,
+        fontSize: 10,
+        color: '#475569',
+        textAlign: 'center',
+      }}>
+        {states.length} stater
+      </div>
+    </div>
+  )
+}
+
 // ── Legend ────────────────────────────────────────────────────────────────────
+
+function Checkbox({ checked, color }: { checked: boolean; color: string }) {
+  return (
+    <div style={{
+      width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+      border: `2px solid ${color}`,
+      background: checked ? color : 'transparent',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      {checked && (
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+          <path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )}
+    </div>
+  )
+}
 
 function Legend({
   trips,
   distances,
   hidden,
   onToggle,
+  onToggleAll,
   showStates,
   onToggleStates,
+  onClickVisitedList,
   visitedStateCount,
+  showUnvisited,
+  onToggleUnvisited,
+  onClickUnvisitedList,
+  unvisitedStateCount,
 }: {
   trips: TripWithStops[]
   distances: Record<string, number>
   hidden: Set<string>
   onToggle: (tripId: string) => void
+  onToggleAll: () => void
   showStates: boolean
   onToggleStates: () => void
+  onClickVisitedList: () => void
   visitedStateCount: number
+  showUnvisited: boolean
+  onToggleUnvisited: () => void
+  onClickUnvisitedList: () => void
+  unvisitedStateCount: number
 }) {
   const [open, setOpen] = useState(true)
+  const allVisible = hidden.size === 0
 
   return (
     <div
@@ -486,31 +611,40 @@ function Legend({
         zIndex: 10,
         minWidth: open ? 420 : 'auto',
         maxWidth: 520,
+        fontFamily: 'system-ui, sans-serif',
       }}
     >
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          color: '#94a3b8',
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          padding: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: '#94a3b8', fontSize: 11, fontWeight: 600,
+          textTransform: 'uppercase', letterSpacing: '0.06em',
+          padding: 0, display: 'flex', alignItems: 'center', gap: 6,
         }}
       >
         <span>🗺️ Reiser</span>
-        <span style={{ fontSize: 10, color: '#94a3b8' }}>{open ? '▾' : '▸'}</span>
+        <span style={{ fontSize: 10 }}>{open ? '▾' : '▸'}</span>
       </button>
 
       {open && (
         <div style={{ marginTop: 10 }}>
+          {/* ── Select all / Deselect all ── */}
+          <div
+            onClick={onToggleAll}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+              paddingBottom: 8, borderBottom: '1px solid rgba(51,65,85,0.5)',
+              cursor: 'pointer',
+            }}
+          >
+            <Checkbox checked={allVisible} color="#94a3b8" />
+            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em' }}>
+              {allVisible ? 'Fjern alle' : 'Velg alle'}
+            </span>
+          </div>
+
+          {/* ── Trip rows ── */}
           {trips.map((t) => {
             const isVisible = !hidden.has(t.id)
             return (
@@ -523,34 +657,21 @@ function Legend({
                   transition: 'opacity 0.15s',
                 }}
               >
-                {/* Checkbox */}
-                <div style={{
-                  width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-                  border: `2px solid ${t.color}`,
-                  background: isVisible ? t.color : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {isVisible && (
-                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                      <path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </div>
-                {/* Color bar */}
+                <Checkbox checked={isVisible} color={t.color} />
                 <div style={{ width: 22, height: 4, borderRadius: 2, background: t.color, flexShrink: 0 }} />
                 <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1, minWidth: 0, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {t.name}
                 </span>
                 {(() => {
-                  const km        = distances[t.id]
-                  const nights    = t.stops.reduce((s, st) => s + (st.nights ?? 0), 0)
-                  const avgKm     = km != null && nights > 0 ? Math.round(km / nights) : null
+                  const km     = distances[t.id]
+                  const nights = t.stops.reduce((s, st) => s + (st.nights ?? 0), 0)
+                  const avgKm  = km != null && nights > 0 ? Math.round(km / nights) : null
                   return (
                     <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }}>
                       {t.stops.length} stopp
                       {nights > 0 && ` · ${nights} netter`}
-                      {km      != null && ` · ${km.toLocaleString('nb-NO')} km`}
-                      {avgKm   != null && ` · ⌀ ${avgKm} km/dag`}
+                      {km    != null && ` · ${km.toLocaleString('nb-NO')} km`}
+                      {avgKm != null && ` · ⌀ ${avgKm} km/dag`}
                     </span>
                   )
                 })()}
@@ -558,44 +679,65 @@ function Legend({
             )
           })}
 
-          {/* Separator + states toggle */}
-          <div style={{ borderTop: '1px solid rgba(51,65,85,0.6)', marginTop: 4, paddingTop: 8 }}>
-            <div
-              onClick={onToggleStates}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                cursor: 'pointer', opacity: showStates ? 1 : 0.45,
-                transition: 'opacity 0.15s',
-              }}
-            >
-              {/* Checkbox */}
-              <div style={{
-                width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-                border: '2px solid #3b82f6',
-                background: showStates ? '#3b82f6' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {showStates && (
-                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                    <path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
+          {/* ── State toggles ── */}
+          <div style={{ borderTop: '1px solid rgba(51,65,85,0.6)', marginTop: 4, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+            {/* Besøkte stater */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                onClick={(e) => { e.stopPropagation(); onToggleStates() }}
+                style={{ cursor: 'pointer', flexShrink: 0 }}
+              >
+                <Checkbox checked={showStates} color="#3b82f6" />
               </div>
-              {/* Color swatch */}
               <div style={{
                 width: 22, height: 14, borderRadius: 3, flexShrink: 0,
                 background: 'rgba(59,130,246,0.3)',
                 border: '1.5px solid rgba(96,165,250,0.6)',
               }} />
-              <span style={{ fontSize: 12, color: '#e2e8f0', flex: 1 }}>
+              <span
+                onClick={onClickVisitedList}
+                style={{ fontSize: 12, color: '#e2e8f0', flex: 1, cursor: 'pointer' }}
+                title="Vis liste over besøkte stater"
+              >
                 Besøkte stater
               </span>
-              {visitedStateCount > 0 && (
-                <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>
-                  {visitedStateCount} stater
-                </span>
-              )}
+              <span
+                onClick={onClickVisitedList}
+                style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0, cursor: 'pointer' }}
+              >
+                {visitedStateCount} stater →
+              </span>
             </div>
+
+            {/* Ikke besøkte stater */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                onClick={(e) => { e.stopPropagation(); onToggleUnvisited() }}
+                style={{ cursor: 'pointer', flexShrink: 0 }}
+              >
+                <Checkbox checked={showUnvisited} color="#ef4444" />
+              </div>
+              <div style={{
+                width: 22, height: 14, borderRadius: 3, flexShrink: 0,
+                background: 'rgba(239,68,68,0.2)',
+                border: '1.5px solid rgba(248,113,113,0.5)',
+              }} />
+              <span
+                onClick={onClickUnvisitedList}
+                style={{ fontSize: 12, color: '#e2e8f0', flex: 1, cursor: 'pointer' }}
+                title="Vis liste over ikke-besøkte stater"
+              >
+                Ikke besøkte stater
+              </span>
+              <span
+                onClick={onClickUnvisitedList}
+                style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0, cursor: 'pointer' }}
+              >
+                {unvisitedStateCount} stater →
+              </span>
+            </div>
+
           </div>
         </div>
       )}
@@ -604,6 +746,8 @@ function Legend({
 }
 
 // ── Map content (inside APIProvider + Map) ────────────────────────────────────
+
+type StateListOpen = 'visited' | 'unvisited' | null
 
 function MapContent({
   trips,
@@ -614,18 +758,19 @@ function MapContent({
   activities: ActivityData[]
   dining: DiningData[]
 }) {
-  const [activeInfo, setActiveInfo] = useState<InfoState | null>(null)
-  const [distances, setDistances]   = useState<Record<string, number>>({})
-  const [hidden, setHidden]         = useState<Set<string>>(new Set())
-  const [showStates, setShowStates] = useState(true)
-  // Reverse-geocoded states for activities/dining with own coordinates
+  const [activeInfo, setActiveInfo]     = useState<InfoState | null>(null)
+  const [distances, setDistances]       = useState<Record<string, number>>({})
+  const [hidden, setHidden]             = useState<Set<string>>(new Set())
+  const [showStates, setShowStates]     = useState(true)
+  const [showUnvisited, setShowUnvisited] = useState(false)
+  const [stateListOpen, setStateListOpen] = useState<StateListOpen>(null)
   const [entryStateMap, setEntryStateMap] = useState<Record<string, string | null>>({})
 
-  // Reverse-geocode activities + dining that have their own map_lat/map_lng
+  // Reverse-geocode entries with own coordinates
   useEffect(() => {
     const toGeocode: { id: string; lat: number; lng: number }[] = []
     activities.forEach((a) => { if (a.map_lat != null && a.map_lng != null) toGeocode.push({ id: a.id, lat: a.map_lat, lng: a.map_lng }) })
-    dining.forEach((d) => { if (d.map_lat != null && d.map_lng != null) toGeocode.push({ id: d.id, lat: d.map_lat, lng: d.map_lng }) })
+    dining.forEach((d)    => { if (d.map_lat != null && d.map_lng != null) toGeocode.push({ id: d.id, lat: d.map_lat, lng: d.map_lng }) })
     if (!toGeocode.length) return
 
     let cancelled = false
@@ -638,9 +783,9 @@ function MapContent({
       )
     ).then((results) => {
       if (cancelled) return
-      const map: Record<string, string | null> = {}
-      results.forEach((r) => { map[r.id] = r.state })
-      setEntryStateMap(map)
+      const m: Record<string, string | null> = {}
+      results.forEach((r) => { m[r.id] = r.state })
+      setEntryStateMap(m)
     })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -649,38 +794,61 @@ function MapContent({
     dining.map((d) => `${d.id}:${d.map_lat},${d.map_lng}`).join('|'),
   ])
 
-  // Derive visited US states: stops + activities/dining (with own coords or parent stop fallback)
-  const visitedStates = useMemo(() => {
-    const set = new Set<string>()
-
-    // 1. From stop state fields
-    const stopById = new Map<string, StopData>()
+  // Helper: build stopById + stopToTripId maps
+  const { stopById, stopToTripId } = useMemo(() => {
+    const stopById     = new Map<string, StopData>()
+    const stopToTripId = new Map<string, string>()
     trips.forEach((trip) => {
       trip.stops.forEach((stop) => {
         stopById.set(stop.id, stop)
-        if (stop.state?.trim() && isUSState(stop.state)) {
-          set.add(expandStateName(stop.state))
-        }
+        stopToTripId.set(stop.id, trip.id)
       })
     })
+    return { stopById, stopToTripId }
+  }, [trips])
 
-    // 2. From activities/dining – prioritise own geocoded state, fallback to parent stop
+  // Compute visited states for a given set of tripIds
+  const computeVisited = useCallback((allowedTripIds: Set<string> | null): Set<string> => {
+    const set = new Set<string>()
+    trips.forEach((trip) => {
+      if (allowedTripIds && !allowedTripIds.has(trip.id)) return
+      trip.stops.forEach((stop) => {
+        if (stop.state?.trim() && isUSState(stop.state)) set.add(expandStateName(stop.state))
+      })
+    })
     const addEntry = (entryId: string, stopId: string) => {
+      const tripId = stopToTripId.get(stopId)
+      if (allowedTripIds && (!tripId || !allowedTripIds.has(tripId))) return
       const geoState = entryStateMap[entryId]
-      if (geoState && isUSState(geoState)) {
-        set.add(expandStateName(geoState))
-        return
-      }
+      if (geoState && isUSState(geoState)) { set.add(expandStateName(geoState)); return }
       const parentStop = stopById.get(stopId)
-      if (parentStop?.state?.trim() && isUSState(parentStop.state)) {
-        set.add(expandStateName(parentStop.state))
-      }
+      if (parentStop?.state?.trim() && isUSState(parentStop.state)) set.add(expandStateName(parentStop.state))
     }
     activities.forEach((a) => addEntry(a.id, a.stop_id))
     dining.forEach((d) => addEntry(d.id, d.stop_id))
-
     return set
-  }, [trips, activities, dining, entryStateMap])
+  }, [trips, activities, dining, entryStateMap, stopById, stopToTripId])
+
+  // Visited for currently VISIBLE trips (drives blue highlights + list #3)
+  const visibleTripIds = useMemo(
+    () => new Set(trips.filter((t) => !hidden.has(t.id)).map((t) => t.id)),
+    [trips, hidden]
+  )
+  const visitedStates = useMemo(
+    () => computeVisited(visibleTripIds),
+    [computeVisited, visibleTripIds]
+  )
+
+  // Visited across ALL trips (drives red "never visited" highlights + list #4)
+  const allVisitedStates = useMemo(
+    () => computeVisited(null),
+    [computeVisited]
+  )
+
+  const unvisitedStates = useMemo(
+    () => ALL_US_STATE_NAMES.filter((s) => !allVisitedStates.has(s)),
+    [allVisitedStates]
+  )
 
   const handleDistance = useCallback((tripId: string, km: number) => {
     setDistances((prev) => ({ ...prev, [tripId]: km }))
@@ -695,12 +863,18 @@ function MapContent({
     })
   }, [])
 
-  const toggleStates = useCallback(() => setShowStates((v) => !v), [])
+  const toggleAll = useCallback(() => {
+    setHidden((prev) => prev.size === 0 ? new Set(trips.map((t) => t.id)) : new Set())
+  }, [trips])
 
   return (
     <>
-      {/* State highlights render below routes */}
-      <StateHighlight visitedStates={visitedStates} visible={showStates} />
+      <StateHighlight
+        visitedStates={visitedStates}
+        allVisitedStates={allVisitedStates}
+        showVisited={showStates}
+        showUnvisited={showUnvisited}
+      />
       {trips.map((trip, index) => (
         <TripRoute
           key={trip.id}
@@ -718,9 +892,33 @@ function MapContent({
           distances={distances}
           hidden={hidden}
           onToggle={toggleTrip}
+          onToggleAll={toggleAll}
           showStates={showStates}
-          onToggleStates={toggleStates}
+          onToggleStates={() => setShowStates((v) => !v)}
+          onClickVisitedList={() => setStateListOpen((v) => v === 'visited' ? null : 'visited')}
           visitedStateCount={visitedStates.size}
+          showUnvisited={showUnvisited}
+          onToggleUnvisited={() => setShowUnvisited((v) => !v)}
+          onClickUnvisitedList={() => setStateListOpen((v) => v === 'unvisited' ? null : 'unvisited')}
+          unvisitedStateCount={unvisitedStates.length}
+        />
+      )}
+      {stateListOpen === 'visited' && (
+        <StateListPanel
+          title="Besøkte stater"
+          emoji="🇺🇸"
+          states={Array.from(visitedStates).sort()}
+          accentColor="#60a5fa"
+          onClose={() => setStateListOpen(null)}
+        />
+      )}
+      {stateListOpen === 'unvisited' && (
+        <StateListPanel
+          title="Ikke besøkte stater"
+          emoji="📍"
+          states={unvisitedStates}
+          accentColor="#f87171"
+          onClose={() => setStateListOpen(null)}
         />
       )}
       {activeInfo && (
