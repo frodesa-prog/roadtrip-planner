@@ -163,18 +163,27 @@ export default function PlanSidebar({
   const totalNights = regularStops.reduce((sum, s) => sum + s.nights, 0)
   const totalKm = drivingLegs.reduce((sum, l) => sum + (l?.distanceKm ?? 0), 0)
   const statesVisited = (() => {
+    // Bygg opp et kart stop_id → state for alle stopp (inkl. home-stopp)
+    const stopStateMap = new Map<string, string>()
+    stops.forEach((s) => { if (s.state) stopStateMap.set(s.id, s.state) })
+
+    const addFromActivitiesAndDining = (set: Set<string>) => {
+      activities.forEach((a) => { const st = stopStateMap.get(a.stop_id); if (st) set.add(st) })
+      dining.forEach((d) => { const st = stopStateMap.get(d.stop_id); if (st) set.add(st) })
+    }
+
     if (currentTrip?.road_trip_region === 'international') {
-      // For internasjonale turer brukes routeStates som er geocodet direkte
-      // fra hvert stoppesteds koordinater → eksakte land uavhengig av DB-data.
-      // Faller tilbake til state-feltet hvis kartet ikke er lastet ennå.
       const intlStates = routeStates && routeStates.length > 0
         ? routeStates
         : regularStops.map((s) => s.state).filter(Boolean) as string[]
-      return new Set(intlStates).size
+      const all = new Set(intlStates)
+      addFromActivitiesAndDining(all)
+      return all.size
     }
     // USA: kombiner delstater fra stopp + delstater langs hele ruten
     const all = new Set(regularStops.map((s) => s.state).filter(Boolean) as string[])
     for (const s of (routeStates ?? [])) all.add(s)
+    addFromActivitiesAndDining(all)
     return all.size
   })()
 

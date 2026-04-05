@@ -3,15 +3,16 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import VacationStats from '@/components/minner/VacationStats'
-import { Trip, TripMemory, Stop, Dining } from '@/types'
+import { Trip, TripMemory, Stop, Activity, Dining } from '@/types'
 import { BookHeart, Map, Globe, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 export default function MinnerPage() {
-  const [trips, setTrips]   = useState<Trip[]>([])
-  const [stops, setStops]   = useState<Stop[]>([])
-  const [dining, setDining] = useState<Dining[]>([])
-  const [loading, setLoading] = useState(true)
+  const [trips, setTrips]         = useState<Trip[]>([])
+  const [stops, setStops]         = useState<Stop[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [dining, setDining]       = useState<Dining[]>([])
+  const [loading, setLoading]     = useState(true)
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -38,11 +39,18 @@ export default function MinnerPage() {
 
         if (loadedStops.length > 0) {
           const stopIds = loadedStops.map(s => s.id)
-          const { data: diningData } = await supabase
-            .from('dining')
-            .select('id, stop_id, name, url, booking_date, booking_time, notes, map_lat, map_lng')
-            .in('stop_id', stopIds)
+          const [{ data: diningData }, { data: activitiesData }] = await Promise.all([
+            supabase
+              .from('dining')
+              .select('id, stop_id, name, url, booking_date, booking_time, notes, map_lat, map_lng')
+              .in('stop_id', stopIds),
+            supabase
+              .from('activities')
+              .select('id, stop_id, name, activity_type, map_lat, map_lng')
+              .in('stop_id', stopIds),
+          ])
           setDining((diningData ?? []) as Dining[])
+          setActivities((activitiesData ?? []) as Activity[])
         }
       }
 
@@ -130,7 +138,7 @@ export default function MinnerPage() {
         </div>
 
         {/* Feriestatistikk */}
-        <VacationStats trips={trips} stops={stops} dining={dining} />
+        <VacationStats trips={trips} stops={stops} activities={activities} dining={dining} />
 
       </div>
     </div>

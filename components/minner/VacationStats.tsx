@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { X, Globe, Car, MapPin, Flag, Navigation, Map as MapIcon, ChevronDown, ChevronRight, Loader2, UtensilsCrossed } from 'lucide-react'
-import type { Trip, Stop, Dining } from '@/types'
+import type { Trip, Stop, Activity, Dining } from '@/types'
 
 // ── US-delstat forkortelse → fullt navn ───────────────────────────────────────
 const US_STATE_FULL: Record<string, string> = {
@@ -68,7 +68,7 @@ const COUNTRY_FLAG: Record<string, string> = {
 const countryFlag = (name: string) => COUNTRY_FLAG[name.toLowerCase().trim()] ?? '🌍'
 
 // ── Typer ─────────────────────────────────────────────────────────────────────
-interface Props { trips: Trip[]; stops: Stop[]; dining: Dining[] }
+interface Props { trips: Trip[]; stops: Stop[]; activities: Activity[]; dining: Dining[] }
 interface GroupedSection { header: string; cities: string[] }
 
 // ── StatCard ──────────────────────────────────────────────────────────────────
@@ -201,7 +201,7 @@ function GroupedModal({ title, icon, groups, footer, onClose }: {
 type ModalType = 'countries' | 'trips' | 'km' | 'states' | 'usacities' | 'world' | 'dining' | null
 
 // ── Hoved-komponent ───────────────────────────────────────────────────────────
-export default function VacationStats({ trips, stops, dining }: Props) {
+export default function VacationStats({ trips, stops, activities, dining }: Props) {
   const [activeModal, setActiveModal] = useState<ModalType>(null)
   // Faktisk kjørelengde fra Google Directions (beregnes asynkront)
   const [drivingKm, setDrivingKm] = useState<number | null>(null)
@@ -281,9 +281,15 @@ export default function VacationStats({ trips, stops, dining }: Props) {
     const storbyturer = trips.filter(t => t.trip_type === 'storbytur')
     const resorts     = trips.filter(t => t.trip_type === 'resort')
 
-    // USA-stopp
+    // USA-stopp (inkl. stopp knyttet til aktiviteter og spisesteder)
     const usaTripIds = new globalThis.Set(trips.filter(isUSATrip).map(t => t.id))
-    const usaStops = stops.filter(s => usaTripIds.has(s.trip_id) || isUSAStop(s))
+    const activityDiningStopIds = new globalThis.Set([
+      ...activities.map(a => a.stop_id),
+      ...dining.map(d => d.stop_id),
+    ])
+    const usaStops = stops.filter(s =>
+      usaTripIds.has(s.trip_id) || isUSAStop(s) || activityDiningStopIds.has(s.id)
+    )
 
     // Unike stater (fullt navn)
     const stateMap = new globalThis.Map<string, string>() // lower → full name
@@ -312,9 +318,12 @@ export default function VacationStats({ trips, stops, dining }: Props) {
       }))
     const usaTotalCities = usaCityGroups.reduce((s, g) => s + g.cities.length, 0)
 
-    // Alle steder i verden, gruppert per land (deduplisert)
+    // Alle steder i verden, gruppert per land (deduplisert, inkl. stopp fra aktiviteter/spisesteder)
     const cityByCountry = new globalThis.Map<string, globalThis.Map<string, string>>() // country → Map<city_lower, city_original>
-    stops.forEach(s => {
+    const allStopsForCities = stops.filter(s =>
+      s.city?.trim() || activityDiningStopIds.has(s.id)
+    )
+    allStopsForCities.forEach(s => {
       if (!s.city?.trim()) return
       const trip = tripMap.get(s.trip_id)
       let country = trip?.destination_country?.trim() || ''
@@ -367,7 +376,7 @@ export default function VacationStats({ trips, stops, dining }: Props) {
       worldGroups, totalWorldCities,
       diningGroups, totalDining: dining.length,
     }
-  }, [trips, stops, dining])
+  }, [trips, stops, activities, dining])
 
   // ── Modal-innhold ──────────────────────────────────────────────────────────
   const countriesItems: FlatItem[] = stats.countryList.map(c => ({ label: `${countryFlag(c)} ${c}` }))

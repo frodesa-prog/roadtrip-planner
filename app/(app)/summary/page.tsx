@@ -262,11 +262,16 @@ export default function SummaryPage() {
 
   const unattachedNotes = useMemo(() => notes.filter((n) => !n.stop_id), [notes])
 
-  // Unique countries for international road trips (regular stops only, exclude home origin)
+  // Unique countries for international road trips (stops + activity/dining parent stops)
   const countriesVisited = useMemo(() => {
     if (currentTrip?.road_trip_region !== 'international') return null
-    return [...new Set(regularStops.map((s) => s.state).filter(Boolean) as string[])]
-  }, [regularStops, currentTrip?.road_trip_region])
+    const stopStateMap = new Map<string, string>()
+    stops.forEach((s) => { if (s.state) stopStateMap.set(s.id, s.state) })
+    const stateSet = new Set(regularStops.map((s) => s.state).filter(Boolean) as string[])
+    activities.forEach((a) => { const st = stopStateMap.get(a.stop_id); if (st) stateSet.add(st) })
+    dining.forEach((d) => { const st = stopStateMap.get(d.stop_id); if (st) stateSet.add(st) })
+    return [...stateSet]
+  }, [regularStops, stops, activities, dining, currentTrip?.road_trip_region])
 
   // Selected stop (from clicked date)
   const selectedStop = selectedDate ? (stopsByDate[selectedDate] ?? null) : null
