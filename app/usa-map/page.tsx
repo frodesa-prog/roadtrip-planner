@@ -34,6 +34,20 @@ interface TripWithStops extends TripData {
   color: string
 }
 
+interface ActivityData {
+  id: string
+  stop_id: string
+  map_lat: number | null
+  map_lng: number | null
+}
+
+interface DiningData {
+  id: string
+  stop_id: string
+  map_lat: number | null
+  map_lng: number | null
+}
+
 interface InfoState {
   lat: number
   lng: number
@@ -591,24 +605,82 @@ function Legend({
 
 // ── Map content (inside APIProvider + Map) ────────────────────────────────────
 
-function MapContent({ trips }: { trips: TripWithStops[] }) {
+function MapContent({
+  trips,
+  activities,
+  dining,
+}: {
+  trips: TripWithStops[]
+  activities: ActivityData[]
+  dining: DiningData[]
+}) {
   const [activeInfo, setActiveInfo] = useState<InfoState | null>(null)
   const [distances, setDistances]   = useState<Record<string, number>>({})
   const [hidden, setHidden]         = useState<Set<string>>(new Set())
   const [showStates, setShowStates] = useState(true)
+  // Reverse-geocoded states for activities/dining with own coordinates
+  const [entryStateMap, setEntryStateMap] = useState<Record<string, string | null>>({})
 
-  // Derive visited US states (full names) from all stop data
+  // Reverse-geocode activities + dining that have their own map_lat/map_lng
+  useEffect(() => {
+    const toGeocode: { id: string; lat: number; lng: number }[] = []
+    activities.forEach((a) => { if (a.map_lat != null && a.map_lng != null) toGeocode.push({ id: a.id, lat: a.map_lat, lng: a.map_lng }) })
+    dining.forEach((d) => { if (d.map_lat != null && d.map_lng != null) toGeocode.push({ id: d.id, lat: d.map_lat, lng: d.map_lng }) })
+    if (!toGeocode.length) return
+
+    let cancelled = false
+    Promise.all(
+      toGeocode.map(({ id, lat, lng }) =>
+        fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
+          .then((r) => r.json())
+          .then((geo: { state: string | null }) => ({ id, state: geo.state ?? null }))
+          .catch(() => ({ id, state: null }))
+      )
+    ).then((results) => {
+      if (cancelled) return
+      const map: Record<string, string | null> = {}
+      results.forEach((r) => { map[r.id] = r.state })
+      setEntryStateMap(map)
+    })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activities.map((a) => `${a.id}:${a.map_lat},${a.map_lng}`).join('|'),
+    dining.map((d) => `${d.id}:${d.map_lat},${d.map_lng}`).join('|'),
+  ])
+
+  // Derive visited US states: stops + activities/dining (with own coords or parent stop fallback)
   const visitedStates = useMemo(() => {
     const set = new Set<string>()
+
+    // 1. From stop state fields
+    const stopById = new Map<string, StopData>()
     trips.forEach((trip) => {
       trip.stops.forEach((stop) => {
+        stopById.set(stop.id, stop)
         if (stop.state?.trim() && isUSState(stop.state)) {
           set.add(expandStateName(stop.state))
         }
       })
     })
+
+    // 2. From activities/dining – prioritise own geocoded state, fallback to parent stop
+    const addEntry = (entryId: string, stopId: string) => {
+      const geoState = entryStateMap[entryId]
+      if (geoState && isUSState(geoState)) {
+        set.add(expandStateName(geoState))
+        return
+      }
+      const parentStop = stopById.get(stopId)
+      if (parentStop?.state?.trim() && isUSState(parentStop.state)) {
+        set.add(expandStateName(parentStop.state))
+      }
+    }
+    activities.forEach((a) => addEntry(a.id, a.stop_id))
+    dining.forEach((d) => addEntry(d.id, d.stop_id))
+
     return set
-  }, [trips])
+  }, [trips, activities, dining, entryStateMap])
 
   const handleDistance = useCallback((tripId: string, km: number) => {
     setDistances((prev) => ({ ...prev, [tripId]: km }))
@@ -661,9 +733,11 @@ function MapContent({ trips }: { trips: TripWithStops[] }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function UsaMapPage() {
-  const [trips, setTrips]   = useState<TripWithStops[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError]   = useState<string | null>(null)
+  const [trips, setTrips]         = useState<TripWithStops[]>([])
+  const [activities, setActivities] = useState<ActivityData[]>([])
+  const [dining, setDining]       = useState<DiningData[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!
@@ -709,6 +783,22 @@ export default function UsaMapPage() {
         .in('trip_id', tripIds)
 
       if (cancelled) return
+
+      // Fetch activities and dining (for visited-state computation)
+      const [{ data: activitiesRaw }, { data: diningRaw }] = await Promise.all([
+        supabase.from('activities').select('id, stop_id, map_lat, map_lng').in('stop_id',
+          (stops ?? []).map((s) => s.id)
+        ),
+        supabase.from('dining').select('id, stop_id, map_lat, map_lng').in('stop_id',
+          (stops ?? []).map((s) => s.id)
+        ),
+      ])
+
+      if (cancelled) return
+      if (!cancelled) {
+        setActivities((activitiesRaw ?? []) as ActivityData[])
+        setDining((diningRaw ?? []) as DiningData[])
+      }
 
       // Group route legs by trip
       const routeLegsByTrip = new Map<string, RouteLegData[]>()
@@ -874,7 +964,7 @@ export default function UsaMapPage() {
               fullscreenControl
               rotateControl={false}
             >
-              <MapContent trips={trips} />
+              <MapContent trips={trips} activities={activities} dining={dining} />
             </GoogleMap>
           </APIProvider>
         </div>
