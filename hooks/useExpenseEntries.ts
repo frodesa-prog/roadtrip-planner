@@ -28,16 +28,31 @@ export function useExpenseEntries(tripId: string | null) {
 
   const addEntry = useCallback(
     async (data: NewEntryData) => {
-      const newEntry: ExpenseEntry = {
-        id: crypto.randomUUID(),
+      const id = crypto.randomUUID()
+      const optimistic: ExpenseEntry = {
+        id,
         created_at: new Date().toISOString(),
         ...data,
       }
-      setEntries((prev) => [...prev, newEntry])
-      const { error } = await supabase.from('expense_entries').insert(newEntry)
+      setEntries((prev) => [...prev, optimistic])
+
+      // Send only the columns the DB expects — omit created_at so the
+      // server-side DEFAULT now() is used and avoids any type mismatch.
+      const { error } = await supabase.from('expense_entries').insert({
+        id,
+        trip_id:     data.trip_id,
+        category:    data.category,
+        entry_date:  data.entry_date,
+        name:        data.name,
+        amount:      data.amount,
+        stop_id:     data.stop_id,
+        activity_id: data.activity_id,
+        dining_id:   data.dining_id,
+      })
       if (error) {
-        setEntries((prev) => prev.filter((e) => e.id !== newEntry.id))
-        toast.error('Kunne ikke lagre utgift')
+        console.error('[useExpenseEntries] insert error:', error)
+        setEntries((prev) => prev.filter((e) => e.id !== id))
+        toast.error(`Kunne ikke lagre utgift: ${error.message}`)
       }
     },
     [supabase]
