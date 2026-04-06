@@ -9,8 +9,11 @@ import { useActivities } from '@/hooks/useActivities'
 import { useBudgetItems } from '@/hooks/useBudgetItems'
 import { useFlights } from '@/hooks/useFlights'
 import { useCarRental } from '@/hooks/useCarRental'
+import { useDining } from '@/hooks/useDining'
+import { useExpenseEntries } from '@/hooks/useExpenseEntries'
 import { useDrivingInfo } from '@/hooks/useDrivingInfo'
 import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
+import { ExpenseEntryModal } from '@/components/planning/ExpenseEntryModal'
 import { Flight, CarRental } from '@/types'
 import {
   Plane, Train, Car, Fuel, BedDouble, Ticket,
@@ -824,9 +827,11 @@ export default function KostnaderPage() {
 
   const { hotels, saveHotel } = useHotels(stopIds)
   const { activities, updateActivity } = useActivities(stopIds)
+  const { dining } = useDining(stopIds)
   const { saveItem, getAmount, getRemaining, getNotes } = useBudgetItems(currentTrip?.id ?? null)
   const { outbound, returnFlight } = useFlights(currentTrip?.id ?? null)
   const { rental, saveRental } = useCarRental(currentTrip?.id ?? null)
+  const { entriesFor, addEntry, removeEntry, totalFor } = useExpenseEntries(currentTrip?.id ?? null)
 
   // ── Kjøreavstand for bensinskalkulator ───────────────────────────────────
   const sortedStops = useMemo(() => [...stops].sort((a, b) => a.order - b.order), [stops])
@@ -844,6 +849,9 @@ export default function KostnaderPage() {
   const [showCarRentalModal, setShowCarRentalModal] = useState(false)
   const [showFuelModal, setShowFuelModal] = useState(false)
   const [showParkingModal, setShowParkingModal] = useState(false)
+  const [showShoppingModal, setShowShoppingModal] = useState(false)
+  const [showFoodModal, setShowFoodModal] = useState(false)
+  const [showMiscModal, setShowMiscModal] = useState(false)
 
   // ── Rader ────────────────────────────────────────────────────────────────
   const hotelRows = useMemo(() =>
@@ -883,7 +891,13 @@ export default function KostnaderPage() {
     ? hotelRows.reduce((s, r) => s + (r.hotel.parking_cost_per_night ?? 0) * r.stop.nights, 0)
     : 0
   const totalTransport = !hasCarRental ? getAmount('transport') : 0
-  const totalOther = totalFlight + totalCar + totalGas + totalParking + totalTransport
+  const totalShopping  = totalFor('shopping')
+  const totalFood      = totalFor('food')
+  const totalMisc      = totalFor('misc')
+  const budgetShopping = getAmount('shopping')
+  const budgetFood     = getAmount('food')
+  const budgetMisc     = getAmount('misc')
+  const totalOther = totalFlight + totalCar + totalGas + totalParking + totalTransport + totalShopping + totalFood + totalMisc
   const grandTotal = totalHotels + totalActivities + totalOther
 
   const grandRemaining =
@@ -893,7 +907,10 @@ export default function KostnaderPage() {
     (hasCarRental ? (getRemaining('car') ?? 0) : 0) +
     (hasCarRental ? (getRemaining('gas') ?? 0) : 0) +
     (hasCarRental ? (getRemaining('parking') ?? totalParking) : 0) +
-    (!hasCarRental ? (getRemaining('transport') ?? 0) : 0)
+    (!hasCarRental ? (getRemaining('transport') ?? 0) : 0) +
+    (getRemaining('shopping') ?? (budgetShopping > 0 ? Math.max(0, budgetShopping - totalShopping) : 0)) +
+    (getRemaining('food')     ?? (budgetFood     > 0 ? Math.max(0, budgetFood     - totalFood)     : 0)) +
+    (getRemaining('misc')     ?? (budgetMisc     > 0 ? Math.max(0, budgetMisc     - totalMisc)     : 0))
 
   // Felles kolonne-grid for aktiviteter og andre kostnader
   // [Label | Kostnad (5.5rem) | Gjenstår (4.5rem)]
@@ -980,6 +997,57 @@ export default function KostnaderPage() {
         <ParkingModal
           rows={hotelRows}
           onClose={() => setShowParkingModal(false)}
+        />
+      )}
+      {showShoppingModal && currentTrip && (
+        <ExpenseEntryModal
+          category="shopping"
+          title="Shopping"
+          emoji="🛍️"
+          tripId={currentTrip.id}
+          stops={stops}
+          activities={activities}
+          dining={dining}
+          entries={entriesFor('shopping')}
+          budget={budgetShopping}
+          onBudgetSave={(v) => saveItem('shopping', { amount: v })}
+          onAddEntry={addEntry}
+          onRemoveEntry={removeEntry}
+          onClose={() => setShowShoppingModal(false)}
+        />
+      )}
+      {showFoodModal && currentTrip && (
+        <ExpenseEntryModal
+          category="food"
+          title="Mat"
+          emoji="🍽️"
+          tripId={currentTrip.id}
+          stops={stops}
+          activities={activities}
+          dining={dining}
+          entries={entriesFor('food')}
+          budget={budgetFood}
+          onBudgetSave={(v) => saveItem('food', { amount: v })}
+          onAddEntry={addEntry}
+          onRemoveEntry={removeEntry}
+          onClose={() => setShowFoodModal(false)}
+        />
+      )}
+      {showMiscModal && currentTrip && (
+        <ExpenseEntryModal
+          category="misc"
+          title="Diverse"
+          emoji="🎒"
+          tripId={currentTrip.id}
+          stops={stops}
+          activities={activities}
+          dining={dining}
+          entries={entriesFor('misc')}
+          budget={budgetMisc}
+          onBudgetSave={(v) => saveItem('misc', { amount: v })}
+          onAddEntry={addEntry}
+          onRemoveEntry={removeEntry}
+          onClose={() => setShowMiscModal(false)}
         />
       )}
 
@@ -1313,6 +1381,81 @@ export default function KostnaderPage() {
                     </div>
                   )}
 
+                  {/* Shopping */}
+                  <div
+                    className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors cursor-pointer`}
+                    onClick={() => setShowShoppingModal(true)}
+                    title="Vis/legg til shopping-utgifter"
+                  >
+                    <div className="px-2 py-2 flex items-center gap-1.5">
+                      <span className="text-sm leading-none">🛍️</span>
+                      <span className="text-xs text-slate-200">Shopping</span>
+                      <ChevronRight className="w-3 h-3 text-slate-600 ml-auto" />
+                    </div>
+                    <div className="px-1.5 py-2 text-[11px] text-right tabular-nums whitespace-nowrap">
+                      {totalShopping > 0
+                        ? <span className="text-slate-300">{fmt(totalShopping)} kr</span>
+                        : <span className="text-slate-600">—</span>
+                      }
+                    </div>
+                    <div className="px-1.5 py-1.5" onClick={(e) => e.stopPropagation()}>
+                      <RemainingCell
+                        remainingAmount={getRemaining('shopping') ?? (budgetShopping > 0 ? Math.max(0, budgetShopping - totalShopping) : null)}
+                        onSave={(v) => saveItem('shopping', { remaining_amount: v })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mat */}
+                  <div
+                    className={`grid ${rightGrid} items-center hover:bg-slate-800/40 transition-colors cursor-pointer`}
+                    onClick={() => setShowFoodModal(true)}
+                    title="Vis/legg til mat-utgifter"
+                  >
+                    <div className="px-2 py-2 flex items-center gap-1.5">
+                      <span className="text-sm leading-none">🍽️</span>
+                      <span className="text-xs text-slate-200">Mat</span>
+                      <ChevronRight className="w-3 h-3 text-slate-600 ml-auto" />
+                    </div>
+                    <div className="px-1.5 py-2 text-[11px] text-right tabular-nums whitespace-nowrap">
+                      {totalFood > 0
+                        ? <span className="text-slate-300">{fmt(totalFood)} kr</span>
+                        : <span className="text-slate-600">—</span>
+                      }
+                    </div>
+                    <div className="px-1.5 py-1.5" onClick={(e) => e.stopPropagation()}>
+                      <RemainingCell
+                        remainingAmount={getRemaining('food') ?? (budgetFood > 0 ? Math.max(0, budgetFood - totalFood) : null)}
+                        onSave={(v) => saveItem('food', { remaining_amount: v })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Diverse */}
+                  <div
+                    className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors cursor-pointer`}
+                    onClick={() => setShowMiscModal(true)}
+                    title="Vis/legg til diverse utgifter"
+                  >
+                    <div className="px-2 py-2 flex items-center gap-1.5">
+                      <span className="text-sm leading-none">🎒</span>
+                      <span className="text-xs text-slate-200">Diverse</span>
+                      <ChevronRight className="w-3 h-3 text-slate-600 ml-auto" />
+                    </div>
+                    <div className="px-1.5 py-2 text-[11px] text-right tabular-nums whitespace-nowrap">
+                      {totalMisc > 0
+                        ? <span className="text-slate-300">{fmt(totalMisc)} kr</span>
+                        : <span className="text-slate-600">—</span>
+                      }
+                    </div>
+                    <div className="px-1.5 py-1.5" onClick={(e) => e.stopPropagation()}>
+                      <RemainingCell
+                        remainingAmount={getRemaining('misc') ?? (budgetMisc > 0 ? Math.max(0, budgetMisc - totalMisc) : null)}
+                        onSave={(v) => saveItem('misc', { remaining_amount: v })}
+                      />
+                    </div>
+                  </div>
+
                   <TableTotal label="Total andre" amount={totalOther} />
                 </div>
               </div>
@@ -1340,6 +1483,9 @@ export default function KostnaderPage() {
                     { label: isTrain ? 'Tog + leiebil' : 'Fly + leiebil', value: totalFlight + totalCar },
                     { label: 'Bensin', value: totalGas },
                     { label: 'Parkering', value: totalParking },
+                    ...(totalShopping > 0 ? [{ label: 'Shopping', value: totalShopping }] : []),
+                    ...(totalFood     > 0 ? [{ label: 'Mat',      value: totalFood     }] : []),
+                    ...(totalMisc     > 0 ? [{ label: 'Diverse',  value: totalMisc     }] : []),
                   ].map(({ label, value }) => (
                     <div key={label} className="flex items-center justify-between">
                       <span className="text-[10px] text-slate-500">{label}</span>

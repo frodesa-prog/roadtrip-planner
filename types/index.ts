@@ -158,10 +158,23 @@ export interface Photo {
 export interface BudgetItem {
   id: string
   trip_id: string
-  category: 'gas' | 'car' | 'flight' | 'hotel' | 'other' | 'transport' | 'parking'
+  category: 'gas' | 'car' | 'flight' | 'hotel' | 'other' | 'transport' | 'parking' | 'shopping' | 'food' | 'misc'
   amount: number
   remaining_amount: number | null
   notes: string | null
+}
+
+export interface ExpenseEntry {
+  id: string
+  trip_id: string
+  category: 'shopping' | 'food' | 'misc'
+  entry_date: string | null   // ISO date (YYYY-MM-DD)
+  name: string
+  amount: number
+  stop_id: string | null
+  activity_id: string | null
+  dining_id: string | null
+  created_at: string
 }
 
 export interface Note {
