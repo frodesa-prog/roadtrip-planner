@@ -5,6 +5,21 @@ export type TransportType = 'fly' | 'tog' | 'ingen'
 
 export type RoadTripRegion = 'usa' | 'international'
 export type StopType = 'home_start' | 'stop' | 'home_end'
+export type AttachmentEntityType = 'stop' | 'hotel' | 'activity' | 'dining' | 'possible_activity'
+export type AttachmentFileType = 'image' | 'pdf'
+
+export interface Attachment {
+  id: string
+  trip_id: string
+  entity_type: AttachmentEntityType
+  entity_id: string
+  cloudinary_public_id: string
+  cloudinary_url: string
+  file_type: AttachmentFileType
+  file_name: string
+  uploaded_by: string
+  created_at: string
+}
 
 export interface Trip {
   id: string

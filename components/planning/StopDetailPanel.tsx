@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   X, Calendar, Moon, Hotel, ExternalLink,
   Ticket, Plus, Trash2, MapPin, Car, Pencil, Check, UtensilsCrossed, Clock, Lightbulb, FileText, ArrowRightLeft,
@@ -23,6 +23,8 @@ import InlineLocationPicker from '@/components/map/InlineLocationPicker'
 import NoteModal from '@/components/planning/NoteModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import LocationAutocompleteInput from '@/components/planning/LocationAutocompleteInput'
+import AttachmentSection from '@/components/planning/AttachmentSection'
+import { useAttachments } from '@/hooks/useAttachments'
 import { toast } from 'sonner'
 
 interface StopDetailPanelProps {
@@ -136,6 +138,19 @@ export default function StopDetailPanel({
 
   // Confirm-dialog state
   const [confirm, setConfirm] = useState<{ message: string; action: () => void } | null>(null)
+
+  // ── Vedlegg ───────────────────────────────────────────────────────────────
+  const attachmentEntityIds = useMemo(() => {
+    const ids: string[] = [stop.id]
+    if (hotel?.id) ids.push(hotel.id)
+    activities.forEach((a) => ids.push(a.id))
+    dining.forEach((d) => ids.push(d.id))
+    possibleActivities.forEach((p) => ids.push(p.id))
+    return ids
+  }, [stop.id, hotel?.id, activities, dining, possibleActivities])
+
+  const { byEntityId: attachmentsByEntity, addAttachment, removeAttachment } =
+    useAttachments(stop.trip_id, attachmentEntityIds)
 
   // Inline edit state – activities
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
@@ -680,6 +695,7 @@ export default function StopDetailPanel({
               </div>
             ) : hotelName ? (
               /* ── Compact card ────────────────────────────────────────── */
+              <>
               <div className="flex items-center gap-2 px-2.5 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50">
                 <Hotel className="w-4 h-4 text-green-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -721,6 +737,18 @@ export default function StopDetailPanel({
                   <Pencil className="w-3 h-3" />
                 </button>
               </div>
+              {hotel?.id && (
+                <div className="px-1.5 mt-1">
+                  <AttachmentSection
+                    entityType="hotel"
+                    entityId={hotel.id}
+                    attachments={attachmentsByEntity.get(hotel.id) ?? []}
+                    onAdd={addAttachment}
+                    onRemove={removeAttachment}
+                  />
+                </div>
+              )}
+              </>
             ) : (
               /* ── No hotel yet ────────────────────────────────────────── */
               <button onClick={() => setEditingHotel(true)}
@@ -823,7 +851,8 @@ export default function StopDetailPanel({
                   }
 
                   return (
-                    <div key={act.id}
+                    <div key={act.id} className="space-y-1">
+                    <div
                       onClick={onSelectActivity ? () => {
                         onSelectActivity(selectedActivityId === act.id ? null : act.id)
                       } : undefined}
@@ -940,6 +969,16 @@ export default function StopDetailPanel({
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
+                    </div>
+                    <div className="px-1.5" onClick={(e) => e.stopPropagation()}>
+                      <AttachmentSection
+                        entityType="activity"
+                        entityId={act.id}
+                        attachments={attachmentsByEntity.get(act.id) ?? []}
+                        onAdd={addAttachment}
+                        onRemove={removeAttachment}
+                      />
+                    </div>
                     </div>
                   )
                 })}
@@ -1127,7 +1166,8 @@ export default function StopDetailPanel({
                   }
 
                   return (
-                    <div key={d.id}
+                    <div key={d.id} className="space-y-1">
+                    <div
                       onClick={onSelectDining ? () => {
                         onSelectDining(selectedDiningId === d.id ? null : d.id)
                       } : undefined}
@@ -1198,6 +1238,16 @@ export default function StopDetailPanel({
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
+                    </div>
+                    <div className="px-1.5" onClick={(e) => e.stopPropagation()}>
+                      <AttachmentSection
+                        entityType="dining"
+                        entityId={d.id}
+                        attachments={attachmentsByEntity.get(d.id) ?? []}
+                        onAdd={addAttachment}
+                        onRemove={removeAttachment}
+                      />
+                    </div>
                     </div>
                   )
                 })}
@@ -1495,6 +1545,15 @@ export default function StopDetailPanel({
                           </div>
                         </div>
                       )}
+                      <div className="mt-1 px-2.5" onClick={(e) => e.stopPropagation()}>
+                        <AttachmentSection
+                          entityType="possible_activity"
+                          entityId={a.id}
+                          attachments={attachmentsByEntity.get(a.id) ?? []}
+                          onAdd={addAttachment}
+                          onRemove={removeAttachment}
+                        />
+                      </div>
                     </div>
                   )
                 })}
@@ -1579,6 +1638,20 @@ export default function StopDetailPanel({
                 <Plus className="w-3 h-3" /> Legg til mulig aktivitet
               </button>
             )}
+          </section>
+
+          {/* ── Vedlegg (stoppested) ────────────────────────────────────── */}
+          <section>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1 mb-1">
+              <span>📎</span> Vedlegg
+            </h3>
+            <AttachmentSection
+              entityType="stop"
+              entityId={stop.id}
+              attachments={attachmentsByEntity.get(stop.id) ?? []}
+              onAdd={addAttachment}
+              onRemove={removeAttachment}
+            />
           </section>
 
           {/* ── Notater ─────────────────────────────────────────────────── */}
