@@ -158,7 +158,7 @@ export interface Photo {
 export interface BudgetItem {
   id: string
   trip_id: string
-  category: 'gas' | 'car' | 'flight' | 'hotel' | 'other' | 'transport'
+  category: 'gas' | 'car' | 'flight' | 'hotel' | 'other' | 'transport' | 'parking'
   amount: number
   remaining_amount: number | null
   notes: string | null

@@ -892,7 +892,7 @@ export default function KostnaderPage() {
     (hasFlight ? (getRemaining('flight') ?? 0) : 0) +
     (hasCarRental ? (getRemaining('car') ?? 0) : 0) +
     (hasCarRental ? (getRemaining('gas') ?? 0) : 0) +
-    (hasCarRental ? totalParking : 0) +
+    (hasCarRental ? (getRemaining('parking') ?? totalParking) : 0) +
     (!hasCarRental ? (getRemaining('transport') ?? 0) : 0)
 
   // Felles kolonne-grid for aktiviteter og andre kostnader
@@ -1282,13 +1282,10 @@ export default function KostnaderPage() {
                           }
                         </div>
                         <div className="px-1.5 py-1.5">
-                          {totalParking > 0 ? (
-                            <div className="w-full text-right text-[11px] font-semibold text-amber-300 bg-amber-900/40 border border-amber-600/50 rounded-md px-1.5 py-0.5 whitespace-nowrap">
-                              {fmt(totalParking)} kr
-                            </div>
-                          ) : (
-                            <div className="w-full text-center text-[11px] text-green-600 py-0.5">✓</div>
-                          )}
+                          <RemainingCell
+                            remainingAmount={getRemaining('parking') ?? (totalParking > 0 ? totalParking : null)}
+                            onSave={(v) => saveItem('parking', { remaining_amount: v })}
+                          />
                         </div>
                       </div>
                     </>
