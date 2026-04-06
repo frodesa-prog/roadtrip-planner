@@ -235,6 +235,8 @@ export interface CarRental {
   confirmation_nr: string | null  // Bekreftelsesnr.
   url: string | null              // Link til bestilling
   notes: string | null            // Tilleggsinfo
+  km_start: number | null         // KM-stand ved henting
+  km_end: number | null           // KM-stand ved levering
 }
 
 export interface Traveler {

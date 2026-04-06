@@ -352,18 +352,25 @@ function CarRentalModal({
     defaultValue,
     placeholder,
     textarea,
+    type = 'text',
   }: {
     label: string
     field: keyof Omit<CarRental, 'id' | 'trip_id'>
-    defaultValue: string | null
+    defaultValue: string | number | null
     placeholder?: string
     textarea?: boolean
+    type?: string
   }) {
     const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
 
     function handleBlur() {
-      const val = ref.current?.value.trim() ?? ''
-      onSave({ [field]: val || null })
+      const raw = ref.current?.value.trim() ?? ''
+      if (type === 'number') {
+        const num = raw === '' ? null : Number(raw)
+        onSave({ [field]: isNaN(num as number) ? null : num })
+      } else {
+        onSave({ [field]: raw || null })
+      }
     }
 
     const cls =
@@ -386,7 +393,7 @@ function CarRentalModal({
         ) : (
           <input
             ref={ref as React.RefObject<HTMLInputElement>}
-            type="text"
+            type={type}
             defaultValue={defaultValue ?? ''}
             placeholder={placeholder}
             onBlur={handleBlur}
@@ -397,6 +404,11 @@ function CarRentalModal({
       </div>
     )
   }
+
+  const kmTotal =
+    rental?.km_start != null && rental?.km_end != null
+      ? rental.km_end - rental.km_start
+      : null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -435,6 +447,27 @@ function CarRentalModal({
             </a>
           )}
           <Field label="Tilleggsinfo" field="notes" defaultValue={rental?.notes ?? null} placeholder="Andre opplysninger…" textarea />
+
+          {/* ── KM-stand ───────────────────────────────────────────────── */}
+          <div className="border-t border-slate-800 pt-3 space-y-3">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">KM-stand</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="KM start" field="km_start" type="number" defaultValue={rental?.km_start ?? null} placeholder="f.eks. 12 450" />
+              <Field label="KM slutt" field="km_end"   type="number" defaultValue={rental?.km_end   ?? null} placeholder="f.eks. 15 200" />
+            </div>
+            <div className={`flex items-center justify-between px-3 py-2 rounded-lg border ${
+              kmTotal != null
+                ? 'bg-violet-950/40 border-violet-700/50'
+                : 'bg-slate-800/40 border-slate-700/40'
+            }`}>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">KM totalt</span>
+              <span className={`text-sm font-bold ${kmTotal != null ? 'text-violet-300' : 'text-slate-600'}`}>
+                {kmTotal != null
+                  ? `${kmTotal.toLocaleString('nb-NO')} km`
+                  : '—'}
+              </span>
+            </div>
+          </div>
         </div>
         <div className="px-4 pb-4">
           <button

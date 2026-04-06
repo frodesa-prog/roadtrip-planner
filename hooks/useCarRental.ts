@@ -44,6 +44,8 @@ export function useCarRental(tripId: string | null) {
               confirmation_nr: null,
               url: null,
               notes: null,
+              km_start: null,
+              km_end: null,
               ...updates,
             }
       )
