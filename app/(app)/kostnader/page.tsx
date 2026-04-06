@@ -1281,7 +1281,7 @@ export default function KostnaderPage() {
                             : <span className="text-slate-600">—</span>
                           }
                         </div>
-                        <div className="px-1.5 py-1.5">
+                        <div className="px-1.5 py-1.5" onClick={(e) => e.stopPropagation()}>
                           <RemainingCell
                             remainingAmount={getRemaining('parking') ?? (totalParking > 0 ? totalParking : null)}
                             onSave={(v) => saveItem('parking', { remaining_amount: v })}
