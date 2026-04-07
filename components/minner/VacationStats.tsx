@@ -417,10 +417,10 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
       if (!cm.has(low)) cm.set(low, s.city.trim())
     })
 
-    // Flett inn alle USA-byer fra usaCityByState (inkl. byer funnet via aktiviteter/
-    // spisesteder med egne koordinater) slik at "Steder i verden → USA" er komplett.
-    // Nøkkel: by+stat slik at samme bynavn i to stater teller som to steder –
-    // identisk logikk som usaTotalCities.
+    // Erstatt USA-posten fullstendig med data fra usaCityByState (som er mer komplett
+    // og bruker by+stat som nøkkel). Sletter først det stopp-løkken la inn slik at
+    // ingen by telles dobbelt.
+    cityByCountry.delete('USA')
     usaCityByState.forEach((citySet, state) => {
       if (!cityByCountry.has('USA')) cityByCountry.set('USA', new globalThis.Map())
       const cm = cityByCountry.get('USA')!
