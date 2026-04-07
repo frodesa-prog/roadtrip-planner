@@ -116,12 +116,17 @@ export function useAttachments(tripId: string | null, entityIds: string[]) {
 
   const removeAttachment = useCallback(
     async (id: string) => {
-      const { error } = await supabase.from('attachments').delete().eq('id', id)
-      if (!error) {
+      // Kall server-side API som sletter fra Cloudinary + Supabase
+      const res = await fetch(`/api/attachments/delete?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
         setAttachments((prev) => prev.filter((a) => a.id !== id))
+      } else {
+        console.error('[useAttachments] Kunne ikke slette vedlegg:', await res.text())
       }
     },
-    [supabase],
+    [],
   )
 
   return { attachments, byEntityId, addAttachment, removeAttachment }
