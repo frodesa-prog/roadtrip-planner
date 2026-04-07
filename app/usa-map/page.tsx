@@ -460,6 +460,74 @@ function InfoPopup({ info, onClose }: { info: InfoState; onClose: () => void }) 
   )
 }
 
+// ── CityPinsLayer: one pin per unique visited city in USA ─────────────────────
+
+interface CityPin {
+  key: string
+  city: string
+  state: string
+  lat: number
+  lng: number
+}
+
+function CityPinsLayer({
+  cities,
+  show,
+  onMarkerClick,
+}: {
+  cities: CityPin[]
+  show: boolean
+  onMarkerClick: (info: InfoState) => void
+}) {
+  const map = useMap()
+  const markersRef = useRef<google.maps.Marker[]>([])
+
+  useEffect(() => {
+    if (!map) return
+
+    // Clean up existing pins
+    markersRef.current.forEach((m) => m.setMap(null))
+    markersRef.current = []
+
+    if (!show) return
+
+    const pinSvg = (fill: string) => `
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="19" viewBox="0 0 28 38">
+        <circle cx="14" cy="13" r="11" fill="${fill}" stroke="white" stroke-width="2.5"/>
+        <circle cx="14" cy="13" r="4" fill="white" opacity="0.85"/>
+        <polygon points="14,36 8,22 20,22" fill="${fill}"/>
+      </svg>
+    `
+
+    cities.forEach(({ city, state, lat, lng }) => {
+      const label = state ? `${city}, ${state}` : city
+      const marker = new google.maps.Marker({
+        position: { lat, lng },
+        map,
+        title: label,
+        zIndex: 2,
+        icon: {
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(pinSvg('#f59e0b'))}`,
+          scaledSize: new google.maps.Size(14, 19),
+          anchor:     new google.maps.Point(7, 19),
+        },
+      })
+      marker.addListener('click', () => {
+        onMarkerClick({ lat, lng, label: `📍 ${label}` })
+      })
+      markersRef.current.push(marker)
+    })
+
+    return () => {
+      markersRef.current.forEach((m) => m.setMap(null))
+      markersRef.current = []
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, show, cities.map((c) => c.key).join('|'), onMarkerClick])
+
+  return null
+}
+
 // ── StateListPanel: floating panel listing visited/unvisited states ───────────
 
 function StateListPanel({
@@ -578,6 +646,9 @@ function Legend({
   onToggleUnvisited,
   onClickUnvisitedList,
   unvisitedStateCount,
+  showCityPins,
+  onToggleCityPins,
+  cityPinCount,
 }: {
   trips: TripWithStops[]
   distances: Record<string, number>
@@ -592,6 +663,9 @@ function Legend({
   onToggleUnvisited: () => void
   onClickUnvisitedList: () => void
   unvisitedStateCount: number
+  showCityPins: boolean
+  onToggleCityPins: () => void
+  cityPinCount: number
 }) {
   const [open, setOpen] = useState(true)
   const allVisible = hidden.size === 0
@@ -738,6 +812,35 @@ function Legend({
               </span>
             </div>
 
+            {/* Besøkte steder (pins) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                onClick={(e) => { e.stopPropagation(); onToggleCityPins() }}
+                style={{ cursor: 'pointer', flexShrink: 0 }}
+              >
+                <Checkbox checked={showCityPins} color="#f59e0b" />
+              </div>
+              <div style={{
+                width: 22, height: 14, borderRadius: 3, flexShrink: 0,
+                background: 'rgba(245,158,11,0.18)',
+                border: '1.5px solid rgba(251,191,36,0.5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10,
+              }}>
+                📍
+              </div>
+              <span
+                onClick={onToggleCityPins}
+                style={{ fontSize: 12, color: '#e2e8f0', flex: 1, cursor: 'pointer' }}
+                title="Vis én pin per besøkte by"
+              >
+                Besøkte steder
+              </span>
+              <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>
+                {cityPinCount} steder
+              </span>
+            </div>
+
           </div>
         </div>
       )}
@@ -763,6 +866,7 @@ function MapContent({
   const [hidden, setHidden]             = useState<Set<string>>(new Set())
   const [showStates, setShowStates]     = useState(true)
   const [showUnvisited, setShowUnvisited] = useState(false)
+  const [showCityPins, setShowCityPins] = useState(false)
   const [stateListOpen, setStateListOpen] = useState<StateListOpen>(null)
   const [entryStateMap, setEntryStateMap] = useState<Record<string, string | null>>({})
 
@@ -850,6 +954,27 @@ function MapContent({
     [allVisitedStates]
   )
 
+  // One pin per unique city (same logic as "Steder i USA" in VacationStats)
+  const usaCities = useMemo<CityPin[]>(() => {
+    const seen = new Map<string, CityPin>()
+    trips.forEach((trip) => {
+      trip.stops.forEach((stop) => {
+        if (!stop.city?.trim() || !stop.state?.trim() || !isUSState(stop.state)) return
+        const key = `${stop.city.trim().toLowerCase()}__${stop.state.trim().toLowerCase()}`
+        if (!seen.has(key)) {
+          seen.set(key, {
+            key,
+            city:  stop.city.trim(),
+            state: expandStateName(stop.state.trim()),
+            lat:   stop.lat,
+            lng:   stop.lng,
+          })
+        }
+      })
+    })
+    return Array.from(seen.values())
+  }, [trips])
+
   const handleDistance = useCallback((tripId: string, km: number) => {
     setDistances((prev) => ({ ...prev, [tripId]: km }))
   }, [])
@@ -874,6 +999,11 @@ function MapContent({
         allVisitedStates={allVisitedStates}
         showVisited={showStates}
         showUnvisited={showUnvisited}
+      />
+      <CityPinsLayer
+        cities={usaCities}
+        show={showCityPins}
+        onMarkerClick={setActiveInfo}
       />
       {trips.map((trip, index) => (
         <TripRoute
@@ -901,6 +1031,9 @@ function MapContent({
           onToggleUnvisited={() => setShowUnvisited((v) => !v)}
           onClickUnvisitedList={() => setStateListOpen((v) => v === 'unvisited' ? null : 'unvisited')}
           unvisitedStateCount={unvisitedStates.length}
+          showCityPins={showCityPins}
+          onToggleCityPins={() => setShowCityPins((v) => !v)}
+          cityPinCount={usaCities.length}
         />
       )}
       {stateListOpen === 'visited' && (
