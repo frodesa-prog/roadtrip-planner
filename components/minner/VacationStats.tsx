@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { X, Globe, Car, MapPin, Flag, Navigation, Map as MapIcon, ChevronDown, ChevronRight, Loader2, UtensilsCrossed } from 'lucide-react'
+import { X, Globe, Car, MapPin, Flag, Navigation, Map as MapIcon, ChevronDown, ChevronRight, Loader2, UtensilsCrossed, ExternalLink } from 'lucide-react'
 import type { Trip, Stop, Activity, Dining } from '@/types'
 
 // ── US-delstat forkortelse → fullt navn ───────────────────────────────────────
@@ -69,7 +69,11 @@ const countryFlag = (name: string) => COUNTRY_FLAG[name.toLowerCase().trim()] ??
 
 // ── Typer ─────────────────────────────────────────────────────────────────────
 interface Props { trips: Trip[]; stops: Stop[]; activities: Activity[]; dining: Dining[] }
-interface GroupedSection { header: string; cities: string[] }
+interface GroupedSection {
+  header: string
+  cities: string[]
+  mapsUrls?: string[]   // valgfri parallell array – Google Maps-lenke per by/sted
+}
 
 // ── StatCard ──────────────────────────────────────────────────────────────────
 interface StatCardProps {
@@ -177,12 +181,27 @@ function GroupedModal({ title, icon, groups, footer, onClose }: {
                     </button>
                     {isOpen && (
                       <ul className="bg-slate-950/40">
-                        {g.cities.map((city, i) => (
-                          <li key={i} className="flex items-center gap-2 px-8 py-2 border-t border-slate-800/40">
-                            <span className="text-slate-500 text-xs">📍</span>
-                            <span className="text-sm text-slate-300">{city}</span>
-                          </li>
-                        ))}
+                        {g.cities.map((city, i) => {
+                          const mapsUrl = g.mapsUrls?.[i]
+                          return (
+                            <li key={i} className="flex items-center gap-2 px-8 py-2 border-t border-slate-800/40">
+                              <span className="text-slate-500 text-xs">📍</span>
+                              {mapsUrl ? (
+                                <a
+                                  href={mapsUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-slate-300 hover:text-blue-400 hover:underline transition-colors flex items-center gap-1.5 group min-w-0"
+                                >
+                                  <span className="truncate">{city}</span>
+                                  <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </a>
+                              ) : (
+                                <span className="text-sm text-slate-300">{city}</span>
+                              )}
+                            </li>
+                          )
+                        })}
                       </ul>
                     )}
                   </div>
@@ -371,10 +390,16 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
     // Dedup på tvers av stater: samme by kan stå i to stater – behold per stat
     const usaCityGroups: GroupedSection[] = Array.from(usaCityByState.entries())
       .sort(([a], [b]) => a.localeCompare(b, 'nb'))
-      .map(([state, citySet]) => ({
-        header: `🇺🇸 ${state}`,
-        cities: Array.from(citySet).sort(),
-      }))
+      .map(([state, citySet]) => {
+        const sorted = Array.from(citySet).sort()
+        return {
+          header: `🇺🇸 ${state}`,
+          cities: sorted,
+          mapsUrls: sorted.map(city =>
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${city}, ${state}`)}`
+          ),
+        }
+      })
     const usaTotalCities = usaCityGroups.reduce((s, g) => s + g.cities.length, 0)
 
     // Alle steder i verden, gruppert per land (deduplisert, inkl. stopp fra aktiviteter/spisesteder)
@@ -410,21 +435,30 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
       stopMeta.set(s.id, { city: s.city?.trim() || 'Ukjent sted', country })
     })
 
-    // Grupper dining per land → liste med "Navn (Stoppested)"
-    const diningByCountry = new globalThis.Map<string, string[]>()
+    // Grupper dining per land → liste med "Navn (Stoppested)" + Google Maps-lenke
+    const diningByCountry = new globalThis.Map<string, { label: string; mapsUrl: string }[]>()
     dining.forEach(d => {
-      const meta = stopMeta.get(d.stop_id)
+      const meta    = stopMeta.get(d.stop_id)
       const country = meta?.country ?? 'Ukjent'
       const city    = meta?.city    ?? 'Ukjent sted'
+      const label   = `${d.name} (${city})`
+      const query   = d.map_lat != null && d.map_lng != null
+        ? `${encodeURIComponent(d.name)}&center=${d.map_lat},${d.map_lng}`
+        : encodeURIComponent(`${d.name}, ${city}`)
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${query}`
       if (!diningByCountry.has(country)) diningByCountry.set(country, [])
-      diningByCountry.get(country)!.push(`${d.name} (${city})`)
+      diningByCountry.get(country)!.push({ label, mapsUrl })
     })
     const diningGroups: GroupedSection[] = Array.from(diningByCountry.entries())
       .sort(([a], [b]) => a.localeCompare(b, 'nb'))
-      .map(([country, names]) => ({
-        header: `${countryFlag(country)} ${country}`,
-        cities: names.sort(),
-      }))
+      .map(([country, items]) => {
+        const sorted = items.slice().sort((a, b) => a.label.localeCompare(b.label, 'nb'))
+        return {
+          header:   `${countryFlag(country)} ${country}`,
+          cities:   sorted.map(it => it.label),
+          mapsUrls: sorted.map(it => it.mapsUrl),
+        }
+      })
 
     return {
       countryList, roadtrips, storbyturer, resorts,
