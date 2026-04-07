@@ -431,10 +431,16 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
     })
     const worldGroups: GroupedSection[] = Array.from(cityByCountry.entries())
       .sort(([a], [b]) => a.localeCompare(b, 'nb'))
-      .map(([country, cityMap]) => ({
-        header: `${countryFlag(country)} ${country}`,
-        cities: Array.from(cityMap.values()).sort(),
-      }))
+      .map(([country, cityMap]) => {
+        const sorted = Array.from(cityMap.values()).sort()
+        return {
+          header:   `${countryFlag(country)} ${country}`,
+          cities:   sorted,
+          mapsUrls: sorted.map(city =>
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${city}, ${country}`)}`
+          ),
+        }
+      })
     const totalWorldCities = worldGroups.reduce((s, g) => s + g.cities.length, 0)
 
     // Spisesteder gruppert per land (med stoppested i parentes)
