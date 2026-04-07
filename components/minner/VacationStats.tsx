@@ -416,6 +416,17 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
       const low = s.city.trim().toLowerCase()
       if (!cm.has(low)) cm.set(low, s.city.trim())
     })
+
+    // Flett inn alle USA-byer fra usaCityByState (inkl. byer funnet via aktiviteter/
+    // spisesteder med egne koordinater) slik at "Steder i verden → USA" er komplett.
+    usaCityByState.forEach((citySet) => {
+      if (!cityByCountry.has('USA')) cityByCountry.set('USA', new globalThis.Map())
+      const cm = cityByCountry.get('USA')!
+      citySet.forEach(city => {
+        const low = city.toLowerCase()
+        if (!cm.has(low)) cm.set(low, city)
+      })
+    })
     const worldGroups: GroupedSection[] = Array.from(cityByCountry.entries())
       .sort(([a], [b]) => a.localeCompare(b, 'nb'))
       .map(([country, cityMap]) => ({
