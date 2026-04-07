@@ -36,8 +36,8 @@ export default function CollageGenerator({ memory, favoritePhotos, onCoverUpdate
     const photos  = favoritePhotos.slice(0, 9)
     const cols    = photos.length <= 1 ? 1 : photos.length <= 4 ? 2 : 3
     const rows    = Math.ceil(photos.length / cols)
-    const SIZE    = 300
-    const GAP     = 6
+    const SIZE    = 800   // høy oppløsning → skarp som headerbakgrunn
+    const GAP     = 8
     const W       = cols * SIZE + (cols - 1) * GAP
     const H       = rows * SIZE + (rows - 1) * GAP
 
