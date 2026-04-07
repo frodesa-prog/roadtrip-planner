@@ -18,7 +18,9 @@ export default function MemoryBookCard({ memory, trip, onGenerate, onDelete, gen
   const hasMemory = !!memory
   const nights    = memory?.total_nights
   const stops     = memory?.total_stops
-  const km        = memory?.total_km
+  // Foretrekk faktisk kjørelengde fra planleggeren (Google Directions),
+  // faller tilbake til minnebokens lagrede verdi (Haversine-estimat) hvis ikke tilgjengelig.
+  const km        = trip.total_km ?? memory?.total_km
 
   return (
     <div
@@ -69,7 +71,7 @@ export default function MemoryBookCard({ memory, trip, onGenerate, onDelete, gen
       {/* Innhold */}
       <div className="flex flex-col flex-1 p-4 gap-3">
         {/* Statistikk */}
-        {hasMemory && (nights || stops || km) ? (
+        {hasMemory && (nights || stops || km != null) ? (
           <div className="flex gap-3 text-xs text-slate-400">
             {stops  != null && <span>📍 {stops} stopp</span>}
             {nights != null && <span>🌙 {nights} netter</span>}

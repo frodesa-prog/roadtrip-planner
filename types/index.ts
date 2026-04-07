@@ -42,6 +42,7 @@ export interface Trip {
   transport_type: TransportType
   road_trip_region: RoadTripRegion | null  // 'usa' | 'international', null = legacy
   different_end_location: boolean          // true = home_end is a different place than home_start
+  total_km: number | null                  // kjørelengde fra Google Directions API (oppdateres fra planleggeren)
 }
 
 /** Geocoded address result used for road trip home stops */

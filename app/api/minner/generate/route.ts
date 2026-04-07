@@ -44,29 +44,56 @@ export async function POST(req: NextRequest) {
 
     const totalNights = stops.reduce((s: number, st: { nights: number }) => s + (st.nights ?? 0), 0)
 
-    // ── Haversine ─────────────────────────────────────────────────────────────
-    function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-      const R = 6371
-      const dLat = (lat2 - lat1) * Math.PI / 180
-      const dLng = (lng2 - lng1) * Math.PI / 180
-      const a = Math.sin(dLat / 2) ** 2 +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    }
-
     type StopRow = {
       id: string; city: string; state: string | null; arrival_date: string | null
       nights: number; lat: number | null; lng: number | null; order: number
     }
     const stopsTyped = stops as StopRow[]
 
-    const legKm: number[] = stopsTyped.map((stop, i) => {
-      if (i === 0) return 0
-      const prev = stopsTyped[i - 1]
-      if (prev.lat == null || prev.lng == null || stop.lat == null || stop.lng == null) return 0
-      return haversineKm(prev.lat, prev.lng, stop.lat, stop.lng)
-    })
-    const totalKm = legKm.reduce((s, d) => s + d, 0)
+    // Bruk kjørelengde fra Google Directions (lagret av planleggeren) hvis tilgjengelig.
+    // Faller tilbake til Haversine-estimat kun dersom trips.total_km ikke er satt.
+    const tripRow = trip as { total_km?: number | null }
+    let totalKm: number
+    let legKm: number[]
+    if (tripRow.total_km && tripRow.total_km > 0) {
+      totalKm = tripRow.total_km
+      // Fordel km proporsjonalt på etapper (for per-stopp-tekst i AI-prompt)
+      const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+        const R = 6371
+        const dLat = (lat2 - lat1) * Math.PI / 180
+        const dLng = (lng2 - lng1) * Math.PI / 180
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+      }
+      const rawLeg: number[] = stopsTyped.map((stop, i) => {
+        if (i === 0) return 0
+        const prev = stopsTyped[i - 1]
+        if (prev.lat == null || prev.lng == null || stop.lat == null || stop.lng == null) return 0
+        return haversineKm(prev.lat, prev.lng, stop.lat, stop.lng)
+      })
+      const rawTotal = rawLeg.reduce((s, d) => s + d, 0)
+      legKm = rawTotal > 0
+        ? rawLeg.map((d) => (d / rawTotal) * totalKm)
+        : rawLeg
+    } else {
+      // Haversine-fallback
+      const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+        const R = 6371
+        const dLat = (lat2 - lat1) * Math.PI / 180
+        const dLng = (lng2 - lng1) * Math.PI / 180
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+      }
+      legKm = stopsTyped.map((stop, i) => {
+        if (i === 0) return 0
+        const prev = stopsTyped[i - 1]
+        if (prev.lat == null || prev.lng == null || stop.lat == null || stop.lng == null) return 0
+        return haversineKm(prev.lat, prev.lng, stop.lat, stop.lng)
+      })
+      totalKm = legKm.reduce((s, d) => s + d, 0)
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     function fmtDate(d: string | null): string {

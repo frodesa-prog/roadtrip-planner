@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 import { MapPin, Loader2, Car, CalendarDays, List, Check, X, Home } from 'lucide-react'
 import { Stop, Trip, Hotel, Activity, Dining, PossibleActivity, RouteLeg, NewTripData, GeoResult } from '@/types'
+import { createClient } from '@/lib/supabase/client'
 import StopCard from './StopCard'
 import LocationAutocompleteInput from './LocationAutocompleteInput'
 import CalendarView from './CalendarView'
@@ -162,6 +163,22 @@ export default function PlanSidebar({
 
   const totalNights = regularStops.reduce((sum, s) => sum + s.nights, 0)
   const totalKm = drivingLegs.reduce((sum, l) => sum + (l?.distanceKm ?? 0), 0)
+
+  // Lagre faktisk kjørelengde (Google Directions) tilbake til trips-tabellen,
+  // slik at minneboken kan bruke riktig km i stedet for Haversine-estimat.
+  // Venter til alle etapper er ferdig hentet (ingen undefined) før vi lagrer.
+  const lastSavedKmRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!currentTrip?.id || totalKm <= 0) return
+    if (!drivingLegs.length || drivingLegs.some((l) => l === undefined)) return
+    const rounded = Math.round(totalKm)
+    if (lastSavedKmRef.current === rounded) return   // ingen endring
+    lastSavedKmRef.current = rounded
+    const supabase = createClient()
+    supabase.from('trips').update({ total_km: rounded }).eq('id', currentTrip.id).then()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTrip?.id, totalKm, drivingLegs.some((l) => l === undefined)])
+
   const statesVisited = (() => {
     // Bygg opp et kart stop_id → state for alle stopp (inkl. home-stopp)
     const stopStateMap = new Map<string, string>()
