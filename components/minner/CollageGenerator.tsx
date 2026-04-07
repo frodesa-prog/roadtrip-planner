@@ -2,7 +2,7 @@
 
 import { MemoryPhoto, TripMemory } from '@/types'
 import { useRef, useState } from 'react'
-import { Layers, Loader2, Check } from 'lucide-react'
+import { Layers, Loader2, Check, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { nanoid } from 'nanoid'
 
@@ -17,6 +17,7 @@ export default function CollageGenerator({ memory, favoritePhotos, onCoverUpdate
   const [generating, setGenerating] = useState(false)
   const [preview, setPreview]       = useState<string | null>(null)
   const [saved, setSaved]           = useState(false)
+  const [error, setError]           = useState<string | null>(null)
 
   const cloudName    = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
@@ -25,6 +26,7 @@ export default function CollageGenerator({ memory, favoritePhotos, onCoverUpdate
     if (!canvasRef.current || favoritePhotos.length === 0) return
     setGenerating(true)
     setSaved(false)
+    setError(null)
 
     const canvas = canvasRef.current
     const ctx    = canvas.getContext('2d')
@@ -51,8 +53,9 @@ export default function CollageGenerator({ memory, favoritePhotos, onCoverUpdate
         img.crossOrigin = 'anonymous'
         img.onload  = () => resolve(img)
         img.onerror = reject
-        // Bruk Cloudinary-transform for konsistent størrelse
-        img.src = url.replace('/upload/', `/upload/c_fill,w_${SIZE},h_${SIZE},q_auto/`)
+        // Bruk Cloudinary-transform for konsistent størrelse.
+        // f_auto konverterer HEIC/HEIF (iPhone) til JPEG/WebP automatisk.
+        img.src = url.replace('/upload/', `/upload/c_fill,w_${SIZE},h_${SIZE},q_auto,f_auto/`)
       })
 
     try {
@@ -70,6 +73,7 @@ export default function CollageGenerator({ memory, favoritePhotos, onCoverUpdate
       setPreview(dataUrl)
     } catch (err) {
       console.error('Kollasj feilet:', err)
+      setError('Kunne ikke generere kollasj. Sjekk at bildene er lastet opp riktig og prøv igjen.')
     } finally {
       setGenerating(false)
     }
@@ -149,6 +153,14 @@ export default function CollageGenerator({ memory, favoritePhotos, onCoverUpdate
           </button>
         )}
       </div>
+
+      {/* Feilmelding */}
+      {error && (
+        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-900/20 border border-red-800/40 rounded-xl px-3 py-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
 
       {/* Forhåndsvisning */}
       {preview && (
