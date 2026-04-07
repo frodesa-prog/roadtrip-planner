@@ -868,9 +868,9 @@ function MapContent({
   const [showUnvisited, setShowUnvisited] = useState(false)
   const [showCityPins, setShowCityPins] = useState(false)
   const [stateListOpen, setStateListOpen] = useState<StateListOpen>(null)
-  const [entryStateMap, setEntryStateMap] = useState<Record<string, string | null>>({})
+  const [entryStateMap, setEntryStateMap] = useState<Record<string, { state: string | null; city: string | null }>>({})
 
-  // Reverse-geocode entries with own coordinates
+  // Reverse-geocode entries with own coordinates (henter nå også by)
   useEffect(() => {
     const toGeocode: { id: string; lat: number; lng: number }[] = []
     activities.forEach((a) => { if (a.map_lat != null && a.map_lng != null) toGeocode.push({ id: a.id, lat: a.map_lat, lng: a.map_lng }) })
@@ -882,13 +882,13 @@ function MapContent({
       toGeocode.map(({ id, lat, lng }) =>
         fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
           .then((r) => r.json())
-          .then((geo: { state: string | null }) => ({ id, state: geo.state ?? null }))
-          .catch(() => ({ id, state: null }))
+          .then((geo: { state: string | null; city: string | null }) => ({ id, state: geo.state ?? null, city: geo.city ?? null }))
+          .catch(() => ({ id, state: null, city: null }))
       )
     ).then((results) => {
       if (cancelled) return
-      const m: Record<string, string | null> = {}
-      results.forEach((r) => { m[r.id] = r.state })
+      const m: Record<string, { state: string | null; city: string | null }> = {}
+      results.forEach((r) => { m[r.id] = { state: r.state, city: r.city } })
       setEntryStateMap(m)
     })
     return () => { cancelled = true }
@@ -923,7 +923,7 @@ function MapContent({
     const addEntry = (entryId: string, stopId: string) => {
       const tripId = stopToTripId.get(stopId)
       if (allowedTripIds && (!tripId || !allowedTripIds.has(tripId))) return
-      const geoState = entryStateMap[entryId]
+      const geoState = entryStateMap[entryId]?.state
       if (geoState && isUSState(geoState)) { set.add(expandStateName(geoState)); return }
       const parentStop = stopById.get(stopId)
       if (parentStop?.state?.trim() && isUSState(parentStop.state)) set.add(expandStateName(parentStop.state))
@@ -972,8 +972,27 @@ function MapContent({
         }
       })
     })
+    // Also include activities/dining that have their own coordinates and were
+    // reverse-geocoded to a US city (e.g. Baxter Springs, KS)
+    const addEntryCity = (entryId: string, lat: number | null, lng: number | null) => {
+      if (lat == null || lng == null) return
+      const geo = entryStateMap[entryId]
+      if (!geo?.state || !isUSState(geo.state) || !geo.city?.trim()) return
+      const key = `${geo.city.trim().toLowerCase()}__${geo.state.trim().toLowerCase()}`
+      if (!seen.has(key)) {
+        seen.set(key, {
+          key,
+          city:  geo.city.trim(),
+          state: expandStateName(geo.state.trim()),
+          lat,
+          lng,
+        })
+      }
+    }
+    activities.forEach((a) => addEntryCity(a.id, a.map_lat, a.map_lng))
+    dining.forEach((d) => addEntryCity(d.id, d.map_lat, d.map_lng))
     return Array.from(seen.values())
-  }, [trips])
+  }, [trips, activities, dining, entryStateMap])
 
   const handleDistance = useCallback((tripId: string, km: number) => {
     setDistances((prev) => ({ ...prev, [tripId]: km }))
