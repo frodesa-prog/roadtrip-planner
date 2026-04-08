@@ -63,10 +63,16 @@ interface CityFact {
 // Klient-side cache per page-load – unngår doble kall for samme by
 const clientCache = new Map<string, CityFact | null>()
 
-async function fetchCityFact(city: string, state?: string | null, country?: string | null): Promise<CityFact | null> {
+async function fetchCityFact(
+  city: string,
+  state?: string | null,
+  country?: string | null,
+  revisit = false,
+): Promise<CityFact | null> {
   const params = new URLSearchParams({ city })
   if (state)   params.set('state',   state)
   if (country) params.set('country', country)
+  if (revisit) params.set('revisit', '1')
   const cacheKey = params.toString()
 
   if (clientCache.has(cacheKey)) return clientCache.get(cacheKey) ?? null
@@ -400,6 +406,7 @@ export default function TripSummary({
 
     async function fetchAll() {
       const results = new Map<string, CityFact>()
+      const seenCityKeys = new Set<string>()
       for (const stop of sortedStops) {
         if (cancelled) break
         // For USA-turer bruker vi staten; for internasjonale turer bruker vi landet
@@ -409,7 +416,11 @@ export default function TripSummary({
         const state = trip.road_trip_region !== 'international'
           ? (stop.state || null)
           : null
-        const fact = await fetchCityFact(stop.city, state, country)
+        // Sjekk om vi allerede har hentet tekst for denne byen i denne turen
+        const cityKey = `${stop.city}|${state ?? ''}|${country ?? ''}`
+        const isRevisit = seenCityKeys.has(cityKey)
+        seenCityKeys.add(cityKey)
+        const fact = await fetchCityFact(stop.city, state, country, isRevisit)
         if (fact) results.set(stop.id, fact)
         if (!cancelled) setCityFacts(new Map(results))
       }

@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   const city    = searchParams.get('city')?.trim()
   const state   = searchParams.get('state')?.trim() || null
   const country = searchParams.get('country')?.trim() || null
+  const revisit = searchParams.get('revisit') === '1'
 
   if (!city) {
     return NextResponse.json({ error: 'Mangler city-parameter' }, { status: 400 })
@@ -16,20 +17,22 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient()
 
-  // 1. Sjekk databasen først
-  let query = supabase
-    .from('city_descriptions')
-    .select('id, extract')
-    .eq('city', city)
-  if (state)   query = query.eq('state',   state)
-  else         query = query.is('state',   null)
-  if (country) query = query.eq('country', country)
-  else         query = query.is('country', null)
+  // 1. Sjekk databasen (bare for første gangs besøk)
+  if (!revisit) {
+    let query = supabase
+      .from('city_descriptions')
+      .select('id, extract')
+      .eq('city', city)
+    if (state)   query = query.eq('state',   state)
+    else         query = query.is('state',   null)
+    if (country) query = query.eq('country', country)
+    else         query = query.is('country', null)
 
-  const { data: existing } = await query.maybeSingle()
+    const { data: existing } = await query.maybeSingle()
 
-  if (existing) {
-    return NextResponse.json({ id: existing.id, extract: existing.extract })
+    if (existing) {
+      return NextResponse.json({ id: existing.id, extract: existing.extract })
+    }
   }
 
   // 2. Generer med Claude Haiku
@@ -40,27 +43,33 @@ export async function GET(request: NextRequest) {
     const client   = new Anthropic({ apiKey })
     const location = [city, state, country].filter(Boolean).join(', ')
 
+    const prompt = revisit
+      ? `Skriv 2 korte setninger på norsk om ${location} med et annet vinkel enn det vanlige. Nevn noe spesifikt som gjør stedet unikt – for eksempel historie, natur, mat, kunst eller en konkret severdighet. Ikke gjenta de mest kjente fakta om stedet.`
+      : `Skriv 2 korte setninger på norsk om ${location}. Hva er stedet kjent for? Vær konkret og informativ.`
+
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5',
       max_tokens: 120,
       system: 'Du er en reiseguide. Skriv alltid på norsk. Svar med kun tekst, ingen markdown.',
-      messages: [{
-        role: 'user',
-        content: `Skriv 2 korte setninger på norsk om ${location}. Hva er stedet kjent for? Vær konkret og informativ.`,
-      }],
+      messages: [{ role: 'user', content: prompt }],
     })
 
     const extract = msg.content[0].type === 'text' ? msg.content[0].text.trim() : null
     if (!extract) return NextResponse.json({ extract: null })
 
-    // 3. Lagre i databasen
-    const { data: inserted } = await supabase
-      .from('city_descriptions')
-      .insert({ city, state, country, extract })
-      .select('id')
-      .single()
+    // 3. Lagre i databasen (bare for første gangs besøk)
+    if (!revisit) {
+      const { data: inserted } = await supabase
+        .from('city_descriptions')
+        .insert({ city, state, country, extract })
+        .select('id')
+        .single()
 
-    return NextResponse.json({ id: inserted?.id ?? null, extract })
+      return NextResponse.json({ id: inserted?.id ?? null, extract })
+    }
+
+    // Revisit-tekster lagres ikke i DB – returneres uten id
+    return NextResponse.json({ id: null, extract })
   } catch (err) {
     console.error('city-description feilet:', err)
     return NextResponse.json({ extract: null })
