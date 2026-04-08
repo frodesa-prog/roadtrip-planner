@@ -196,7 +196,8 @@ NOTATER: ${notesText}`.trim()
       const batchPrompt = `
 ${entriesPrompt}
 
-Skriv en personlig dagbokinnføring for hvert stoppested (maks 200 ord per stopp).
+Skriv en personlig dagbokinnføring PÅ NORSK for hvert stoppested (maks 200 ord per stopp).
+- Skriv alltid på norsk, uansett stedsnavn eller annen informasjon som er på engelsk
 - Nevn konkrete aktiviteter og restauranter ved navn, med datoer der oppgitt
 - Nevn kjørelengden fra forrige sted kort i innledningen dersom den er oppgitt
 - Avslutt hvert innlegg med én setning som begynner med "HØYDEPUNKT: "
@@ -209,7 +210,7 @@ Stop-IDer: ${batch.map(s => s.id).join(', ')}
 
       const batchMsg = await client.messages.create({
         model: 'claude-haiku-4-5', max_tokens: 4096,
-        system: 'Du er en nostalgisk reiseskribent. Svar KUN med gyldig JSON.',
+        system: 'Du er en nostalgisk reiseskribent som alltid skriver på norsk. Svar KUN med gyldig JSON.',
         messages: [{ role: 'user', content: batchPrompt }],
       })
 
