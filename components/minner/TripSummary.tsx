@@ -53,42 +53,39 @@ function nightLabel(n: number): string {
 }
 
 
-// ── Wikipedia city facts ─────────────────────────────────────────────────────
+// ── City description (Wikipedia → Claude Haiku fallback) ─────────────────────
 
-interface WikiFact {
+interface CityFact {
   extract: string
 }
 
-async function fetchWikiFact(city: string, state?: string): Promise<WikiFact | null> {
-  const queries = [
-    state ? `${city}, ${state}` : null,
-    city,
-  ].filter(Boolean) as string[]
+// Klient-side cache per page-load – unngår doble kall for samme by
+const clientCache = new Map<string, string>()
 
-  async function tryWiki(lang: string, q: string): Promise<string | null> {
-    try {
-      const res = await fetch(
-        `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`,
-        { signal: AbortSignal.timeout(4000) }
-      )
-      if (!res.ok) return null
-      const data = await res.json()
-      if (data.type === 'disambiguation') return null
-      if (!data.extract?.trim()) return null
-      const sentences = (data.extract as string).split('. ').slice(0, 2).join('. ')
-      return sentences.endsWith('.') ? sentences : sentences + '.'
-    } catch {
-      return null
-    }
+async function fetchCityFact(city: string, state?: string | null, country?: string | null): Promise<CityFact | null> {
+  const params = new URLSearchParams({ city })
+  if (state)   params.set('state',   state)
+  if (country) params.set('country', country)
+  const cacheKey = params.toString()
+
+  if (clientCache.has(cacheKey)) {
+    const cached = clientCache.get(cacheKey)!
+    return cached ? { extract: cached } : null
   }
 
-  // Prøv norsk Wikipedia med alle søkevarianter
-  for (const q of queries) {
-    const extract = await tryWiki('no', q)
-    if (extract) return { extract }
+  try {
+    const res = await fetch(`/api/city-description?${params}`, {
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) { clientCache.set(cacheKey, ''); return null }
+    const data = await res.json()
+    const extract: string | null = data.extract ?? null
+    clientCache.set(cacheKey, extract ?? '')
+    return extract ? { extract } : null
+  } catch {
+    clientCache.set(cacheKey, '')
+    return null
   }
-  // Ingen norsk artikkel funnet – vis ingenting fremfor engelsk tekst
-  return null
 }
 
 // ── Compact flight card ───────────────────────────────────────────────────────
@@ -363,23 +360,30 @@ export default function TripSummary({
   trip, stops, activities, dining, hotels, flights, carRentals,
   drivingLegs, computedTotalKm,
 }: Props) {
-  const [wikiFacts, setWikiFacts] = useState<Map<string, WikiFact>>(new Map())
+  const [cityFacts, setCityFacts] = useState<Map<string, CityFact>>(new Map())
 
   const sortedStops = [...stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 
-  // Fetch Wikipedia facts for each stop
+  // Hent bybeskrivelse for hvert stoppested (Wikipedia → Claude Haiku fallback)
   useEffect(() => {
     if (sortedStops.length === 0) return
 
     let cancelled = false
 
     async function fetchAll() {
-      const results = new Map<string, WikiFact>()
+      const results = new Map<string, CityFact>()
       for (const stop of sortedStops) {
         if (cancelled) break
-        const fact = await fetchWikiFact(stop.city, stop.state || undefined)
+        // For USA-turer bruker vi staten; for internasjonale turer bruker vi landet
+        const country = trip.road_trip_region === 'international'
+          ? (stop.state || null)   // state-feltet inneholder landet for internasjonale stopp
+          : null
+        const state = trip.road_trip_region !== 'international'
+          ? (stop.state || null)
+          : null
+        const fact = await fetchCityFact(stop.city, state, country)
         if (fact) results.set(stop.id, fact)
-        if (!cancelled) setWikiFacts(new Map(results))
+        if (!cancelled) setCityFacts(new Map(results))
       }
     }
 
@@ -520,7 +524,7 @@ export default function TripSummary({
             const stopActivities = activities.filter(a => a.stop_id === stop.id)
             const stopDining     = dining.filter(d => d.stop_id === stop.id)
             const stopHotels     = hotels.filter(h => h.stop_id === stop.id)
-            const wikiFact       = wikiFacts.get(stop.id)
+            const wikiFact       = cityFacts.get(stop.id)
             const leg            = drivingLegs[i]
 
             return (
