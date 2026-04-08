@@ -10,7 +10,7 @@ import {
 import {
   Plane, Train, Car, BedDouble, UtensilsCrossed, Star,
   Moon, MapPin, Calendar, Clock, Route, ChevronRight, Info,
-  ArrowRight,
+  ArrowRight, Pencil, Check, X,
 } from 'lucide-react'
 import { getOffset, calcFlightMinutes, calcStopoverMinutes, formatDuration } from '@/data/airports'
 
@@ -56,11 +56,12 @@ function nightLabel(n: number): string {
 // ── City description (Wikipedia → Claude Haiku fallback) ─────────────────────
 
 interface CityFact {
+  id: string | null
   extract: string
 }
 
 // Klient-side cache per page-load – unngår doble kall for samme by
-const clientCache = new Map<string, string>()
+const clientCache = new Map<string, CityFact | null>()
 
 async function fetchCityFact(city: string, state?: string | null, country?: string | null): Promise<CityFact | null> {
   const params = new URLSearchParams({ city })
@@ -68,22 +69,20 @@ async function fetchCityFact(city: string, state?: string | null, country?: stri
   if (country) params.set('country', country)
   const cacheKey = params.toString()
 
-  if (clientCache.has(cacheKey)) {
-    const cached = clientCache.get(cacheKey)!
-    return cached ? { extract: cached } : null
-  }
+  if (clientCache.has(cacheKey)) return clientCache.get(cacheKey) ?? null
 
   try {
     const res = await fetch(`/api/city-description?${params}`, {
       signal: AbortSignal.timeout(10000),
     })
-    if (!res.ok) { clientCache.set(cacheKey, ''); return null }
+    if (!res.ok) { clientCache.set(cacheKey, null); return null }
     const data = await res.json()
     const extract: string | null = data.extract ?? null
-    clientCache.set(cacheKey, extract ?? '')
-    return extract ? { extract } : null
+    const fact: CityFact | null = extract ? { id: data.id ?? null, extract } : null
+    clientCache.set(cacheKey, fact)
+    return fact
   } catch {
-    clientCache.set(cacheKey, '')
+    clientCache.set(cacheKey, null)
     return null
   }
 }
@@ -360,7 +359,36 @@ export default function TripSummary({
   trip, stops, activities, dining, hotels, flights, carRentals,
   drivingLegs, computedTotalKm,
 }: Props) {
-  const [cityFacts, setCityFacts] = useState<Map<string, CityFact>>(new Map())
+  const [cityFacts, setCityFacts]     = useState<Map<string, CityFact>>(new Map())
+  const [editingStopId, setEditingStopId] = useState<string | null>(null)
+  const [editText, setEditText]           = useState('')
+  const [saving, setSaving]               = useState(false)
+
+  async function saveCityFact(stopId: string) {
+    const fact = cityFacts.get(stopId)
+    if (!fact?.id) return
+    setSaving(true)
+    try {
+      await fetch('/api/city-description', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: fact.id, extract: editText }),
+      })
+      // Oppdater lokal state
+      setCityFacts((prev) => {
+        const next = new Map(prev)
+        next.set(stopId, { ...fact, extract: editText })
+        return next
+      })
+      // Oppdater klient-cache
+      for (const [k, v] of clientCache.entries()) {
+        if (v?.id === fact.id) clientCache.set(k, { ...v, extract: editText })
+      }
+    } finally {
+      setSaving(false)
+      setEditingStopId(null)
+    }
+  }
 
   const sortedStops = [...stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 
@@ -556,12 +584,48 @@ export default function TripSummary({
                   </div>
 
                   <div className="px-4 py-3 space-y-3">
-                    {/* Wikipedia fact – vises kun når norsk artikkel finnes */}
+                    {/* Bybeskrivelse med redigeringsmulighet */}
                     {wikiFact && (
-                      <div className="flex gap-2 text-xs text-slate-400 leading-relaxed">
-                        <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-500" />
-                        <p>{wikiFact.extract}</p>
-                      </div>
+                      editingStopId === stop.id ? (
+                        <div className="space-y-1.5">
+                          <textarea
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            rows={3}
+                            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none leading-relaxed"
+                            autoFocus
+                          />
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => saveCityFact(stop.id)}
+                              disabled={saving || !editText.trim()}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
+                            >
+                              <Check className="w-3 h-3" />
+                              {saving ? 'Lagrer…' : 'Lagre'}
+                            </button>
+                            <button
+                              onClick={() => setEditingStopId(null)}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                              Avbryt
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2 text-xs text-slate-400 leading-relaxed group/fact">
+                          <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-500" />
+                          <p className="flex-1">{wikiFact.extract}</p>
+                          <button
+                            onClick={() => { setEditText(wikiFact.extract); setEditingStopId(stop.id) }}
+                            className="opacity-0 group-hover/fact:opacity-100 flex-shrink-0 text-slate-600 hover:text-slate-300 transition-all"
+                            title="Rediger beskrivelse"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )
                     )}
 
                     {/* Hotels */}
