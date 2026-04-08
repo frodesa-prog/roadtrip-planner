@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
   const city    = searchParams.get('city')?.trim()
   const state   = searchParams.get('state')?.trim() || null
   const country = searchParams.get('country')?.trim() || null
-  const revisit = searchParams.get('revisit') === '1'
+  const visitNumber = parseInt(searchParams.get('visit') ?? '1', 10)
+  const revisit = visitNumber > 1
 
   if (!city) {
     return NextResponse.json({ error: 'Mangler city-parameter' }, { status: 400 })
@@ -43,8 +44,17 @@ export async function GET(request: NextRequest) {
     const client   = new Anthropic({ apiKey })
     const location = [city, state, country].filter(Boolean).join(', ')
 
+    const revisitAngles = [
+      'lokale mattradisjoner og restaurantkultur',
+      'historie og arkitektur',
+      'natur, parker og friluftsliv',
+      'kunst, musikk og kulturliv',
+      'spennende nabolag og lokale skjulte perler',
+    ]
+    const angle = revisitAngles[(visitNumber - 2) % revisitAngles.length]
+
     const prompt = revisit
-      ? `Skriv 2 korte setninger på norsk om ${location} med et annet vinkel enn det vanlige. Nevn noe spesifikt som gjør stedet unikt – for eksempel historie, natur, mat, kunst eller en konkret severdighet. Ikke gjenta de mest kjente fakta om stedet.`
+      ? `Skriv 2 korte setninger på norsk om ${location}, med fokus på ${angle}. Vær konkret og informativ. Ikke gjenta generelle fakta om stedet.`
       : `Skriv 2 korte setninger på norsk om ${location}. Hva er stedet kjent for? Vær konkret og informativ.`
 
     const msg = await client.messages.create({

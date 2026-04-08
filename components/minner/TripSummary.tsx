@@ -67,12 +67,12 @@ async function fetchCityFact(
   city: string,
   state?: string | null,
   country?: string | null,
-  revisit = false,
+  visitNumber = 1,
 ): Promise<CityFact | null> {
   const params = new URLSearchParams({ city })
-  if (state)   params.set('state',   state)
-  if (country) params.set('country', country)
-  if (revisit) params.set('revisit', '1')
+  if (state)        params.set('state',   state)
+  if (country)      params.set('country', country)
+  if (visitNumber > 1) params.set('visit', String(visitNumber))
   const cacheKey = params.toString()
 
   if (clientCache.has(cacheKey)) return clientCache.get(cacheKey) ?? null
@@ -406,7 +406,7 @@ export default function TripSummary({
 
     async function fetchAll() {
       const results = new Map<string, CityFact>()
-      const seenCityKeys = new Set<string>()
+      const cityVisitCount = new Map<string, number>()
       for (const stop of sortedStops) {
         if (cancelled) break
         // For USA-turer bruker vi staten; for internasjonale turer bruker vi landet
@@ -416,11 +416,11 @@ export default function TripSummary({
         const state = trip.road_trip_region !== 'international'
           ? (stop.state || null)
           : null
-        // Sjekk om vi allerede har hentet tekst for denne byen i denne turen
+        // Tell besøksnummer for denne byen (1 = første gang, 2 = andre gang, osv.)
         const cityKey = `${stop.city}|${state ?? ''}|${country ?? ''}`
-        const isRevisit = seenCityKeys.has(cityKey)
-        seenCityKeys.add(cityKey)
-        const fact = await fetchCityFact(stop.city, state, country, isRevisit)
+        const visitNumber = (cityVisitCount.get(cityKey) ?? 0) + 1
+        cityVisitCount.set(cityKey, visitNumber)
+        const fact = await fetchCityFact(stop.city, state, country, visitNumber)
         if (fact) results.set(stop.id, fact)
         if (!cancelled) setCityFacts(new Map(results))
       }
