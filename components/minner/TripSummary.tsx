@@ -82,16 +82,12 @@ async function fetchWikiFact(city: string, state?: string): Promise<WikiFact | n
     }
   }
 
-  // Prøv ALLE norske Wikipedia-forsøk først
+  // Prøv norsk Wikipedia med alle søkevarianter
   for (const q of queries) {
     const extract = await tryWiki('no', q)
     if (extract) return { extract }
   }
-  // Fall tilbake til engelsk kun dersom ingen norsk artikkel ble funnet
-  for (const q of queries) {
-    const extract = await tryWiki('en', q)
-    if (extract) return { extract }
-  }
+  // Ingen norsk artikkel funnet – vis ingenting fremfor engelsk tekst
   return null
 }
 
@@ -556,16 +552,11 @@ export default function TripSummary({
                   </div>
 
                   <div className="px-4 py-3 space-y-3">
-                    {/* Wikipedia fact */}
-                    {wikiFact ? (
+                    {/* Wikipedia fact – vises kun når norsk artikkel finnes */}
+                    {wikiFact && (
                       <div className="flex gap-2 text-xs text-slate-400 leading-relaxed">
                         <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-500" />
                         <p>{wikiFact.extract}</p>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2 text-xs text-slate-600 italic">
-                        <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                        <p>Laster faktaopplysninger…</p>
                       </div>
                     )}
 
