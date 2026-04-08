@@ -20,7 +20,7 @@ import TripManager from '@/components/planning/TripManager'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import NoteModal from '@/components/planning/NoteModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import { Stop, Activity, Flight, Note, Dining } from '@/types'
+import { Stop, Activity, Flight, Note, Dining, PossibleActivity } from '@/types'
 import { UpdateDiningData } from '@/hooks/useDining'
 import { getOffset, calcFlightMinutes, calcStopoverMinutes, formatDuration } from '@/data/airports'
 
@@ -92,6 +92,20 @@ export default function SummaryPage() {
   const [diningModal, setDiningModal] = useState<Dining | null>(null)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [showDetailed, setShowDetailed] = useState(true)
+
+  // ── Kalenderfiltre ──────────────────────────────────────────────────────────
+  const [showActivities,  setShowActivities]  = useState(true)
+  const [showPossible,    setShowPossible]    = useState(true)
+  const [showDining,      setShowDining]      = useState(true)
+  const [showHotels,      setShowHotels]      = useState(true)
+  const [showNotes,       setShowNotes]       = useState(true)
+  const allFiltersOn  = showActivities && showPossible && showDining && showHotels && showNotes
+  const allFiltersOff = !showActivities && !showPossible && !showDining && !showHotels && !showNotes
+  function toggleAllFilters() {
+    const next = allFiltersOff ? true : false
+    setShowActivities(next); setShowPossible(next); setShowDining(next)
+    setShowHotels(next); setShowNotes(next)
+  }
   const [sidebarStopId, setSidebarStopId] = useState<string | null>(null)
   type NoteModalState =
     | { mode: 'new'; stopId: string | null; initialDate: string | null }
@@ -261,6 +275,18 @@ export default function SummaryPage() {
   }, [notes, stops])
 
   const unattachedNotes = useMemo(() => notes.filter((n) => !n.stop_id), [notes])
+
+  // Map: ISO date → possible activities for that stop (keyed by stop arrival date)
+  const possibleByDate = useMemo(() => {
+    const map: Record<string, PossibleActivity[]> = {}
+    possibleActivities.forEach((pa) => {
+      const date = regularStops.find((s) => s.id === pa.stop_id)?.arrival_date ?? null
+      if (!date) return
+      if (!map[date]) map[date] = []
+      map[date].push(pa)
+    })
+    return map
+  }, [possibleActivities, regularStops])
 
   // Unique countries for international road trips (stops + activity/dining parent stops)
   const countriesVisited = useMemo(() => {
@@ -511,6 +537,82 @@ export default function SummaryPage() {
                 </div>
               )}
 
+              {/* ── Kalenderfiltre ─────────────────────────────────────── */}
+              <div className="flex flex-wrap items-center gap-1.5 mb-4">
+                {/* Velg alle / Fjern alle */}
+                <button
+                  onClick={toggleAllFilters}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-semibold transition-colors ${
+                    allFiltersOff
+                      ? 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                  }`}
+                >
+                  {allFiltersOff ? 'Velg alle' : 'Fjern alle'}
+                </button>
+                <div className="w-px h-4 bg-slate-700 mx-0.5" />
+                {/* Aktiviteter */}
+                <button
+                  onClick={() => setShowActivities((v) => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                    showActivities
+                      ? 'bg-violet-900/40 border-violet-700/60 text-violet-300'
+                      : 'bg-slate-800/40 border-slate-700/40 text-slate-600 hover:text-slate-400'
+                  }`}
+                >
+                  <ActivityTypeIcon type={null} size={11} />
+                  Aktiviteter
+                </button>
+                {/* Mulige aktiviteter */}
+                <button
+                  onClick={() => setShowPossible((v) => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                    showPossible
+                      ? 'bg-teal-900/40 border-teal-700/60 text-teal-300'
+                      : 'bg-slate-800/40 border-slate-700/40 text-slate-600 hover:text-slate-400'
+                  }`}
+                >
+                  <ListChecks className="w-3 h-3" />
+                  Mulige aktiviteter
+                </button>
+                {/* Spisesteder */}
+                <button
+                  onClick={() => setShowDining((v) => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                    showDining
+                      ? 'bg-red-900/40 border-red-700/60 text-red-300'
+                      : 'bg-slate-800/40 border-slate-700/40 text-slate-600 hover:text-slate-400'
+                  }`}
+                >
+                  <UtensilsCrossed className="w-3 h-3" />
+                  Spisesteder
+                </button>
+                {/* Hotell */}
+                <button
+                  onClick={() => setShowHotels((v) => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                    showHotels
+                      ? 'bg-emerald-900/40 border-emerald-700/60 text-emerald-300'
+                      : 'bg-slate-800/40 border-slate-700/40 text-slate-600 hover:text-slate-400'
+                  }`}
+                >
+                  <HotelIcon className="w-3 h-3" />
+                  Hotell
+                </button>
+                {/* Notater */}
+                <button
+                  onClick={() => setShowNotes((v) => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                    showNotes
+                      ? 'bg-amber-900/40 border-amber-700/60 text-amber-300'
+                      : 'bg-slate-800/40 border-slate-700/40 text-slate-600 hover:text-slate-400'
+                  }`}
+                >
+                  <FileText className="w-3 h-3" />
+                  Notater
+                </button>
+              </div>
+
               {/* Kalender – horisontal scroll på mobil */}
               <div className="overflow-x-auto -mx-3 md:mx-0">
                 <div style={{ minWidth: '420px' }} className="px-3 md:px-0">
@@ -544,6 +646,7 @@ export default function SummaryPage() {
                           palette={pal}
                           isSelected={isSelected}
                           activitiesOnDay={activitiesByDate[dateStr] ?? []}
+                          possibleOnDay={possibleByDate[dateStr] ?? []}
                           diningOnDay={diningByDate[dateStr] ?? []}
                           hasConfirmedHotel={stop ? confirmedHotelStopIds.has(stop.id) : false}
                           confirmedHotelUrl={stop ? (confirmedHotelUrls[stop.id] ?? null) : null}
@@ -556,6 +659,11 @@ export default function SummaryPage() {
                           onDiningClick={setDiningModal}
                           showHotelWarning={currentTrip?.trip_type === 'road_trip'}
                           showDetailed={showDetailed}
+                          showActivities={showActivities}
+                          showPossible={showPossible}
+                          showDining={showDining}
+                          showHotels={showHotels}
+                          showNotes={showNotes}
                           onClick={stop ? () => { setSidebarStopId(null); setSelectedDate(isSelected ? null : dateStr) } : undefined}
                           isHomeDeparture={!!(homeStart?.arrival_date && dateStr === homeStart.arrival_date)}
                           isHomeArrival={!!(homeEnd?.arrival_date && dateStr === homeEnd.arrival_date)}
@@ -754,6 +862,7 @@ function DayCell({
   palette,
   isSelected,
   activitiesOnDay,
+  possibleOnDay,
   diningOnDay,
   hasConfirmedHotel,
   confirmedHotelUrl,
@@ -766,6 +875,11 @@ function DayCell({
   onDiningClick,
   showHotelWarning = false,
   showDetailed = false,
+  showActivities = true,
+  showPossible = true,
+  showDining = true,
+  showHotels = true,
+  showNotes = true,
   onClick,
   isHomeDeparture = false,
   isHomeArrival = false,
@@ -780,6 +894,7 @@ function DayCell({
   palette: Palette
   isSelected: boolean
   activitiesOnDay: Activity[]
+  possibleOnDay: PossibleActivity[]
   diningOnDay: Dining[]
   hasConfirmedHotel: boolean
   confirmedHotelUrl: string | null
@@ -792,6 +907,11 @@ function DayCell({
   onDiningClick: (dining: Dining) => void
   showHotelWarning?: boolean
   showDetailed?: boolean
+  showActivities?: boolean
+  showPossible?: boolean
+  showDining?: boolean
+  showHotels?: boolean
+  showNotes?: boolean
   onClick?: () => void
   /** Show a green home-departure banner (road trip start date) */
   isHomeDeparture?: boolean
@@ -874,7 +994,7 @@ function DayCell({
           )}
 
           {/* Activities */}
-          {activitiesOnDay.map((a) => (
+          {showActivities && activitiesOnDay.map((a) => (
             <button
               key={a.id}
               onClick={(e) => { e.stopPropagation(); onActivityClick(a) }}
@@ -890,8 +1010,19 @@ function DayCell({
             </button>
           ))}
 
+          {/* Possible activities */}
+          {showPossible && possibleOnDay.map((pa) => (
+            <div
+              key={pa.id}
+              className="flex items-center gap-0.5 min-w-0"
+            >
+              <span className="flex-shrink-0 leading-none"><ActivityTypeIcon type={pa.category} size={9} /></span>
+              <span className="text-[9px] text-teal-400 truncate leading-tight">{pa.description}</span>
+            </div>
+          ))}
+
           {/* Dining */}
-          {diningOnDay.map((d) => (
+          {showDining && diningOnDay.map((d) => (
             <button
               key={d.id}
               onClick={(e) => { e.stopPropagation(); onDiningClick(d) }}
@@ -908,7 +1039,7 @@ function DayCell({
           ))}
 
           {/* Notes */}
-          {notesOnDay.map((note) => (
+          {showNotes && notesOnDay.map((note) => (
             <button
               key={note.id}
               onClick={(e) => { e.stopPropagation(); onNoteClick(note) }}
@@ -922,33 +1053,35 @@ function DayCell({
           ))}
 
           {/* Hotel name – always at bottom in detailed mode */}
-          <div className="mt-auto pt-0.5 border-t border-slate-700/50">
-            {hotelName ? (
-              confirmedHotelUrl ? (
-                <a
-                  href={confirmedHotelUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className={`flex items-center gap-0.5 text-[9px] truncate leading-tight hover:opacity-80 transition-opacity ${
+          {showHotels && (
+            <div className="mt-auto pt-0.5 border-t border-slate-700/50">
+              {hotelName ? (
+                confirmedHotelUrl ? (
+                  <a
+                    href={confirmedHotelUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className={`flex items-center gap-0.5 text-[9px] truncate leading-tight hover:opacity-80 transition-opacity ${
+                      hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
+                    }`}
+                  >
+                    <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                    <span className="truncate">{hotelName}</span>
+                  </a>
+                ) : (
+                  <div className={`flex items-center gap-0.5 text-[9px] truncate leading-tight ${
                     hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
-                  }`}
-                >
-                  <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
-                  <span className="truncate">{hotelName}</span>
-                </a>
+                  }`}>
+                    <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                    <span className="truncate">{hotelName}</span>
+                  </div>
+                )
               ) : (
-                <div className={`flex items-center gap-0.5 text-[9px] truncate leading-tight ${
-                  hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
-                }`}>
-                  <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
-                  <span className="truncate">{hotelName}</span>
-                </div>
-              )
-            ) : (
-              <p className="text-[9px] text-red-600/70 leading-tight">Mangler hotell</p>
-            )}
-          </div>
+                <p className="text-[9px] text-red-600/70 leading-tight">Mangler hotell</p>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         /* ── Compact mode: icons row ──────────────────────────────────── */
@@ -971,7 +1104,7 @@ function DayCell({
           )}
 
           {/* Hotel icon – link if URL is registered */}
-          {hasConfirmedHotel && (
+          {showHotels && hasConfirmedHotel && (
             confirmedHotelUrl
               ? (
                 <a
@@ -990,26 +1123,31 @@ function DayCell({
           )}
 
           {/* Activities – type-specific icon, clickable */}
-          {activitiesOnDay.map((a) => {
-            return (
-              <button
-                key={a.id}
-                onClick={(e) => { e.stopPropagation(); onActivityClick(a) }}
-                title={a.name}
-                className="flex items-center gap-0.5 flex-shrink-0 hover:opacity-75 transition-opacity"
-              >
-                <span className="leading-none"><ActivityTypeIcon type={a.activity_type} size={12} /></span>
-                {a.activity_time && (
-                  <span className="text-[8px] text-slate-100">
-                    {a.activity_time.slice(0, 5)}
-                  </span>
-                )}
-              </button>
-            )
-          })}
+          {showActivities && activitiesOnDay.map((a) => (
+            <button
+              key={a.id}
+              onClick={(e) => { e.stopPropagation(); onActivityClick(a) }}
+              title={a.name}
+              className="flex items-center gap-0.5 flex-shrink-0 hover:opacity-75 transition-opacity"
+            >
+              <span className="leading-none"><ActivityTypeIcon type={a.activity_type} size={12} /></span>
+              {a.activity_time && (
+                <span className="text-[8px] text-slate-100">
+                  {a.activity_time.slice(0, 5)}
+                </span>
+              )}
+            </button>
+          ))}
+
+          {/* Possible activities – compact icon */}
+          {showPossible && possibleOnDay.map((pa) => (
+            <span key={pa.id} title={pa.description} className="flex-shrink-0 leading-none">
+              <ActivityTypeIcon type={pa.category} size={12} />
+            </span>
+          ))}
 
           {/* Dining icons */}
-          {diningOnDay.map((d) => (
+          {showDining && diningOnDay.map((d) => (
             <button
               key={d.id}
               onClick={(e) => { e.stopPropagation(); onDiningClick(d) }}
@@ -1024,7 +1162,7 @@ function DayCell({
           ))}
 
           {/* Note icons */}
-          {notesOnDay.map((note) => (
+          {showNotes && notesOnDay.map((note) => (
             <button
               key={note.id}
               onClick={(e) => { e.stopPropagation(); onNoteClick(note) }}
