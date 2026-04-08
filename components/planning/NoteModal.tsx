@@ -91,13 +91,13 @@ export default function NoteModal({
         onClick={onClose}
       >
         <div
-          className={`bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full flex overflow-hidden ${
+          className={`bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full flex overflow-hidden max-h-[90vh] ${
             showImagePanel ? 'max-w-2xl' : 'max-w-sm'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* ── Left: Note form ────────────────────────────────────────── */}
-          <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex flex-col flex-1 min-w-0 min-h-0">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
               <div className="flex items-center gap-2 min-w-0">
