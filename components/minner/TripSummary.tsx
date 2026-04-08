@@ -65,20 +65,26 @@ async function fetchWikiFact(city: string, state?: string): Promise<WikiFact | n
     city,
   ].filter(Boolean) as string[]
 
+  // Prøv norsk Wikipedia først, fall tilbake til engelsk
+  const wikis = ['no', 'en']
+
   for (const q of queries) {
-    try {
-      const res = await fetch(
-        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`,
-        { signal: AbortSignal.timeout(4000) }
-      )
-      if (!res.ok) continue
-      const data = await res.json()
-      if (data.type === 'disambiguation') continue
-      const sentences = (data.extract ?? '').split('. ').slice(0, 2).join('. ')
-      const extract = sentences.endsWith('.') ? sentences : sentences + '.'
-      return { extract }
-    } catch {
-      // try next query
+    for (const lang of wikis) {
+      try {
+        const res = await fetch(
+          `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`,
+          { signal: AbortSignal.timeout(4000) }
+        )
+        if (!res.ok) continue
+        const data = await res.json()
+        if (data.type === 'disambiguation') continue
+        if (!data.extract?.trim()) continue
+        const sentences = (data.extract ?? '').split('. ').slice(0, 2).join('. ')
+        const extract = sentences.endsWith('.') ? sentences : sentences + '.'
+        return { extract }
+      } catch {
+        // prøv neste
+      }
     }
   }
   return null
