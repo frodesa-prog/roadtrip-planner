@@ -1307,22 +1307,20 @@ export default function KostnaderPage() {
                         <div className="px-2 py-2 flex items-center gap-1.5">
                           <Fuel className="w-3 h-3 text-amber-400 flex-shrink-0" />
                           <span className="text-xs text-slate-200">Bensin</span>
-                        </div>
-                        <div className="px-1.5 py-1.5 flex items-center gap-1">
                           <button
                             onClick={() => setShowFuelModal(true)}
                             title="Beregn bensinkostnad automatisk"
-                            className="text-amber-400/50 hover:text-amber-400 flex-shrink-0 transition-colors"
+                            className="text-amber-400/50 hover:text-amber-400 flex-shrink-0 transition-colors ml-auto"
                           >
                             <Calculator className="w-3.5 h-3.5" />
                           </button>
-                          <div className="flex-1 min-w-0">
-                            <CostInput
-                              key={`gas-${totalGas}`}
-                              defaultValue={totalGas || null}
-                              onSave={(v) => saveItem('gas', { amount: v })}
-                            />
-                          </div>
+                        </div>
+                        <div className="px-1.5 py-1.5">
+                          <CostInput
+                            key={`gas-${totalGas}`}
+                            defaultValue={totalGas || null}
+                            onSave={(v) => saveItem('gas', { amount: v })}
+                          />
                         </div>
                         <div className="px-1.5 py-1.5">
                           <RemainingCell
@@ -1464,7 +1462,7 @@ export default function KostnaderPage() {
               <div className="bg-gradient-to-br from-green-900/40 to-emerald-900/20 border border-green-800/50 rounded-xl px-3 py-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-green-400/70 uppercase tracking-widest">Betalt</span>
-                  <span className="text-xl font-extrabold text-green-400 tabular-nums">{fmt(grandTotal)} kr</span>
+                  <span className="text-sm font-bold text-green-400 tabular-nums">{fmt(grandTotal)} kr</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-amber-400/70 uppercase tracking-widest">Gjenstående</span>
@@ -1474,7 +1472,7 @@ export default function KostnaderPage() {
                 </div>
                 <div className="flex items-center justify-between border-t border-green-800/40 pt-2">
                   <span className="text-[10px] font-bold text-green-300/80 uppercase tracking-widest">Totalt</span>
-                  <span className="text-base font-extrabold text-green-300 tabular-nums">
+                  <span className="text-xl font-extrabold text-green-300 tabular-nums">
                     {fmt(grandTotal + grandRemaining)} kr
                   </span>
                 </div>
