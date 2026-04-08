@@ -9,9 +9,12 @@ create table if not exists city_descriptions (
   country     text,
   extract     text not null,
   created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now(),
-  unique (city, coalesce(state, ''), coalesce(country, ''))
+  updated_at  timestamptz not null default now()
 );
+
+-- Unik indeks som behandler NULL som tom streng (COALESCE krever indeks, ikke constraint)
+create unique index if not exists city_descriptions_city_state_country_idx
+  on city_descriptions (city, coalesce(state, ''), coalesce(country, ''));
 
 -- Offentlig lesing (trengs for delte minnebøker)
 alter table city_descriptions enable row level security;
