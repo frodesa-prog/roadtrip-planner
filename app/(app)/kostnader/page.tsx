@@ -1461,39 +1461,22 @@ export default function KostnaderPage() {
               </div>
 
               {/* Totalsum (under høyre kolonne) */}
-              <div className="bg-gradient-to-br from-green-900/40 to-emerald-900/20 border border-green-800/50 rounded-xl px-3 py-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-green-400/70 uppercase tracking-widest">
-                    Totalsum
-                  </span>
-                  <span className="text-xl font-extrabold text-green-400 tabular-nums">
-                    {fmt(grandTotal)} kr
+              <div className="bg-gradient-to-br from-green-900/40 to-emerald-900/20 border border-green-800/50 rounded-xl px-3 py-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-green-400/70 uppercase tracking-widest">Betalt</span>
+                  <span className="text-xl font-extrabold text-green-400 tabular-nums">{fmt(grandTotal)} kr</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-amber-400/70 uppercase tracking-widest">Gjenstående</span>
+                  <span className="text-sm font-bold text-amber-300 tabular-nums">
+                    {grandRemaining > 0 ? `${fmt(grandRemaining)} kr` : '—'}
                   </span>
                 </div>
-                {grandRemaining > 0 && (
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-amber-400/70">Gjenstår å betale</span>
-                    <span className="text-sm font-bold text-amber-300">{fmt(grandRemaining)} kr</span>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-1.5 mt-1 border-t border-green-800/30 pt-2">
-                  {[
-                    { label: 'Hoteller', value: totalHotels },
-                    { label: 'Aktiviteter', value: totalActivities },
-                    { label: isTrain ? 'Tog + leiebil' : 'Fly + leiebil', value: totalFlight + totalCar },
-                    { label: 'Bensin', value: totalGas },
-                    { label: 'Parkering', value: totalParking },
-                    ...(totalShopping > 0 ? [{ label: 'Shopping', value: totalShopping }] : []),
-                    ...(totalFood     > 0 ? [{ label: 'Mat',      value: totalFood     }] : []),
-                    ...(totalMisc     > 0 ? [{ label: 'Diverse',  value: totalMisc     }] : []),
-                  ].map(({ label, value }) => (
-                    <div key={label} className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-500">{label}</span>
-                      <span className="text-[11px] font-semibold text-slate-300 tabular-nums">
-                        {fmt(value)} kr
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between border-t border-green-800/40 pt-2">
+                  <span className="text-[10px] font-bold text-green-300/80 uppercase tracking-widest">Totalt</span>
+                  <span className="text-base font-extrabold text-green-300 tabular-nums">
+                    {fmt(grandTotal + grandRemaining)} kr
+                  </span>
                 </div>
               </div>
             </div>
