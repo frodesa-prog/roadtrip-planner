@@ -1005,6 +1005,7 @@ export default function KostnaderPage() {
           title="Shopping"
           emoji="🛍️"
           tripId={currentTrip.id}
+          tripDateFrom={currentTrip.date_from}
           stops={stops}
           activities={activities}
           dining={dining}
@@ -1022,6 +1023,7 @@ export default function KostnaderPage() {
           title="Mat"
           emoji="🍽️"
           tripId={currentTrip.id}
+          tripDateFrom={currentTrip.date_from}
           stops={stops}
           activities={activities}
           dining={dining}
@@ -1039,6 +1041,7 @@ export default function KostnaderPage() {
           title="Diverse"
           emoji="🎒"
           tripId={currentTrip.id}
+          tripDateFrom={currentTrip.date_from}
           stops={stops}
           activities={activities}
           dining={dining}

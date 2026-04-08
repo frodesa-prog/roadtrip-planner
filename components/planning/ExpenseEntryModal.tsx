@@ -28,6 +28,7 @@ interface Props {
   title: string       // e.g. "Shopping"
   emoji: string       // e.g. "🛍️"
   tripId: string
+  tripDateFrom?: string | null  // ISO date – brukes som default-dato for nye poster
   stops: Stop[]
   activities: Activity[]
   dining: Dining[]
@@ -83,6 +84,7 @@ export function ExpenseEntryModal({
   title,
   emoji,
   tripId,
+  tripDateFrom,
   stops,
   activities,
   dining,
@@ -94,7 +96,7 @@ export function ExpenseEntryModal({
   onClose,
 }: Props) {
   // ── Add-form state ────────────────────────────────────────────────────────
-  const [newDate, setNewDate]       = useState('')
+  const [newDate, setNewDate]       = useState(tripDateFrom ?? '')
   const [newName, setNewName]       = useState('')
   const [newAmount, setNewAmount]   = useState('')
   const [newLocation, setNewLocation] = useState('')
@@ -179,7 +181,7 @@ export function ExpenseEntryModal({
     })
     setNewName('')
     setNewAmount('')
-    setNewDate('')
+    setNewDate(tripDateFrom ?? '')
     setNewLocation('')
   }, [newDate, newName, newAmount, newLocation, category, tripId, onAddEntry])
 
