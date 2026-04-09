@@ -587,7 +587,7 @@ function FuelCalculatorModal({
   totalKm: number
   legsLoading: boolean
   currentNotes: string | null
-  onSave: (amount: number, remaining: number, notes: string) => void
+  onSave: (remaining: number, notes: string) => void
   onClose: () => void
 }) {
   const saved = parseFuelSettings(currentNotes)
@@ -624,7 +624,7 @@ function FuelCalculatorModal({
       pricePerGallon: ppg,
       exchangeRate: er,
     }
-    onSave(totalNOK, 0, JSON.stringify(settings))
+    onSave(totalNOK, JSON.stringify(settings))
   }
 
   const inputCls =
@@ -1069,8 +1069,8 @@ export default function KostnaderPage() {
           totalKm={totalKm}
           legsLoading={legsLoading}
           currentNotes={getNotes('gas')}
-          onSave={(amount, remaining, notes) => {
-            saveItem('gas', { amount, remaining_amount: remaining, notes })
+          onSave={(remaining, notes) => {
+            saveItem('gas', { remaining_amount: remaining, notes })
             setShowFuelModal(false)
           }}
           onClose={() => setShowFuelModal(false)}
