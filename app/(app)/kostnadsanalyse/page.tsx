@@ -170,8 +170,8 @@ export default function KostnadsanalysePage() {
         supabase.from('trips').select('*').order('date_from', { ascending: false }),
         supabase.from('budget_items').select('trip_id,category,amount,remaining_amount'),
         supabase.from('expense_entries').select('trip_id,category,amount'),
-        supabase.from('hotels').select('trip_id,cost,parking_cost_per_night,stop_id'),
-        supabase.from('activities').select('trip_id,cost'),
+        supabase.from('hotels').select('trip_id,cost,remaining_amount,parking_cost_per_night,stop_id'),
+        supabase.from('activities').select('trip_id,cost,remaining_amount'),
         supabase.from('stops').select('trip_id,nights,id'),
       ])
       const allTrips = tripRes.data ?? []
@@ -194,52 +194,67 @@ export default function KostnadsanalysePage() {
       const tid = trip.id
       const costs = zeroCosts()
 
-      // Hotels
-      const tripHotels = hotels.filter((h) => h.trip_id === tid)
-      costs.hotel = tripHotels.reduce((s: number, h: any) => s + (h.cost ?? 0), 0)
+      // Helpers
+      const tripHotels  = hotels.filter((h) => h.trip_id === tid)
+      const tripBudgets = budgets.filter((b) => b.trip_id === tid)
+      const tripEntries = entries.filter((e) => e.trip_id === tid)
+      const tripStops   = stops.filter((s) => s.trip_id === tid)
 
-      // Activities
+      const getBudget = (cat: string) => tripBudgets.find((b: any) => b.category === cat)
+      const entriesSum = (cat: string) =>
+        tripEntries.filter((e: any) => e.category === cat).reduce((s: number, e: any) => s + (e.amount ?? 0), 0)
+
+      // Hotels: betalt + gjenstående (mirrors grandTotal + grandRemaining for hotels)
+      costs.hotel = tripHotels.reduce((s: number, h: any) =>
+        s + (h.cost ?? 0) + (h.remaining_amount ?? 0), 0)
+
+      // Activities: betalt + gjenstående
       costs.aktiviteter = acts
         .filter((a) => a.trip_id === tid)
-        .reduce((s: number, a: any) => s + (a.cost ?? 0), 0)
+        .reduce((s: number, a: any) => s + (a.cost ?? 0) + (a.remaining_amount ?? 0), 0)
 
-      // Budget items
-      budgets.filter((b) => b.trip_id === tid).forEach((b: any) => {
-        if (b.category === 'flight' || b.category === 'transport' && trip.transport_type === 'tog') {
-          costs.fly += b.amount ?? 0
-        } else if (b.category === 'transport') {
-          costs.transport += b.amount ?? 0
-        } else if (b.category === 'car') {
-          costs.leiebil += b.amount ?? 0
-        } else if (b.category === 'gas') {
-          costs.bensin += b.amount ?? 0
-        } else if (b.category === 'food') {
-          costs.mat += b.amount ?? 0
-        } else if (b.category === 'shopping') {
-          costs.shopping += b.amount ?? 0
-        } else if (b.category === 'parking') {
-          costs.parkering += b.amount ?? 0
-        } else if (b.category === 'misc') {
-          costs.diverse += b.amount ?? 0
-        }
-      })
+      // Fly / tog
+      const bFlight = getBudget('flight')
+      costs.fly = (bFlight?.amount ?? 0) + (bFlight?.remaining_amount ?? 0)
 
-      // Expense entries (shopping / food / misc)
-      entries.filter((e) => e.trip_id === tid).forEach((e: any) => {
-        if (e.category === 'food')     costs.mat      += e.amount ?? 0
-        if (e.category === 'shopping') costs.shopping += e.amount ?? 0
-        if (e.category === 'misc')     costs.diverse  += e.amount ?? 0
-      })
+      // Transport (uten bil)
+      const bTransport = getBudget('transport')
+      costs.transport = (bTransport?.amount ?? 0) + (bTransport?.remaining_amount ?? 0)
 
-      // Parking from hotel parking_cost_per_night
-      const tripStops = stops.filter((s) => s.trip_id === tid)
+      // Leiebil
+      const bCar = getBudget('car')
+      costs.leiebil = (bCar?.amount ?? 0) + (bCar?.remaining_amount ?? 0)
+
+      // Bensin
+      const bGas = getBudget('gas')
+      costs.bensin = (bGas?.amount ?? 0) + (bGas?.remaining_amount ?? 0)
+
+      // Parkering: kostnader fra hotell + gjenstående fra budsjett (samsvarer med kostnader-siden)
       const stopNights: Record<string, number> = {}
       tripStops.forEach((s: any) => { stopNights[s.id] = s.nights ?? 0 })
-      tripHotels.forEach((h: any) => {
-        if (h.parking_cost_per_night && h.stop_id) {
-          costs.parkering += (h.parking_cost_per_night ?? 0) * (stopNights[h.stop_id] ?? 0)
-        }
-      })
+      const parkingFromHotels = tripHotels.reduce((s: number, h: any) =>
+        s + (h.parking_cost_per_night ?? 0) * (stopNights[h.stop_id] ?? 0), 0)
+      const bParking = getBudget('parking')
+      const parkingRemaining = bParking?.remaining_amount ?? parkingFromHotels
+      costs.parkering = parkingFromHotels + parkingRemaining
+
+      // Mat: expense entries (betalt) + gjenstående fra budsjett
+      const foodPaid = entriesSum('food')
+      const bFood = getBudget('food')
+      const foodRemaining = bFood?.remaining_amount ?? Math.max(0, (bFood?.amount ?? 0) - foodPaid)
+      costs.mat = foodPaid + foodRemaining
+
+      // Shopping: expense entries (betalt) + gjenstående fra budsjett
+      const shopPaid = entriesSum('shopping')
+      const bShop = getBudget('shopping')
+      const shopRemaining = bShop?.remaining_amount ?? Math.max(0, (bShop?.amount ?? 0) - shopPaid)
+      costs.shopping = shopPaid + shopRemaining
+
+      // Diverse: expense entries (betalt) + gjenstående fra budsjett
+      const miscPaid = entriesSum('misc')
+      const bMisc = getBudget('misc')
+      const miscRemaining = bMisc?.remaining_amount ?? Math.max(0, (bMisc?.amount ?? 0) - miscPaid)
+      costs.diverse = miscPaid + miscRemaining
 
       const totalNights = tripStops.reduce((s: number, st: any) => s + (st.nights ?? 0), 0)
       const days = tripDays(trip, totalNights)
