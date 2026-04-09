@@ -176,8 +176,43 @@ function TableTotal({ label, amount }: { label: string; amount: number }) {
     </div>
   )
 }
-function TableTotalFull({ betalt, gjenstar }: { betalt: number; gjenstar: number }) {
+function TableTotalFull({ betalt, gjenstar, variant = 'default' }: {
+  betalt: number
+  gjenstar: number
+  variant?: 'default' | 'hotels'
+}) {
   const total = betalt + gjenstar
+
+  // Hotelltabell: grid-cols-[7rem_1fr_3.5rem_5.5rem_3.5rem_4.5rem]
+  // Sum plasseres i col 2–3 (til venstre for Betalt), Betalt i col 4, tom col 5, Gjenstår i col 6
+  if (variant === 'hotels') {
+    return (
+      <div
+        className="border-t border-slate-700 bg-slate-800/60 grid grid-cols-[7rem_1fr_3.5rem_5.5rem_3.5rem_4.5rem]"
+        style={{ minWidth: '480px' }}
+      >
+        <div className="px-2 py-2 flex items-center text-[10px] font-semibold text-slate-400">Totalt</div>
+        {/* Sum: span col 2+3 → rett til venstre for Betalt */}
+        <div className="col-span-2 px-1.5 py-2 text-right flex flex-col justify-center">
+          <p className="text-[9px] text-slate-500 uppercase tracking-wide leading-none mb-0.5">Sum</p>
+          <p className="text-[11px] font-bold text-white tabular-nums">{fmt(total)} kr</p>
+        </div>
+        {/* Betalt: col 4 – rett under Betalt-beløpene i tabellen */}
+        <div className="px-1.5 py-2 text-right flex flex-col justify-center">
+          <p className="text-[9px] text-slate-500 uppercase tracking-wide leading-none mb-0.5">Betalt</p>
+          <p className="text-[11px] font-bold text-green-400 tabular-nums">{betalt > 0 ? `${fmt(betalt)} kr` : '—'}</p>
+        </div>
+        {/* Snitt-kolonne: tom */}
+        <div />
+        {/* Gjenstår: col 6 – rett under Gjenstår-beløpene */}
+        <div className="px-1.5 py-2 text-right flex flex-col justify-center">
+          <p className="text-[9px] text-slate-500 uppercase tracking-wide leading-none mb-0.5">Gjenstår</p>
+          <p className="text-[11px] font-bold text-amber-300 tabular-nums">{gjenstar > 0 ? `${fmt(gjenstar)} kr` : '—'}</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="border-t border-slate-700 bg-slate-800/60 flex items-center px-2 py-2 gap-1.5">
       <span className="text-[10px] font-semibold text-slate-400 flex-1">Totalt</span>
@@ -1201,7 +1236,7 @@ export default function KostnaderPage() {
                   </div>
                 )}
 
-                <TableTotalFull betalt={totalHotels} gjenstar={hotelGjenstar} />
+                <TableTotalFull betalt={totalHotels} gjenstar={hotelGjenstar} variant="hotels" />
               </div>
             </div>
 
