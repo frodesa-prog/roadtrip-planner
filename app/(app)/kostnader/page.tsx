@@ -624,7 +624,7 @@ function FuelCalculatorModal({
       pricePerGallon: ppg,
       exchangeRate: er,
     }
-    onSave(totalNOK, totalNOK, JSON.stringify(settings))
+    onSave(totalNOK, 0, JSON.stringify(settings))
   }
 
   const inputCls =
