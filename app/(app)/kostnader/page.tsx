@@ -1177,8 +1177,9 @@ export default function KostnaderPage() {
                 ) : (
                   <div className="divide-y divide-slate-800">
                   {hotelRows.map(({ hotel, stop }) => {
-                    const avg = hotel.cost && stop.nights > 0
-                      ? hotel.cost / stop.nights
+                    const hotelTotal = (hotel.cost ?? 0) + (hotel.remaining_amount ?? 0)
+                    const avg = hotelTotal > 0 && stop.nights > 0
+                      ? hotelTotal / stop.nights
                       : null
                     return (
                       <div
