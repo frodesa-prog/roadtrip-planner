@@ -175,8 +175,16 @@ export default function KostnadsanalysePage() {
         supabase.from('stops').select('trip_id,nights,id'),
       ])
       const allTrips = tripRes.data ?? []
-      setTrips(allTrips)
-      setSelected(new Set(allTrips.map((t: Trip) => t.id)))
+      // Kun turer med registrerte kostnader
+      const budgetTripIds = new Set((budRes.data ?? []).filter((b: any) => (b.amount ?? 0) > 0).map((b: any) => b.trip_id))
+      const entryTripIds  = new Set((entRes.data ?? []).filter((e: any) => (e.amount ?? 0) > 0).map((e: any) => e.trip_id))
+      const hotelTripIds  = new Set((hotRes.data ?? []).filter((h: any) => (h.cost ?? 0) > 0).map((h: any) => h.trip_id))
+      const actTripIds    = new Set((actRes.data ?? []).filter((a: any) => (a.cost ?? 0) > 0).map((a: any) => a.trip_id))
+      const tripsWithCosts = allTrips.filter((t: Trip) =>
+        budgetTripIds.has(t.id) || entryTripIds.has(t.id) || hotelTripIds.has(t.id) || actTripIds.has(t.id)
+      )
+      setTrips(tripsWithCosts)
+      setSelected(new Set(tripsWithCosts.map((t: Trip) => t.id)))
       setBudgets(budRes.data ?? [])
       setEntries(entRes.data ?? [])
       setHotels(hotRes.data ?? [])
