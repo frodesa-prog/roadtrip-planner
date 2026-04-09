@@ -19,7 +19,7 @@ import {
   Plane, Train, Car, Fuel, BedDouble, Ticket,
   ChevronDown, Loader2, Receipt, ExternalLink,
   PlaneTakeoff, PlaneLanding, X, ChevronRight,
-  Link as LinkIcon, Clock, Calculator, Bus,
+  Link as LinkIcon, Clock, Calculator, Bus, BarChart3,
 } from 'lucide-react'
 import {
   getOffset,
@@ -941,7 +941,18 @@ export default function KostnaderPage() {
           </div>
         )}
 
-        <div className="relative ml-auto">
+        <a
+          href="/kostnadsanalyse"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white text-xs font-medium transition-colors"
+          title="Åpne kostnadsanalyse"
+        >
+          <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+          Analyse
+        </a>
+
+        <div className="relative">
           {tripsLoading ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
           ) : (
