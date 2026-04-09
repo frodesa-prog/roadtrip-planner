@@ -1167,7 +1167,7 @@ export default function KostnaderPage() {
                   <Th>By</Th>
                   <Th>Hotell</Th>
                   <Th center>NETTER</Th>
-                  <Th right>Betalt</Th>
+                  <Th center>Betalt</Th>
                   <Th right>Snitt</Th>
                   <Th right>Gjenstår</Th>
                 </div>
