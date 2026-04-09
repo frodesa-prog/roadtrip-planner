@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Trip } from '@/types'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend, Cell, PieChart, Pie,
 } from 'recharts'
 import {
@@ -161,6 +161,26 @@ export default function KostnadsanalysePage() {
   // ── Filter state ──────────────────────────────────────────────────────────
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [filterOpen, setFilterOpen] = useState(false)
+
+  // ── Category line filter state (for line charts) ──────────────────────────
+  const ALL_LINE_KEYS = useMemo(
+    () => ['total', ...CATEGORIES.map((c) => c.key)],
+    []
+  )
+  const [activeLines, setActiveLines] = useState<Set<string>>(
+    () => new Set(['total', ...CATEGORIES.map((c) => c.key)])
+  )
+  function toggleLine(key: string) {
+    setActiveLines((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) { if (next.size > 1) next.delete(key) }
+      else next.add(key)
+      return next
+    })
+  }
+  function setAllLines(on: boolean) {
+    setActiveLines(on ? new Set(ALL_LINE_KEYS) : new Set(['total']))
+  }
 
   // ── Fetch all data ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -328,21 +348,23 @@ export default function KostnadsanalysePage() {
     : 0
 
   // ── Chart data ────────────────────────────────────────────────────────────
-  const barData = useMemo(() =>
+  const lineData = useMemo(() =>
     filtered.map((a) => ({
       name: `${a.trip.name} (${a.trip.year})`,
-      shortName: a.trip.name.length > 14 ? a.trip.name.slice(0, 13) + '…' : a.trip.name,
-      ...Object.fromEntries(CATEGORIES.map((c) => [c.label, Math.round(a.costs[c.key])])),
+      total: Math.round(a.total),
+      ...Object.fromEntries(CATEGORIES.map((c) => [c.key, Math.round(a.costs[c.key])])),
     })),
     [filtered],
   )
 
-  const perDayData = useMemo(() =>
+  const perDayLineData = useMemo(() =>
     filtered.map((a) => ({
-      name: a.trip.name.length > 14 ? a.trip.name.slice(0, 13) + '…' : a.trip.name,
-      'Per dag': Math.round(a.perDay),
-      'Hotell/natt': Math.round(a.hotelPerNight),
-      'Mat/dag': Math.round(a.matPerDay),
+      name: `${a.trip.name} (${a.trip.year})`,
+      total: a.days > 0 ? Math.round(a.total / a.days) : 0,
+      ...Object.fromEntries(CATEGORIES.map((c) => [
+        c.key,
+        a.days > 0 ? Math.round(a.costs[c.key] / a.days) : 0,
+      ])),
     })),
     [filtered],
   )
@@ -380,10 +402,60 @@ export default function KostnadsanalysePage() {
   }
 
   // ── Short trip name for x-axis ────────────────────────────────────────────
-  const maxBar = Math.max(1, barData.length)
+  const maxBar = Math.max(1, lineData.length)
   const tickAngle = maxBar > 4 ? -35 : 0
   const tickAnchor = maxBar > 4 ? 'end' : 'middle'
-  const xHeight = maxBar > 4 ? 60 : 30
+  const xHeight = maxBar > 4 ? 80 : 30
+
+  // ── Category filter pill ──────────────────────────────────────────────────
+  function CatFilterBar() {
+    const allOn = ALL_LINE_KEYS.every((k) => activeLines.has(k))
+    return (
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        <button
+          onClick={() => setAllLines(!allOn)}
+          className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
+            allOn
+              ? 'bg-slate-700 border-slate-600 text-slate-200'
+              : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-500'
+          }`}
+        >
+          {allOn ? 'Fjern alle' : 'Velg alle'}
+        </button>
+        {/* Total pill */}
+        <button
+          onClick={() => toggleLine('total')}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
+            activeLines.has('total')
+              ? 'border-white/30 text-white'
+              : 'border-slate-700 text-slate-600 hover:border-slate-500'
+          }`}
+          style={activeLines.has('total') ? { background: '#ffffff20' } : {}}
+        >
+          <span className="w-2 h-0.5 rounded inline-block" style={{ background: activeLines.has('total') ? '#e2e8f0' : '#475569' }} />
+          Total
+        </button>
+        {CATEGORIES.filter((c) => filtered.some((a) => a.costs[c.key] > 0)).map((c) => {
+          const on = activeLines.has(c.key)
+          return (
+            <button
+              key={c.key}
+              onClick={() => toggleLine(c.key)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors`}
+              style={{
+                borderColor: on ? c.color + '80' : '#334155',
+                background: on ? c.color + '20' : 'transparent',
+                color: on ? c.color : '#475569',
+              }}
+            >
+              <span className="w-2 h-0.5 rounded inline-block" style={{ background: on ? c.color : '#475569' }} />
+              {c.label}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -503,17 +575,18 @@ export default function KostnadsanalysePage() {
           />
         </div>
 
-        {/* ── Totalt per tur (stacked bar) ────────────────────────────────── */}
-        {barData.length > 0 && (
+        {/* ── Totalkostnad per tur (line chart) ───────────────────────────── */}
+        {lineData.length > 0 && (
           <section>
             <SectionHead>Totalkostnad per tur</SectionHead>
             <div className="bg-slate-800/30 border border-slate-700 rounded-2xl p-4">
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={barData} margin={{ top: 4, right: 4, left: 0, bottom: xHeight }}>
+              <CatFilterBar />
+              <ResponsiveContainer width="100%" height={340}>
+                <LineChart data={lineData} margin={{ top: 8, right: 24, left: 0, bottom: xHeight }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis
-                    dataKey="shortName"
-                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    dataKey="name"
+                    tick={{ fill: '#94a3b8', fontSize: 10 }}
                     angle={tickAngle}
                     textAnchor={tickAnchor}
                     height={xHeight}
@@ -522,42 +595,54 @@ export default function KostnadsanalysePage() {
                   <YAxis
                     tickFormatter={(v) => fmtK(v)}
                     tick={{ fill: '#94a3b8', fontSize: 11 }}
-                    width={48}
+                    width={52}
                   />
                   <Tooltip content={<NbTooltip />} />
-                  <Legend
-                    wrapperStyle={{ fontSize: 11, color: '#94a3b8', paddingTop: 8 }}
-                    iconType="circle"
-                    iconSize={8}
-                  />
+                  {activeLines.has('total') && (
+                    <Line
+                      key="total"
+                      type="monotone"
+                      dataKey="total"
+                      name="Total"
+                      stroke="#e2e8f0"
+                      strokeWidth={2.5}
+                      dot={{ r: 4, fill: '#e2e8f0', strokeWidth: 0 }}
+                      activeDot={{ r: 6 }}
+                      strokeDasharray="6 3"
+                    />
+                  )}
                   {CATEGORIES.filter((c) =>
-                    filtered.some((a) => a.costs[c.key] > 0)
+                    activeLines.has(c.key) && filtered.some((a) => a.costs[c.key] > 0)
                   ).map((c) => (
-                    <Bar
+                    <Line
                       key={c.key}
-                      dataKey={c.label}
-                      stackId="a"
-                      fill={c.color}
-                      radius={c.key === 'diverse' || c.key === 'transport' ? [4, 4, 0, 0] : undefined}
+                      type="monotone"
+                      dataKey={c.key}
+                      name={c.label}
+                      stroke={c.color}
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: c.color, strokeWidth: 0 }}
+                      activeDot={{ r: 5 }}
                     />
                   ))}
-                </BarChart>
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </section>
         )}
 
-        {/* ── Kostnad per dag + hotell/natt ────────────────────────────────── */}
-        {perDayData.length > 0 && (
+        {/* ── Daglig snitt per tur (line chart) ───────────────────────────── */}
+        {perDayLineData.length > 0 && (
           <section>
-            <SectionHead>Daglige snitt per tur</SectionHead>
+            <SectionHead>Daglig snitt per tur</SectionHead>
             <div className="bg-slate-800/30 border border-slate-700 rounded-2xl p-4">
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={perDayData} margin={{ top: 4, right: 4, left: 0, bottom: xHeight }}>
+              <CatFilterBar />
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={perDayLineData} margin={{ top: 8, right: 24, left: 0, bottom: xHeight }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis
                     dataKey="name"
-                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    tick={{ fill: '#94a3b8', fontSize: 10 }}
                     angle={tickAngle}
                     textAnchor={tickAnchor}
                     height={xHeight}
@@ -566,18 +651,37 @@ export default function KostnadsanalysePage() {
                   <YAxis
                     tickFormatter={(v) => fmtK(v)}
                     tick={{ fill: '#94a3b8', fontSize: 11 }}
-                    width={48}
+                    width={52}
                   />
-                  <Tooltip content={<SimpleTooltip />} />
-                  <Legend
-                    wrapperStyle={{ fontSize: 11, color: '#94a3b8', paddingTop: 8 }}
-                    iconType="circle"
-                    iconSize={8}
-                  />
-                  <Bar dataKey="Per dag"     fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Hotell/natt" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Mat/dag"     fill="#a855f7" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Tooltip content={<NbTooltip />} />
+                  {activeLines.has('total') && (
+                    <Line
+                      key="total"
+                      type="monotone"
+                      dataKey="total"
+                      name="Total snitt/dag"
+                      stroke="#e2e8f0"
+                      strokeWidth={2.5}
+                      dot={{ r: 4, fill: '#e2e8f0', strokeWidth: 0 }}
+                      activeDot={{ r: 6 }}
+                      strokeDasharray="6 3"
+                    />
+                  )}
+                  {CATEGORIES.filter((c) =>
+                    activeLines.has(c.key) && filtered.some((a) => a.costs[c.key] > 0)
+                  ).map((c) => (
+                    <Line
+                      key={c.key}
+                      type="monotone"
+                      dataKey={c.key}
+                      name={`${c.label}/dag`}
+                      stroke={c.color}
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: c.color, strokeWidth: 0 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  ))}
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </section>
