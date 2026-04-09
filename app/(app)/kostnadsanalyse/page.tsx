@@ -170,16 +170,20 @@ export default function KostnadsanalysePage() {
         supabase.from('trips').select('*').order('date_from', { ascending: false }),
         supabase.from('budget_items').select('trip_id,category,amount,remaining_amount'),
         supabase.from('expense_entries').select('trip_id,category,amount'),
-        supabase.from('hotels').select('trip_id,cost,remaining_amount,parking_cost_per_night,stop_id'),
-        supabase.from('activities').select('trip_id,cost,remaining_amount'),
+        supabase.from('hotels').select('stop_id,cost,remaining_amount,parking_cost_per_night'),
+        supabase.from('activities').select('stop_id,cost,remaining_amount'),
         supabase.from('stops').select('trip_id,nights,id'),
       ])
       const allTrips = tripRes.data ?? []
       // Kun turer med registrerte kostnader
+      // Hotels og activities er koblet via stop_id — bygg oppslag for filtrering
+      const stopTripMap: Record<string, string> = {}
+      ;(stopRes.data ?? []).forEach((s: any) => { stopTripMap[s.id] = s.trip_id })
+
       const budgetTripIds = new Set((budRes.data ?? []).filter((b: any) => (b.amount ?? 0) > 0).map((b: any) => b.trip_id))
       const entryTripIds  = new Set((entRes.data ?? []).filter((e: any) => (e.amount ?? 0) > 0).map((e: any) => e.trip_id))
-      const hotelTripIds  = new Set((hotRes.data ?? []).filter((h: any) => (h.cost ?? 0) > 0).map((h: any) => h.trip_id))
-      const actTripIds    = new Set((actRes.data ?? []).filter((a: any) => (a.cost ?? 0) > 0).map((a: any) => a.trip_id))
+      const hotelTripIds  = new Set((hotRes.data ?? []).filter((h: any) => (h.cost ?? 0) > 0).map((h: any) => stopTripMap[h.stop_id]).filter(Boolean))
+      const actTripIds    = new Set((actRes.data ?? []).filter((a: any) => (a.cost ?? 0) > 0).map((a: any) => stopTripMap[a.stop_id]).filter(Boolean))
       const tripsWithCosts = allTrips.filter((t: Trip) =>
         budgetTripIds.has(t.id) || entryTripIds.has(t.id) || hotelTripIds.has(t.id) || actTripIds.has(t.id)
       )
@@ -198,15 +202,20 @@ export default function KostnadsanalysePage() {
 
   // ── Compute per-trip analysis ─────────────────────────────────────────────
   const analyses = useMemo<TripAnalysis[]>(() => {
+    // Hotels og activities er koblet til stops (ikke direkte til trips)
+    // Bygg et oppslag: stop_id → trip_id
+    const stopToTrip: Record<string, string> = {}
+    stops.forEach((s: any) => { stopToTrip[s.id] = s.trip_id })
+
     return trips.map((trip) => {
       const tid = trip.id
       const costs = zeroCosts()
 
       // Helpers — eksakt samme logikk som kostnader-siden
-      const tripHotels  = hotels.filter((h) => h.trip_id === tid)
-      const tripBudgets = budgets.filter((b) => b.trip_id === tid)
-      const tripEntries = entries.filter((e) => e.trip_id === tid)
-      const tripStops   = stops.filter((s) => s.trip_id === tid)
+      const tripStops   = stops.filter((s: any) => s.trip_id === tid)
+      const tripHotels  = hotels.filter((h: any) => stopToTrip[h.stop_id] === tid)
+      const tripBudgets = budgets.filter((b: any) => b.trip_id === tid)
+      const tripEntries = entries.filter((e: any) => e.trip_id === tid)
 
       const getBudget  = (cat: string) => tripBudgets.find((b: any) => b.category === cat)
       const entriesSum = (cat: string) =>
@@ -221,9 +230,9 @@ export default function KostnadsanalysePage() {
       costs.hotel = tripHotels.reduce((s: number, h: any) =>
         s + (h.cost ?? 0) + (h.remaining_amount ?? 0), 0)
 
-      // Activities: betalt + gjenstående
+      // Activities: betalt + gjenstående (koblet via stop_id)
       costs.aktiviteter = acts
-        .filter((a) => a.trip_id === tid)
+        .filter((a: any) => stopToTrip[a.stop_id] === tid)
         .reduce((s: number, a: any) => s + (a.cost ?? 0) + (a.remaining_amount ?? 0), 0)
 
       // Fly — kun hvis hasFlight (identisk med: hasFlight ? getAmount('flight') : 0)
