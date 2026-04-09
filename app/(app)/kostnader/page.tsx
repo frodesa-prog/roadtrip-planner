@@ -176,34 +176,39 @@ function TableTotal({ label, amount }: { label: string; amount: number }) {
     </div>
   )
 }
-function TableTotalFull({ betalt, gjenstar, variant = 'default' }: {
+function TableTotalFull({ betalt, gjenstar, totalNights, variant = 'default' }: {
   betalt: number
   gjenstar: number
+  totalNights?: number
   variant?: 'default' | 'hotels'
 }) {
   const total = betalt + gjenstar
 
   // Hotelltabell: grid-cols-[7rem_1fr_3.5rem_5.5rem_3.5rem_4.5rem]
-  // Sum plasseres i col 2–3 (til venstre for Betalt), Betalt i col 4, tom col 5, Gjenstår i col 6
+  // Sum plasseres i col 2–3 (til venstre for Betalt), Betalt i col 4, Snitt i col 5, Gjenstår i col 6
   if (variant === 'hotels') {
+    const snitt = totalNights && totalNights > 0 ? total / totalNights : null
     return (
       <div
         className="border-t border-slate-700 bg-slate-800/60 grid grid-cols-[7rem_1fr_3.5rem_5.5rem_3.5rem_4.5rem]"
         style={{ minWidth: '480px' }}
       >
         <div className="px-2 py-2 flex items-center text-[10px] font-semibold text-slate-400">Totalt</div>
-        {/* Sum: span col 2+3 → rett til venstre for Betalt */}
-        <div className="col-span-2 px-1.5 py-2 text-right flex flex-col justify-center">
+        {/* Sum: span col 2+3 → rett til venstre for Betalt, med skillelinje til høyre */}
+        <div className="col-span-2 px-1.5 py-2 text-right flex flex-col justify-center border-r border-slate-700">
           <p className="text-[9px] text-slate-500 uppercase tracking-wide leading-none mb-0.5">Sum</p>
           <p className="text-[11px] font-bold text-white tabular-nums">{fmt(total)} kr</p>
         </div>
-        {/* Betalt: col 4 – rett under Betalt-beløpene i tabellen */}
+        {/* Betalt: col 4 – rett under Betalt-beløpene */}
         <div className="px-1.5 py-2 text-right flex flex-col justify-center">
           <p className="text-[9px] text-slate-500 uppercase tracking-wide leading-none mb-0.5">Betalt</p>
           <p className="text-[11px] font-bold text-green-400 tabular-nums">{betalt > 0 ? `${fmt(betalt)} kr` : '—'}</p>
         </div>
-        {/* Snitt-kolonne: tom */}
-        <div />
+        {/* Snitt: col 5 – Sum / antall netter totalt */}
+        <div className="px-1.5 py-2 text-right flex flex-col justify-center">
+          <p className="text-[9px] text-slate-500 uppercase tracking-wide leading-none mb-0.5">Snitt</p>
+          <p className="text-[11px] font-bold text-slate-400 tabular-nums">{snitt !== null ? fmt(snitt) : '—'}</p>
+        </div>
         {/* Gjenstår: col 6 – rett under Gjenstår-beløpene */}
         <div className="px-1.5 py-2 text-right flex flex-col justify-center">
           <p className="text-[9px] text-slate-500 uppercase tracking-wide leading-none mb-0.5">Gjenstår</p>
@@ -961,6 +966,7 @@ export default function KostnaderPage() {
   const grandTotal = totalHotels + totalActivities + totalOther
 
   // Gjenstår-summer per tabell (for TableTotalFull)
+  const totalHotelNights = hotelRows.reduce((s, r) => s + (r.stop.nights ?? 0), 0)
   const hotelGjenstar    = hotelRows.reduce((s, r) => s + (r.hotel.remaining_amount ?? 0), 0)
   const activityGjenstar = activityRows.reduce((s, r) => s + (r.activity.remaining_amount ?? 0), 0)
 
@@ -1236,7 +1242,7 @@ export default function KostnaderPage() {
                   </div>
                 )}
 
-                <TableTotalFull betalt={totalHotels} gjenstar={hotelGjenstar} variant="hotels" />
+                <TableTotalFull betalt={totalHotels} gjenstar={hotelGjenstar} variant="hotels" totalNights={totalHotelNights} />
               </div>
             </div>
 
