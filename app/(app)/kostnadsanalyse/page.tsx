@@ -202,17 +202,22 @@ export default function KostnadsanalysePage() {
       const tid = trip.id
       const costs = zeroCosts()
 
-      // Helpers
+      // Helpers — eksakt samme logikk som kostnader-siden
       const tripHotels  = hotels.filter((h) => h.trip_id === tid)
       const tripBudgets = budgets.filter((b) => b.trip_id === tid)
       const tripEntries = entries.filter((e) => e.trip_id === tid)
       const tripStops   = stops.filter((s) => s.trip_id === tid)
 
-      const getBudget = (cat: string) => tripBudgets.find((b: any) => b.category === cat)
+      const getBudget  = (cat: string) => tripBudgets.find((b: any) => b.category === cat)
       const entriesSum = (cat: string) =>
         tripEntries.filter((e: any) => e.category === cat).reduce((s: number, e: any) => s + (e.amount ?? 0), 0)
 
-      // Hotels: betalt + gjenstående (mirrors grandTotal + grandRemaining for hotels)
+      // Flagg: identiske regler som kostnader-siden bruker
+      // null/undefined behandles som true for bakoverkompatibilitet med gamle turer
+      const hasCarRental = (trip as any).has_car_rental !== false
+      const hasFlight    = (trip as any).has_flight    !== false
+
+      // Hotels: betalt + gjenstående
       costs.hotel = tripHotels.reduce((s: number, h: any) =>
         s + (h.cost ?? 0) + (h.remaining_amount ?? 0), 0)
 
@@ -221,30 +226,40 @@ export default function KostnadsanalysePage() {
         .filter((a) => a.trip_id === tid)
         .reduce((s: number, a: any) => s + (a.cost ?? 0) + (a.remaining_amount ?? 0), 0)
 
-      // Fly / tog
+      // Fly — kun hvis hasFlight (identisk med: hasFlight ? getAmount('flight') : 0)
       const bFlight = getBudget('flight')
-      costs.fly = (bFlight?.amount ?? 0) + (bFlight?.remaining_amount ?? 0)
+      costs.fly = hasFlight
+        ? (bFlight?.amount ?? 0) + (bFlight?.remaining_amount ?? 0)
+        : 0
 
-      // Transport (uten bil)
-      const bTransport = getBudget('transport')
-      costs.transport = (bTransport?.amount ?? 0) + (bTransport?.remaining_amount ?? 0)
-
-      // Leiebil
+      // Leiebil — kun hvis hasCarRental
       const bCar = getBudget('car')
-      costs.leiebil = (bCar?.amount ?? 0) + (bCar?.remaining_amount ?? 0)
+      costs.leiebil = hasCarRental
+        ? (bCar?.amount ?? 0) + (bCar?.remaining_amount ?? 0)
+        : 0
 
-      // Bensin
+      // Bensin — kun hvis hasCarRental
       const bGas = getBudget('gas')
-      costs.bensin = (bGas?.amount ?? 0) + (bGas?.remaining_amount ?? 0)
+      costs.bensin = hasCarRental
+        ? (bGas?.amount ?? 0) + (bGas?.remaining_amount ?? 0)
+        : 0
 
-      // Parkering: kostnader fra hotell + gjenstående fra budsjett (samsvarer med kostnader-siden)
+      // Parkering — kun hvis hasCarRental, beregnet fra hotell (ikke budsjettpost)
       const stopNights: Record<string, number> = {}
       tripStops.forEach((s: any) => { stopNights[s.id] = s.nights ?? 0 })
-      const parkingFromHotels = tripHotels.reduce((s: number, h: any) =>
-        s + (h.parking_cost_per_night ?? 0) * (stopNights[h.stop_id] ?? 0), 0)
+      const parkingFromHotels = hasCarRental
+        ? tripHotels.reduce((s: number, h: any) =>
+            s + (h.parking_cost_per_night ?? 0) * (stopNights[h.stop_id] ?? 0), 0)
+        : 0
       const bParking = getBudget('parking')
-      const parkingRemaining = bParking?.remaining_amount ?? parkingFromHotels
+      const parkingRemaining = hasCarRental ? (bParking?.remaining_amount ?? parkingFromHotels) : 0
       costs.parkering = parkingFromHotels + parkingRemaining
+
+      // Transport — kun hvis IKKE hasCarRental
+      const bTransport = getBudget('transport')
+      costs.transport = !hasCarRental
+        ? (bTransport?.amount ?? 0) + (bTransport?.remaining_amount ?? 0)
+        : 0
 
       // Mat: expense entries (betalt) + gjenstående fra budsjett
       const foodPaid = entriesSum('food')
