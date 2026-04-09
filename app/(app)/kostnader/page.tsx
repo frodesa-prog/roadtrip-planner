@@ -176,6 +176,29 @@ function TableTotal({ label, amount }: { label: string; amount: number }) {
     </div>
   )
 }
+function TableTotalFull({ betalt, gjenstar }: { betalt: number; gjenstar: number }) {
+  const total = betalt + gjenstar
+  return (
+    <div className="border-t border-slate-700 bg-slate-800/60 flex items-center px-2 py-2 gap-1.5">
+      <span className="text-[10px] font-semibold text-slate-400 flex-1">Totalt</span>
+      <div className="flex items-center gap-3">
+        <div className="text-right">
+          <p className="text-[9px] text-slate-500 uppercase tracking-wide leading-none mb-0.5">Sum</p>
+          <p className="text-[11px] font-bold text-white tabular-nums">{fmt(total)} kr</p>
+        </div>
+        <div className="w-px h-7 bg-slate-700" />
+        <div className="text-right w-[4.5rem]">
+          <p className="text-[9px] text-slate-500 uppercase tracking-wide leading-none mb-0.5">Betalt</p>
+          <p className="text-[11px] font-bold text-green-400 tabular-nums">{betalt > 0 ? `${fmt(betalt)} kr` : '—'}</p>
+        </div>
+        <div className="text-right w-[4rem]">
+          <p className="text-[9px] text-slate-500 uppercase tracking-wide leading-none mb-0.5">Gjenstår</p>
+          <p className="text-[11px] font-bold text-amber-300 tabular-nums">{gjenstar > 0 ? `${fmt(gjenstar)} kr` : '—'}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── FlightInfoModal ────────────────────────────────────────────────────────────
 function FlightInfoModal({
@@ -890,6 +913,8 @@ export default function KostnaderPage() {
   const totalParking = hasCarRental
     ? hotelRows.reduce((s, r) => s + (r.hotel.parking_cost_per_night ?? 0) * r.stop.nights, 0)
     : 0
+  // Parkering: betalt = brukerregistrert beløp; gjenstår = auto-beregnet fra hotell-satser
+  const parkingBetalt = hasCarRental ? getAmount('parking') : 0
   const totalTransport = !hasCarRental ? getAmount('transport') : 0
   const totalShopping  = totalFor('shopping')
   const totalFood      = totalFor('food')
@@ -897,8 +922,12 @@ export default function KostnaderPage() {
   const budgetShopping = getAmount('shopping')
   const budgetFood     = getAmount('food')
   const budgetMisc     = getAmount('misc')
-  const totalOther = totalFlight + totalCar + totalGas + totalParking + totalTransport + totalShopping + totalFood + totalMisc
+  const totalOther = totalFlight + totalCar + totalGas + parkingBetalt + totalTransport + totalShopping + totalFood + totalMisc
   const grandTotal = totalHotels + totalActivities + totalOther
+
+  // Gjenstår-summer per tabell (for TableTotalFull)
+  const hotelGjenstar    = hotelRows.reduce((s, r) => s + (r.hotel.remaining_amount ?? 0), 0)
+  const activityGjenstar = activityRows.reduce((s, r) => s + (r.activity.remaining_amount ?? 0), 0)
 
   const grandRemaining =
     hotelRows.reduce((s, r) => s + (r.hotel.remaining_amount ?? 0), 0) +
@@ -912,8 +941,10 @@ export default function KostnaderPage() {
     (getRemaining('food')     ?? (budgetFood     > 0 ? Math.max(0, budgetFood     - totalFood)     : 0)) +
     (getRemaining('misc')     ?? (budgetMisc     > 0 ? Math.max(0, budgetMisc     - totalMisc)     : 0))
 
+  const otherGjenstar = grandRemaining - hotelGjenstar - activityGjenstar
+
   // Felles kolonne-grid for aktiviteter og andre kostnader
-  // [Label | Kostnad (5.5rem) | Gjenstår (4.5rem)]
+  // [Label | Betalt (5.5rem) | Gjenstår (4.5rem)]
   const rightGrid = 'grid-cols-[1fr_5.5rem_4.5rem]'
 
   const loading = stopsLoading
@@ -1095,7 +1126,7 @@ export default function KostnaderPage() {
                   <Th>By</Th>
                   <Th>Hotell</Th>
                   <Th center>NETTER</Th>
-                  <Th right>Kostnad</Th>
+                  <Th right>Betalt</Th>
                   <Th right>Snitt</Th>
                   <Th right>Gjenstår</Th>
                 </div>
@@ -1170,7 +1201,7 @@ export default function KostnaderPage() {
                   </div>
                 )}
 
-                <TableTotal label="Total hoteller" amount={totalHotels} />
+                <TableTotalFull betalt={totalHotels} gjenstar={hotelGjenstar} />
               </div>
             </div>
 
@@ -1186,7 +1217,7 @@ export default function KostnaderPage() {
                 <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
                   <div className={`grid ${rightGrid} border-b border-slate-800 bg-slate-800/50`}>
                     <Th>Aktivitet</Th>
-                    <Th right>Kostnad</Th>
+                    <Th right>Betalt</Th>
                     <Th right>Gjenstår</Th>
                   </div>
 
@@ -1236,7 +1267,7 @@ export default function KostnaderPage() {
                     ))
                   )}
 
-                  <TableTotal label="Total aktiviteter" amount={totalActivities} />
+                  <TableTotalFull betalt={totalActivities} gjenstar={activityGjenstar} />
                 </div>
               </div>
 
@@ -1249,7 +1280,7 @@ export default function KostnaderPage() {
                 <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
                   <div className={`grid ${rightGrid} border-b border-slate-800 bg-slate-800/50`}>
                     <Th>Post</Th>
-                    <Th right>Kostnad</Th>
+                    <Th right>Betalt</Th>
                     <Th right>Gjenstår</Th>
                   </div>
 
@@ -1344,24 +1375,27 @@ export default function KostnaderPage() {
                         </div>
                       </div>
 
-                      {/* Parkering – auto-beregnet fra parkeringspris pr. natt × netter */}
+                      {/* Parkering – gjenstår=auto-beregnet; betalt=brukerregistrert etter ferien */}
                       <div
-                        className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors cursor-pointer`}
-                        onClick={() => setShowParkingModal(true)}
-                        title="Vis parkeringsdetaljer per hotell"
+                        className={`grid ${rightGrid} items-center bg-slate-800/20 hover:bg-slate-800/40 transition-colors`}
                       >
-                        <div className="px-2 py-2 flex items-center gap-1.5">
+                        <button
+                          onClick={() => setShowParkingModal(true)}
+                          className="px-2 py-2 flex items-center gap-1.5 text-left group"
+                          title="Vis parkeringsdetaljer per hotell"
+                        >
                           <span className="w-3 h-3 bg-slate-500 rounded text-white flex items-center justify-center text-[7px] font-bold leading-none flex-shrink-0">P</span>
                           <span className="text-xs text-slate-200">Parkering</span>
-                          <ChevronRight className="w-3 h-3 text-slate-600 ml-auto" />
+                          <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-slate-400 transition-colors ml-auto" />
+                        </button>
+                        <div className="px-1.5 py-1.5">
+                          <CostInput
+                            key={`parking-betalt-${parkingBetalt}`}
+                            defaultValue={parkingBetalt || null}
+                            onSave={(v) => saveItem('parking', { amount: v })}
+                          />
                         </div>
-                        <div className="px-1.5 py-2 text-[11px] text-right tabular-nums whitespace-nowrap">
-                          {totalParking > 0
-                            ? <span className="text-slate-300">{fmt(totalParking)} kr</span>
-                            : <span className="text-slate-600">—</span>
-                          }
-                        </div>
-                        <div className="px-1.5 py-1.5" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-1.5 py-1.5">
                           <RemainingCell
                             remainingAmount={getRemaining('parking') ?? (totalParking > 0 ? totalParking : null)}
                             onSave={(v) => saveItem('parking', { remaining_amount: v })}
@@ -1468,7 +1502,7 @@ export default function KostnaderPage() {
                     </div>
                   </div>
 
-                  <TableTotal label="Total andre" amount={totalOther} />
+                  <TableTotalFull betalt={totalOther} gjenstar={otherGjenstar} />
                 </div>
               </div>
 
