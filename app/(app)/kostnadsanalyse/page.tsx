@@ -252,7 +252,8 @@ export default function KostnadsanalysePage() {
       const bGas = getBudget('gas')
       costs.bensin = hasCarRental ? (bGas?.amount ?? 0) : 0
 
-      // Parkering — kun hvis hasCarRental, beregnet fra hotell (ikke budsjettpost)
+      // Parkering — kun hvis hasCarRental
+      // Betalt = bParking.amount (brukerregistrert), gjenstår = remaining_amount ?? auto fra hotellsatser
       const stopNights: Record<string, number> = {}
       tripStops.forEach((s: any) => { stopNights[s.id] = s.nights ?? 0 })
       const parkingFromHotels = hasCarRental
@@ -260,8 +261,9 @@ export default function KostnadsanalysePage() {
             s + (h.parking_cost_per_night ?? 0) * (stopNights[h.stop_id] ?? 0), 0)
         : 0
       const bParking = getBudget('parking')
-      const parkingRemaining = hasCarRental ? (bParking?.remaining_amount ?? parkingFromHotels) : 0
-      costs.parkering = parkingFromHotels + parkingRemaining
+      const parkingBetalt   = hasCarRental ? (bParking?.amount ?? 0) : 0
+      const parkingGjenstar = hasCarRental ? (bParking?.remaining_amount ?? parkingFromHotels) : 0
+      costs.parkering = parkingBetalt + parkingGjenstar
 
       // Transport — kun hvis IKKE hasCarRental
       const bTransport = getBudget('transport')
