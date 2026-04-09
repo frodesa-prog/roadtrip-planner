@@ -248,10 +248,9 @@ export default function KostnadsanalysePage() {
         : 0
 
       // Bensin — kun hvis hasCarRental
+      // Bruker kun amount (FuelCalculatorModal lagrer totalbeløpet direkte i amount)
       const bGas = getBudget('gas')
-      costs.bensin = hasCarRental
-        ? (bGas?.amount ?? 0) + (bGas?.remaining_amount ?? 0)
-        : 0
+      costs.bensin = hasCarRental ? (bGas?.amount ?? 0) : 0
 
       // Parkering — kun hvis hasCarRental, beregnet fra hotell (ikke budsjettpost)
       const stopNights: Record<string, number> = {}
