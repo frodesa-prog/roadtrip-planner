@@ -220,8 +220,8 @@ function GroupedModal({ title, icon, groups, footer, onClose }: {
 type ModalType = 'countries' | 'trips' | 'km' | 'states' | 'usacities' | 'world' | 'dining' | null
 
 // ── Hoved-komponent ───────────────────────────────────────────────────────────
-// { id → { state: string|null, city: string|null } } for entries with own map_lat/lng
-type GeoCache = Record<string, { state: string | null; city: string | null }>
+// { id → { state, city, country } } for entries with own map_lat/lng
+type GeoCache = Record<string, { state: string | null; city: string | null; country: string | null }>
 
 export default function VacationStats({ trips, stops, activities, dining }: Props) {
   const [activeModal, setActiveModal] = useState<ModalType>(null)
@@ -300,13 +300,13 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
       toGeocode.map(({ id, lat, lng }) =>
         fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
           .then(r => r.json())
-          .then((geo: { state: string | null; city: string | null }) => ({ id, ...geo }))
-          .catch(() => ({ id, state: null, city: null }))
+          .then((geo: { state: string | null; city: string | null; country: string | null }) => ({ id, ...geo }))
+          .catch(() => ({ id, state: null, city: null, country: null }))
       )
     ).then(results => {
       if (cancelled) return
       const cache: GeoCache = {}
-      results.forEach(r => { cache[r.id] = { state: r.state, city: r.city } })
+      results.forEach(r => { cache[r.id] = { state: r.state, city: r.city, country: r.country ?? null } })
       setEntryGeo(cache)
     })
     return () => { cancelled = true }
@@ -327,7 +327,7 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
     if (hasUsaStops && !Array.from(countrySet).some(c => USA_COUNTRY_NAMES.includes(c.toLowerCase()))) {
       countrySet.add('USA')
     }
-    const countryList = Array.from(countrySet).sort()
+    // countryList beregnes etter at aktiviteter/spisesteder har lagt til sine land
 
     // Turer per type
     const roadtrips   = trips.filter(t => t.trip_type === 'road_trip')
@@ -429,6 +429,26 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
         if (!cm.has(key)) cm.set(key, city)
       })
     })
+    // Legg til steder fra aktiviteter/spisesteder med egne koordinater i ikke-USA land
+    const addEntryToWorldCities = (entryId: string) => {
+      const geo = entryGeo[entryId]
+      if (!geo?.city?.trim() || !geo.country?.trim()) return
+      const countryLower = geo.country.toLowerCase().trim()
+      const isUSA = USA_COUNTRY_NAMES.includes(countryLower) || (!!geo.state && isUSState(geo.state))
+      if (isUSA) return // USA-steder er allerede håndtert via usaCityByState
+      const country = geo.country.trim()
+      countrySet.add(country) // legg til landet i landoversikten
+      if (!cityByCountry.has(country)) cityByCountry.set(country, new globalThis.Map())
+      const low = geo.city.trim().toLowerCase()
+      const cm = cityByCountry.get(country)!
+      if (!cm.has(low)) cm.set(low, geo.city.trim())
+    }
+    activities.forEach(a => { if (a.map_lat != null && a.map_lng != null) addEntryToWorldCities(a.id) })
+    dining.forEach(d => { if (d.map_lat != null && d.map_lng != null) addEntryToWorldCities(d.id) })
+
+    // Nå kan vi lage endelig landliste (etter at alle aktiviteter/spisesteder er lagt til)
+    const countryList = Array.from(countrySet).sort()
+
     const worldGroups: GroupedSection[] = Array.from(cityByCountry.entries())
       .sort(([a], [b]) => a.localeCompare(b, 'nb'))
       .map(([country, cityMap]) => {
