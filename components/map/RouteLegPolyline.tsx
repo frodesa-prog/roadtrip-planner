@@ -249,6 +249,8 @@ export default function RouteLegPolyline({
           failLineRef.current?.setMap(null)
           failLineRef.current = null
 
+          renderer.setDirections(result)
+
           // ── Geocode states / countries ────────────────────────────────
           const statesCb = onStatesRef.current
           if (statesCb) {
