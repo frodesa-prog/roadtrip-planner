@@ -36,6 +36,8 @@ interface RoutePolylineProps {
   useCountry?: boolean
   /** Kalles med Set av fromStopId-er der ruten ikke kunne beregnes */
   onFailedLegs?: (failedFromIds: Set<string>) => void
+  /** Turdato – brukes til å sette departureTime slik at stengte vinterveier ignoreres */
+  tripDateFrom?: string | null
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -49,6 +51,7 @@ export default function RoutePolyline({
   onStopCountryResolved,
   useCountry = false,
   onFailedLegs,
+  tripDateFrom,
 }: RoutePolylineProps) {
 
   // ── Build per-leg data ──────────────────────────────────────────────────────
@@ -128,6 +131,7 @@ export default function RoutePolyline({
           onStopCountryResolved={onStopCountryResolved}
           onRouteError={handleRouteError}
           legIndex={i}
+          tripDateFrom={tripDateFrom}
         />
       ))}
     </>

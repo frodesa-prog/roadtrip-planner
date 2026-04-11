@@ -35,6 +35,8 @@ interface RouteLegPolylineProps {
   onRouteError?: (fromStopId: string, toStopId: string) => void
   /** Stagger index – delays initial request by legIndex * 150 ms to avoid rate limits */
   legIndex?: number
+  /** Turdato (YYYY-MM-DD) – brukes som departureTime så Google ruter via åpne sommerveier */
+  tripDateFrom?: string | null
 }
 
 // ─── SVG icon for via-point markers ─────────────────────────────────────────
@@ -133,6 +135,17 @@ async function resolveCountries(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+/** Returnerer en fremtidig dato med samme måned/dag som turdatoen.
+ *  Slik brukes riktig årstid (sommer/vinter) selv for eldre turer. */
+function futureTripDate(dateStr: string): Date {
+  const src = new Date(dateStr + 'T12:00:00')
+  const now = new Date()
+  const candidate = new Date(src)
+  candidate.setFullYear(now.getFullYear())
+  if (candidate <= now) candidate.setFullYear(now.getFullYear() + 1)
+  return candidate
+}
+
 export default function RouteLegPolyline({
   fromStop,
   toStop,
@@ -144,6 +157,7 @@ export default function RouteLegPolyline({
   onStopCountryResolved,
   onRouteError,
   legIndex = 0,
+  tripDateFrom,
 }: RouteLegPolylineProps) {
   const map       = useMap()
   const routesLib = useMapsLibrary('routes')
@@ -232,6 +246,8 @@ export default function RouteLegPolyline({
     let   retryTimer: ReturnType<typeof setTimeout> | null = null
     let   cancelled = false
 
+    const departureTime = tripDateFrom ? futureTripDate(tripDateFrom) : null
+
     const request: google.maps.DirectionsRequest = {
       origin:            { lat: fromStop.lat, lng: fromStop.lng },
       destination:       { lat: toStop.lat,   lng: toStop.lng   },
@@ -241,6 +257,7 @@ export default function RouteLegPolyline({
       })),
       travelMode:        google.maps.TravelMode.DRIVING,
       optimizeWaypoints: false,
+      ...(departureTime ? { drivingOptions: { departureTime } } : {}),
     }
 
     function requestRoute(attempt: number) {

@@ -1723,6 +1723,7 @@ export default function PlanningMap({
               onRouteStatesChange={onRouteStatesChange}
               onStopCountryResolved={onStopCountryResolved}
               useCountry={useCountryForState}
+              tripDateFrom={tripDateFrom}
             />
           )}
 
