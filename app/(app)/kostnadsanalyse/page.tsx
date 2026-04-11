@@ -77,25 +77,26 @@ function tripDays(trip: Trip, stopNights: number): number {
 
 function NbTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
-  const total = payload.reduce((s: number, p: any) => s + (p.value ?? 0), 0)
+  // Exclude the "total" line from individual rows — it's already the sum of all categories,
+  // so showing it again as a separate row and then summing would double-count it.
+  const catRows = payload.filter((p: any) => p.dataKey !== 'total')
+  const total = catRows.reduce((s: number, p: any) => s + (p.value ?? 0), 0)
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3 min-w-[160px]">
       <p className="text-xs font-semibold text-slate-300 mb-2 truncate max-w-[180px]">{label}</p>
-      {payload.map((p: any) => (
+      {catRows.map((p: any) => (
         <div key={p.dataKey} className="flex items-center justify-between gap-4 text-xs py-0.5">
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.fill }} />
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.stroke ?? p.fill }} />
             <span className="text-slate-400">{p.name}</span>
           </span>
           <span className="font-semibold text-slate-200 tabular-nums">{fmt(p.value)} kr</span>
         </div>
       ))}
-      {payload.length > 1 && (
-        <div className="flex items-center justify-between text-xs pt-1.5 mt-1 border-t border-slate-700">
-          <span className="text-slate-500">Totalt</span>
-          <span className="font-bold text-white tabular-nums">{fmt(total)} kr</span>
-        </div>
-      )}
+      <div className="flex items-center justify-between text-xs pt-1.5 mt-1 border-t border-slate-700">
+        <span className="text-slate-500">Totalt</span>
+        <span className="font-bold text-white tabular-nums">{fmt(total)} kr</span>
+      </div>
     </div>
   )
 }
@@ -180,6 +181,22 @@ export default function KostnadsanalysePage() {
   }
   function setAllLines(on: boolean) {
     setActiveLines(on ? new Set(ALL_LINE_KEYS) : new Set(['total']))
+  }
+
+  // ── Category filter for Årsforbruk / Kategorifordeling / Detaljert sammenligning ──
+  const [activeCats, setActiveCats] = useState<Set<CatKey>>(
+    () => new Set(CATEGORIES.map((c) => c.key))
+  )
+  function toggleCat(key: CatKey) {
+    setActiveCats((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) { if (next.size > 1) next.delete(key) }
+      else next.add(key)
+      return next
+    })
+  }
+  function setAllCats(on: boolean) {
+    setActiveCats(on ? new Set(CATEGORIES.map((c) => c.key)) : new Set([CATEGORIES[0].key]))
   }
 
   // ── Fetch all data ────────────────────────────────────────────────────────
@@ -373,12 +390,13 @@ export default function KostnadsanalysePage() {
     const byYear: Record<number, number> = {}
     filtered.forEach((a) => {
       const yr = a.trip.year
-      byYear[yr] = (byYear[yr] ?? 0) + a.total
+      const vis = CATEGORIES.filter((c) => activeCats.has(c.key)).reduce((s, c) => s + a.costs[c.key], 0)
+      byYear[yr] = (byYear[yr] ?? 0) + vis
     })
     return Object.entries(byYear)
       .sort(([a], [b]) => Number(a) - Number(b))
       .map(([year, total]) => ({ year, total: Math.round(total) }))
-  }, [filtered])
+  }, [filtered, activeCats])
 
   const catTotalData = useMemo(() => {
     const totals: Record<CatKey, number> = zeroCosts()
@@ -386,10 +404,11 @@ export default function KostnadsanalysePage() {
       CATEGORIES.forEach((c) => { totals[c.key] += a.costs[c.key] })
     })
     return CATEGORIES
+      .filter((c) => activeCats.has(c.key))
       .map((c) => ({ name: c.label, value: Math.round(totals[c.key]), color: c.color }))
       .filter((d) => d.value > 0)
       .sort((a, b) => b.value - a.value)
-  }, [filtered])
+  }, [filtered, activeCats])
 
   // ── Toggle filter ─────────────────────────────────────────────────────────
   function toggle(id: string) {
@@ -449,6 +468,44 @@ export default function KostnadsanalysePage() {
               }}
             >
               <span className="w-2 h-0.5 rounded inline-block" style={{ background: on ? c.color : '#475569' }} />
+              {c.label}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── Filter bar for Årsforbruk / Kategorifordeling / Detaljert sammenligning ──
+  function CatSectionFilterBar() {
+    const allOn = CATEGORIES.every((c) => activeCats.has(c.key))
+    return (
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        <button
+          onClick={() => setAllCats(!allOn)}
+          className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
+            allOn
+              ? 'bg-slate-700 border-slate-600 text-slate-200'
+              : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-500'
+          }`}
+        >
+          {allOn ? 'Fjern alle' : 'Velg alle'}
+        </button>
+        {CATEGORIES.filter((c) => filtered.some((a) => a.costs[c.key] > 0)).map((c) => {
+          const on = activeCats.has(c.key)
+          const CatIcon = c.icon
+          return (
+            <button
+              key={c.key}
+              onClick={() => toggleCat(c.key)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors"
+              style={{
+                borderColor: on ? c.color + '80' : '#334155',
+                background:  on ? c.color + '20' : 'transparent',
+                color:       on ? c.color : '#475569',
+              }}
+            >
+              <CatIcon className="w-2.5 h-2.5 flex-shrink-0" />
               {c.label}
             </button>
           )
@@ -688,6 +745,8 @@ export default function KostnadsanalysePage() {
         )}
 
         {/* ── Årsforbruk + kategorifordeling ──────────────────────────────── */}
+        <div>
+          <CatSectionFilterBar />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* Årsforbruk */}
@@ -752,8 +811,9 @@ export default function KostnadsanalysePage() {
                       content={({ active, payload }) => {
                         if (!active || !payload?.length) return null
                         const d = payload[0]
-                        const pct = totalSpent > 0
-                          ? Math.round(((d.value as number) / totalSpent) * 100)
+                        const visTot = catTotalData.reduce((s, x) => s + x.value, 0)
+                        const pct = visTot > 0
+                          ? Math.round(((d.value as number) / visTot) * 100)
                           : 0
                         return (
                           <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3">
@@ -771,7 +831,8 @@ export default function KostnadsanalysePage() {
                 {/* Legend */}
                 <div className="flex-1 space-y-1.5 overflow-y-auto max-h-[220px]">
                   {catTotalData.map((d) => {
-                    const pct = totalSpent > 0 ? Math.round((d.value / totalSpent) * 100) : 0
+                    const visTot = catTotalData.reduce((s, x) => s + x.value, 0)
+                    const pct = visTot > 0 ? Math.round((d.value / visTot) * 100) : 0
                     return (
                       <div key={d.name} className="flex items-center gap-2 text-xs">
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.color }} />
@@ -786,11 +847,13 @@ export default function KostnadsanalysePage() {
             </section>
           )}
         </div>
+        </div>
 
         {/* ── Detaljert sammenligningstabell ──────────────────────────────── */}
         {filtered.length > 0 && (
           <section>
             <SectionHead>Detaljert sammenligning</SectionHead>
+            <CatSectionFilterBar />
             <div className="bg-slate-800/30 border border-slate-700 rounded-2xl overflow-x-auto">
               <table className="w-full text-xs min-w-[600px]">
                 <thead>
@@ -808,12 +871,12 @@ export default function KostnadsanalysePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {CATEGORIES.filter((c) => filtered.some((a) => a.costs[c.key] > 0)).map((c) => {
+                  {CATEGORIES.filter((c) => activeCats.has(c.key) && filtered.some((a) => a.costs[c.key] > 0)).flatMap((c) => {
                     const CatIcon = c.icon
                     const avg = filtered.length
                       ? filtered.reduce((s, a) => s + a.costs[c.key], 0) / filtered.length
                       : 0
-                    return (
+                    const rows = [
                       <tr key={c.key} className="hover:bg-slate-800/30 transition-colors">
                         <td className="px-4 py-2.5 text-slate-300">
                           <div className="flex items-center gap-2">
@@ -833,8 +896,36 @@ export default function KostnadsanalysePage() {
                             {avg > 0 ? `${fmt(avg)} kr` : <span className="text-slate-700">–</span>}
                           </td>
                         )}
-                      </tr>
-                    )
+                      </tr>,
+                    ]
+                    // Snitt pr. natt — sub-rad under Hotell (teller ikke i totalen)
+                    if (c.key === 'hotel') {
+                      const nightAvg = filtered.filter((a) => a.hotelPerNight > 0).length
+                        ? filtered.filter((a) => a.hotelPerNight > 0).reduce((s, a) => s + a.hotelPerNight, 0)
+                          / filtered.filter((a) => a.hotelPerNight > 0).length
+                        : 0
+                      rows.push(
+                        <tr key="hotel-per-night" className="hover:bg-slate-800/20 transition-colors">
+                          <td className="px-4 py-1.5 text-slate-500">
+                            <div className="flex items-center gap-2 pl-5">
+                              <BedDouble className="w-3 h-3 flex-shrink-0 text-slate-600" />
+                              <span className="text-[10px]">Snitt pr. natt</span>
+                            </div>
+                          </td>
+                          {filtered.map((a) => (
+                            <td key={a.trip.id} className="text-right px-3 py-1.5 tabular-nums text-slate-500 text-[10px]">
+                              {a.hotelPerNight > 0 ? `${fmt(a.hotelPerNight)} kr` : <span className="text-slate-700">–</span>}
+                            </td>
+                          ))}
+                          {filtered.length > 1 && (
+                            <td className="text-right px-4 py-1.5 tabular-nums text-slate-600 text-[10px]">
+                              {nightAvg > 0 ? `${fmt(nightAvg)} kr` : <span className="text-slate-700">–</span>}
+                            </td>
+                          )}
+                        </tr>
+                      )
+                    }
+                    return rows
                   })}
 
                   {/* Separator rows */}
@@ -845,14 +936,19 @@ export default function KostnadsanalysePage() {
                         Totalt
                       </div>
                     </td>
-                    {filtered.map((a) => (
-                      <td key={a.trip.id} className="text-right px-3 py-2.5 tabular-nums text-white font-bold">
-                        {fmt(a.total)} kr
-                      </td>
-                    ))}
+                    {filtered.map((a) => {
+                      const vis = CATEGORIES.filter((c) => activeCats.has(c.key)).reduce((s, c) => s + a.costs[c.key], 0)
+                      return (
+                        <td key={a.trip.id} className="text-right px-3 py-2.5 tabular-nums text-white font-bold">
+                          {fmt(vis)} kr
+                        </td>
+                      )
+                    })}
                     {filtered.length > 1 && (
                       <td className="text-right px-4 py-2.5 tabular-nums text-amber-400 font-bold">
-                        {fmt(filtered.reduce((s, a) => s + a.total, 0) / filtered.length)} kr
+                        {fmt(filtered.reduce((s, a) =>
+                          s + CATEGORIES.filter((c) => activeCats.has(c.key)).reduce((cs, c) => cs + a.costs[c.key], 0), 0)
+                          / filtered.length)} kr
                       </td>
                     )}
                   </tr>
