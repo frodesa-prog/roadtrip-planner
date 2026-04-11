@@ -125,6 +125,10 @@ export interface PoiActionCallbacks {
 
 type PoiTab = 'aktivitet' | 'spisested' | 'mulig' | 'hotell'
 
+// ─── Map-lag synlighet ────────────────────────────────────────────────────────
+type LayerKey = 'stops' | 'activities' | 'possible' | 'dining' | 'route'
+type LayerVisibility = Record<LayerKey, boolean>
+
 function getStopDates(stop: Stop): string[] {
   if (!stop.arrival_date) return []
   const dates: string[] = []
@@ -1095,18 +1099,22 @@ function fmtKm(km: number): string {
 
 interface MapToolsProps {
   onActiveChange: (active: boolean) => void
+  layerVisibility?: LayerVisibility
+  onLayerToggle?: (key: LayerKey) => void
 }
 
-function MapTools({ onActiveChange }: MapToolsProps) {
+function MapTools({ onActiveChange, layerVisibility, onLayerToggle }: MapToolsProps) {
   const map = useMap()
   const [measuring, setMeasuring] = useState(false)
   const [points, setPoints] = useState<{ lat: number; lng: number }[]>([])
   const [driveInfo, setDriveInfo] = useState<{ dist: string; time: string } | null>(null)
   const [loadingDrive, setLoadingDrive] = useState(false)
+  const [layerOpen, setLayerOpen] = useState(false)
 
   const listenerRef = useRef<google.maps.MapsEventListener | null>(null)
   const polylinesRef = useRef<google.maps.Polyline[]>([])
   const markersRef = useRef<google.maps.Marker[]>([])
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const panel = 'bg-slate-900/95 backdrop-blur-sm border border-slate-700 rounded-lg shadow-lg'
 
@@ -1174,6 +1182,15 @@ function MapTools({ onActiveChange }: MapToolsProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, measuring])
 
+  // Close layer dropdown on outside click
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (!containerRef.current?.contains(e.target as Node)) setLayerOpen(false)
+    }
+    if (layerOpen) document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [layerOpen])
+
   // Fetch drive time when exactly 2 points are set
   useEffect(() => {
     if (points.length !== 2) {
@@ -1240,8 +1257,17 @@ function MapTools({ onActiveChange }: MapToolsProps) {
 
   const straightKm = points.length >= 2 ? sumKm(points) : null
 
+  const LAYER_ITEMS: { key: LayerKey; label: string; color: string }[] = [
+    { key: 'stops',      label: 'Stoppesteder',      color: 'bg-slate-400' },
+    { key: 'activities', label: 'Aktiviteter',        color: 'bg-violet-400' },
+    { key: 'possible',   label: 'Mulige aktiviteter', color: 'bg-amber-400' },
+    { key: 'dining',     label: 'Spisesteder',        color: 'bg-red-500' },
+    { key: 'route',      label: 'Reiserute',          color: 'bg-sky-400' },
+  ]
+  const anyLayerHidden = layerVisibility ? Object.values(layerVisibility).some((v) => !v) : false
+
   return (
-    <div className="absolute top-2.5 right-2.5 z-10 pointer-events-auto flex flex-col items-end gap-1.5">
+    <div ref={containerRef} className="absolute top-2.5 right-2.5 z-10 pointer-events-auto flex flex-col items-end gap-1.5">
 
       {/* Tool buttons */}
       <div className={`${panel} flex flex-col overflow-hidden`}>
@@ -1264,12 +1290,50 @@ function MapTools({ onActiveChange }: MapToolsProps) {
         <button
           onClick={handleOpenPhotos}
           title="Åpne bilder fra Google"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-slate-200 hover:bg-slate-800 transition-colors"
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-slate-200 hover:bg-slate-800 transition-colors${layerVisibility ? ' border-b border-slate-700' : ''}`}
         >
           <Images className="w-3 h-3 flex-shrink-0" />
           Bilder
         </button>
+
+        {/* Kartlag filter button */}
+        {layerVisibility && onLayerToggle && (
+          <button
+            onClick={() => setLayerOpen((v) => !v)}
+            title="Filtrer kartlag"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+              layerOpen || anyLayerHidden
+                ? 'bg-blue-600/30 text-blue-300'
+                : 'text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            <Layers3 className="w-3 h-3 flex-shrink-0" />
+            Kartlag
+            {anyLayerHidden && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />}
+          </button>
+        )}
       </div>
+
+      {/* Layer filter dropdown */}
+      {layerOpen && layerVisibility && onLayerToggle && (
+        <div className={`${panel} min-w-[170px] overflow-hidden`}>
+          {LAYER_ITEMS.map(({ key, label, color }) => (
+            <button
+              key={key}
+              onClick={() => onLayerToggle(key)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-slate-300 hover:bg-slate-800 transition-colors border-b border-slate-700/60 last:border-0"
+            >
+              <span className={`w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center ${
+                layerVisibility[key] ? 'border-blue-400 bg-blue-500' : 'border-slate-600 bg-transparent'
+              }`}>
+                {layerVisibility[key] && <Check className="w-2 h-2 text-white" strokeWidth={3} />}
+              </span>
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color}`} />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Info panel – shown when measuring and at least 1 point placed */}
       {measuring && points.length > 0 && (
@@ -1432,6 +1496,14 @@ export default function PlanningMap({
   const [poiPlaceId, setPoiPlaceId] = useState<string | null>(null)
   const activeToolRef = useRef(false)
 
+  // ── Kartlag-synlighet ──────────────────────────────────────────────────────
+  const [layers, setLayers] = useState<LayerVisibility>({
+    stops: true, activities: true, possible: true, dining: true, route: true,
+  })
+  const toggleLayer = useCallback((key: LayerKey) => {
+    setLayers((prev) => ({ ...prev, [key]: !prev[key] }))
+  }, [])
+
   const handleToolActive = useCallback((active: boolean) => {
     activeToolRef.current = active
   }, [])
@@ -1523,7 +1595,7 @@ export default function PlanningMap({
           <MapController center={mapCenter} stops={stops} fitPoints={mapFitPoints} forcePanVersion={mapForcePanVersion} />
 
           {/* Stoppesteder */}
-          {(() => {
+          {layers.stops && (() => {
             const regularCount = stops.filter((s) => s.stop_type === 'stop').length
             let regularIndex = 0
             return stops.map((stop) => {
@@ -1554,7 +1626,7 @@ export default function PlanningMap({
           })()}
 
           {/* Aktivitetsmarkører */}
-          {pinnedActivities.map((activity) => (
+          {layers.activities && pinnedActivities.map((activity) => (
             <ActivityMarker
               key={activity.id}
               activity={activity}
@@ -1564,7 +1636,7 @@ export default function PlanningMap({
           ))}
 
           {/* Spisestedmarkører */}
-          {dining.filter((d) => d.map_lat != null && d.map_lng != null).map((d) => (
+          {layers.dining && dining.filter((d) => d.map_lat != null && d.map_lng != null).map((d) => (
             <DiningMarker
               key={d.id}
               dining={d}
@@ -1574,7 +1646,7 @@ export default function PlanningMap({
           ))}
 
           {/* Mulige aktiviteter med kartpunkt */}
-          {possibleActivities.filter((p) => p.map_lat != null && p.map_lng != null).map((p) => (
+          {layers.possible && possibleActivities.filter((p) => p.map_lat != null && p.map_lng != null).map((p) => (
             <PossibleActivityMarker
               key={p.id}
               possible={p}
@@ -1620,7 +1692,7 @@ export default function PlanningMap({
           )}
 
           {/* Rute mellom stopp */}
-          {stops.length >= 2 && (
+          {layers.route && stops.length >= 2 && (
             <RoutePolyline
               stops={stops}
               routeLegs={routeLegs}
@@ -1644,7 +1716,7 @@ export default function PlanningMap({
         <MapControls />
 
         {/* Kartverktøy */}
-        <MapTools onActiveChange={handleToolActive} />
+        <MapTools onActiveChange={handleToolActive} layerVisibility={layers} onLayerToggle={toggleLayer} />
 
         {/* POI info popup */}
         {poiPlaceId && (
