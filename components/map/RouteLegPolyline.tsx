@@ -168,6 +168,8 @@ export default function RouteLegPolyline({
     // ── Tear down previous instances ──────────────────────────────────────
     rendererRef.current?.setMap(null)
     overlayRef.current?.setMap(null)
+    failLineRef.current?.setMap(null)
+    failLineRef.current = null
     markersRef.current.forEach((m) => m.setMap(null))
     markersRef.current = []
 
@@ -222,105 +224,125 @@ export default function RouteLegPolyline({
       })
     }
 
-    // ── Directions API request ────────────────────────────────────────────
-    const service = new routesLib.DirectionsService()
-    service.route(
-      {
-        origin:            { lat: fromStop.lat, lng: fromStop.lng },
-        destination:       { lat: toStop.lat,   lng: toStop.lng   },
-        waypoints:         waypoints.map((wp) => ({
-          location: new google.maps.LatLng(wp.lat, wp.lng),
-          stopover: false,
-        })),
-        travelMode:        google.maps.TravelMode.DRIVING,
-        optimizeWaypoints: false,
-      },
-      (result, status) => {
-        if (status !== 'OK' || !result) {
-          console.warn('[RouteLegPolyline] Directions failed:', status, `${fromStop.city} → ${toStop.city}`)
+    // ── Directions API request (with retry on throttle) ──────────────────
+    const service  = new routesLib.DirectionsService()
+    let   retryTimer: ReturnType<typeof setTimeout> | null = null
+    let   cancelled = false
 
-          // Draw a red dashed straight line so the missing segment is visible on the map
+    const request: google.maps.DirectionsRequest = {
+      origin:            { lat: fromStop.lat, lng: fromStop.lng },
+      destination:       { lat: toStop.lat,   lng: toStop.lng   },
+      waypoints:         waypoints.map((wp) => ({
+        location: new google.maps.LatLng(wp.lat, wp.lng),
+        stopover: false,
+      })),
+      travelMode:        google.maps.TravelMode.DRIVING,
+      optimizeWaypoints: false,
+    }
+
+    function requestRoute(attempt: number) {
+      service.route(request, (result, status) => {
+        if (cancelled) return
+
+        if (status === 'OK' && result) {
+          // ── Suksess: fjern ev. feil-linje og vis rute ────────────────
           failLineRef.current?.setMap(null)
-          failLineRef.current = new google.maps.Polyline({
-            map,
-            path: [
-              { lat: fromStop.lat, lng: fromStop.lng },
-              { lat: toStop.lat,   lng: toStop.lng   },
-            ],
-            strokeColor:   '#ef4444',
-            strokeWeight:  2,
-            strokeOpacity: 0,
-            icons: [{
-              icon: {
-                path:           'M 0,-1 0,1',
-                strokeOpacity:  0.8,
-                strokeColor:    '#ef4444',
-                strokeWeight:   2,
-                scale:          3,
-              },
-              offset: '0',
-              repeat: '12px',
-            }],
-            zIndex: 1,
-          })
+          failLineRef.current = null
 
-          // Notify parent and show a toast so the user knows which leg failed
-          onRouteError?.(fromStop.id, toStop.id)
-          toast.error(
-            `Ruten mellom ${fromStop.city} og ${toStop.city} kunne ikke beregnes.`,
-            {
-              description: 'Koordinatene kan være unøyaktige. Klikk på stoppestedet i sidepanelet for å endre stedet.',
-              duration: 8000,
-              id: `route-err-${fromStop.id}-${toStop.id}`,
-            }
-          )
+          // ── Geocode states / countries ────────────────────────────────
+          const statesCb = onStatesRef.current
+          if (statesCb) {
+            if (useCountry) resolveCountries([fromStop, toStop], statesCb, onStopCountryRef.current)
+            else            resolveStates(result, statesCb)
+          }
+
+          // ── Clickable overlay for inserting via-points ────────────────
+          if (editable) {
+            overlayRef.current?.setMap(null)
+
+            const path = result.routes[0]?.overview_path ?? []
+
+            const overlay = new google.maps.Polyline({
+              map,
+              path,
+              strokeOpacity: 0,
+              strokeWeight:  18,
+              clickable:     true,
+              zIndex:        3,
+            })
+
+            overlay.addListener('click', (e: google.maps.MapMouseEvent) => {
+              if (!e.latLng) return
+              const cur = waypointsRef.current
+              const anchors: LegWaypoint[] = [
+                { lat: fromStop.lat, lng: fromStop.lng },
+                ...cur,
+                { lat: toStop.lat, lng: toStop.lng },
+              ]
+              const idx  = insertionIndex(e.latLng, anchors)
+              const next = [...cur]
+              next.splice(idx, 0, { lat: e.latLng.lat(), lng: e.latLng.lng() })
+              onChangeRef.current?.(next)
+            })
+
+            overlayRef.current = overlay
+          }
+
           return
         }
 
-        renderer.setDirections(result)
+        // ── Feil: prøv igjen ved throttling, vis rød linje ellers ────────
+        console.warn('[RouteLegPolyline] Directions failed:', status, `${fromStop.city} → ${toStop.city}`, `(forsøk ${attempt})`)
 
-        // ── Geocode states / countries ──────────────────────────────────
-        const statesCb = onStatesRef.current
-        if (statesCb) {
-          if (useCountry) resolveCountries([fromStop, toStop], statesCb, onStopCountryRef.current)
-          else            resolveStates(result, statesCb)
+        if (status === 'OVER_QUERY_LIMIT' && attempt < 4) {
+          // Eksponensiell backoff: 1s, 2s, 4s
+          const delay = Math.pow(2, attempt - 1) * 1000
+          retryTimer = setTimeout(() => requestRoute(attempt + 1), delay)
+          return
         }
 
-        // ── Clickable overlay for inserting via-points ──────────────────
-        if (editable) {
-          overlayRef.current?.setMap(null)
+        // Ikke mulig å rute — vis rød stiplet linje og toast
+        failLineRef.current?.setMap(null)
+        failLineRef.current = new google.maps.Polyline({
+          map,
+          path: [
+            { lat: fromStop.lat, lng: fromStop.lng },
+            { lat: toStop.lat,   lng: toStop.lng   },
+          ],
+          strokeColor:   '#ef4444',
+          strokeWeight:  2,
+          strokeOpacity: 0,
+          icons: [{
+            icon: {
+              path:          'M 0,-1 0,1',
+              strokeOpacity: 0.8,
+              strokeColor:   '#ef4444',
+              strokeWeight:  2,
+              scale:         3,
+            },
+            offset: '0',
+            repeat: '12px',
+          }],
+          zIndex: 1,
+        })
 
-          const path = result.routes[0]?.overview_path ?? []
+        onRouteError?.(fromStop.id, toStop.id)
+        toast.error(
+          `Ruten mellom ${fromStop.city} og ${toStop.city} kunne ikke beregnes (${status}).`,
+          {
+            description: 'Koordinatene kan være unøyaktige. Klikk på stoppestedet i sidepanelet for å endre stedet.',
+            duration: 8000,
+            id: `route-err-${fromStop.id}-${toStop.id}`,
+          }
+        )
+      })
+    }
 
-          const overlay = new google.maps.Polyline({
-            map,
-            path,
-            strokeOpacity: 0,    // invisible – only here to capture clicks
-            strokeWeight:  18,   // wide hit area
-            clickable:     true,
-            zIndex:        3,
-          })
-
-          overlay.addListener('click', (e: google.maps.MapMouseEvent) => {
-            if (!e.latLng) return
-            const cur = waypointsRef.current
-            const anchors: LegWaypoint[] = [
-              { lat: fromStop.lat, lng: fromStop.lng },
-              ...cur,
-              { lat: toStop.lat, lng: toStop.lng },
-            ]
-            const idx  = insertionIndex(e.latLng, anchors)
-            const next = [...cur]
-            next.splice(idx, 0, { lat: e.latLng.lat(), lng: e.latLng.lng() })
-            onChangeRef.current?.(next)
-          })
-
-          overlayRef.current = overlay
-        }
-      }
-    )
+    requestRoute(1)
 
     return () => {
+      cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
       renderer.setMap(null)
       overlayRef.current?.setMap(null)
       overlayRef.current = null
