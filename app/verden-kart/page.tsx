@@ -166,29 +166,67 @@ interface StopRow {
   trip_id: string
   state: string | null
 }
+interface GeoRow {
+  id: string
+  map_lat: number | null
+  map_lng: number | null
+}
 
 export default function VerdenKartPage() {
   const [trips, setTrips] = useState<TripRow[]>([])
   const [stops, setStops] = useState<StopRow[]>([])
+  const [geoEntries, setGeoEntries] = useState<GeoRow[]>([])
+  const [extraCountries, setExtraCountries] = useState<globalThis.Set<string>>(new globalThis.Set())
   const [loading, setLoading] = useState(true)
 
   const supabase = useMemo(() => createClient(), [])
   const apiKey   = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
 
+  // Fetch trips, stops, and activities/dining that have pinned coordinates
   useEffect(() => {
     async function load() {
-      const [{ data: tripsData }, { data: stopsData }] = await Promise.all([
+      const [{ data: tripsData }, { data: stopsData }, { data: actData }, { data: dinData }] = await Promise.all([
         supabase.from('trips').select('id, name, destination_country').order('created_at', { ascending: false }),
         supabase.from('stops').select('id, trip_id, state'),
+        supabase.from('activities').select('id, map_lat, map_lng').not('map_lat', 'is', null),
+        supabase.from('dining').select('id, map_lat, map_lng').not('map_lat', 'is', null),
       ])
       setTrips((tripsData ?? []) as TripRow[])
       setStops((stopsData ?? []) as StopRow[])
+      setGeoEntries([...(actData ?? []), ...(dinData ?? [])] as GeoRow[])
       setLoading(false)
     }
     load()
   }, [supabase])
 
-  // Mirrors VacationStats.countryList exactly
+  // Reverse-geocode activities/dining with pinned coords → collect non-USA countries
+  useEffect(() => {
+    const toGeocode = geoEntries.filter(e => e.map_lat != null && e.map_lng != null)
+    if (!toGeocode.length) return
+
+    let cancelled = false
+    Promise.all(
+      toGeocode.map(({ map_lat, map_lng }) =>
+        fetch(`/api/geocode?lat=${map_lat}&lng=${map_lng}`)
+          .then(r => r.json())
+          .then((geo: { country: string | null }) => geo.country)
+          .catch(() => null)
+      )
+    ).then(countries => {
+      if (cancelled) return
+      const s = new globalThis.Set<string>()
+      countries.forEach(c => {
+        if (!c?.trim()) return
+        if (USA_COUNTRY_NAMES.includes(c.toLowerCase().trim())) return // USA handled separately
+        s.add(c.trim())
+      })
+      setExtraCountries(s)
+    })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geoEntries.map(e => `${e.id}:${e.map_lat},${e.map_lng}`).join('|')])
+
+  // Mirrors VacationStats.countryList — now also includes activity/dining countries
   const visitedCountries = useMemo(() => {
     const s = new globalThis.Set<string>()
     trips.forEach(t => { if (t.destination_country?.trim()) s.add(t.destination_country.trim()) })
@@ -198,8 +236,11 @@ export default function VerdenKartPage() {
     const alreadyHasUsa = [...s].some(c => USA_COUNTRY_NAMES.includes(c.toLowerCase()))
     if (hasUsaStops && !alreadyHasUsa) s.add('USA')
 
+    // Add countries found via activity/dining geocoding
+    extraCountries.forEach(c => s.add(c))
+
     return s
-  }, [trips, stops])
+  }, [trips, stops, extraCountries])
 
   const visitedList = useMemo(
     () => [...visitedCountries].sort((a, b) => a.localeCompare(b, 'no')),
