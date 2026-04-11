@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen, Globe, ListChecks } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen, ListChecks } from 'lucide-react'
 import { countryFlag } from '@/lib/countryFlag'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -442,6 +442,24 @@ export default function SummaryPage() {
                 </button>
               ))}
             </div>
+
+            {/* Lenker */}
+            <div className="mt-3 pt-2 border-t border-slate-800 px-2 flex flex-col gap-0.5">
+              <Link
+                href="/aktiviteter"
+                className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 text-xs transition-colors"
+              >
+                <ListChecks className="w-3.5 h-3.5 flex-shrink-0" />
+                Avstand og rute til aktiviteter
+              </Link>
+              <Link
+                href="/beskrivelse"
+                className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 text-xs transition-colors"
+              >
+                <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+                Beskrivelse
+              </Link>
+            </div>
           </div>
         )}
 
@@ -475,70 +493,10 @@ export default function SummaryPage() {
             <EmptyState message="Legg til stoppesteder med ankomstdato i planleggeren for å se kalenderen" />
           ) : (
             <>
-              {/* Trip header */}
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <div>
-                  <h1 className="text-xl font-bold text-slate-100">{currentTrip.name}</h1>
-                  {dateRange && <p className="text-sm text-slate-400 mt-0.5">{dateRange}</p>}
-                  {countriesVisited && countriesVisited.length > 0 && (
-                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      <span className="flex items-center gap-1 text-xs text-slate-500">
-                        <Globe className="w-3.5 h-3.5" />
-                        <span className="font-semibold text-slate-300">{countriesVisited.length}</span> land
-                      </span>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {countriesVisited.map((country) => (
-                          <span
-                            key={country}
-                            className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[11px] text-slate-300"
-                            title={country}
-                          >
-                            {countryFlag(country) && <span>{countryFlag(country)}</span>}
-                            {country}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => setShowDetailed((v) => !v)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors ${
-                      showDetailed
-                        ? 'bg-amber-500/20 border-amber-500/30 text-amber-400 hover:bg-amber-500/30'
-                        : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-700'
-                    }`}
-                  >
-                    {showDetailed ? 'Kompakt' : 'Detaljert'}
-                  </button>
-                  <Link
-                    href="/aktiviteter"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-700 text-sm font-medium transition-colors"
-                  >
-                    <ListChecks className="w-3.5 h-3.5" />
-                    Avstand og rute til aktiviteter
-                  </Link>
-                  <Link
-                    href="/beskrivelse"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-700 text-sm font-medium transition-colors"
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    Beskrivelse
-                  </Link>
-                </div>
-              </div>
-
-              {/* Missing-hotel legend – vises kun hvis minst ett stopp mangler bekreftet hotell */}
-              {regularStops.some((s) => s.arrival_date && !confirmedHotelStopIds.has(s.id)) && (
-                <div className="flex items-center gap-2 text-xs mb-4 px-2.5 py-1.5 rounded-md bg-red-950/30 border border-red-800/30 w-fit">
-                  <span className="w-3.5 h-3.5 rounded border-2 border-red-600/70 flex-shrink-0" />
-                  <span className="text-slate-400">Dager med rød ring mangler bekreftet hotell</span>
-                </div>
-              )}
-
               {/* ── Kalenderfiltre ─────────────────────────────────────── */}
               <div className="flex flex-wrap items-center gap-1.5 mb-4">
+                <span className="text-xs font-semibold text-slate-500 mr-0.5">Filter</span>
+                <div className="w-px h-4 bg-slate-700 mx-0.5" />
                 {/* Velg alle / Fjern alle */}
                 <button
                   onClick={toggleAllFilters}
@@ -611,7 +569,28 @@ export default function SummaryPage() {
                   <FileText className="w-3 h-3" />
                   Notater
                 </button>
+                {/* Kompakt/Detaljert – skilt fra filtrene med ml-auto */}
+                <div className="ml-auto">
+                  <button
+                    onClick={() => setShowDetailed((v) => !v)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                      showDetailed
+                        ? 'bg-indigo-900/40 border-indigo-700/60 text-indigo-300 hover:bg-indigo-900/60'
+                        : 'bg-indigo-950/30 border-indigo-800/30 text-indigo-400/60 hover:bg-indigo-900/30 hover:text-indigo-300'
+                    }`}
+                  >
+                    {showDetailed ? 'Kompakt visning' : 'Detaljert visning'}
+                  </button>
+                </div>
               </div>
+
+              {/* Missing-hotel legend – vises kun hvis minst ett stopp mangler bekreftet hotell */}
+              {regularStops.some((s) => s.arrival_date && !confirmedHotelStopIds.has(s.id)) && (
+                <div className="flex items-center gap-2 text-xs mb-4 px-2.5 py-1.5 rounded-md bg-red-950/30 border border-red-800/30 w-fit">
+                  <span className="w-3.5 h-3.5 rounded border-2 border-red-600/70 flex-shrink-0" />
+                  <span className="text-slate-400">Dager med rød ring mangler bekreftet hotell</span>
+                </div>
+              )}
 
               {/* Kalender – horisontal scroll på mobil */}
               <div className="overflow-x-auto -mx-3 md:mx-0">
