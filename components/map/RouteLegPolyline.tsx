@@ -193,8 +193,9 @@ export default function RouteLegPolyline({
     // ── DirectionsRenderer (display only, not draggable) ─────────────────
     const renderer = new routesLib.DirectionsRenderer({
       map,
-      suppressMarkers: true,
-      draggable:       false,
+      suppressMarkers:  true,
+      draggable:        false,
+      preserveViewport: true,
       polylineOptions: {
         strokeColor:   '#2563eb',
         strokeWeight:  4,
