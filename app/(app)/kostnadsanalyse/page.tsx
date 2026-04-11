@@ -639,7 +639,7 @@ export default function KostnadsanalysePage() {
             <div className="bg-slate-800/30 border border-slate-700 rounded-2xl p-4">
               <CatFilterBar />
               <ResponsiveContainer width="100%" height={340}>
-                <LineChart data={lineData} margin={{ top: 8, right: 24, left: 0, bottom: xHeight }}>
+                <LineChart data={lineData} margin={{ top: 8, right: activeLines.has('total') ? 56 : 24, left: 0, bottom: xHeight }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis
                     dataKey="name"
@@ -650,14 +650,25 @@ export default function KostnadsanalysePage() {
                     interval={0}
                   />
                   <YAxis
+                    yAxisId="left"
                     tickFormatter={(v) => fmtK(v)}
                     tick={{ fill: '#94a3b8', fontSize: 11 }}
                     width={52}
                   />
+                  {activeLines.has('total') && (
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tickFormatter={(v) => fmtK(v)}
+                      tick={{ fill: '#94a3b8', fontSize: 11 }}
+                      width={52}
+                    />
+                  )}
                   <Tooltip content={<NbTooltip />} />
                   {activeLines.has('total') && (
                     <Line
                       key="total"
+                      yAxisId="right"
                       type="monotone"
                       dataKey="total"
                       name="Total"
@@ -673,6 +684,7 @@ export default function KostnadsanalysePage() {
                   ).map((c) => (
                     <Line
                       key={c.key}
+                      yAxisId="left"
                       type="monotone"
                       dataKey={c.key}
                       name={c.label}
@@ -695,7 +707,7 @@ export default function KostnadsanalysePage() {
             <div className="bg-slate-800/30 border border-slate-700 rounded-2xl p-4">
               <CatFilterBar />
               <ResponsiveContainer width="100%" height={320}>
-                <LineChart data={perDayLineData} margin={{ top: 8, right: 24, left: 0, bottom: xHeight }}>
+                <LineChart data={perDayLineData} margin={{ top: 8, right: activeLines.has('total') ? 56 : 24, left: 0, bottom: xHeight }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis
                     dataKey="name"
@@ -706,14 +718,25 @@ export default function KostnadsanalysePage() {
                     interval={0}
                   />
                   <YAxis
+                    yAxisId="left"
                     tickFormatter={(v) => fmtK(v)}
                     tick={{ fill: '#94a3b8', fontSize: 11 }}
                     width={52}
                   />
+                  {activeLines.has('total') && (
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tickFormatter={(v) => fmtK(v)}
+                      tick={{ fill: '#94a3b8', fontSize: 11 }}
+                      width={52}
+                    />
+                  )}
                   <Tooltip content={<NbTooltip />} />
                   {activeLines.has('total') && (
                     <Line
                       key="total"
+                      yAxisId="right"
                       type="monotone"
                       dataKey="total"
                       name="Total snitt/dag"
@@ -729,6 +752,7 @@ export default function KostnadsanalysePage() {
                   ).map((c) => (
                     <Line
                       key={c.key}
+                      yAxisId="left"
                       type="monotone"
                       dataKey={c.key}
                       name={`${c.label}/dag`}
