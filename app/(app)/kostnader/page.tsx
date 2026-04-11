@@ -570,6 +570,7 @@ interface FuelSettings {
   lPer100: number
   pricePerGallon: number
   exchangeRate: number
+  manualKm?: number
 }
 
 function parseFuelSettings(notes: string | null): Partial<FuelSettings> {
@@ -602,6 +603,9 @@ function FuelCalculatorModal({
   const [exchangeRate, setExchangeRate] = useState(
     saved.exchangeRate ? String(saved.exchangeRate) : '10.50'
   )
+  const [manualKmStr, setManualKmStr] = useState(
+    saved.manualKm ? String(saved.manualKm) : ''
+  )
 
   const preset = CAR_PRESETS.find((c) => c.id === carPresetId)!
   const lPer100 =
@@ -609,13 +613,18 @@ function FuelCalculatorModal({
   const ppg = parseFloat(pricePerGallon) || 0
   const er = parseFloat(exchangeRate) || 0
 
-  // 1 gallon = 3.785 liter
-  const totalLiters = (totalKm * lPer100) / 100
-  const totalGallons = totalLiters / 3.785
-  const totalUSD = totalGallons * ppg
-  const totalNOK = Math.round(totalUSD * er)
+  // Manuelt antall km overstyrer ruteberegnet avstand
+  const manualKm    = manualKmStr.trim() ? (parseFloat(manualKmStr) || null) : null
+  const effectiveKm = manualKm !== null ? manualKm : totalKm
+  const kmOutsideRoute = manualKm !== null ? Math.round(manualKm - totalKm) : null
 
-  const canSave = totalNOK > 0 && !legsLoading
+  // 1 gallon = 3.785 liter
+  const totalLiters  = (effectiveKm * lPer100) / 100
+  const totalGallons = totalLiters / 3.785
+  const totalUSD     = totalGallons * ppg
+  const totalNOK     = Math.round(totalUSD * er)
+
+  const canSave = totalNOK > 0 && (manualKm !== null || !legsLoading)
 
   function handleSave() {
     const settings: FuelSettings = {
@@ -623,6 +632,7 @@ function FuelCalculatorModal({
       lPer100: carPresetId === 'custom' ? (parseFloat(customL) || 0) : (preset.lPer100 ?? 0),
       pricePerGallon: ppg,
       exchangeRate: er,
+      ...(manualKm !== null ? { manualKm } : {}),
     }
     onSave(totalNOK, JSON.stringify(settings))
   }
@@ -651,18 +661,63 @@ function FuelCalculatorModal({
         </div>
 
         <div className="p-4 space-y-4">
-          {/* Total km */}
-          <div className="bg-slate-800/60 rounded-lg px-3 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-slate-400">Total kjøreavstand (rute)</span>
-            {legsLoading ? (
-              <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Beregner…
-              </span>
-            ) : (
-              <span className="text-sm font-bold text-white tabular-nums">
-                {totalKm.toLocaleString('nb-NO')} km
-              </span>
+          {/* Avstandsblokk */}
+          <div className="bg-slate-800/60 rounded-lg px-3 py-2.5 space-y-2.5">
+            {/* Total km fra rute */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400">Total kjøreavstand (rute)</span>
+              {legsLoading ? (
+                <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Beregner…
+                </span>
+              ) : (
+                <span className="text-sm font-bold text-white tabular-nums">
+                  {totalKm.toLocaleString('nb-NO')} km
+                </span>
+              )}
+            </div>
+
+            {/* Manuelt antall km */}
+            <div className="border-t border-slate-700/50 pt-2.5 space-y-1.5">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                Faktisk antall km kjørt
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={manualKmStr}
+                  onChange={(e) => setManualKmStr(e.target.value)}
+                  placeholder={totalKm > 0 ? `Rute: ${totalKm.toLocaleString('nb-NO')} km` : 'Valgfritt…'}
+                  className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-3 py-1.5 pr-10 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-colors"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 pointer-events-none">
+                  km
+                </span>
+              </div>
+              {manualKm !== null && (
+                <p className="text-[10px] text-amber-400/80">
+                  ✓ Bruker {manualKm.toLocaleString('nb-NO')} km for beregningen
+                </p>
+              )}
+            </div>
+
+            {/* Kjørt utenfor rute */}
+            {kmOutsideRoute !== null && (
+              <div className="flex items-center justify-between border-t border-slate-700/50 pt-2">
+                <span className="text-xs text-slate-400">Kjørt utenfor rute</span>
+                <span className={`text-xs font-semibold tabular-nums ${
+                  kmOutsideRoute > 0
+                    ? 'text-orange-400'
+                    : kmOutsideRoute < 0
+                      ? 'text-sky-400'
+                      : 'text-slate-400'
+                }`}>
+                  {kmOutsideRoute > 0 ? '+' : ''}{kmOutsideRoute.toLocaleString('nb-NO')} km
+                </span>
+              </div>
             )}
           </div>
 
@@ -753,9 +808,18 @@ function FuelCalculatorModal({
             </p>
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs">
+                <span className="text-slate-400">Grunnlag</span>
+                <span className="text-slate-200 tabular-nums">
+                  {effectiveKm > 0 ? `${effectiveKm.toLocaleString('nb-NO')} km` : '—'}
+                  {manualKm !== null && (
+                    <span className="text-amber-500/70 ml-1 text-[10px]">(manuelt)</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
                 <span className="text-slate-400">Forbruk totalt</span>
                 <span className="text-slate-200 tabular-nums">
-                  {lPer100 > 0 && totalKm > 0
+                  {lPer100 > 0 && effectiveKm > 0
                     ? `${totalLiters.toFixed(0)} L (${totalGallons.toFixed(0)} gal)`
                     : '—'}
                 </span>
@@ -763,7 +827,7 @@ function FuelCalculatorModal({
               <div className="flex justify-between text-xs">
                 <span className="text-slate-400">Pris i USD</span>
                 <span className="text-slate-200 tabular-nums">
-                  {ppg > 0 && lPer100 > 0 && totalKm > 0 ? `$${totalUSD.toFixed(0)}` : '—'}
+                  {ppg > 0 && lPer100 > 0 && effectiveKm > 0 ? `$${totalUSD.toFixed(0)}` : '—'}
                 </span>
               </div>
               <div className="flex justify-between text-xs pt-1.5 border-t border-amber-700/30">

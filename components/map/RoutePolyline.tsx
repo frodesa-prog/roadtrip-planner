@@ -6,7 +6,7 @@
 // completely isolated to a single leg — no more waypoint cross-contamination.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { Stop, RouteLeg } from '@/types'
 import RouteLegPolyline, { LegWaypoint } from './RouteLegPolyline'
 
@@ -34,6 +34,8 @@ interface RoutePolylineProps {
   onStopCountryResolved?: (stopId: string, country: string) => void
   /** Bruk land i stedet for delstat ved geocoding (internasjonale turer) */
   useCountry?: boolean
+  /** Kalles med Set av fromStopId-er der ruten ikke kunne beregnes */
+  onFailedLegs?: (failedFromIds: Set<string>) => void
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -46,6 +48,7 @@ export default function RoutePolyline({
   onRouteStatesChange,
   onStopCountryResolved,
   useCountry = false,
+  onFailedLegs,
 }: RoutePolylineProps) {
 
   // ── Build per-leg data ──────────────────────────────────────────────────────
@@ -64,6 +67,23 @@ export default function RoutePolyline({
       }
     })
   }, [stops, routeLegs])
+
+  // ── Track failed legs ──────────────────────────────────────────────────────
+  const [failedLegs, setFailedLegs] = useState<Set<string>>(new Set())
+  const onFailedLegsRef = useRef(onFailedLegs)
+  onFailedLegsRef.current = onFailedLegs
+
+  const handleRouteError = useCallback((fromStopId: string, _toStopId: string) => {
+    setFailedLegs((prev) => {
+      const next = new Set(prev)
+      next.add(fromStopId)
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    onFailedLegsRef.current?.(failedLegs)
+  }, [failedLegs])
 
   // ── Aggregate states reported by each leg ──────────────────────────────────
   const [legStatesMap, setLegStatesMap] = useState<Map<string, string[]>>(new Map())
@@ -106,6 +126,7 @@ export default function RoutePolyline({
           onStatesResolved={(codes) => handleStatesResolved(key, codes)}
           useCountry={useCountry}
           onStopCountryResolved={onStopCountryResolved}
+          onRouteError={handleRouteError}
         />
       ))}
     </>

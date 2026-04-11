@@ -13,6 +13,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useMap, useMapsLibrary } from '@vis.gl/react-google-maps'
+import { toast } from 'sonner'
 import { Stop } from '@/types'
 
 export interface LegWaypoint { lat: number; lng: number }
@@ -30,6 +31,8 @@ interface RouteLegPolylineProps {
   onStatesResolved?: (codes: string[]) => void
   useCountry?: boolean
   onStopCountryResolved?: (stopId: string, country: string) => void
+  /** Called when Directions API fails for this leg */
+  onRouteError?: (fromStopId: string, toStopId: string) => void
 }
 
 // ─── SVG icon for via-point markers ─────────────────────────────────────────
@@ -137,13 +140,15 @@ export default function RouteLegPolyline({
   onStatesResolved,
   useCountry = false,
   onStopCountryResolved,
+  onRouteError,
 }: RouteLegPolylineProps) {
   const map       = useMap()
   const routesLib = useMapsLibrary('routes')
 
-  const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null)
-  const overlayRef  = useRef<google.maps.Polyline | null>(null)
-  const markersRef  = useRef<google.maps.Marker[]>([])
+  const rendererRef  = useRef<google.maps.DirectionsRenderer | null>(null)
+  const overlayRef   = useRef<google.maps.Polyline | null>(null)
+  const failLineRef  = useRef<google.maps.Polyline | null>(null)
+  const markersRef   = useRef<google.maps.Marker[]>([])
 
   // Stable refs for callbacks — avoids stale closures in event handlers
   const onChangeRef          = useRef(onChange)
@@ -232,7 +237,43 @@ export default function RouteLegPolyline({
       },
       (result, status) => {
         if (status !== 'OK' || !result) {
-          console.warn('[RouteLegPolyline] Directions failed:', status)
+          console.warn('[RouteLegPolyline] Directions failed:', status, `${fromStop.city} → ${toStop.city}`)
+
+          // Draw a red dashed straight line so the missing segment is visible on the map
+          failLineRef.current?.setMap(null)
+          failLineRef.current = new google.maps.Polyline({
+            map,
+            path: [
+              { lat: fromStop.lat, lng: fromStop.lng },
+              { lat: toStop.lat,   lng: toStop.lng   },
+            ],
+            strokeColor:   '#ef4444',
+            strokeWeight:  2,
+            strokeOpacity: 0,
+            icons: [{
+              icon: {
+                path:           'M 0,-1 0,1',
+                strokeOpacity:  0.8,
+                strokeColor:    '#ef4444',
+                strokeWeight:   2,
+                scale:          3,
+              },
+              offset: '0',
+              repeat: '12px',
+            }],
+            zIndex: 1,
+          })
+
+          // Notify parent and show a toast so the user knows which leg failed
+          onRouteError?.(fromStop.id, toStop.id)
+          toast.error(
+            `Ruten mellom ${fromStop.city} og ${toStop.city} kunne ikke beregnes.`,
+            {
+              description: 'Koordinatene kan være unøyaktige. Klikk på stoppestedet i sidepanelet for å endre stedet.',
+              duration: 8000,
+              id: `route-err-${fromStop.id}-${toStop.id}`,
+            }
+          )
           return
         }
 
@@ -283,6 +324,8 @@ export default function RouteLegPolyline({
       renderer.setMap(null)
       overlayRef.current?.setMap(null)
       overlayRef.current = null
+      failLineRef.current?.setMap(null)
+      failLineRef.current = null
       markersRef.current.forEach((m) => m.setMap(null))
       markersRef.current = []
     }
