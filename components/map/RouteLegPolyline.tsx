@@ -33,6 +33,8 @@ interface RouteLegPolylineProps {
   onStopCountryResolved?: (stopId: string, country: string) => void
   /** Called when Directions API fails for this leg */
   onRouteError?: (fromStopId: string, toStopId: string) => void
+  /** Stagger index – delays initial request by legIndex * 150 ms to avoid rate limits */
+  legIndex?: number
 }
 
 // ─── SVG icon for via-point markers ─────────────────────────────────────────
@@ -141,6 +143,7 @@ export default function RouteLegPolyline({
   useCountry = false,
   onStopCountryResolved,
   onRouteError,
+  legIndex = 0,
 }: RouteLegPolylineProps) {
   const map       = useMap()
   const routesLib = useMapsLibrary('routes')
@@ -296,7 +299,7 @@ export default function RouteLegPolyline({
         // ── Feil: prøv igjen ved throttling, vis rød linje ellers ────────
         console.warn('[RouteLegPolyline] Directions failed:', status, `${fromStop.city} → ${toStop.city}`, `(forsøk ${attempt})`)
 
-        if (status === 'OVER_QUERY_LIMIT' && attempt < 4) {
+        if ((status === 'OVER_QUERY_LIMIT' || status === 'UNKNOWN_ERROR') && attempt < 4) {
           // Eksponensiell backoff: 1s, 2s, 4s
           const delay = Math.pow(2, attempt - 1) * 1000
           retryTimer = setTimeout(() => requestRoute(attempt + 1), delay)
@@ -340,7 +343,8 @@ export default function RouteLegPolyline({
       })
     }
 
-    requestRoute(1)
+    // Stagger initial call: hvert ben venter legIndex * 150 ms for å unngå rate limit
+    retryTimer = setTimeout(() => requestRoute(1), legIndex * 150)
 
     return () => {
       cancelled = true

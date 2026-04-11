@@ -115,7 +115,7 @@ export default function RoutePolyline({
 
   return (
     <>
-      {legs.map(({ key, fromStop, toStop, waypoints }) => (
+      {legs.map(({ key, fromStop, toStop, waypoints }, i) => (
         <RouteLegPolyline
           key={key}
           fromStop={fromStop}
@@ -127,6 +127,7 @@ export default function RoutePolyline({
           useCountry={useCountry}
           onStopCountryResolved={onStopCountryResolved}
           onRouteError={handleRouteError}
+          legIndex={i}
         />
       ))}
     </>
