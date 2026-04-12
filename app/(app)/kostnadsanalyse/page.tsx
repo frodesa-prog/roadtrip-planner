@@ -368,22 +368,24 @@ export default function KostnadsanalysePage() {
   const lineData = useMemo(() =>
     filtered.map((a) => ({
       name: `${a.trip.name} (${a.trip.year})`,
-      total: Math.round(a.total),
+      total: Math.round(CATEGORIES.filter((c) => activeCats.has(c.key)).reduce((s, c) => s + a.costs[c.key], 0)),
       ...Object.fromEntries(CATEGORIES.map((c) => [c.key, Math.round(a.costs[c.key])])),
     })),
-    [filtered],
+    [filtered, activeCats],
   )
 
   const perDayLineData = useMemo(() =>
     filtered.map((a) => ({
       name: `${a.trip.name} (${a.trip.year})`,
-      total: a.days > 0 ? Math.round(a.total / a.days) : 0,
+      total: a.days > 0
+        ? Math.round(CATEGORIES.filter((c) => activeCats.has(c.key)).reduce((s, c) => s + a.costs[c.key], 0) / a.days)
+        : 0,
       ...Object.fromEntries(CATEGORIES.map((c) => [
         c.key,
         a.days > 0 ? Math.round(a.costs[c.key] / a.days) : 0,
       ])),
     })),
-    [filtered],
+    [filtered, activeCats],
   )
 
   const yearData = useMemo(() => {
