@@ -276,11 +276,11 @@ export default function SummaryPage() {
 
   const unattachedNotes = useMemo(() => notes.filter((n) => !n.stop_id), [notes])
 
-  // Map: ISO date → possible activities for that stop (keyed by stop arrival date)
+  // Map: ISO date → possible activities (uses activity_date if set, falls back to stop arrival_date)
   const possibleByDate = useMemo(() => {
     const map: Record<string, PossibleActivity[]> = {}
     possibleActivities.forEach((pa) => {
-      const date = regularStops.find((s) => s.id === pa.stop_id)?.arrival_date ?? null
+      const date = pa.activity_date ?? regularStops.find((s) => s.id === pa.stop_id)?.arrival_date ?? null
       if (!date) return
       if (!map[date]) map[date] = []
       map[date].push(pa)
