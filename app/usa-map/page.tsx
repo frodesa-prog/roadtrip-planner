@@ -848,6 +848,74 @@ function Legend({
   )
 }
 
+// ── Point-in-polygon state detection (replaces reverse geocoding) ─────────────
+
+type GeoFeature = {
+  properties: { name: string }
+  geometry: {
+    type: 'Polygon' | 'MultiPolygon'
+    coordinates: number[][][] | number[][][][]
+  }
+}
+
+/** Ray-casting algorithm: is (lng, lat) inside a ring of [lng, lat] pairs? */
+function pointInRing(lng: number, lat: number, ring: number[][]): boolean {
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]
+    const [xj, yj] = ring[j]
+    if ((yi > lat) !== (yj > lat) && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) {
+      inside = !inside
+    }
+  }
+  return inside
+}
+
+/** Which US state (full name) contains the point (lng, lat)? */
+function stateForPoint(lng: number, lat: number, features: GeoFeature[]): string | null {
+  for (const f of features) {
+    const { type, coordinates } = f.geometry
+    let hit = false
+    if (type === 'Polygon') {
+      hit = pointInRing(lng, lat, (coordinates as number[][][])[0])
+    } else if (type === 'MultiPolygon') {
+      hit = (coordinates as number[][][][]).some((poly) => pointInRing(lng, lat, poly[0]))
+    }
+    if (hit) return f.properties.name
+  }
+  return null
+}
+
+// Cached GeoJSON features (loaded once, reused on realtime re-loads)
+let cachedGeoFeatures: GeoFeature[] | null = null
+
+/** Detect US states for a batch of entries using GeoJSON polygon boundaries.
+ *  Falls back to null city (city detection not needed for state map highlights). */
+async function detectStatesFromGeoJSON(
+  entries: { id: string; lat: number; lng: number }[]
+): Promise<Record<string, { state: string | null; city: string | null }>> {
+  if (!entries.length) return {}
+
+  // Load GeoJSON once and cache it
+  if (!cachedGeoFeatures) {
+    try {
+      const res = await fetch(US_STATES_GEOJSON_URL)
+      const geo = await res.json()
+      cachedGeoFeatures = (geo.features ?? []) as GeoFeature[]
+    } catch {
+      cachedGeoFeatures = []
+    }
+  }
+
+  const features = cachedGeoFeatures
+  const m: Record<string, { state: string | null; city: string | null }> = {}
+  for (const { id, lat, lng } of entries) {
+    // stateForPoint returns full name e.g. "Nebraska" — isUSState + expandStateName both handle this
+    m[id] = { state: stateForPoint(lng, lat, features), city: null }
+  }
+  return m
+}
+
 // ── Map content (inside APIProvider + Map) ────────────────────────────────────
 
 type StateListOpen = 'visited' | 'unvisited' | null
@@ -856,10 +924,12 @@ function MapContent({
   trips,
   activities,
   dining,
+  entryStateMap,
 }: {
   trips: TripWithStops[]
   activities: ActivityData[]
   dining: DiningData[]
+  entryStateMap: Record<string, { state: string | null; city: string | null }>
 }) {
   const [activeInfo, setActiveInfo]     = useState<InfoState | null>(null)
   const [distances, setDistances]       = useState<Record<string, number>>({})
@@ -868,35 +938,6 @@ function MapContent({
   const [showUnvisited, setShowUnvisited] = useState(false)
   const [showCityPins, setShowCityPins] = useState(false)
   const [stateListOpen, setStateListOpen] = useState<StateListOpen>(null)
-  const [entryStateMap, setEntryStateMap] = useState<Record<string, { state: string | null; city: string | null }>>({})
-
-  // Reverse-geocode entries with own coordinates (henter nå også by)
-  useEffect(() => {
-    const toGeocode: { id: string; lat: number; lng: number }[] = []
-    activities.forEach((a) => { if (a.map_lat != null && a.map_lng != null) toGeocode.push({ id: a.id, lat: a.map_lat, lng: a.map_lng }) })
-    dining.forEach((d)    => { if (d.map_lat != null && d.map_lng != null) toGeocode.push({ id: d.id, lat: d.map_lat, lng: d.map_lng }) })
-    if (!toGeocode.length) return
-
-    let cancelled = false
-    Promise.all(
-      toGeocode.map(({ id, lat, lng }) =>
-        fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
-          .then((r) => r.json())
-          .then((geo: { state: string | null; city: string | null }) => ({ id, state: geo.state ?? null, city: geo.city ?? null }))
-          .catch(() => ({ id, state: null, city: null }))
-      )
-    ).then((results) => {
-      if (cancelled) return
-      const m: Record<string, { state: string | null; city: string | null }> = {}
-      results.forEach((r) => { m[r.id] = { state: r.state, city: r.city } })
-      setEntryStateMap(m)
-    })
-    return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    activities.map((a) => `${a.id}:${a.map_lat},${a.map_lng}`).join('|'),
-    dining.map((d) => `${d.id}:${d.map_lat},${d.map_lng}`).join('|'),
-  ])
 
   // Helper: build stopById + stopToTripId maps
   const { stopById, stopToTripId } = useMemo(() => {
@@ -1086,6 +1127,7 @@ export default function UsaMapPage() {
   const [trips, setTrips]         = useState<TripWithStops[]>([])
   const [activities, setActivities] = useState<ActivityData[]>([])
   const [dining, setDining]       = useState<DiningData[]>([])
+  const [entryStateMap, setEntryStateMap] = useState<Record<string, { state: string | null; city: string | null }>>({})
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
@@ -1145,10 +1187,22 @@ export default function UsaMapPage() {
       ])
 
       if (cancelled) return
-      if (!cancelled) {
-        setActivities((activitiesRaw ?? []) as ActivityData[])
-        setDining((diningRaw ?? []) as DiningData[])
+
+      // Detect which US state each pinned activity/dining entry is in (point-in-polygon with GeoJSON)
+      const toDetect: { id: string; lat: number; lng: number }[] = []
+      for (const a of activitiesRaw ?? []) {
+        if (a.map_lat != null && a.map_lng != null) toDetect.push({ id: a.id, lat: a.map_lat, lng: a.map_lng })
       }
+      for (const d of diningRaw ?? []) {
+        if (d.map_lat != null && d.map_lng != null) toDetect.push({ id: d.id, lat: d.map_lat, lng: d.map_lng })
+      }
+      const geocoded = await detectStatesFromGeoJSON(toDetect)
+
+      if (cancelled) return
+
+      setActivities((activitiesRaw ?? []) as ActivityData[])
+      setDining((diningRaw ?? []) as DiningData[])
+      setEntryStateMap(geocoded)
 
       // Group route legs by trip
       const routeLegsByTrip = new Map<string, RouteLegData[]>()
@@ -1314,7 +1368,7 @@ export default function UsaMapPage() {
               fullscreenControl
               rotateControl={false}
             >
-              <MapContent trips={trips} activities={activities} dining={dining} />
+              <MapContent trips={trips} activities={activities} dining={dining} entryStateMap={entryStateMap} />
             </GoogleMap>
           </APIProvider>
         </div>
