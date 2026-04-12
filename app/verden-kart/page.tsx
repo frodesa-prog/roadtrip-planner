@@ -25,6 +25,76 @@ const US_STATES_LC = new globalThis.Set([
   'virginia','washington','west virginia','wisconsin','wyoming',
 ])
 
+// Abbreviation → full state name (for converting stop.state "NE" → "Nebraska")
+const US_STATE_FULL: Record<string, string> = {
+  AL:'Alabama', AK:'Alaska', AZ:'Arizona', AR:'Arkansas',
+  CA:'California', CO:'Colorado', CT:'Connecticut', DE:'Delaware',
+  FL:'Florida', GA:'Georgia', HI:'Hawaii', ID:'Idaho',
+  IL:'Illinois', IN:'Indiana', IA:'Iowa', KS:'Kansas',
+  KY:'Kentucky', LA:'Louisiana', ME:'Maine', MD:'Maryland',
+  MA:'Massachusetts', MI:'Michigan', MN:'Minnesota', MS:'Mississippi',
+  MO:'Missouri', MT:'Montana', NE:'Nebraska', NV:'Nevada',
+  NH:'New Hampshire', NJ:'New Jersey', NM:'New Mexico', NY:'New York',
+  NC:'North Carolina', ND:'North Dakota', OH:'Ohio', OK:'Oklahoma',
+  OR:'Oregon', PA:'Pennsylvania', RI:'Rhode Island', SC:'South Carolina',
+  SD:'South Dakota', TN:'Tennessee', TX:'Texas', UT:'Utah',
+  VT:'Vermont', VA:'Virginia', WA:'Washington', WV:'West Virginia',
+  WI:'Wisconsin', WY:'Wyoming', DC:'Washington D.C.',
+}
+
+// ── Point-in-polygon: US state detection ──────────────────────────────────────
+const US_STATES_GEOJSON_URL =
+  'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json'
+
+type GeoFeature = {
+  properties: { name: string }
+  geometry: { type: 'Polygon' | 'MultiPolygon'; coordinates: number[][][] | number[][][][] }
+}
+
+function pointInRing(lng: number, lat: number, ring: number[][]): boolean {
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j]
+    if ((yi > lat) !== (yj > lat) && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi)
+      inside = !inside
+  }
+  return inside
+}
+
+function stateNameForPoint(lng: number, lat: number, features: GeoFeature[]): string | null {
+  for (const f of features) {
+    const { type, coordinates } = f.geometry
+    const hit = type === 'Polygon'
+      ? pointInRing(lng, lat, (coordinates as number[][][])[0])
+      : (coordinates as number[][][][]).some(poly => pointInRing(lng, lat, poly[0]))
+    if (hit) return f.properties.name
+  }
+  return null
+}
+
+let cachedVerdenGeoFeatures: GeoFeature[] | null = null
+
+async function detectUsStatesFromPoints(
+  entries: { id: string; lat: number; lng: number }[]
+): Promise<globalThis.Set<string>> {
+  if (!entries.length) return new globalThis.Set()
+  if (!cachedVerdenGeoFeatures) {
+    try {
+      const r = await fetch(US_STATES_GEOJSON_URL)
+      const geo = await r.json()
+      cachedVerdenGeoFeatures = (geo.features ?? []) as GeoFeature[]
+    } catch {
+      cachedVerdenGeoFeatures = []
+    }
+  }
+  const result = new globalThis.Set<string>()
+  for (const { lat, lng } of entries) {
+    const name = stateNameForPoint(lng, lat, cachedVerdenGeoFeatures)
+    if (name) result.add(name)
+  }
+  return result
+}
+
 // Additional aliases so stored values like "Norge", "UK" etc. map to GeoJSON names
 const ALIASES: Record<string, string> = {
   'usa':                       'united states of america',
@@ -69,47 +139,87 @@ function fStr(f: google.maps.Data.Feature, key: string): string {
   return ((f.getProperty(key) as string) ?? '').toLowerCase().trim()
 }
 
-function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set<string> }) {
+function WorldDataLayer({
+  visitedCountries,
+  visitedUsStates,
+}: {
+  visitedCountries: globalThis.Set<string>
+  visitedUsStates: globalThis.Set<string>
+}) {
   const map = useMap()
 
   useEffect(() => {
     if (!map || visitedCountries.size === 0) return
-    const m = map // capture non-null reference for async callbacks
+    const m = map
 
-    // Build two lookup sets:
-    // 1. aliased: "USA" → "united states of america"
     const aliasedSet = new globalThis.Set([...visitedCountries].map(alias))
-    // 2. raw lowercase: "USA" → "usa" (for direct ISO_A3 / short-name matching)
-    const rawSet = new globalThis.Set([...visitedCountries].map(c => c.toLowerCase().trim()))
+    const rawSet     = new globalThis.Set([...visitedCountries].map(c => c.toLowerCase().trim()))
 
     function isVisited(f: google.maps.Data.Feature): boolean {
-      // Try all property names used across different GeoJSON sources
       const candidates = [
-        fStr(f, 'name'),   // world.geo.json
-        fStr(f, 'NAME'),   // Natural Earth short
-        fStr(f, 'ADMIN'),  // Natural Earth full
-        fStr(f, 'ISO_A3'), // iso3 code
-        fStr(f, 'ISO_A2'), // iso2 code
-        fStr(f, 'iso_a3'),
-        fStr(f, 'iso_a2'),
+        fStr(f, 'name'), fStr(f, 'NAME'), fStr(f, 'ADMIN'),
+        fStr(f, 'ISO_A3'), fStr(f, 'ISO_A2'), fStr(f, 'iso_a3'), fStr(f, 'iso_a2'),
       ].filter(Boolean)
-
-      return candidates.some(
-        v => aliasedSet.has(v) || rawSet.has(v) || aliasedSet.has(alias(v))
-      )
+      return candidates.some(v => aliasedSet.has(v) || rawSet.has(v) || aliasedSet.has(alias(v)))
     }
 
-    const styleLayer = () =>
-      m.data.setStyle(f => ({
-        fillColor:    isVisited(f) ? '#f59e0b' : '#1e3a5f',
-        fillOpacity:  isVisited(f) ? 0.75 : 0.2,
-        strokeColor:  isVisited(f) ? '#fbbf24' : '#334155',
-        strokeWeight: isVisited(f) ? 1.5 : 0.4,
-      }))
+    function isUSAFeature(f: google.maps.Data.Feature): boolean {
+      const candidates = [fStr(f, 'name'), fStr(f, 'NAME'), fStr(f, 'ADMIN')].filter(Boolean)
+      return candidates.some(v => alias(v) === 'united states of america')
+    }
+
+    // World layer: USA polygon shown as unvisited (individual states handle US highlighting)
+    const styleWorldLayer = () =>
+      m.data.setStyle(f => {
+        if (isUSAFeature(f)) {
+          return { fillColor: '#1e3a5f', fillOpacity: 0.2, strokeColor: '#334155', strokeWeight: 0.4 }
+        }
+        const visited = isVisited(f)
+        return {
+          fillColor:    visited ? '#f59e0b' : '#1e3a5f',
+          fillOpacity:  visited ? 0.75     : 0.2,
+          strokeColor:  visited ? '#fbbf24' : '#334155',
+          strokeWeight: visited ? 1.5      : 0.4,
+        }
+      })
 
     let active = true
-    let urlIndex = 0
 
+    // ── US states layer (sits on top of world USA polygon) ──────────────────
+    const usStatesData = new google.maps.Data({ map: m })
+    const visitedStatesLC = new globalThis.Set([...visitedUsStates].map(s => s.toLowerCase()))
+
+    fetch(US_STATES_GEOJSON_URL)
+      .then(r => r.json())
+      .then(geo => {
+        if (!active) return
+        usStatesData.addGeoJson(geo as object)
+        usStatesData.setStyle(f => {
+          const name = ((f.getProperty('name') as string) ?? '').toLowerCase().trim()
+          const visited = visitedStatesLC.has(name)
+          return {
+            fillColor:    visited ? '#f59e0b' : '#1e3a5f',
+            fillOpacity:  visited ? 0.75     : 0.2,
+            strokeColor:  visited ? '#fbbf24' : '#334155',
+            strokeWeight: visited ? 1.5      : 0.4,
+          }
+        })
+        // Click on a state → tooltip with state name
+        usStatesData.addListener('click', (e: google.maps.Data.MouseEvent) => {
+          const label = (e.feature.getProperty('name') as string) ?? ''
+          if (!label) return
+          const iv = new google.maps.InfoWindow({
+            content: `<div style="font-family:system-ui,sans-serif;font-size:13px;color:#1e293b;padding:2px 6px">${label}</div>`,
+            position: e.latLng,
+          })
+          iv.open(m)
+          setTimeout(() => iv.close(), 2500)
+        })
+      })
+      .catch(err => console.warn('[verden-kart] US states GeoJSON failed:', err))
+
+    // ── World countries layer ───────────────────────────────────────────────
+    let urlIndex = 0
     async function tryLoad() {
       while (urlIndex < GEOJSON_URLS.length) {
         try {
@@ -118,9 +228,8 @@ function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set
           const geojson = await r.json()
           if (!active) return
           m.data.addGeoJson(geojson as object)
-          styleLayer()
+          styleWorldLayer()
 
-          // Click → tooltip with country name
           m.data.addListener('click', (e: google.maps.Data.MouseEvent) => {
             const label =
               (e.feature.getProperty('name')  as string) ??
@@ -134,7 +243,7 @@ function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set
             iv.open(m)
             setTimeout(() => iv.close(), 2500)
           })
-          return // success
+          return
         } catch (err) {
           console.warn(`[verden-kart] URL ${urlIndex} failed:`, err)
           urlIndex++
@@ -148,8 +257,9 @@ function WorldDataLayer({ visitedCountries }: { visitedCountries: globalThis.Set
     return () => {
       active = false
       m.data.forEach(f => m.data.remove(f))
+      usStatesData.setMap(null)
     }
-  }, [map, visitedCountries])
+  }, [map, visitedCountries, visitedUsStates])
 
   return null
 }
@@ -177,6 +287,7 @@ export default function VerdenKartPage() {
   const [stops, setStops] = useState<StopRow[]>([])
   const [geoEntries, setGeoEntries] = useState<GeoRow[]>([])
   const [extraCountries, setExtraCountries] = useState<globalThis.Set<string>>(new globalThis.Set())
+  const [pipUsStates, setPipUsStates] = useState<globalThis.Set<string>>(new globalThis.Set())
   const [loading, setLoading] = useState(true)
 
   const supabase = useMemo(() => createClient(), [])
@@ -225,6 +336,35 @@ export default function VerdenKartPage() {
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geoEntries.map(e => `${e.id}:${e.map_lat},${e.map_lng}`).join('|')])
+
+  // ── PIP-detect US states from activities/dining with pinned coordinates ──────
+  useEffect(() => {
+    const toDetect = geoEntries
+      .filter(e => e.map_lat != null && e.map_lng != null)
+      .map(e => ({ id: e.id, lat: e.map_lat!, lng: e.map_lng! }))
+    if (!toDetect.length) return
+
+    let cancelled = false
+    detectUsStatesFromPoints(toDetect).then(states => {
+      if (!cancelled) setPipUsStates(states)
+    })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geoEntries.map(e => `${e.id}:${e.map_lat},${e.map_lng}`).join('|')])
+
+  // ── Visited US states (from stops + PIP-detected activity/dining states) ─────
+  const visitedUsStates = useMemo(() => {
+    const s = new globalThis.Set<string>()
+    stops.forEach(st => {
+      if (!st.state?.trim()) return
+      const abbr = st.state.trim().toUpperCase()
+      const full = US_STATE_FULL[abbr]
+      if (full) s.add(full)
+      else if (US_STATES_LC.has(st.state.toLowerCase().trim())) s.add(st.state.trim())
+    })
+    pipUsStates.forEach(name => s.add(name))
+    return s
+  }, [stops, pipUsStates])
 
   // Mirrors VacationStats.countryList — now also includes activity/dining countries
   const visitedCountries = useMemo(() => {
@@ -325,7 +465,7 @@ export default function VerdenKartPage() {
               fullscreenControl
               rotateControl={false}
             >
-              <WorldDataLayer visitedCountries={visitedCountries} />
+              <WorldDataLayer visitedCountries={visitedCountries} visitedUsStates={visitedUsStates} />
             </GoogleMap>
           </APIProvider>
         </div>
