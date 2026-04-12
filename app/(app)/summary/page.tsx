@@ -972,50 +972,75 @@ function DayCell({
             </button>
           )}
 
-          {/* Activities */}
-          {showActivities && activitiesOnDay.map((a) => (
-            <button
-              key={a.id}
-              onClick={(e) => { e.stopPropagation(); onActivityClick(a) }}
-              className="flex items-center gap-0.5 text-left hover:opacity-80 transition-opacity min-w-0"
-            >
-              <span className="flex-shrink-0 leading-none"><ActivityTypeIcon type={a.activity_type} size={9} /></span>
-              {a.activity_time && (
-                <span className="text-[8px] text-slate-500 flex-shrink-0 leading-tight">
-                  {a.activity_time.slice(0, 5)}
-                </span>
-              )}
-              <span className="text-[9px] text-violet-400 truncate leading-tight">{a.name}</span>
-            </button>
-          ))}
+          {/* Activities + Dining – sorted by time of day */}
+          {(() => {
+            type Entry =
+              | { kind: 'activity'; item: Activity }
+              | { kind: 'dining';   item: Dining }
+              | { kind: 'possible'; item: PossibleActivity }
 
-          {/* Possible activities */}
-          {showPossible && possibleOnDay.map((pa) => (
-            <div
-              key={pa.id}
-              className="flex items-center gap-0.5 min-w-0"
-            >
-              <span className="flex-shrink-0 leading-none"><ActivityTypeIcon type={pa.category} size={9} /></span>
-              <span className="text-[9px] text-teal-400 truncate leading-tight">{pa.description}</span>
-            </div>
-          ))}
+            const entries: Entry[] = [
+              ...(showActivities ? activitiesOnDay.map(item => ({ kind: 'activity' as const, item })) : []),
+              ...(showDining     ? diningOnDay.map(item => ({ kind: 'dining' as const, item })) : []),
+            ]
 
-          {/* Dining */}
-          {showDining && diningOnDay.map((d) => (
-            <button
-              key={d.id}
-              onClick={(e) => { e.stopPropagation(); onDiningClick(d) }}
-              className="flex items-center gap-0.5 text-left hover:opacity-80 transition-opacity min-w-0"
-            >
-              <UtensilsCrossed className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />
-              {d.booking_time && (
-                <span className="text-[8px] text-red-300/60 flex-shrink-0 leading-tight">
-                  {d.booking_time.slice(0, 5)}
-                </span>
-              )}
-              <span className="text-[9px] text-red-400 truncate leading-tight">{d.name}</span>
-            </button>
-          ))}
+            // Sort by time; entries without a time go at the end
+            const timeOf = (e: Entry) =>
+              e.kind === 'activity' ? (e.item.activity_time ?? 'zz:zz')
+              : e.kind === 'dining'   ? (e.item.booking_time ?? 'zz:zz')
+              : 'zz:zz'
+
+            entries.sort((a, b) => timeOf(a).localeCompare(timeOf(b)))
+
+            return (
+              <>
+                {entries.map((e) => {
+                  if (e.kind === 'activity') {
+                    const a = e.item
+                    return (
+                      <button
+                        key={`act-${a.id}`}
+                        onClick={(ev) => { ev.stopPropagation(); onActivityClick(a) }}
+                        className="flex items-center gap-0.5 text-left hover:opacity-80 transition-opacity min-w-0"
+                      >
+                        <span className="flex-shrink-0 leading-none"><ActivityTypeIcon type={a.activity_type} size={9} /></span>
+                        {a.activity_time && (
+                          <span className="text-[8px] text-slate-500 flex-shrink-0 leading-tight">
+                            {a.activity_time.slice(0, 5)}
+                          </span>
+                        )}
+                        <span className="text-[9px] text-violet-400 truncate leading-tight">{a.name}</span>
+                      </button>
+                    )
+                  }
+                  const d = e.item as Dining
+                  return (
+                    <button
+                      key={`din-${d.id}`}
+                      onClick={(ev) => { ev.stopPropagation(); onDiningClick(d) }}
+                      className="flex items-center gap-0.5 text-left hover:opacity-80 transition-opacity min-w-0"
+                    >
+                      <UtensilsCrossed className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />
+                      {d.booking_time && (
+                        <span className="text-[8px] text-red-300/60 flex-shrink-0 leading-tight">
+                          {d.booking_time.slice(0, 5)}
+                        </span>
+                      )}
+                      <span className="text-[9px] text-red-400 truncate leading-tight">{d.name}</span>
+                    </button>
+                  )
+                })}
+
+                {/* Possible activities (no time, shown after timed entries) */}
+                {showPossible && possibleOnDay.map((pa) => (
+                  <div key={pa.id} className="flex items-center gap-0.5 min-w-0">
+                    <span className="flex-shrink-0 leading-none"><ActivityTypeIcon type={pa.category} size={9} /></span>
+                    <span className="text-[9px] text-teal-400 truncate leading-tight">{pa.description}</span>
+                  </div>
+                ))}
+              </>
+            )
+          })()}
 
           {/* Notes */}
           {showNotes && notesOnDay.map((note) => (
