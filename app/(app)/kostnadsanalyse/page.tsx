@@ -1001,16 +1001,26 @@ export default function KostnadsanalysePage() {
                         Kr per dag
                       </div>
                     </td>
-                    {filtered.map((a) => (
-                      <td key={a.trip.id} className="text-right px-3 py-2 tabular-nums text-slate-400">
-                        {a.perDay > 0 ? `${fmt(a.perDay)} kr` : '–'}
-                      </td>
-                    ))}
-                    {filtered.length > 1 && (
-                      <td className="text-right px-4 py-2 tabular-nums text-slate-500">
-                        {avgPerDay > 0 ? `${fmt(avgPerDay)} kr` : '–'}
-                      </td>
-                    )}
+                    {filtered.map((a) => {
+                      const vis = CATEGORIES.filter((c) => activeCats.has(c.key)).reduce((s, c) => s + a.costs[c.key], 0)
+                      const perDay = a.days > 0 ? vis / a.days : 0
+                      return (
+                        <td key={a.trip.id} className="text-right px-3 py-2 tabular-nums text-slate-400">
+                          {perDay > 0 ? `${fmt(perDay)} kr` : '–'}
+                        </td>
+                      )
+                    })}
+                    {filtered.length > 1 && (() => {
+                      const avg = filtered.reduce((s, a) => {
+                        const vis = CATEGORIES.filter((c) => activeCats.has(c.key)).reduce((cs, c) => cs + a.costs[c.key], 0)
+                        return s + (a.days > 0 ? vis / a.days : 0)
+                      }, 0) / filtered.length
+                      return (
+                        <td className="text-right px-4 py-2 tabular-nums text-slate-500">
+                          {avg > 0 ? `${fmt(avg)} kr` : '–'}
+                        </td>
+                      )
+                    })()}
                   </tr>
                 </tbody>
               </table>
