@@ -67,6 +67,68 @@ const COUNTRY_FLAG: Record<string, string> = {
 }
 const countryFlag = (name: string) => COUNTRY_FLAG[name.toLowerCase().trim()] ?? '🌍'
 
+// ── Point-in-Polygon: US state detection (same approach as usa-map) ───────────
+const US_STATES_GEOJSON_URL =
+  'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json'
+
+type GeoFeature = {
+  properties: { name: string }
+  geometry: {
+    type: 'Polygon' | 'MultiPolygon'
+    coordinates: number[][][] | number[][][][]
+  }
+}
+
+function pointInRing(lng: number, lat: number, ring: number[][]): boolean {
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]
+    const [xj, yj] = ring[j]
+    if ((yi > lat) !== (yj > lat) && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) {
+      inside = !inside
+    }
+  }
+  return inside
+}
+
+function stateNameForPoint(lng: number, lat: number, features: GeoFeature[]): string | null {
+  for (const f of features) {
+    const { type, coordinates } = f.geometry
+    let hit = false
+    if (type === 'Polygon') {
+      hit = pointInRing(lng, lat, (coordinates as number[][][])[0])
+    } else if (type === 'MultiPolygon') {
+      hit = (coordinates as number[][][][]).some((poly) => pointInRing(lng, lat, poly[0]))
+    }
+    if (hit) return f.properties.name // full state name, e.g. "Nebraska"
+  }
+  return null
+}
+
+let cachedStatsGeoFeatures: GeoFeature[] | null = null
+
+async function detectStatesFromPoints(
+  entries: { id: string; lat: number; lng: number }[]
+): Promise<Record<string, { state: string | null; city: string | null; country: string | null }>> {
+  if (!entries.length) return {}
+  if (!cachedStatsGeoFeatures) {
+    try {
+      const res = await fetch(US_STATES_GEOJSON_URL)
+      const geo = await res.json()
+      cachedStatsGeoFeatures = (geo.features ?? []) as GeoFeature[]
+    } catch {
+      cachedStatsGeoFeatures = []
+    }
+  }
+  const features = cachedStatsGeoFeatures
+  const result: Record<string, { state: string | null; city: string | null; country: string | null }> = {}
+  for (const { id, lat, lng } of entries) {
+    const stateName = stateNameForPoint(lng, lat, features)
+    result[id] = { state: stateName, city: null, country: stateName ? 'United States' : null }
+  }
+  return result
+}
+
 // ── Typer ─────────────────────────────────────────────────────────────────────
 interface Props { trips: Trip[]; stops: Stop[]; activities: Activity[]; dining: Dining[] }
 interface GroupedSection {
@@ -287,27 +349,17 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trips.map(t => t.id).join(','), stops.map(s => s.id).join(',')])
 
-  // ── Reverse-geocode aktiviteter/spisesteder med egne koordinater ──────────
+  // ── Detect state for activities/dining with own coordinates via Point-in-Polygon ──
   useEffect(() => {
     // Samle alle entries som har sin egen lat/lng (kan være i annen stat enn foreldrestopp)
-    const toGeocode: { id: string; lat: number; lng: number }[] = []
-    activities.forEach(a => { if (a.map_lat != null && a.map_lng != null) toGeocode.push({ id: a.id, lat: a.map_lat, lng: a.map_lng }) })
-    dining.forEach(d => { if (d.map_lat != null && d.map_lng != null) toGeocode.push({ id: d.id, lat: d.map_lat, lng: d.map_lng }) })
-    if (!toGeocode.length) return
+    const toDetect: { id: string; lat: number; lng: number }[] = []
+    activities.forEach(a => { if (a.map_lat != null && a.map_lng != null) toDetect.push({ id: a.id, lat: a.map_lat, lng: a.map_lng }) })
+    dining.forEach(d => { if (d.map_lat != null && d.map_lng != null) toDetect.push({ id: d.id, lat: d.map_lat, lng: d.map_lng }) })
+    if (!toDetect.length) return
 
     let cancelled = false
-    Promise.all(
-      toGeocode.map(({ id, lat, lng }) =>
-        fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
-          .then(r => r.json())
-          .then((geo: { state: string | null; city: string | null; country: string | null }) => ({ id, ...geo }))
-          .catch(() => ({ id, state: null, city: null, country: null }))
-      )
-    ).then(results => {
-      if (cancelled) return
-      const cache: GeoCache = {}
-      results.forEach(r => { cache[r.id] = { state: r.state, city: r.city, country: r.country ?? null } })
-      setEntryGeo(cache)
+    detectStatesFromPoints(toDetect).then(cache => {
+      if (!cancelled) setEntryGeo(cache)
     })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
