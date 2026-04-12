@@ -984,7 +984,7 @@ export default function KostnaderPage() {
   const hotelRows = useMemo(() =>
     hotels
       .map((h) => ({ hotel: h, stop: stopById[h.stop_id] }))
-      .filter((r) => r.stop)
+      .filter((r) => r.stop && r.stop.stop_type !== 'home_start')
       .sort((a, b) => a.stop.order - b.stop.order),
     [hotels, stopById]
   )
