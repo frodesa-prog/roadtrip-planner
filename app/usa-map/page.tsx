@@ -37,8 +37,20 @@ interface TripWithStops extends TripData {
 interface ActivityData {
   id: string
   stop_id: string
+  name: string
+  activity_type: string | null
+  activity_time: string | null
   map_lat: number | null
   map_lng: number | null
+}
+
+interface ActivityPin {
+  id: string
+  name: string
+  activity_type: string | null
+  activity_time: string | null
+  lat: number
+  lng: number
 }
 
 interface DiningData {
@@ -598,6 +610,66 @@ function DiningPinsLayer({
   return null
 }
 
+// ── ActivityPinsLayer: one pin per activity ───────────────────────────────────
+
+function ActivityPinsLayer({
+  pins,
+  show,
+  onMarkerClick,
+}: {
+  pins: ActivityPin[]
+  show: boolean
+  onMarkerClick: (info: InfoState) => void
+}) {
+  const map = useMap()
+  const markersRef = useRef<google.maps.Marker[]>([])
+
+  useEffect(() => {
+    if (!map) return
+
+    markersRef.current.forEach((m) => m.setMap(null))
+    markersRef.current = []
+
+    if (!show) return
+
+    const pinSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="19" viewBox="0 0 28 38">
+        <circle cx="14" cy="13" r="11" fill="#a855f7" stroke="white" stroke-width="2.5"/>
+        <text x="14" y="17" text-anchor="middle" font-size="11" fill="white">⭐</text>
+        <polygon points="14,36 8,22 20,22" fill="#a855f7"/>
+      </svg>
+    `
+    const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(pinSvg)}`
+
+    pins.forEach(({ id, name, activity_time, lat, lng }) => {
+      const label = activity_time ? `${name} · ${activity_time.slice(0, 5)}` : name
+      const marker = new google.maps.Marker({
+        position: { lat, lng },
+        map,
+        title: label,
+        zIndex: 3,
+        icon: {
+          url: iconUrl,
+          scaledSize: new google.maps.Size(14, 19),
+          anchor:     new google.maps.Point(7, 19),
+        },
+      })
+      marker.addListener('click', () => {
+        onMarkerClick({ lat, lng, label: `⭐ ${label}` })
+      })
+      markersRef.current.push(marker)
+    })
+
+    return () => {
+      markersRef.current.forEach((m) => m.setMap(null))
+      markersRef.current = []
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, show, pins.map((p) => p.id).join('|'), onMarkerClick])
+
+  return null
+}
+
 // ── StateListPanel: floating panel listing visited/unvisited states ───────────
 
 function StateListPanel({
@@ -722,6 +794,9 @@ function Legend({
   showDiningPins,
   onToggleDiningPins,
   diningPinCount,
+  showActivityPins,
+  onToggleActivityPins,
+  activityPinCount,
 }: {
   trips: TripWithStops[]
   distances: Record<string, number>
@@ -742,6 +817,9 @@ function Legend({
   showDiningPins: boolean
   onToggleDiningPins: () => void
   diningPinCount: number
+  showActivityPins: boolean
+  onToggleActivityPins: () => void
+  activityPinCount: number
 }) {
   const [open, setOpen] = useState(true)
   const allVisible = hidden.size === 0
@@ -946,6 +1024,35 @@ function Legend({
               </span>
             </div>
 
+            {/* Aktiviteter (activity pins) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                onClick={(e) => { e.stopPropagation(); onToggleActivityPins() }}
+                style={{ cursor: 'pointer', flexShrink: 0 }}
+              >
+                <Checkbox checked={showActivityPins} color="#a855f7" />
+              </div>
+              <div style={{
+                width: 22, height: 14, borderRadius: 3, flexShrink: 0,
+                background: 'rgba(168,85,247,0.15)',
+                border: '1.5px solid rgba(192,132,252,0.5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10,
+              }}>
+                ⭐
+              </div>
+              <span
+                onClick={onToggleActivityPins}
+                style={{ fontSize: 12, color: '#e2e8f0', flex: 1, cursor: 'pointer' }}
+                title="Vis én pin per aktivitet"
+              >
+                Aktiviteter
+              </span>
+              <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>
+                {activityPinCount} steder
+              </span>
+            </div>
+
           </div>
         </div>
       )}
@@ -1041,8 +1148,9 @@ function MapContent({
   const [hidden, setHidden]             = useState<Set<string>>(new Set())
   const [showStates, setShowStates]       = useState(true)
   const [showUnvisited, setShowUnvisited] = useState(false)
-  const [showCityPins, setShowCityPins]   = useState(false)
-  const [showDiningPins, setShowDiningPins] = useState(false)
+  const [showCityPins, setShowCityPins]       = useState(false)
+  const [showDiningPins, setShowDiningPins]   = useState(false)
+  const [showActivityPins, setShowActivityPins] = useState(false)
   const [stateListOpen, setStateListOpen] = useState<StateListOpen>(null)
 
   // Helper: build stopById + stopToTripId maps
@@ -1141,6 +1249,19 @@ function MapContent({
     return Array.from(seen.values())
   }, [trips, activities, dining, entryStateMap])
 
+  // One pin per activity (own coordinates if set, otherwise parent stop's coordinates)
+  const activityPins = useMemo<ActivityPin[]>(() => {
+    const pins: ActivityPin[] = []
+    activities.forEach((a) => {
+      const stop = stopById.get(a.stop_id)
+      if (!stop || !isUSState(stop.state ?? '')) return
+      const lat = a.map_lat ?? stop.lat
+      const lng = a.map_lng ?? stop.lng
+      pins.push({ id: a.id, name: a.name, activity_type: a.activity_type, activity_time: a.activity_time, lat, lng })
+    })
+    return pins
+  }, [activities, stopById])
+
   // One pin per dining entry (own coordinates if set, otherwise parent stop's coordinates)
   const diningPins = useMemo<DiningPin[]>(() => {
     const pins: DiningPin[] = []
@@ -1189,6 +1310,11 @@ function MapContent({
         show={showDiningPins}
         onMarkerClick={setActiveInfo}
       />
+      <ActivityPinsLayer
+        pins={activityPins}
+        show={showActivityPins}
+        onMarkerClick={setActiveInfo}
+      />
       {trips.map((trip, index) => (
         <TripRoute
           key={trip.id}
@@ -1221,6 +1347,9 @@ function MapContent({
           showDiningPins={showDiningPins}
           onToggleDiningPins={() => setShowDiningPins((v) => !v)}
           diningPinCount={diningPins.length}
+          showActivityPins={showActivityPins}
+          onToggleActivityPins={() => setShowActivityPins((v) => !v)}
+          activityPinCount={activityPins.length}
         />
       )}
       {stateListOpen === 'visited' && (
@@ -1305,7 +1434,7 @@ export default function UsaMapPage() {
 
       // Fetch activities and dining (for visited-state computation)
       const [{ data: activitiesRaw }, { data: diningRaw }] = await Promise.all([
-        supabase.from('activities').select('id, stop_id, map_lat, map_lng').in('stop_id',
+        supabase.from('activities').select('id, stop_id, name, activity_type, activity_time, map_lat, map_lng').in('stop_id',
           (stops ?? []).map((s) => s.id)
         ),
         supabase.from('dining').select('id, stop_id, name, booking_time, map_lat, map_lng').in('stop_id',
