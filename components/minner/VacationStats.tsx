@@ -526,8 +526,10 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
       stopMeta.set(s.id, { city: s.city?.trim() || 'Ukjent sted', country })
     })
 
-    // Grupper dining per land → liste med "Navn (Stoppested)" + Google Maps-lenke
-    const diningByCountry = new globalThis.Map<string, { label: string; mapsUrl: string }[]>()
+    // Grupper dining per land (og per stat for USA)
+    type DiningGroupEntry = { label: string; mapsUrl: string }
+    const diningByGroup = new globalThis.Map<string, { header: string; items: DiningGroupEntry[] }>()
+
     dining.forEach(d => {
       const meta    = stopMeta.get(d.stop_id)
       const country = meta?.country ?? 'Ukjent'
@@ -537,15 +539,30 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
         ? `${encodeURIComponent(d.name)}&center=${d.map_lat},${d.map_lng}`
         : encodeURIComponent(`${d.name}, ${city}`)
       const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${query}`
-      if (!diningByCountry.has(country)) diningByCountry.set(country, [])
-      diningByCountry.get(country)!.push({ label, mapsUrl })
+
+      let groupKey: string
+      let header: string
+      if (USA_COUNTRY_NAMES.includes(country.toLowerCase())) {
+        // For USA: group by state
+        const rawState = entryGeo[d.id]?.state ?? stopById.get(d.stop_id)?.state ?? null
+        const stateName = rawState ? expandStateName(rawState) : 'Ukjent stat'
+        groupKey = `usa__${stateName}`
+        header   = `🇺🇸 ${stateName}`
+      } else {
+        groupKey = country
+        header   = `${countryFlag(country)} ${country}`
+      }
+
+      if (!diningByGroup.has(groupKey)) diningByGroup.set(groupKey, { header, items: [] })
+      diningByGroup.get(groupKey)!.items.push({ label, mapsUrl })
     })
-    const diningGroups: GroupedSection[] = Array.from(diningByCountry.entries())
-      .sort(([a], [b]) => a.localeCompare(b, 'nb'))
-      .map(([country, items]) => {
+
+    const diningGroups: GroupedSection[] = Array.from(diningByGroup.values())
+      .sort((a, b) => a.header.localeCompare(b.header, 'nb'))
+      .map(({ header, items }) => {
         const sorted = items.slice().sort((a, b) => a.label.localeCompare(b.label, 'nb'))
         return {
-          header:   `${countryFlag(country)} ${country}`,
+          header,
           cities:   sorted.map(it => it.label),
           mapsUrls: sorted.map(it => it.mapsUrl),
         }
