@@ -15,6 +15,7 @@ interface StopData {
   lng: number
   order: number
   nights: number
+  arrival_date: string | null
 }
 
 interface RouteLegData {
@@ -40,6 +41,7 @@ interface ActivityData {
   name: string
   activity_type: string | null
   activity_time: string | null
+  activity_date: string | null
   map_lat: number | null
   map_lng: number | null
 }
@@ -51,15 +53,9 @@ interface ActivityPin {
   activity_time: string | null
   lat: number
   lng: number
-}
-
-interface DiningData {
-  id: string
-  stop_id: string
-  name: string
-  booking_time: string | null
-  map_lat: number | null
-  map_lng: number | null
+  tripName: string
+  date: string | null
+  location: string
 }
 
 interface DiningPin {
@@ -68,12 +64,28 @@ interface DiningPin {
   booking_time: string | null
   lat: number
   lng: number
+  tripName: string
+  date: string | null
+  location: string
+}
+
+interface DiningData {
+  id: string
+  stop_id: string
+  name: string
+  booking_time: string | null
+  booking_date: string | null
+  map_lat: number | null
+  map_lng: number | null
 }
 
 interface InfoState {
   lat: number
   lng: number
   label: string
+  tripName?: string
+  date?: string | null
+  location?: string | null
 }
 
 // ── US state helpers (same logic as VacationStats) ───────────────────────────
@@ -439,6 +451,10 @@ function StateHighlight({
 // ── InfoPopup: floating label on marker click ─────────────────────────────────
 
 function InfoPopup({ info, onClose }: { info: InfoState; onClose: () => void }) {
+  const formattedDate = info.date
+    ? new Date(info.date + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null
+
   return (
     <div
       style={{
@@ -446,34 +462,47 @@ function InfoPopup({ info, onClose }: { info: InfoState; onClose: () => void }) 
         top: 16,
         left: '50%',
         transform: 'translateX(-50%)',
-        background: 'rgba(15,23,42,0.95)',
+        background: 'rgba(15,23,42,0.97)',
         color: '#e2e8f0',
         fontSize: 13,
         fontWeight: 500,
-        padding: '8px 14px',
-        borderRadius: 8,
+        padding: '10px 14px',
+        borderRadius: 10,
         boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
         zIndex: 20,
-        whiteSpace: 'nowrap',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
         maxWidth: 'calc(100vw - 32px)',
-        flexWrap: 'wrap',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 12,
+        fontFamily: 'system-ui, sans-serif',
       }}
     >
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.label}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+        <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {info.label}
+        </span>
+        {info.location && (
+          <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+            📍 {info.location}
+          </span>
+        )}
+        {info.tripName && (
+          <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+            🧳 {info.tripName}
+          </span>
+        )}
+        {formattedDate && (
+          <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+            📅 {formattedDate}
+          </span>
+        )}
+      </div>
       <button
         onClick={onClose}
         style={{
-          background: 'none',
-          border: 'none',
-          color: '#64748b',
-          cursor: 'pointer',
-          fontSize: 15,
-          lineHeight: 1,
-          padding: 0,
-          flexShrink: 0,
+          background: 'none', border: 'none', color: '#64748b',
+          cursor: 'pointer', fontSize: 15, lineHeight: 1,
+          padding: 0, flexShrink: 0, marginTop: 1,
         }}
       >
         ✕
@@ -490,6 +519,8 @@ interface CityPin {
   state: string
   lat: number
   lng: number
+  tripName: string
+  date: string | null
 }
 
 function CityPinsLayer({
@@ -521,7 +552,7 @@ function CityPinsLayer({
       </svg>
     `
 
-    cities.forEach(({ city, state, lat, lng }) => {
+    cities.forEach(({ city, state, lat, lng, tripName, date }) => {
       const label = state ? `${city}, ${state}` : city
       const marker = new google.maps.Marker({
         position: { lat, lng },
@@ -535,7 +566,7 @@ function CityPinsLayer({
         },
       })
       marker.addListener('click', () => {
-        onMarkerClick({ lat, lng, label: `📍 ${label}` })
+        onMarkerClick({ lat, lng, label: `📍 ${label}`, tripName, date })
       })
       markersRef.current.push(marker)
     })
@@ -581,7 +612,7 @@ function DiningPinsLayer({
     `
     const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(pinSvg)}`
 
-    pins.forEach(({ id, name, booking_time, lat, lng }) => {
+    pins.forEach(({ name, booking_time, lat, lng, tripName, date, location }) => {
       const label = booking_time ? `${name} · ${booking_time.slice(0, 5)}` : name
       const marker = new google.maps.Marker({
         position: { lat, lng },
@@ -595,7 +626,7 @@ function DiningPinsLayer({
         },
       })
       marker.addListener('click', () => {
-        onMarkerClick({ lat, lng, label: `🍽️ ${label}` })
+        onMarkerClick({ lat, lng, label: `🍽️ ${name}`, tripName, date, location })
       })
       markersRef.current.push(marker)
     })
@@ -641,7 +672,7 @@ function ActivityPinsLayer({
     `
     const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(pinSvg)}`
 
-    pins.forEach(({ id, name, activity_time, lat, lng }) => {
+    pins.forEach(({ name, activity_time, lat, lng, tripName, date, location }) => {
       const label = activity_time ? `${name} · ${activity_time.slice(0, 5)}` : name
       const marker = new google.maps.Marker({
         position: { lat, lng },
@@ -655,7 +686,7 @@ function ActivityPinsLayer({
         },
       })
       marker.addListener('click', () => {
-        onMarkerClick({ lat, lng, label: `⭐ ${label}` })
+        onMarkerClick({ lat, lng, label: `⭐ ${name}`, tripName, date, location })
       })
       markersRef.current.push(marker)
     })
@@ -1153,17 +1184,19 @@ function MapContent({
   const [showActivityPins, setShowActivityPins] = useState(false)
   const [stateListOpen, setStateListOpen] = useState<StateListOpen>(null)
 
-  // Helper: build stopById + stopToTripId maps
-  const { stopById, stopToTripId } = useMemo(() => {
+  // Helper: build stopById, stopToTripId, and tripById maps
+  const { stopById, stopToTripId, tripById } = useMemo(() => {
     const stopById     = new Map<string, StopData>()
     const stopToTripId = new Map<string, string>()
+    const tripById     = new Map<string, TripWithStops>()
     trips.forEach((trip) => {
+      tripById.set(trip.id, trip)
       trip.stops.forEach((stop) => {
         stopById.set(stop.id, stop)
         stopToTripId.set(stop.id, trip.id)
       })
     })
-    return { stopById, stopToTripId }
+    return { stopById, stopToTripId, tripById }
   }, [trips])
 
   // Compute visited states for a given set of tripIds
@@ -1219,10 +1252,12 @@ function MapContent({
         if (!seen.has(key)) {
           seen.set(key, {
             key,
-            city:  stop.city.trim(),
-            state: expandStateName(stop.state.trim()),
-            lat:   stop.lat,
-            lng:   stop.lng,
+            city:     stop.city.trim(),
+            state:    expandStateName(stop.state.trim()),
+            lat:      stop.lat,
+            lng:      stop.lng,
+            tripName: trip.name,
+            date:     stop.arrival_date,
           })
         }
       })
@@ -1237,10 +1272,12 @@ function MapContent({
       if (!seen.has(key)) {
         seen.set(key, {
           key,
-          city:  geo.city.trim(),
-          state: expandStateName(geo.state.trim()),
+          city:     geo.city.trim(),
+          state:    expandStateName(geo.state.trim()),
           lat,
           lng,
+          tripName: '',
+          date:     null,
         })
       }
     }
@@ -1255,12 +1292,20 @@ function MapContent({
     activities.forEach((a) => {
       const stop = stopById.get(a.stop_id)
       if (!stop || !isUSState(stop.state ?? '')) return
+      const trip = tripById.get(stop.trip_id)
       const lat = a.map_lat ?? stop.lat
       const lng = a.map_lng ?? stop.lng
-      pins.push({ id: a.id, name: a.name, activity_type: a.activity_type, activity_time: a.activity_time, lat, lng })
+      const location = [stop.city, stop.state ? expandStateName(stop.state) : null].filter(Boolean).join(', ')
+      pins.push({
+        id: a.id, name: a.name, activity_type: a.activity_type,
+        activity_time: a.activity_time, lat, lng,
+        tripName: trip?.name ?? '',
+        date: a.activity_date ?? stop.arrival_date,
+        location,
+      })
     })
     return pins
-  }, [activities, stopById])
+  }, [activities, stopById, tripById])
 
   // One pin per dining entry (own coordinates if set, otherwise parent stop's coordinates)
   const diningPins = useMemo<DiningPin[]>(() => {
@@ -1268,12 +1313,19 @@ function MapContent({
     dining.forEach((d) => {
       const stop = stopById.get(d.stop_id)
       if (!stop || !isUSState(stop.state ?? '')) return
+      const trip = tripById.get(stop.trip_id)
       const lat = d.map_lat ?? stop.lat
       const lng = d.map_lng ?? stop.lng
-      pins.push({ id: d.id, name: d.name, booking_time: d.booking_time, lat, lng })
+      const location = [stop.city, stop.state ? expandStateName(stop.state) : null].filter(Boolean).join(', ')
+      pins.push({
+        id: d.id, name: d.name, booking_time: d.booking_time, lat, lng,
+        tripName: trip?.name ?? '',
+        date: d.booking_date ?? stop.arrival_date,
+        location,
+      })
     })
     return pins
-  }, [dining, stopById])
+  }, [dining, stopById, tripById])
 
   const handleDistance = useCallback((tripId: string, km: number) => {
     setDistances((prev) => ({ ...prev, [tripId]: km }))
@@ -1408,7 +1460,7 @@ export default function UsaMapPage() {
       // Fetch ALL stops across all trips
       const { data: stops, error: stopsErr } = await supabase
         .from('stops')
-        .select('id, trip_id, city, state, lat, lng, order, nights')
+        .select('id, trip_id, city, state, lat, lng, order, nights, arrival_date')
         .in('trip_id', allTrips.map((t) => t.id))
         .order('order', { ascending: true })
 
@@ -1434,10 +1486,10 @@ export default function UsaMapPage() {
 
       // Fetch activities and dining (for visited-state computation)
       const [{ data: activitiesRaw }, { data: diningRaw }] = await Promise.all([
-        supabase.from('activities').select('id, stop_id, name, activity_type, activity_time, map_lat, map_lng').in('stop_id',
+        supabase.from('activities').select('id, stop_id, name, activity_type, activity_time, activity_date, map_lat, map_lng').in('stop_id',
           (stops ?? []).map((s) => s.id)
         ),
-        supabase.from('dining').select('id, stop_id, name, booking_time, map_lat, map_lng').in('stop_id',
+        supabase.from('dining').select('id, stop_id, name, booking_time, booking_date, map_lat, map_lng').in('stop_id',
           (stops ?? []).map((s) => s.id)
         ),
       ])
