@@ -44,8 +44,18 @@ interface ActivityData {
 interface DiningData {
   id: string
   stop_id: string
+  name: string
+  booking_time: string | null
   map_lat: number | null
   map_lng: number | null
+}
+
+interface DiningPin {
+  id: string
+  name: string
+  booking_time: string | null
+  lat: number
+  lng: number
 }
 
 interface InfoState {
@@ -528,6 +538,66 @@ function CityPinsLayer({
   return null
 }
 
+// ── DiningPinsLayer: one pin per dining entry ─────────────────────────────────
+
+function DiningPinsLayer({
+  pins,
+  show,
+  onMarkerClick,
+}: {
+  pins: DiningPin[]
+  show: boolean
+  onMarkerClick: (info: InfoState) => void
+}) {
+  const map = useMap()
+  const markersRef = useRef<google.maps.Marker[]>([])
+
+  useEffect(() => {
+    if (!map) return
+
+    markersRef.current.forEach((m) => m.setMap(null))
+    markersRef.current = []
+
+    if (!show) return
+
+    const pinSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="19" viewBox="0 0 28 38">
+        <circle cx="14" cy="13" r="11" fill="#ef4444" stroke="white" stroke-width="2.5"/>
+        <text x="14" y="17" text-anchor="middle" font-size="11" fill="white">🍽</text>
+        <polygon points="14,36 8,22 20,22" fill="#ef4444"/>
+      </svg>
+    `
+    const iconUrl = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(pinSvg)}`
+
+    pins.forEach(({ id, name, booking_time, lat, lng }) => {
+      const label = booking_time ? `${name} · ${booking_time.slice(0, 5)}` : name
+      const marker = new google.maps.Marker({
+        position: { lat, lng },
+        map,
+        title: label,
+        zIndex: 3,
+        icon: {
+          url: iconUrl,
+          scaledSize: new google.maps.Size(14, 19),
+          anchor:     new google.maps.Point(7, 19),
+        },
+      })
+      marker.addListener('click', () => {
+        onMarkerClick({ lat, lng, label: `🍽️ ${label}` })
+      })
+      markersRef.current.push(marker)
+    })
+
+    return () => {
+      markersRef.current.forEach((m) => m.setMap(null))
+      markersRef.current = []
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, show, pins.map((p) => p.id).join('|'), onMarkerClick])
+
+  return null
+}
+
 // ── StateListPanel: floating panel listing visited/unvisited states ───────────
 
 function StateListPanel({
@@ -649,6 +719,9 @@ function Legend({
   showCityPins,
   onToggleCityPins,
   cityPinCount,
+  showDiningPins,
+  onToggleDiningPins,
+  diningPinCount,
 }: {
   trips: TripWithStops[]
   distances: Record<string, number>
@@ -666,6 +739,9 @@ function Legend({
   showCityPins: boolean
   onToggleCityPins: () => void
   cityPinCount: number
+  showDiningPins: boolean
+  onToggleDiningPins: () => void
+  diningPinCount: number
 }) {
   const [open, setOpen] = useState(true)
   const allVisible = hidden.size === 0
@@ -841,6 +917,35 @@ function Legend({
               </span>
             </div>
 
+            {/* Spisesteder (dining pins) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                onClick={(e) => { e.stopPropagation(); onToggleDiningPins() }}
+                style={{ cursor: 'pointer', flexShrink: 0 }}
+              >
+                <Checkbox checked={showDiningPins} color="#ef4444" />
+              </div>
+              <div style={{
+                width: 22, height: 14, borderRadius: 3, flexShrink: 0,
+                background: 'rgba(239,68,68,0.15)',
+                border: '1.5px solid rgba(248,113,113,0.5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10,
+              }}>
+                🍽️
+              </div>
+              <span
+                onClick={onToggleDiningPins}
+                style={{ fontSize: 12, color: '#e2e8f0', flex: 1, cursor: 'pointer' }}
+                title="Vis én pin per spisested"
+              >
+                Spisesteder
+              </span>
+              <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>
+                {diningPinCount} steder
+              </span>
+            </div>
+
           </div>
         </div>
       )}
@@ -934,9 +1039,10 @@ function MapContent({
   const [activeInfo, setActiveInfo]     = useState<InfoState | null>(null)
   const [distances, setDistances]       = useState<Record<string, number>>({})
   const [hidden, setHidden]             = useState<Set<string>>(new Set())
-  const [showStates, setShowStates]     = useState(true)
+  const [showStates, setShowStates]       = useState(true)
   const [showUnvisited, setShowUnvisited] = useState(false)
-  const [showCityPins, setShowCityPins] = useState(false)
+  const [showCityPins, setShowCityPins]   = useState(false)
+  const [showDiningPins, setShowDiningPins] = useState(false)
   const [stateListOpen, setStateListOpen] = useState<StateListOpen>(null)
 
   // Helper: build stopById + stopToTripId maps
@@ -1035,6 +1141,19 @@ function MapContent({
     return Array.from(seen.values())
   }, [trips, activities, dining, entryStateMap])
 
+  // One pin per dining entry (own coordinates if set, otherwise parent stop's coordinates)
+  const diningPins = useMemo<DiningPin[]>(() => {
+    const pins: DiningPin[] = []
+    dining.forEach((d) => {
+      const stop = stopById.get(d.stop_id)
+      if (!stop || !isUSState(stop.state ?? '')) return
+      const lat = d.map_lat ?? stop.lat
+      const lng = d.map_lng ?? stop.lng
+      pins.push({ id: d.id, name: d.name, booking_time: d.booking_time, lat, lng })
+    })
+    return pins
+  }, [dining, stopById])
+
   const handleDistance = useCallback((tripId: string, km: number) => {
     setDistances((prev) => ({ ...prev, [tripId]: km }))
   }, [])
@@ -1063,6 +1182,11 @@ function MapContent({
       <CityPinsLayer
         cities={usaCities}
         show={showCityPins}
+        onMarkerClick={setActiveInfo}
+      />
+      <DiningPinsLayer
+        pins={diningPins}
+        show={showDiningPins}
         onMarkerClick={setActiveInfo}
       />
       {trips.map((trip, index) => (
@@ -1094,6 +1218,9 @@ function MapContent({
           showCityPins={showCityPins}
           onToggleCityPins={() => setShowCityPins((v) => !v)}
           cityPinCount={usaCities.length}
+          showDiningPins={showDiningPins}
+          onToggleDiningPins={() => setShowDiningPins((v) => !v)}
+          diningPinCount={diningPins.length}
         />
       )}
       {stateListOpen === 'visited' && (
@@ -1181,7 +1308,7 @@ export default function UsaMapPage() {
         supabase.from('activities').select('id, stop_id, map_lat, map_lng').in('stop_id',
           (stops ?? []).map((s) => s.id)
         ),
-        supabase.from('dining').select('id, stop_id, map_lat, map_lng').in('stop_id',
+        supabase.from('dining').select('id, stop_id, name, booking_time, map_lat, map_lng').in('stop_id',
           (stops ?? []).map((s) => s.id)
         ),
       ])
