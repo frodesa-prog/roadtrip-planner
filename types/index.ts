@@ -221,6 +221,17 @@ export interface Flight {
   leg2_ticket_class: string | null
   leg2_seat_row: string | null
   leg2_seat_number: string | null
+  // Andre mellomlanding
+  has_second_stopover: boolean
+  // Etappe 3 (etter andre mellomlanding)
+  leg3_flight_nr: string | null
+  leg3_departure: string | null   // HH:MM
+  leg3_to: string | null          // endelig destinasjon
+  leg3_arrival: string | null     // HH:MM
+  // Billett + sete etappe 3
+  leg3_ticket_class: string | null
+  leg3_seat_row: string | null
+  leg3_seat_number: string | null
 }
 
 export interface NoteImage {

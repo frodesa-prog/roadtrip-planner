@@ -199,38 +199,55 @@ interface FlightFormProps {
 
 function FlightForm({ flight, onSave, transportType = 'fly' }: FlightFormProps) {
   const isTrain = transportType === 'tog'
-  const stopover = flight?.has_stopover ?? false
+  const stopover       = flight?.has_stopover        ?? false
+  const secondStopover = flight?.has_second_stopover ?? false
 
   // Offsets for tidssoneberegning
-  const fromOffset  = getOffset(flight?.leg1_from)
-  const viaOffset   = getOffset(flight?.leg1_to)   // mellomstasjon ELLER endelig (direktefly)
-  const finalOffset = getOffset(flight?.leg2_to)
+  const fromOffset   = getOffset(flight?.leg1_from)
+  const via1Offset   = getOffset(flight?.leg1_to)   // første mellomstasjon
+  const via2Offset   = getOffset(flight?.leg2_to)   // andre mellomstasjon ELLER endelig (ved én mellomlanding)
+  const leg3Offset   = getOffset(flight?.leg3_to)   // endelig destinasjon (ved to mellomlandinger)
 
   // Beregnet flytid
   const leg1Min = calcFlightMinutes(
     flight?.leg1_departure, fromOffset,
-    flight?.leg1_arrival,   viaOffset,
+    flight?.leg1_arrival,   via1Offset,
   )
   const leg2Min = stopover
     ? calcFlightMinutes(
-        flight?.leg2_departure, viaOffset,
-        flight?.leg2_arrival,   finalOffset,
+        flight?.leg2_departure, via1Offset,
+        flight?.leg2_arrival,   via2Offset,
+      )
+    : null
+  const leg3Min = (stopover && secondStopover)
+    ? calcFlightMinutes(
+        flight?.leg3_departure, via2Offset,
+        flight?.leg3_arrival,   leg3Offset,
       )
     : null
 
-  // Beregnet ventetid på mellomlandingsflyplass (automatisk)
+  // Ventetid på mellomlandingsflyplasser (automatisk)
   const stopoverMin = stopover
     ? calcStopoverMinutes(flight?.leg1_arrival, flight?.leg2_departure)
     : null
+  const stopover2Min = (stopover && secondStopover)
+    ? calcStopoverMinutes(flight?.leg2_arrival, flight?.leg3_departure)
+    : null
 
-  function saveLeg1Arrival(v: string) { onSave({ leg1_arrival: v }) }
+  function saveLeg1Arrival(v: string)   { onSave({ leg1_arrival: v }) }
   function saveLeg2Departure(v: string) { onSave({ leg2_departure: v }) }
+  function saveLeg2Arrival(v: string)   { onSave({ leg2_arrival: v }) }
+  function saveLeg3Departure(v: string) { onSave({ leg3_departure: v }) }
 
-  // Total reisetid ved mellomlanding
-  const totalMin =
-    stopover && leg1Min !== null && stopoverMin !== null && leg2Min !== null
-      ? leg1Min + stopoverMin + leg2Min
-      : null
+  // Total reisetid
+  const totalMin = (() => {
+    if (!stopover || leg1Min === null || stopoverMin === null || leg2Min === null) return null
+    if (secondStopover) {
+      if (stopover2Min === null || leg3Min === null) return null
+      return leg1Min + stopoverMin + leg2Min + stopover2Min + leg3Min
+    }
+    return leg1Min + stopoverMin + leg2Min
+  })()
 
   return (
     <div className="px-4 pt-2 pb-4 space-y-2.5">
@@ -426,36 +443,169 @@ function FlightForm({ flight, onSave, transportType = 'fly' }: FlightFormProps) 
             </div>
           </div>
 
-          {/* Ankomst + endelig holdeplass/destinasjon */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label>Ankomst</Label>
-              <Time
-                key={`arr2-${flight?.id}`}
-                defaultValue={flight?.leg2_arrival}
-                onSave={(v) => onSave({ leg2_arrival: v })}
-              />
-            </div>
-            <div>
-              <Label>{isTrain ? 'Holdeplass (destinasjon)' : 'Endelig destinasjon'}</Label>
-              {isTrain
-                ? <Txt key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="Bergen stasjon" onSave={(v) => onSave({ leg2_to: v })} />
-                : <AirportInput key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg2_to: v })} />
-              }
-            </div>
-          </div>
+          {/* Andre mellomlanding toggle */}
+          <label className="flex items-center gap-2 py-0.5 cursor-pointer select-none group">
+            <input
+              type="checkbox"
+              checked={secondStopover}
+              onChange={(e) => onSave({ has_second_stopover: e.target.checked })}
+              className="w-3.5 h-3.5 rounded accent-blue-500 cursor-pointer"
+            />
+            <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">
+              {isTrain ? 'Mellomstopp nr. 2' : 'Andre mellomlanding'}
+            </span>
+          </label>
 
-          {leg2Min !== null && (
-            <DurationBadge minutes={leg2Min} label={isTrain ? 'Reisetid etappe 2' : 'Flytid etappe 2'} />
-          )}
-
-          {totalMin !== null && (
-            <div className="pt-1 border-t border-slate-700/50">
-              <div className="flex items-center justify-center gap-1 py-0.5 text-[10px] font-semibold text-emerald-500/80">
-                <Clock className="w-2.5 h-2.5 flex-shrink-0" />
-                <span>Total reisetid: {formatDuration(totalMin)}</span>
+          {!secondStopover ? (
+            /* ── Én mellomlanding: ankomst + endelig destinasjon ── */
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Ankomst</Label>
+                  <Time
+                    key={`arr2-${flight?.id}`}
+                    defaultValue={flight?.leg2_arrival}
+                    onSave={saveLeg2Arrival}
+                  />
+                </div>
+                <div>
+                  <Label>{isTrain ? 'Holdeplass (destinasjon)' : 'Endelig destinasjon'}</Label>
+                  {isTrain
+                    ? <Txt key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="Bergen stasjon" onSave={(v) => onSave({ leg2_to: v })} />
+                    : <AirportInput key={`to2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg2_to: v })} />
+                  }
+                </div>
               </div>
-            </div>
+
+              {leg2Min !== null && (
+                <DurationBadge minutes={leg2Min} label={isTrain ? 'Reisetid etappe 2' : 'Flytid etappe 2'} />
+              )}
+
+              {totalMin !== null && (
+                <div className="pt-1 border-t border-slate-700/50">
+                  <div className="flex items-center justify-center gap-1 py-0.5 text-[10px] font-semibold text-emerald-500/80">
+                    <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                    <span>Total reisetid: {formatDuration(totalMin)}</span>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            /* ── To mellomlandinger: leg2 → mellomlanding2 → leg3 → endelig ── */
+            <>
+              {/* Ankomst mellomstasjon 2 */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Ankomst</Label>
+                  <Time
+                    key={`arr2-s2-${flight?.id}`}
+                    defaultValue={flight?.leg2_arrival}
+                    onSave={saveLeg2Arrival}
+                  />
+                </div>
+                <div>
+                  <Label>{isTrain ? 'Holdeplass (mellomstopp 2)' : 'Mellomstasjon 2'}</Label>
+                  {isTrain
+                    ? <Txt key={`stop2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="Oslo S" onSave={(v) => onSave({ leg2_to: v })} />
+                    : <AirportInput key={`stop2-${flight?.id}`} defaultValue={flight?.leg2_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg2_to: v })} />
+                  }
+                </div>
+              </div>
+
+              {leg2Min !== null && (
+                <DurationBadge minutes={leg2Min} label={isTrain ? 'Reisetid etappe 2' : 'Flytid etappe 2'} />
+              )}
+
+              {stopover2Min !== null && (
+                <DurationBadge minutes={stopover2Min} label={isTrain ? 'Ventetid på holdeplass' : 'Ventetid på flyplass'} />
+              )}
+
+              <Divider label="Neste etappe" />
+
+              {/* Avgang etappe 3 + flightnr. */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Avgang</Label>
+                  <Time
+                    key={`dep3-${flight?.id}`}
+                    defaultValue={flight?.leg3_departure}
+                    onSave={saveLeg3Departure}
+                  />
+                </div>
+                <div>
+                  <Label>{isTrain ? 'Rutenr.' : 'Flightnr.'}</Label>
+                  <Txt
+                    key={`fn3-${flight?.id}`}
+                    defaultValue={flight?.leg3_flight_nr}
+                    placeholder={isTrain ? 'R10' : 'DY 7082'}
+                    onSave={(v) => onSave({ leg3_flight_nr: v })}
+                  />
+                </div>
+              </div>
+
+              {/* Billett + sete etappe 3 */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label>Billettkategori</Label>
+                  <Txt
+                    key={`tc-3-${flight?.id}`}
+                    defaultValue={flight?.leg3_ticket_class}
+                    placeholder="Economy"
+                    onSave={(v) => onSave({ leg3_ticket_class: v })}
+                  />
+                </div>
+                <div>
+                  <Label>Rad</Label>
+                  <Txt
+                    key={`sr-3-${flight?.id}`}
+                    defaultValue={flight?.leg3_seat_row}
+                    placeholder="24"
+                    onSave={(v) => onSave({ leg3_seat_row: v })}
+                  />
+                </div>
+                <div>
+                  <Label>Sete</Label>
+                  <Txt
+                    key={`sn-3-${flight?.id}`}
+                    defaultValue={flight?.leg3_seat_number}
+                    placeholder="A"
+                    onSave={(v) => onSave({ leg3_seat_number: v })}
+                  />
+                </div>
+              </div>
+
+              {/* Ankomst + endelig destinasjon */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Ankomst</Label>
+                  <Time
+                    key={`arr3-${flight?.id}`}
+                    defaultValue={flight?.leg3_arrival}
+                    onSave={(v) => onSave({ leg3_arrival: v })}
+                  />
+                </div>
+                <div>
+                  <Label>{isTrain ? 'Holdeplass (destinasjon)' : 'Endelig destinasjon'}</Label>
+                  {isTrain
+                    ? <Txt key={`to3-${flight?.id}`} defaultValue={flight?.leg3_to} placeholder="Bergen stasjon" onSave={(v) => onSave({ leg3_to: v })} />
+                    : <AirportInput key={`to3-${flight?.id}`} defaultValue={flight?.leg3_to} placeholder="JFK – New York" onSave={(v) => onSave({ leg3_to: v })} />
+                  }
+                </div>
+              </div>
+
+              {leg3Min !== null && (
+                <DurationBadge minutes={leg3Min} label={isTrain ? 'Reisetid etappe 3' : 'Flytid etappe 3'} />
+              )}
+
+              {totalMin !== null && (
+                <div className="pt-1 border-t border-slate-700/50">
+                  <div className="flex items-center justify-center gap-1 py-0.5 text-[10px] font-semibold text-emerald-500/80">
+                    <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                    <span>Total reisetid: {formatDuration(totalMin)}</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -470,8 +620,11 @@ function FlightSummary({
 }: { outbound: Flight | null; returnFlight: Flight | null }) {
   const parts: string[] = []
   if (outbound?.leg1_from) parts.push(outbound.leg1_from.split(/[\s–]/)[0])
-  if (outbound?.leg1_to || outbound?.leg2_to) {
-    const dest = outbound.has_stopover ? outbound.leg2_to : outbound.leg1_to
+  if (outbound?.leg1_to || outbound?.leg2_to || outbound?.leg3_to) {
+    let dest: string | null = null
+    if (outbound.has_stopover && outbound.has_second_stopover) dest = outbound.leg3_to ?? null
+    else if (outbound.has_stopover) dest = outbound.leg2_to ?? null
+    else dest = outbound.leg1_to ?? null
     if (dest) parts.push(dest.split(/[\s–]/)[0])
   }
   if (parts.length === 0) return null
@@ -560,7 +713,7 @@ export default function FlightPanel({ tripId, transportType = 'fly' }: FlightPan
 
           {/* Skjema – remount ved tab-skifte og mellomlanding-toggle */}
           <FlightForm
-            key={`${tab}-${activeFlight?.has_stopover ?? false}`}
+            key={`${tab}-${activeFlight?.has_stopover ?? false}-${activeFlight?.has_second_stopover ?? false}`}
             flight={activeFlight}
             onSave={(updates) => saveFlight(tab, updates)}
           />
