@@ -1017,9 +1017,9 @@ function Legend({
               <span
                 onClick={onToggleCityPins}
                 style={{ fontSize: 12, color: '#e2e8f0', flex: 1, cursor: 'pointer' }}
-                title="Vis én pin per besøkte by"
+                title="Vis én pin per overnattingssted"
               >
-                Besøkte steder
+                Steder overnattet
               </span>
               <span style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>
                 {cityPinCount} steder
