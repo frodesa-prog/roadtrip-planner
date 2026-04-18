@@ -1208,16 +1208,34 @@ function MapContent({
         if (stop.state?.trim() && isUSState(stop.state)) set.add(expandStateName(stop.state))
       })
     })
-    const addEntry = (entryId: string, stopId: string) => {
+    // addEntry: resolves the state for one activity/dining entry using three tiers:
+    //   1. Pre-computed PIP result stored in entryStateMap
+    //   2. Direct synchronous PIP on the entry's own coordinates (handles cases where
+    //      entryStateMap was null/missing – e.g. the pin is in a state the trip drives
+    //      through but never stops in, like "Kjøring gjennom Alabama")
+    //   3. Fallback: parent stop's state field
+    const addEntry = (
+      entryId: string,
+      stopId: string,
+      ownLat?: number | null,
+      ownLng?: number | null,
+    ) => {
       const tripId = stopToTripId.get(stopId)
       if (allowedTripIds && (!tripId || !allowedTripIds.has(tripId))) return
+      // Tier 1 – cached PIP result
       const geoState = entryStateMap[entryId]?.state
       if (geoState && isUSState(geoState)) { set.add(expandStateName(geoState)); return }
+      // Tier 2 – direct PIP on own coordinates (cachedGeoFeatures is populated by now)
+      if (ownLat != null && ownLng != null && cachedGeoFeatures?.length) {
+        const pip = stateForPoint(ownLng, ownLat, cachedGeoFeatures)
+        if (pip && isUSState(pip)) { set.add(expandStateName(pip)); return }
+      }
+      // Tier 3 – parent stop's state field
       const parentStop = stopById.get(stopId)
       if (parentStop?.state?.trim() && isUSState(parentStop.state)) set.add(expandStateName(parentStop.state))
     }
-    activities.forEach((a) => addEntry(a.id, a.stop_id))
-    dining.forEach((d) => addEntry(d.id, d.stop_id))
+    activities.forEach((a) => addEntry(a.id, a.stop_id, a.map_lat, a.map_lng))
+    dining.forEach((d) => addEntry(d.id, d.stop_id, d.map_lat, d.map_lng))
     return set
   }, [trips, activities, dining, entryStateMap, stopById, stopToTripId])
 
