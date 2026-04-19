@@ -208,7 +208,7 @@ function PoiInfoBox({
   const [poiPossDesc, setPoiPossDesc] = useState('')
   const [poiPossUrl, setPoiPossUrl] = useState('')
   const [poiPossCategory, setPoiPossCategory] = useState<string | null>(null)
-  const [poiPossDate, setPoiPossDate] = useState<string | null>(null)
+  const [poiPossDates, setPoiPossDates] = useState<string[]>([])
 
   // Derive stop dates for the currently selected stop
   const selectedStopObj = stops.find((s) => s.id === selectedStopId) ?? null
@@ -234,7 +234,7 @@ function PoiInfoBox({
     setPoiPossDesc(info?.name ?? '')
     setPoiPossUrl(info?.website ?? '')
     setPoiPossCategory(null)
-    setPoiPossDate(null)
+    setPoiPossDates([])
     setShowPossForm(true)
   }
 
@@ -283,7 +283,8 @@ function PoiInfoBox({
       description: poiPossDesc.trim(),
       url: poiPossUrl.trim() || undefined,
       category: poiPossCategory ?? undefined,
-      activity_date: poiPossDate ?? undefined,
+      activity_dates: poiPossDates,
+      activity_date: poiPossDates[0] ?? undefined,
       map_lat: info?.lat ?? undefined,
       map_lng: info?.lng ?? undefined,
     }
@@ -793,9 +794,11 @@ function PoiInfoBox({
                             <div className="flex flex-wrap gap-1">
                               {poiStopDates.map((d) => (
                                 <button key={d} type="button"
-                                  onClick={() => setPoiPossDate(poiPossDate === d ? null : d)}
+                                  onClick={() => setPoiPossDates((prev) =>
+                                    prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
+                                  )}
                                   className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
-                                    poiPossDate === d
+                                    poiPossDates.includes(d)
                                       ? 'bg-teal-700 border-teal-600 text-white'
                                       : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
                                   }`}>
