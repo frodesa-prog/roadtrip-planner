@@ -687,40 +687,6 @@ export default function SummaryPage() {
           <FlightModal flight={flightModal} onClose={() => setFlightModal(null)} />
         )}
 
-        {/* Note modal */}
-        {noteModal && (
-          <NoteModal
-            mode={noteModal.mode}
-            note={noteModal.mode === 'edit' ? noteModal.note : undefined}
-            stopId={noteModal.mode === 'new' ? noteModal.stopId : undefined}
-            initialDate={noteModal.mode === 'new' ? noteModal.initialDate : undefined}
-            stops={stops}
-            onSave={async (data) => {
-              if (noteModal.mode === 'new') {
-                await addNote({
-                  title: data.title,
-                  content: data.content,
-                  stop_id: data.stop_id,
-                  note_date: data.note_date,
-                })
-              } else {
-                await updateNote(noteModal.note.id, {
-                  title: data.title,
-                  content: data.content,
-                  stop_id: data.stop_id,
-                  note_date: data.note_date,
-                })
-              }
-              setNoteModal(null)
-            }}
-            onDelete={noteModal.mode === 'edit'
-              ? async () => { await deleteNote(noteModal.note.id); setNoteModal(null) }
-              : undefined
-            }
-            onClose={() => setNoteModal(null)}
-          />
-        )}
-
         {/* Activity modal */}
         {activityModal && (
           <ActivityModal
@@ -762,6 +728,40 @@ export default function SummaryPage() {
             onDelete={() => { removePossibleActivity(possibleModal.id); setPossibleModal(null) }}
             onClose={() => setPossibleModal(null)}
             onNoteClick={(note) => setNoteModal({ mode: 'edit', note })}
+          />
+        )}
+
+        {/* Note modal – rendered last so it always appears on top of other modals */}
+        {noteModal && (
+          <NoteModal
+            mode={noteModal.mode}
+            note={noteModal.mode === 'edit' ? noteModal.note : undefined}
+            stopId={noteModal.mode === 'new' ? noteModal.stopId : undefined}
+            initialDate={noteModal.mode === 'new' ? noteModal.initialDate : undefined}
+            stops={stops}
+            onSave={async (data) => {
+              if (noteModal.mode === 'new') {
+                await addNote({
+                  title: data.title,
+                  content: data.content,
+                  stop_id: data.stop_id,
+                  note_date: data.note_date,
+                })
+              } else {
+                await updateNote(noteModal.note.id, {
+                  title: data.title,
+                  content: data.content,
+                  stop_id: data.stop_id,
+                  note_date: data.note_date,
+                })
+              }
+              setNoteModal(null)
+            }}
+            onDelete={noteModal.mode === 'edit'
+              ? async () => { await deleteNote(noteModal.note.id); setNoteModal(null) }
+              : undefined
+            }
+            onClose={() => setNoteModal(null)}
           />
         )}
 
