@@ -256,8 +256,7 @@ function PoiInfoBox({
       map_lng: info?.lng ?? undefined,
     }
     onPoiAction?.addActivity(selectedStopId, data)
-    setShowActForm(false)
-    showSaved('Ny aktivitet opprettet!')
+    setInfo(null)
   }
 
   function handleSubmitDining(e: React.FormEvent) {
@@ -272,8 +271,7 @@ function PoiInfoBox({
       map_lng: info?.lng ?? undefined,
     }
     onPoiAction?.addDining(selectedStopId, data)
-    setShowDinForm(false)
-    showSaved('Nytt spisested opprettet!')
+    setInfo(null)
   }
 
   function handleSubmitPossible(e: React.FormEvent) {
@@ -289,8 +287,7 @@ function PoiInfoBox({
       map_lng: info?.lng ?? undefined,
     }
     onPoiAction?.addPossible(selectedStopId, data)
-    setShowPossForm(false)
-    showSaved('Mulig aktivitet lagt til!')
+    setInfo(null)
   }
 
   function showSaved(msg: string) {
@@ -367,7 +364,7 @@ function PoiInfoBox({
   function handleSaveHotel() {
     if (!selectedStopId || !info?.name) return
     onPoiAction?.saveHotel(selectedStopId, info.name, info.address, info.website, info.lat, info.lng)
-    showSaved('Hotell lagret!')
+    setInfo(null)
   }
 
   const canDoAction = !!onPoiAction && info != null && stops.length > 0
