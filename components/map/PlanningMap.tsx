@@ -168,7 +168,7 @@ function PoiInfoBox({
   const [failed, setFailed] = useState(false)
 
   // Action panel state
-  const [actionOpen, setActionOpen] = useState(false)
+  const [actionOpen, setActionOpen] = useState(true)
   const [selectedTab, setSelectedTab] = useState<PoiTab>('aktivitet')
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
   const [savedMsg, setSavedMsg] = useState<string | null>(null)
