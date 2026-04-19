@@ -39,8 +39,9 @@ const US_STATE_FULL: Record<string, string> = {
   OR:'Oregon', PA:'Pennsylvania', RI:'Rhode Island', SC:'South Carolina',
   SD:'South Dakota', TN:'Tennessee', TX:'Texas', UT:'Utah',
   VT:'Vermont', VA:'Virginia', WA:'Washington', WV:'West Virginia',
-  WI:'Wisconsin', WY:'Wyoming', DC:'Washington D.C.',
+  WI:'Wisconsin', WY:'Wyoming',
 }
+// D.C. is a federal district, not a state
 
 // ── Point-in-polygon: US state detection ──────────────────────────────────────
 const US_STATES_GEOJSON_URL =

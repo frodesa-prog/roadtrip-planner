@@ -18,8 +18,9 @@ const US_STATE_FULL: Record<string, string> = {
   OR:'Oregon', PA:'Pennsylvania', RI:'Rhode Island', SC:'South Carolina',
   SD:'South Dakota', TN:'Tennessee', TX:'Texas', UT:'Utah',
   VT:'Vermont', VA:'Virginia', WA:'Washington', WV:'West Virginia',
-  WI:'Wisconsin', WY:'Wyoming', DC:'Washington D.C.',
+  WI:'Wisconsin', WY:'Wyoming',
 }
+// D.C. is a federal district, not a state
 // Alle kjente verdier (forkortelse + fullt navn) for gjenkjenning
 const US_STATES_SET = new Set([
   ...Object.keys(US_STATE_FULL).map(k => k.toLowerCase()),
@@ -393,7 +394,7 @@ export default function VacationStats({ trips, stops, activities, dining }: Prop
     // Unike stater (fullt navn)
     const stateMap = new globalThis.Map<string, string>() // lower → full name
     usaStops.forEach(s => {
-      if (s.state?.trim()) {
+      if (s.state?.trim() && isUSState(s.state)) {
         const full = expandStateName(s.state)
         stateMap.set(full.toLowerCase(), full)
       }
