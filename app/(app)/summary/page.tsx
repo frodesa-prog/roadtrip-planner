@@ -730,6 +730,7 @@ export default function SummaryPage() {
             onSave={(updates) => updateActivity(activityModal.id, updates)}
             onDelete={() => { removeActivity(activityModal.id); setActivityModal(null) }}
             onClose={() => setActivityModal(null)}
+            onNoteClick={(note) => setNoteModal({ mode: 'edit', note })}
             onNavigate={() => {
               router.push(`/aktiviteter#${activityModal.id}`)
               setActivityModal(null)
@@ -746,6 +747,7 @@ export default function SummaryPage() {
             onSave={(updates) => updateDining(diningModal.id, updates)}
             onDelete={() => { removeDining(diningModal.id); setDiningModal(null) }}
             onClose={() => setDiningModal(null)}
+            onNoteClick={(note) => setNoteModal({ mode: 'edit', note })}
             onNavigate={() => { setDiningModal(null); router.push(`/aktiviteter#d-${diningModal.id}`) }}
           />
         )}
@@ -759,6 +761,7 @@ export default function SummaryPage() {
             onSave={(updates) => updatePossibleActivity(possibleModal.id, updates)}
             onDelete={() => { removePossibleActivity(possibleModal.id); setPossibleModal(null) }}
             onClose={() => setPossibleModal(null)}
+            onNoteClick={(note) => setNoteModal({ mode: 'edit', note })}
           />
         )}
 
@@ -1372,7 +1375,7 @@ function getStopDateRange(stop: Stop): string[] {
 // ─── Activity Modal ───────────────────────────────────────────────────────────
 
 function ActivityModal({
-  activity, stop, linkedNotes, onSave, onDelete, onClose, onNavigate,
+  activity, stop, linkedNotes, onSave, onDelete, onClose, onNoteClick, onNavigate,
 }: {
   activity: Activity
   stop: Stop | null
@@ -1380,6 +1383,7 @@ function ActivityModal({
   onSave: (updates: UpdateActivityData) => void
   onDelete: () => void
   onClose: () => void
+  onNoteClick: (note: Note) => void
   onNavigate: () => void
 }) {
   const [name, setName]       = useState(activity.name)
@@ -1545,13 +1549,13 @@ function ActivityModal({
 
           {/* Linked notes */}
           {linkedNotes.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-[10px] text-slate-500 mb-1">Notater</p>
+            <div className="flex flex-wrap gap-1.5">
               {linkedNotes.map((n) => (
-                <div key={n.id} className="bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 space-y-0.5">
-                  {n.title && <p className="text-[11px] font-medium text-slate-300">{n.title}</p>}
-                  <p className="text-xs text-slate-400 whitespace-pre-wrap leading-relaxed">{n.content}</p>
-                </div>
+                <button key={n.id} onClick={() => onNoteClick(n)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-700/40 bg-amber-900/20 text-amber-300 hover:bg-amber-900/40 transition-colors text-xs">
+                  <BookOpen className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate max-w-[160px]">{n.title || 'Notat'}</span>
+                </button>
               ))}
             </div>
           )}
@@ -1589,7 +1593,7 @@ function ActivityModal({
 // ─── Dining Modal ────────────────────────────────────────────────────────────
 
 function DiningModal({
-  dining, stop, linkedNotes, onSave, onDelete, onClose, onNavigate,
+  dining, stop, linkedNotes, onSave, onDelete, onClose, onNoteClick, onNavigate,
 }: {
   dining: Dining
   stop: Stop | null
@@ -1597,6 +1601,7 @@ function DiningModal({
   onSave: (updates: UpdateDiningData) => void
   onDelete: () => void
   onClose: () => void
+  onNoteClick: (note: Note) => void
   onNavigate: () => void
 }) {
   const [name, setName]         = useState(dining.name)
@@ -1715,13 +1720,13 @@ function DiningModal({
 
           {/* Linked notes */}
           {linkedNotes.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-[10px] text-slate-500 mb-1">Notater</p>
+            <div className="flex flex-wrap gap-1.5">
               {linkedNotes.map((n) => (
-                <div key={n.id} className="bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 space-y-0.5">
-                  {n.title && <p className="text-[11px] font-medium text-slate-300">{n.title}</p>}
-                  <p className="text-xs text-slate-400 whitespace-pre-wrap leading-relaxed">{n.content}</p>
-                </div>
+                <button key={n.id} onClick={() => onNoteClick(n)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-700/40 bg-amber-900/20 text-amber-300 hover:bg-amber-900/40 transition-colors text-xs">
+                  <BookOpen className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate max-w-[160px]">{n.title || 'Notat'}</span>
+                </button>
               ))}
             </div>
           )}
@@ -1767,7 +1772,7 @@ function DiningModal({
 // ─── Possible Activity Modal ──────────────────────────────────────────────────
 
 function PossibleActivityModal({
-  possible, stop, linkedNotes, onSave, onDelete, onClose,
+  possible, stop, linkedNotes, onSave, onDelete, onClose, onNoteClick,
 }: {
   possible: PossibleActivity
   stop: Stop | null
@@ -1775,6 +1780,7 @@ function PossibleActivityModal({
   onSave: (updates: UpdatePossibleActivityData) => void
   onDelete: () => void
   onClose: () => void
+  onNoteClick: (note: Note) => void
 }) {
   const [desc, setDesc]         = useState(possible.description)
   const [url, setUrl]           = useState(possible.url ?? '')
@@ -1909,13 +1915,13 @@ function PossibleActivityModal({
 
             {/* Linked notes */}
             {linkedNotes.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-slate-500 mb-1">Notater</p>
+              <div className="flex flex-wrap gap-1.5">
                 {linkedNotes.map((n) => (
-                  <div key={n.id} className="bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 space-y-0.5">
-                    {n.title && <p className="text-[11px] font-medium text-slate-300">{n.title}</p>}
-                    <p className="text-xs text-slate-400 whitespace-pre-wrap leading-relaxed">{n.content}</p>
-                  </div>
+                  <button key={n.id} onClick={() => onNoteClick(n)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-700/40 bg-amber-900/20 text-amber-300 hover:bg-amber-900/40 transition-colors text-xs">
+                    <BookOpen className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate max-w-[160px]">{n.title || 'Notat'}</span>
+                  </button>
                 ))}
               </div>
             )}
