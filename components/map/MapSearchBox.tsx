@@ -13,22 +13,26 @@ interface PlaceResult {
 
 interface MapSearchBoxProps {
   onPlaceSelect: (result: PlaceResult) => void
+  /** Bias autocomplete results toward this location (e.g. the selected stop) */
+  biasLocation?: { lat: number; lng: number } | null
 }
 
-export default function MapSearchBox({ onPlaceSelect }: MapSearchBoxProps) {
+export default function MapSearchBox({ onPlaceSelect, biasLocation }: MapSearchBoxProps) {
   const map = useMap()
   const placesLib = useMapsLibrary('places')
   const inputRef = useRef<HTMLInputElement>(null)
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
   const [inputValue, setInputValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
 
+  // Create autocomplete once when placesLib is ready
   useEffect(() => {
     if (!placesLib || !inputRef.current) return
 
     const autocomplete = new placesLib.Autocomplete(inputRef.current, {
-      fields: ['geometry', 'address_components', 'name'],
-      // Ingen types-begrensning → støtter byer, adresser og steder/hoteller
+      fields: ['geometry', 'address_components', 'name', 'types'],
     })
+    autocompleteRef.current = autocomplete
 
     const listener = autocomplete.addListener('place_changed', () => {
       const place = autocomplete.getPlace()
@@ -44,9 +48,23 @@ export default function MapSearchBox({ onPlaceSelect }: MapSearchBoxProps) {
       const stateComp = components.find((c) =>
         c.types.includes('administrative_area_level_1')
       )
-      // Zoom langt inn for spesifikke adresser, moderat for byer
+
+      // Zoom based on place type: street address → 17, named POI → 16, city → 13, other → 14
       const hasStreet = components.some((c) => c.types.includes('street_number'))
-      const zoom = hasStreet ? 17 : 11
+      const placeTypes = place.types ?? []
+      let zoom: number
+      if (hasStreet) {
+        zoom = 17
+      } else if (placeTypes.some((t) =>
+        ['lodging', 'restaurant', 'food', 'point_of_interest', 'establishment',
+         'tourist_attraction', 'museum', 'stadium', 'park', 'bar', 'cafe'].includes(t)
+      )) {
+        zoom = 16
+      } else if (placeTypes.some((t) => ['locality', 'sublocality', 'sublocality_level_1'].includes(t))) {
+        zoom = 13
+      } else {
+        zoom = 14
+      }
 
       if (map) { map.panTo({ lat, lng }); map.setZoom(zoom) }
       onPlaceSelect({ lat, lng, city: cityComp?.long_name ?? place.name ?? '', state: stateComp?.short_name ?? '' })
@@ -54,8 +72,35 @@ export default function MapSearchBox({ onPlaceSelect }: MapSearchBoxProps) {
       inputRef.current?.blur()
     })
 
-    return () => { google.maps.event.removeListener(listener) }
-  }, [placesLib, map, onPlaceSelect])
+    return () => {
+      google.maps.event.removeListener(listener)
+      autocompleteRef.current = null
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placesLib])
+
+  // Update geographic bias whenever the selected stop changes
+  useEffect(() => {
+    const ac = autocompleteRef.current
+    if (!ac) return
+    if (biasLocation) {
+      // ~150 km radius around the stop — biases ranking without restricting results
+      const delta = 1.5
+      ac.setBounds({
+        north: biasLocation.lat + delta,
+        south: biasLocation.lat - delta,
+        east:  biasLocation.lng + delta,
+        west:  biasLocation.lng - delta,
+      })
+    } else {
+      // No stop selected — remove bias so Google uses the current map viewport
+      ac.setBounds(undefined as unknown as google.maps.LatLngBounds)
+    }
+  }, [biasLocation])
+
+  // Keep onPlaceSelect up to date without recreating the autocomplete
+  const onPlaceSelectRef = useRef(onPlaceSelect)
+  useEffect(() => { onPlaceSelectRef.current = onPlaceSelect }, [onPlaceSelect])
 
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-[420px] max-w-[calc(100vw-2rem)]">

@@ -1731,6 +1731,7 @@ export default function PlanningMap({
           {(!readOnly || onCitySearch) && (
             <MapSearchBox
               onPlaceSelect={readOnly && onCitySearch ? onCitySearch : handleSearchSelect}
+              biasLocation={(() => { const s = stops.find((x) => x.id === selectedStopId); return s ? { lat: s.lat, lng: s.lng } : null })()}
             />
           )}
         </Map>
