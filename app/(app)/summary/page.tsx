@@ -264,7 +264,7 @@ export default function SummaryPage() {
   // Map: ISO date → notes on that day (stop notes only; unattached shown in sidebar)
   const notesByDate = useMemo(() => {
     const map: Record<string, Note[]> = {}
-    notes.filter((n) => n.stop_id).forEach((note) => {
+    notes.filter((n) => n.stop_id && !n.activity_id && !n.dining_id && !n.possible_activity_id).forEach((note) => {
       const date = note.note_date
         ?? regularStops.find((s) => s.id === note.stop_id)?.arrival_date
         ?? null
@@ -726,6 +726,7 @@ export default function SummaryPage() {
           <ActivityModal
             activity={activityModal}
             stop={stops.find((s) => s.id === activityModal.stop_id) ?? null}
+            linkedNotes={notes.filter((n) => n.activity_id === activityModal.id)}
             onSave={(updates) => updateActivity(activityModal.id, updates)}
             onDelete={() => { removeActivity(activityModal.id); setActivityModal(null) }}
             onClose={() => setActivityModal(null)}
@@ -741,6 +742,7 @@ export default function SummaryPage() {
           <DiningModal
             dining={diningModal}
             stop={stops.find((s) => s.id === diningModal.stop_id) ?? null}
+            linkedNotes={notes.filter((n) => n.dining_id === diningModal.id)}
             onSave={(updates) => updateDining(diningModal.id, updates)}
             onDelete={() => { removeDining(diningModal.id); setDiningModal(null) }}
             onClose={() => setDiningModal(null)}
@@ -753,6 +755,7 @@ export default function SummaryPage() {
           <PossibleActivityModal
             possible={possibleModal}
             stop={stops.find((s) => s.id === possibleModal.stop_id) ?? null}
+            linkedNotes={notes.filter((n) => n.possible_activity_id === possibleModal.id)}
             onSave={(updates) => updatePossibleActivity(possibleModal.id, updates)}
             onDelete={() => { removePossibleActivity(possibleModal.id); setPossibleModal(null) }}
             onClose={() => setPossibleModal(null)}
@@ -1369,10 +1372,11 @@ function getStopDateRange(stop: Stop): string[] {
 // ─── Activity Modal ───────────────────────────────────────────────────────────
 
 function ActivityModal({
-  activity, stop, onSave, onDelete, onClose, onNavigate,
+  activity, stop, linkedNotes, onSave, onDelete, onClose, onNavigate,
 }: {
   activity: Activity
   stop: Stop | null
+  linkedNotes: Note[]
   onSave: (updates: UpdateActivityData) => void
   onDelete: () => void
   onClose: () => void
@@ -1539,6 +1543,19 @@ function ActivityModal({
               className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors resize-none" />
           </div>
 
+          {/* Linked notes */}
+          {linkedNotes.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-slate-500 mb-1">Notater</p>
+              {linkedNotes.map((n) => (
+                <div key={n.id} className="bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 space-y-0.5">
+                  {n.title && <p className="text-[11px] font-medium text-slate-300">{n.title}</p>}
+                  <p className="text-xs text-slate-400 whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Navigate to activities page */}
           {activity.map_lat && activity.map_lng && (
             <button onClick={onNavigate}
@@ -1572,10 +1589,11 @@ function ActivityModal({
 // ─── Dining Modal ────────────────────────────────────────────────────────────
 
 function DiningModal({
-  dining, stop, onSave, onDelete, onClose, onNavigate,
+  dining, stop, linkedNotes, onSave, onDelete, onClose, onNavigate,
 }: {
   dining: Dining
   stop: Stop | null
+  linkedNotes: Note[]
   onSave: (updates: UpdateDiningData) => void
   onDelete: () => void
   onClose: () => void
@@ -1695,6 +1713,19 @@ function DiningModal({
               className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-600 outline-none focus:border-red-500 transition-colors resize-none" />
           </div>
 
+          {/* Linked notes */}
+          {linkedNotes.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-slate-500 mb-1">Notater</p>
+              {linkedNotes.map((n) => (
+                <div key={n.id} className="bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 space-y-0.5">
+                  {n.title && <p className="text-[11px] font-medium text-slate-300">{n.title}</p>}
+                  <p className="text-xs text-slate-400 whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Navigate to aktiviteter page */}
           <button onClick={onNavigate}
             className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-xs transition-colors">
@@ -1736,10 +1767,11 @@ function DiningModal({
 // ─── Possible Activity Modal ──────────────────────────────────────────────────
 
 function PossibleActivityModal({
-  possible, stop, onSave, onDelete, onClose,
+  possible, stop, linkedNotes, onSave, onDelete, onClose,
 }: {
   possible: PossibleActivity
   stop: Stop | null
+  linkedNotes: Note[]
   onSave: (updates: UpdatePossibleActivityData) => void
   onDelete: () => void
   onClose: () => void
@@ -1874,6 +1906,19 @@ function PossibleActivityModal({
                 rows={2}
                 className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-600 outline-none focus:border-teal-500 transition-colors resize-none" />
             </div>
+
+            {/* Linked notes */}
+            {linkedNotes.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-slate-500 mb-1">Notater</p>
+                {linkedNotes.map((n) => (
+                  <div key={n.id} className="bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 space-y-0.5">
+                    {n.title && <p className="text-[11px] font-medium text-slate-300">{n.title}</p>}
+                    <p className="text-xs text-slate-400 whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Footer */}
