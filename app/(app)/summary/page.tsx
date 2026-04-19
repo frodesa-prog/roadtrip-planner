@@ -1498,9 +1498,18 @@ function ActivityModal({
           {/* URL */}
           <div>
             <p className="text-[10px] text-slate-500 mb-1">Lenke</p>
-            <input value={url} onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://…"
-              className="w-full h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors" />
+            <div className="flex gap-2">
+              <input value={url} onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://…"
+                className="flex-1 h-7 text-xs bg-slate-800 border border-slate-700 rounded px-2 text-slate-100 placeholder:text-slate-600 outline-none focus:border-purple-500 transition-colors" />
+              {url && (
+                <a href={url} target="_blank" rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center px-2 rounded border border-slate-700 hover:bg-slate-700 transition-colors">
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                </a>
+              )}
+            </div>
           </div>
 
           {/* Notes */}
