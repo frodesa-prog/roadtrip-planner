@@ -10,7 +10,7 @@ import { useStops } from '@/hooks/useStops'
 import { useHotels } from '@/hooks/useHotels'
 import { useActivities, UpdateActivityData } from '@/hooks/useActivities'
 import { useDining } from '@/hooks/useDining'
-import { usePossibleActivities } from '@/hooks/usePossibleActivities'
+import { usePossibleActivities, UpdatePossibleActivityData } from '@/hooks/usePossibleActivities'
 import { ActivityTypeIcon, getActivityTypeConfig, ACTIVITY_TYPE_PRESETS } from '@/lib/activityTypes'
 import { useDrivingInfo, LegInfo } from '@/hooks/useDrivingInfo'
 import { useFlights } from '@/hooks/useFlights'
@@ -90,6 +90,7 @@ export default function SummaryPage() {
   const [flightModal, setFlightModal] = useState<Flight | null>(null)
   const [activityModal, setActivityModal] = useState<Activity | null>(null)
   const [diningModal, setDiningModal] = useState<Dining | null>(null)
+  const [possibleModal, setPossibleModal] = useState<PossibleActivity | null>(null)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [showDetailed, setShowDetailed] = useState(true)
 
@@ -645,6 +646,7 @@ export default function SummaryPage() {
                           onNoteClick={(note) => setNoteModal({ mode: 'edit', note })}
                           onActivityClick={setActivityModal}
                           onDiningClick={setDiningModal}
+                          onPossibleClick={setPossibleModal}
                           showHotelWarning={currentTrip?.trip_type === 'road_trip'}
                           showDetailed={showDetailed}
                           showActivities={showActivities}
@@ -743,6 +745,17 @@ export default function SummaryPage() {
             onDelete={() => { removeDining(diningModal.id); setDiningModal(null) }}
             onClose={() => setDiningModal(null)}
             onNavigate={() => { setDiningModal(null); router.push(`/aktiviteter#d-${diningModal.id}`) }}
+          />
+        )}
+
+        {/* Possible activity modal */}
+        {possibleModal && (
+          <PossibleActivityModal
+            possible={possibleModal}
+            stop={stops.find((s) => s.id === possibleModal.stop_id) ?? null}
+            onSave={(updates) => updatePossibleActivity(possibleModal.id, updates)}
+            onDelete={() => { removePossibleActivity(possibleModal.id); setPossibleModal(null) }}
+            onClose={() => setPossibleModal(null)}
           />
         )}
 
@@ -866,6 +879,7 @@ function DayCell({
   onNoteClick,
   onActivityClick,
   onDiningClick,
+  onPossibleClick,
   showHotelWarning = false,
   showDetailed = false,
   showActivities = true,
@@ -898,6 +912,7 @@ function DayCell({
   onNoteClick: (note: Note) => void
   onActivityClick: (activity: Activity) => void
   onDiningClick: (dining: Dining) => void
+  onPossibleClick: (pa: PossibleActivity) => void
   showHotelWarning?: boolean
   showDetailed?: boolean
   showActivities?: boolean
@@ -1047,10 +1062,11 @@ function DayCell({
 
                 {/* Possible activities (no time, shown after timed entries) */}
                 {showPossible && possibleOnDay.map((pa) => (
-                  <div key={pa.id} className="flex items-center gap-0.5 min-w-0">
+                  <button key={pa.id} onClick={(e) => { e.stopPropagation(); onPossibleClick(pa) }}
+                    className="flex items-center gap-0.5 min-w-0 text-left hover:opacity-70 transition-opacity">
                     <span className="flex-shrink-0 leading-none"><ActivityTypeIcon type={pa.category} size={9} /></span>
                     <span className="text-[9px] text-teal-400 truncate leading-tight">{pa.description}</span>
-                  </div>
+                  </button>
                 ))}
               </>
             )
@@ -1159,9 +1175,11 @@ function DayCell({
 
           {/* Possible activities – compact icon */}
           {showPossible && possibleOnDay.map((pa) => (
-            <span key={pa.id} title={pa.description} className="flex-shrink-0 leading-none">
+            <button key={pa.id} title={pa.description}
+              onClick={(e) => { e.stopPropagation(); onPossibleClick(pa) }}
+              className="flex-shrink-0 leading-none hover:opacity-70 transition-opacity">
               <ActivityTypeIcon type={pa.category} size={12} />
-            </span>
+            </button>
           ))}
 
           {/* Dining icons */}
@@ -1711,6 +1729,178 @@ function DiningModal({
         onCancel={() => setShowConfirm(false)}
       />
     )}
+    </>
+  )
+}
+
+// ─── Possible Activity Modal ──────────────────────────────────────────────────
+
+function PossibleActivityModal({
+  possible, stop, onSave, onDelete, onClose,
+}: {
+  possible: PossibleActivity
+  stop: Stop | null
+  onSave: (updates: UpdatePossibleActivityData) => void
+  onDelete: () => void
+  onClose: () => void
+}) {
+  const [desc, setDesc]         = useState(possible.description)
+  const [url, setUrl]           = useState(possible.url ?? '')
+  const [notes, setNotes]       = useState(possible.notes ?? '')
+  const [category, setCategory] = useState<string | null>(possible.category ?? null)
+  const [dates, setDates]       = useState<string[]>(
+    possible.activity_dates?.length
+      ? possible.activity_dates
+      : possible.activity_date
+        ? [possible.activity_date]
+        : []
+  )
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const stopDates = stop ? getStopDateRange(stop) : []
+
+  function handleSave() {
+    onSave({
+      description: desc.trim() || possible.description,
+      url: url.trim() || null,
+      notes: notes.trim() || null,
+      category,
+      activity_dates: dates,
+      activity_date: dates[0] ?? null,
+    })
+    onClose()
+  }
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        <div
+          className="bg-slate-900 border border-teal-800/40 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-teal-900/40">
+                <ActivityTypeIcon type={category} size={15} />
+              </div>
+              <div>
+                <span className="text-sm font-semibold text-slate-100">Mulig aktivitet</span>
+                {stop && <span className="text-xs text-slate-500 ml-1.5">{stop.city}</span>}
+              </div>
+            </div>
+            <button onClick={onClose} className="text-slate-500 hover:text-slate-200 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="px-5 py-4 space-y-3">
+            {/* Description */}
+            <input
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="Beskrivelse"
+              autoFocus
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-teal-500/60 transition-colors"
+            />
+
+            {/* URL */}
+            <div className="flex gap-2">
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://…"
+                className="flex-1 h-8 text-xs bg-slate-800 border border-slate-700 rounded-lg px-3 text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-teal-500/60 transition-colors"
+              />
+              {url && (
+                <a href={url} target="_blank" rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center px-2 rounded-lg border border-slate-700 hover:bg-slate-700 transition-colors">
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                </a>
+              )}
+            </div>
+
+            {/* Category */}
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Kategori</p>
+              <div className="flex flex-wrap gap-1">
+                {ACTIVITY_TYPE_PRESETS.map((p) => (
+                  <button key={p.value} type="button"
+                    onClick={() => setCategory(category === p.value ? null : p.value)}
+                    className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                      category === p.value
+                        ? 'bg-teal-700 border-teal-600 text-white'
+                        : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                    }`}>
+                    <ActivityTypeIcon type={p.value} size={11} />
+                    <span>{p.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Dates (multi-select) */}
+            {stopDates.length > 0 && (
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Dag</p>
+                <div className="flex flex-wrap gap-1">
+                  {stopDates.map((d) => (
+                    <button key={d} type="button"
+                      onClick={() => setDates((prev) =>
+                        prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
+                      )}
+                      className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                        dates.includes(d)
+                          ? 'bg-teal-700 border-teal-600 text-white'
+                          : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                      }`}>
+                      {new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div>
+              <p className="text-[10px] text-slate-500 mb-1">Kommentar</p>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
+                placeholder="Legg til en kommentar…"
+                rows={2}
+                className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-100 placeholder:text-slate-600 outline-none focus:border-teal-500 transition-colors resize-none" />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-5 pb-4 flex gap-2">
+            <button onClick={handleSave} disabled={!desc.trim()}
+              className="flex-1 h-8 rounded-lg bg-teal-700 hover:bg-teal-600 disabled:opacity-40 text-white text-xs font-semibold transition-colors">
+              Lagre
+            </button>
+            <button onClick={() => setShowConfirm(true)}
+              className="px-3 h-8 rounded-lg border border-red-800/60 text-red-400 hover:bg-red-900/30 text-xs transition-colors">
+              Slett
+            </button>
+            <button onClick={onClose}
+              className="px-3 h-8 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 text-xs transition-colors">
+              Avbryt
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showConfirm && (
+        <ConfirmDialog
+          message={`Slett "${possible.description}"?`}
+          onConfirm={() => { setShowConfirm(false); onDelete() }}
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
     </>
   )
 }
