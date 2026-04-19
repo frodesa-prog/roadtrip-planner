@@ -95,8 +95,8 @@ export default function AktiviteterPage() {
         possible: possibleActivities
           .filter((p) => p.stop_id === stop.id)
           .sort((a, b) => {
-            const dateA = a.activity_date ?? ''
-            const dateB = b.activity_date ?? ''
+            const dateA = (a.activity_dates?.length ? a.activity_dates[0] : a.activity_date) ?? ''
+            const dateB = (b.activity_dates?.length ? b.activity_dates[0] : b.activity_date) ?? ''
             if (dateA !== dateB) return dateA < dateB ? -1 : 1
             return a.description.localeCompare(b.description)
           }),
@@ -539,13 +539,18 @@ export default function AktiviteterPage() {
                             {p.category && (
                               <span className="text-[10px] text-slate-500">{p.category}</span>
                             )}
-                            {p.activity_date && (
-                              <span className="text-[10px] text-slate-500">
-                                {new Date(p.activity_date + 'T00:00:00').toLocaleDateString('nb-NO', {
+                            {(p.activity_dates?.length
+                              ? p.activity_dates
+                              : p.activity_date
+                                ? [p.activity_date]
+                                : []
+                            ).map((d) => (
+                              <span key={d} className="text-[10px] text-slate-500">
+                                {new Date(d + 'T00:00:00').toLocaleDateString('nb-NO', {
                                   day: 'numeric', month: 'short',
                                 })}
                               </span>
-                            )}
+                            ))}
                             {hasPinnedLocation && (
                               <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
                                 <MapPin className="w-2.5 h-2.5" />
@@ -850,16 +855,28 @@ export default function AktiviteterPage() {
                     <span>{selectedPossible.category}</span>
                   </div>
                 )}
-                {selectedPossible.activity_date && (
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <Clock className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                    <span>
-                      {new Date(selectedPossible.activity_date + 'T00:00:00').toLocaleDateString('nb-NO', {
-                        weekday: 'long', day: 'numeric', month: 'long',
-                      })}
-                    </span>
-                  </div>
-                )}
+                {(() => {
+                  const dates = selectedPossible.activity_dates?.length
+                    ? selectedPossible.activity_dates
+                    : selectedPossible.activity_date
+                      ? [selectedPossible.activity_date]
+                      : []
+                  if (!dates.length) return null
+                  return (
+                    <div className="flex items-start gap-2 text-xs text-slate-400">
+                      <Clock className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 mt-0.5" />
+                      <span className="flex flex-wrap gap-x-2 gap-y-0.5">
+                        {dates.map((d) => (
+                          <span key={d}>
+                            {new Date(d + 'T00:00:00').toLocaleDateString('nb-NO', {
+                              weekday: 'long', day: 'numeric', month: 'long',
+                            })}
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  )
+                })()}
                 {possibleRoute && (
                   <div className="flex items-center gap-2 text-xs text-amber-400">
                     <Navigation className="w-3.5 h-3.5 flex-shrink-0" />

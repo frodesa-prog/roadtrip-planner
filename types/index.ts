@@ -142,7 +142,8 @@ export interface PossibleActivity {
   notes: string | null
   map_lat: number | null
   map_lng: number | null
-  activity_date: string | null  // ISO date – which day this idea is linked to
+  activity_date: string | null    // ISO date – legacy single-date (kept for compat)
+  activity_dates: string[]        // multi-date: list of ISO dates this idea applies to
 }
 
 export interface Photo {

@@ -276,14 +276,23 @@ export default function SummaryPage() {
 
   const unattachedNotes = useMemo(() => notes.filter((n) => !n.stop_id), [notes])
 
-  // Map: ISO date → possible activities (uses activity_date if set, falls back to stop arrival_date)
+  // Map: ISO date → possible activities (checks activity_dates array first, then legacy activity_date, then stop arrival_date)
   const possibleByDate = useMemo(() => {
     const map: Record<string, PossibleActivity[]> = {}
     possibleActivities.forEach((pa) => {
-      const date = pa.activity_date ?? regularStops.find((s) => s.id === pa.stop_id)?.arrival_date ?? null
-      if (!date) return
-      if (!map[date]) map[date] = []
-      map[date].push(pa)
+      const dates: string[] =
+        pa.activity_dates?.length
+          ? pa.activity_dates
+          : pa.activity_date
+            ? [pa.activity_date]
+            : []
+      const resolved = dates.length
+        ? dates
+        : [regularStops.find((s) => s.id === pa.stop_id)?.arrival_date ?? null].filter(Boolean) as string[]
+      resolved.forEach((date) => {
+        if (!map[date]) map[date] = []
+        map[date].push(pa)
+      })
     })
     return map
   }, [possibleActivities, regularStops])
@@ -788,10 +797,15 @@ export default function SummaryPage() {
                   hotel={hotels.find((h) => h.stop_id === selectedStop.id) ?? null}
                   activities={activities.filter((a) => a.stop_id === selectedStop.id && a.activity_date === selectedDate)}
                   dining={dining.filter((d) => d.stop_id === selectedStop.id && d.booking_date === selectedDate)}
-                  possibleActivities={possibleActivities.filter((a) =>
-                    a.stop_id === selectedStop.id &&
-                    (a.activity_date == null || a.activity_date === selectedDate)
-                  )}
+                  possibleActivities={possibleActivities.filter((a) => {
+                    if (a.stop_id !== selectedStop.id) return false
+                    const dates: string[] = a.activity_dates?.length
+                      ? a.activity_dates
+                      : a.activity_date
+                        ? [a.activity_date]
+                        : []
+                    return dates.length === 0 || dates.includes(selectedDate)
+                  })}
                   leg={selectedStopLeg}
                   selectedDate={selectedDate}
                   stopIndex={selectedStopIndex}

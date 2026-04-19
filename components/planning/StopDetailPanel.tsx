@@ -222,13 +222,16 @@ export default function StopDetailPanel({
   const [newPossibleUrl, setNewPossibleUrl]           = useState('')
   const [newPossibleNotes, setNewPossibleNotes]       = useState('')
   const [newPossibleCategory, setNewPossibleCategory] = useState<string | null>(null)
-  const [newPossibleDate, setNewPossibleDate]         = useState(selectedDate || stop.arrival_date || '')
+  const [newPossibleDates, setNewPossibleDates]       = useState<string[]>(() => {
+    const d = selectedDate || stop.arrival_date || ''
+    return d ? [d] : []
+  })
   const [editingPossibleId, setEditingPossibleId]     = useState<string | null>(null)
   const [editPossibleDesc, setEditPossibleDesc]       = useState('')
   const [editPossibleUrl, setEditPossibleUrl]         = useState('')
   const [editPossibleNotes, setEditPossibleNotes]     = useState('')
   const [editPossibleCategory, setEditPossibleCategory] = useState<string | null>(null)
-  const [editPossibleDate, setEditPossibleDate]       = useState('')
+  const [editPossibleDates, setEditPossibleDates]     = useState<string[]>([])
   const [editPossibleLocation, setEditPossibleLocation] = useState<{ lat: number; lng: number; name: string } | null>(null)
   const [pinningPossibleId, setPinningPossibleId]     = useState<string | null>(null)
   const [convertingPossibleId, setConvertingPossibleId] = useState<string | null>(null)
@@ -239,7 +242,13 @@ export default function StopDetailPanel({
     setEditPossibleUrl(a.url ?? '')
     setEditPossibleNotes(a.notes ?? '')
     setEditPossibleCategory(a.category ?? null)
-    setEditPossibleDate(a.activity_date ?? '')
+    setEditPossibleDates(
+      a.activity_dates?.length
+        ? a.activity_dates
+        : a.activity_date
+          ? [a.activity_date]
+          : []
+    )
     setEditPossibleLocation(
       a.map_lat != null && a.map_lng != null
         ? { lat: a.map_lat, lng: a.map_lng, name: a.description }
@@ -254,7 +263,8 @@ export default function StopDetailPanel({
       url: editPossibleUrl.trim() || null,
       notes: editPossibleNotes.trim() || null,
       category: editPossibleCategory,
-      activity_date: editPossibleDate || null,
+      activity_dates: editPossibleDates,
+      activity_date: editPossibleDates[0] ?? null,
       map_lat: editPossibleLocation?.lat ?? null,
       map_lng: editPossibleLocation?.lng ?? null,
     })
@@ -270,7 +280,8 @@ export default function StopDetailPanel({
       url: newPossibleUrl.trim() || undefined,
       notes: newPossibleNotes.trim() || undefined,
       category: newPossibleCategory ?? undefined,
-      activity_date: newPossibleDate || undefined,
+      activity_dates: newPossibleDates,
+      activity_date: newPossibleDates[0] ?? undefined,
       map_lat: newPossibleLocation?.lat ?? undefined,
       map_lng: newPossibleLocation?.lng ?? undefined,
     })
@@ -278,7 +289,10 @@ export default function StopDetailPanel({
     setNewPossibleUrl('')
     setNewPossibleNotes('')
     setNewPossibleCategory(null)
-    setNewPossibleDate(selectedDate || stop.arrival_date || '')
+    setNewPossibleDates(() => {
+      const d = selectedDate || stop.arrival_date || ''
+      return d ? [d] : []
+    })
     setNewPossibleLocation(null)
     setShowAddPossible(false)
   }
@@ -1369,9 +1383,11 @@ export default function StopDetailPanel({
                             <div className="flex flex-wrap gap-1">
                               {stopDates.map((sd) => (
                                 <button key={sd} type="button"
-                                  onClick={() => setEditPossibleDate(editPossibleDate === sd ? '' : sd)}
+                                  onClick={() => setEditPossibleDates((prev) =>
+                                    prev.includes(sd) ? prev.filter((d) => d !== sd) : [...prev, sd]
+                                  )}
                                   className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
-                                    sd === editPossibleDate
+                                    editPossibleDates.includes(sd)
                                       ? 'bg-teal-700 border-teal-600 text-white'
                                       : 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-200'
                                   }`}>
@@ -1427,11 +1443,16 @@ export default function StopDetailPanel({
                                 {getActivityTypeConfig(a.category).label}
                               </span>
                             )}
-                            {a.activity_date && (
-                              <span className="text-[10px] text-teal-500/80">
-                                {new Date(a.activity_date + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                            {(a.activity_dates?.length
+                              ? a.activity_dates
+                              : a.activity_date
+                                ? [a.activity_date]
+                                : []
+                            ).map((d) => (
+                              <span key={d} className="text-[10px] text-teal-500/80">
+                                {new Date(d + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })}
                               </span>
-                            )}
+                            ))}
                           </div>
                           {a.notes && <p className="text-[10px] text-slate-400 mt-0.5 break-words leading-relaxed">{a.notes}</p>}
                         </div>
@@ -1602,9 +1623,11 @@ export default function StopDetailPanel({
                     <div className="flex flex-wrap gap-1">
                       {stopDates.map((sd) => (
                         <button key={sd} type="button"
-                          onClick={() => setNewPossibleDate(newPossibleDate === sd ? '' : sd)}
+                          onClick={() => setNewPossibleDates((prev) =>
+                            prev.includes(sd) ? prev.filter((d) => d !== sd) : [...prev, sd]
+                          )}
                           className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
-                            sd === newPossibleDate
+                            newPossibleDates.includes(sd)
                               ? 'bg-teal-700 border-teal-600 text-white'
                               : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
                           }`}>
@@ -1626,7 +1649,7 @@ export default function StopDetailPanel({
                     Legg til
                   </button>
                   <button type="button"
-                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleNotes(''); setNewPossibleCategory(null); setNewPossibleDate(selectedDate || stop.arrival_date || ''); setNewPossibleLocation(null) }}
+                    onClick={() => { setShowAddPossible(false); setNewPossibleDesc(''); setNewPossibleUrl(''); setNewPossibleNotes(''); setNewPossibleCategory(null); setNewPossibleDates(() => { const d = selectedDate || stop.arrival_date || ''; return d ? [d] : [] }); setNewPossibleLocation(null) }}
                     className="px-3 h-7 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700 text-xs transition-colors">
                     Avbryt
                   </button>
