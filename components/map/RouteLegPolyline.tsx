@@ -87,6 +87,18 @@ function insertionIndex(
 }
 
 // ─── Geocoding helpers ───────────────────────────────────────────────────────
+// All calls go through /api/geocode which checks the Supabase geocode_cache
+// table first, so repeated lookups for the same location cost nothing.
+
+async function geocodePoint(lat: number, lng: number): Promise<{ state: string | null; country: string | null; city: string | null }> {
+  try {
+    const res = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
+    if (!res.ok) return { state: null, country: null, city: null }
+    return res.json()
+  } catch {
+    return { state: null, country: null, city: null }
+  }
+}
 
 async function resolveStates(
   result: google.maps.DirectionsResult,
@@ -94,20 +106,10 @@ async function resolveStates(
 ) {
   const path = result.routes[0]?.overview_path
   if (!path?.length) return
-  const step     = Math.max(1, Math.floor(path.length / Math.min(10, path.length)))
-  const sampled  = path.filter((_, i) => i % step === 0)
-  const geocoder = new google.maps.Geocoder()
-  const codes    = await Promise.all(
-    sampled.map((pt) =>
-      geocoder
-        .geocode({ location: pt })
-        .then(({ results }) =>
-          results[0]?.address_components.find((c) =>
-            c.types.includes('administrative_area_level_1')
-          )?.short_name ?? null
-        )
-        .catch(() => null)
-    )
+  const step    = Math.max(1, Math.floor(path.length / Math.min(10, path.length)))
+  const sampled = path.filter((_, i) => i % step === 0)
+  const codes   = await Promise.all(
+    sampled.map((pt) => geocodePoint(pt.lat(), pt.lng()).then((r) => r.state))
   )
   cb([...new Set(codes.filter((c): c is string => !!c))])
 }
@@ -117,16 +119,9 @@ async function resolveCountries(
   cb: (codes: string[]) => void,
   perStopCb?: (stopId: string, country: string) => void,
 ) {
-  const geocoder = new google.maps.Geocoder()
-  const results  = await Promise.all(
+  const results = await Promise.all(
     stops.map((s) =>
-      geocoder
-        .geocode({ location: { lat: s.lat, lng: s.lng } })
-        .then(({ results }) => ({
-          stopId:  s.id,
-          country: results[0]?.address_components.find((c) => c.types.includes('country'))?.long_name ?? null,
-        }))
-        .catch(() => ({ stopId: s.id, country: null }))
+      geocodePoint(s.lat, s.lng).then((r) => ({ stopId: s.id, country: r.country }))
     )
   )
   results.forEach(({ stopId, country }) => { if (country && perStopCb) perStopCb(stopId, country) })
