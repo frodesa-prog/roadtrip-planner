@@ -960,13 +960,13 @@ function DayCell({
 
       {/* Date + drive info on same line */}
       <div className="flex items-center gap-1 leading-none min-w-0 pr-3">
-        <span className={`text-[11px] font-semibold flex-shrink-0 ${stop || flight ? 'text-slate-300' : 'text-slate-700'}`}>
+        <span className={`text-[12px] font-semibold flex-shrink-0 ${stop || flight ? 'text-slate-300' : 'text-slate-700'}`}>
           {isFirstOfMonth
             ? date.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })
             : date.getDate()}
         </span>
         {stop && isArrival && leg && (
-          <div className="flex items-center gap-0.5 text-[9px] font-medium min-w-0 text-slate-400">
+          <div className="flex items-center gap-0.5 text-[10px] font-medium min-w-0 text-slate-400">
             <Car className="w-2.5 h-2.5 flex-shrink-0" />
             <span className="truncate">{leg.durationText} · {leg.distanceText}</span>
           </div>
@@ -975,7 +975,7 @@ function DayCell({
 
       {/* City name – always on line 2, same position for all days */}
       {(stop || (isHomeDeparture && firstStopCity)) && (
-        <p className="text-[11px] font-semibold truncate leading-tight mt-0.5 text-slate-200">
+        <p className="text-[12px] font-semibold truncate leading-tight mt-0.5 text-slate-200">
           {isHomeDeparture && firstStopCity
             ? firstStopCity
             : isArrival && fromCity
@@ -1002,7 +1002,7 @@ function DayCell({
                 : <PlaneLanding className="w-2.5 h-2.5 text-sky-400 flex-shrink-0" />
               }
               {flight.leg1_departure && (
-                <span className="text-[8px] text-sky-300 leading-tight">{flight.leg1_departure}</span>
+                <span className="text-[9px] text-sky-300 leading-tight">{flight.leg1_departure}</span>
               )}
             </button>
           )}
@@ -1040,11 +1040,11 @@ function DayCell({
                       >
                         <span className="flex-shrink-0 leading-none"><ActivityTypeIcon type={a.activity_type} size={9} /></span>
                         {a.activity_time && (
-                          <span className="text-[8px] text-slate-500 flex-shrink-0 leading-tight">
+                          <span className="text-[9px] text-slate-500 flex-shrink-0 leading-tight">
                             {a.activity_time.slice(0, 5)}
                           </span>
                         )}
-                        <span className="text-[9px] text-violet-400 truncate leading-tight">{a.name}</span>
+                        <span className="text-[10px] text-violet-400 truncate leading-tight">{a.name}</span>
                       </button>
                     )
                   }
@@ -1057,11 +1057,11 @@ function DayCell({
                     >
                       <UtensilsCrossed className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />
                       {d.booking_time && (
-                        <span className="text-[8px] text-red-300/60 flex-shrink-0 leading-tight">
+                        <span className="text-[9px] text-red-300/60 flex-shrink-0 leading-tight">
                           {d.booking_time.slice(0, 5)}
                         </span>
                       )}
-                      <span className="text-[9px] text-red-400 truncate leading-tight">{d.name}</span>
+                      <span className="text-[10px] text-red-400 truncate leading-tight">{d.name}</span>
                     </button>
                   )
                 })}
@@ -1071,7 +1071,7 @@ function DayCell({
                   <button key={pa.id} onClick={(e) => { e.stopPropagation(); onPossibleClick(pa) }}
                     className="flex items-center gap-0.5 min-w-0 text-left hover:opacity-70 transition-opacity">
                     <span className="flex-shrink-0 leading-none"><ActivityTypeIcon type={pa.category} size={9} /></span>
-                    <span className="text-[9px] text-teal-400 truncate leading-tight">{pa.description}</span>
+                    <span className="text-[10px] text-teal-400 truncate leading-tight">{pa.description}</span>
                   </button>
                 ))}
               </>
@@ -1086,7 +1086,7 @@ function DayCell({
               className="flex items-center gap-0.5 text-left hover:opacity-70 transition-opacity min-w-0"
             >
               <FileText className="w-2.5 h-2.5 text-amber-400 flex-shrink-0" />
-              <span className="text-[9px] text-amber-300 truncate leading-tight">
+              <span className="text-[10px] text-amber-300 truncate leading-tight">
                 {note.title || 'Notat'}
               </span>
             </button>
@@ -1102,7 +1102,7 @@ function DayCell({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className={`flex items-center gap-0.5 text-[9px] truncate leading-tight hover:opacity-80 transition-opacity ${
+                    className={`flex items-center gap-0.5 text-[10px] truncate leading-tight hover:opacity-80 transition-opacity ${
                       hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
                     }`}
                   >
@@ -1110,7 +1110,7 @@ function DayCell({
                     <span className="truncate">{hotelName}</span>
                   </a>
                 ) : (
-                  <div className={`flex items-center gap-0.5 text-[9px] truncate leading-tight ${
+                  <div className={`flex items-center gap-0.5 text-[10px] truncate leading-tight ${
                     hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
                   }`}>
                     <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
@@ -1118,7 +1118,7 @@ function DayCell({
                   </div>
                 )
               ) : (
-                <p className="text-[9px] text-red-600/70 leading-tight">Mangler hotell</p>
+                <p className="text-[10px] text-red-600/70 leading-tight">Mangler hotell</p>
               )}
             </div>
           )}
@@ -1138,7 +1138,7 @@ function DayCell({
                 : <PlaneLanding className="w-3 h-3 text-sky-400" />
               }
               {flight.leg1_departure && (
-                <span className="text-[8px] text-sky-200">{flight.leg1_departure}</span>
+                <span className="text-[9px] text-sky-200">{flight.leg1_departure}</span>
               )}
             </button>
           )}
@@ -1172,7 +1172,7 @@ function DayCell({
             >
               <span className="leading-none"><ActivityTypeIcon type={a.activity_type} size={12} /></span>
               {a.activity_time && (
-                <span className="text-[8px] text-slate-100">
+                <span className="text-[9px] text-slate-100">
                   {a.activity_time.slice(0, 5)}
                 </span>
               )}
