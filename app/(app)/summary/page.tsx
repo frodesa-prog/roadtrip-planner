@@ -1123,9 +1123,9 @@ function DayCell({
                     }`}
                   >
                     <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
-                    {hotelAmenities?.washer    && <WashingMachine className="w-2.5 h-2.5 flex-shrink-0" />}
-                    {hotelAmenities?.kitchen   && <ChefHat className="w-2.5 h-2.5 flex-shrink-0" />}
-                    {hotelAmenities?.breakfast && <Coffee className="w-2.5 h-2.5 flex-shrink-0" />}
+                    {hotelAmenities?.washer    && <WashingMachine title="Vaskemaskin"      className="w-2.5 h-2.5 flex-shrink-0 text-sky-400" />}
+                    {hotelAmenities?.kitchen   && <ChefHat        title="Kjøkken"           className="w-2.5 h-2.5 flex-shrink-0 text-orange-400" />}
+                    {hotelAmenities?.breakfast && <Coffee          title="Frokost inkludert" className="w-2.5 h-2.5 flex-shrink-0 text-amber-500" />}
                     <span className="truncate">{hotelName}</span>
                   </a>
                 ) : (
@@ -1133,9 +1133,9 @@ function DayCell({
                     hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
                   }`}>
                     <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
-                    {hotelAmenities?.washer    && <WashingMachine className="w-2.5 h-2.5 flex-shrink-0" />}
-                    {hotelAmenities?.kitchen   && <ChefHat className="w-2.5 h-2.5 flex-shrink-0" />}
-                    {hotelAmenities?.breakfast && <Coffee className="w-2.5 h-2.5 flex-shrink-0" />}
+                    {hotelAmenities?.washer    && <WashingMachine title="Vaskemaskin"      className="w-2.5 h-2.5 flex-shrink-0 text-sky-400" />}
+                    {hotelAmenities?.kitchen   && <ChefHat        title="Kjøkken"           className="w-2.5 h-2.5 flex-shrink-0 text-orange-400" />}
+                    {hotelAmenities?.breakfast && <Coffee          title="Frokost inkludert" className="w-2.5 h-2.5 flex-shrink-0 text-amber-500" />}
                     <span className="truncate">{hotelName}</span>
                   </div>
                 )
