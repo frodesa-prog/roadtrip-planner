@@ -944,6 +944,263 @@
 [data-theme="dark-forest"] .hover\:from-blue-800:hover { --tw-gradient-from: hsl(154 62% 18%) var(--tw-gradient-from-position); --tw-gradient-to: hsl(154 62% 18% / 0) var(--tw-gradient-to-position); }
 [data-theme="dark-forest"] .hover\:to-blue-900:hover   { --tw-gradient-to: hsl(158 60% 13%) var(--tw-gradient-to-position); }
 
+/* ── Light-theme palette overrides (summary page stop colours) ──────────────
+   The PALETTES in summary/page.tsx use *-200/*-300 text colours and
+   *-900/50 backgrounds, designed for dark themes. On light themes the
+   backgrounds are already inverted to light greys so the -200/-300 text
+   colours (very pale) become nearly invisible. Remap them to dark values.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* text-200 → very dark (~22% lightness) */
+[data-theme="light-white"] .text-blue-200,
+[data-theme="light-ocean"] .text-blue-200,
+[data-theme="light-sunset"] .text-blue-200,
+[data-theme="light-steel"] .text-blue-200,
+[data-theme="light-vacay"] .text-blue-200     { color: hsl(221 72% 22%); }
+
+[data-theme="light-white"] .text-emerald-200,
+[data-theme="light-ocean"] .text-emerald-200,
+[data-theme="light-sunset"] .text-emerald-200,
+[data-theme="light-steel"] .text-emerald-200,
+[data-theme="light-vacay"] .text-emerald-200  { color: hsl(160 72% 18%); }
+
+[data-theme="light-white"] .text-amber-200,
+[data-theme="light-ocean"] .text-amber-200,
+[data-theme="light-sunset"] .text-amber-200,
+[data-theme="light-steel"] .text-amber-200,
+[data-theme="light-vacay"] .text-amber-200    { color: hsl(38 90% 22%); }
+
+[data-theme="light-white"] .text-pink-200,
+[data-theme="light-ocean"] .text-pink-200,
+[data-theme="light-sunset"] .text-pink-200,
+[data-theme="light-steel"] .text-pink-200,
+[data-theme="light-vacay"] .text-pink-200     { color: hsl(330 65% 26%); }
+
+[data-theme="light-white"] .text-violet-200,
+[data-theme="light-ocean"] .text-violet-200,
+[data-theme="light-sunset"] .text-violet-200,
+[data-theme="light-steel"] .text-violet-200,
+[data-theme="light-vacay"] .text-violet-200   { color: hsl(263 68% 26%); }
+
+[data-theme="light-white"] .text-teal-200,
+[data-theme="light-ocean"] .text-teal-200,
+[data-theme="light-sunset"] .text-teal-200,
+[data-theme="light-steel"] .text-teal-200,
+[data-theme="light-vacay"] .text-teal-200     { color: hsl(174 72% 18%); }
+
+[data-theme="light-white"] .text-orange-200,
+[data-theme="light-ocean"] .text-orange-200,
+[data-theme="light-sunset"] .text-orange-200,
+[data-theme="light-steel"] .text-orange-200,
+[data-theme="light-vacay"] .text-orange-200   { color: hsl(25 80% 24%); }
+
+[data-theme="light-white"] .text-sky-200,
+[data-theme="light-ocean"] .text-sky-200,
+[data-theme="light-sunset"] .text-sky-200,
+[data-theme="light-steel"] .text-sky-200,
+[data-theme="light-vacay"] .text-sky-200      { color: hsl(199 80% 22%); }
+
+[data-theme="light-white"] .text-lime-200,
+[data-theme="light-ocean"] .text-lime-200,
+[data-theme="light-sunset"] .text-lime-200,
+[data-theme="light-steel"] .text-lime-200,
+[data-theme="light-vacay"] .text-lime-200     { color: hsl(84 68% 20%); }
+
+[data-theme="light-white"] .text-rose-200,
+[data-theme="light-ocean"] .text-rose-200,
+[data-theme="light-sunset"] .text-rose-200,
+[data-theme="light-steel"] .text-rose-200,
+[data-theme="light-vacay"] .text-rose-200     { color: hsl(347 68% 26%); }
+
+[data-theme="light-white"] .text-purple-200,
+[data-theme="light-ocean"] .text-purple-200,
+[data-theme="light-sunset"] .text-purple-200,
+[data-theme="light-steel"] .text-purple-200,
+[data-theme="light-vacay"] .text-purple-200   { color: hsl(270 65% 26%); }
+
+/* text-300 → dark (~30-34% lightness) */
+[data-theme="light-white"] .text-emerald-300,
+[data-theme="light-ocean"] .text-emerald-300,
+[data-theme="light-sunset"] .text-emerald-300,
+[data-theme="light-steel"] .text-emerald-300,
+[data-theme="light-vacay"] .text-emerald-300  { color: hsl(160 65% 26%); }
+
+[data-theme="light-white"] .text-pink-300,
+[data-theme="light-ocean"] .text-pink-300,
+[data-theme="light-sunset"] .text-pink-300,
+[data-theme="light-steel"] .text-pink-300,
+[data-theme="light-vacay"] .text-pink-300     { color: hsl(330 58% 34%); }
+
+[data-theme="light-white"] .text-violet-300,
+[data-theme="light-ocean"] .text-violet-300,
+[data-theme="light-sunset"] .text-violet-300,
+[data-theme="light-steel"] .text-violet-300,
+[data-theme="light-vacay"] .text-violet-300   { color: hsl(263 60% 34%); }
+
+[data-theme="light-white"] .text-teal-300,
+[data-theme="light-ocean"] .text-teal-300,
+[data-theme="light-sunset"] .text-teal-300,
+[data-theme="light-steel"] .text-teal-300,
+[data-theme="light-vacay"] .text-teal-300     { color: hsl(174 65% 24%); }
+
+[data-theme="light-white"] .text-orange-300,
+[data-theme="light-ocean"] .text-orange-300,
+[data-theme="light-sunset"] .text-orange-300,
+[data-theme="light-steel"] .text-orange-300,
+[data-theme="light-vacay"] .text-orange-300   { color: hsl(25 75% 30%); }
+
+[data-theme="light-white"] .text-sky-300,
+[data-theme="light-ocean"] .text-sky-300,
+[data-theme="light-sunset"] .text-sky-300,
+[data-theme="light-steel"] .text-sky-300,
+[data-theme="light-vacay"] .text-sky-300      { color: hsl(199 72% 28%); }
+
+[data-theme="light-white"] .text-lime-300,
+[data-theme="light-ocean"] .text-lime-300,
+[data-theme="light-sunset"] .text-lime-300,
+[data-theme="light-steel"] .text-lime-300,
+[data-theme="light-vacay"] .text-lime-300     { color: hsl(84 60% 26%); }
+
+[data-theme="light-white"] .text-rose-300,
+[data-theme="light-ocean"] .text-rose-300,
+[data-theme="light-sunset"] .text-rose-300,
+[data-theme="light-steel"] .text-rose-300,
+[data-theme="light-vacay"] .text-rose-300     { color: hsl(347 60% 34%); }
+
+[data-theme="light-white"] .text-purple-300,
+[data-theme="light-ocean"] .text-purple-300,
+[data-theme="light-sunset"] .text-purple-300,
+[data-theme="light-steel"] .text-purple-300,
+[data-theme="light-vacay"] .text-purple-300   { color: hsl(270 58% 34%); }
+
+/* bg-{color}-900/50 → light pastel backgrounds */
+[data-theme="light-white"] .bg-blue-900\/50,
+[data-theme="light-ocean"] .bg-blue-900\/50,
+[data-theme="light-sunset"] .bg-blue-900\/50,
+[data-theme="light-steel"] .bg-blue-900\/50,
+[data-theme="light-vacay"] .bg-blue-900\/50   { background-color: hsl(221 70% 93% / 0.75); }
+
+[data-theme="light-white"] .bg-emerald-900\/50,
+[data-theme="light-ocean"] .bg-emerald-900\/50,
+[data-theme="light-sunset"] .bg-emerald-900\/50,
+[data-theme="light-steel"] .bg-emerald-900\/50,
+[data-theme="light-vacay"] .bg-emerald-900\/50 { background-color: hsl(160 55% 91% / 0.75); }
+
+[data-theme="light-white"] .bg-pink-900\/50,
+[data-theme="light-ocean"] .bg-pink-900\/50,
+[data-theme="light-sunset"] .bg-pink-900\/50,
+[data-theme="light-steel"] .bg-pink-900\/50,
+[data-theme="light-vacay"] .bg-pink-900\/50   { background-color: hsl(330 55% 93% / 0.75); }
+
+[data-theme="light-white"] .bg-violet-900\/50,
+[data-theme="light-ocean"] .bg-violet-900\/50,
+[data-theme="light-sunset"] .bg-violet-900\/50,
+[data-theme="light-steel"] .bg-violet-900\/50,
+[data-theme="light-vacay"] .bg-violet-900\/50 { background-color: hsl(263 50% 93% / 0.75); }
+
+[data-theme="light-white"] .bg-teal-900\/50,
+[data-theme="light-ocean"] .bg-teal-900\/50,
+[data-theme="light-sunset"] .bg-teal-900\/50,
+[data-theme="light-steel"] .bg-teal-900\/50,
+[data-theme="light-vacay"] .bg-teal-900\/50   { background-color: hsl(174 55% 91% / 0.75); }
+
+[data-theme="light-white"] .bg-orange-900\/50,
+[data-theme="light-ocean"] .bg-orange-900\/50,
+[data-theme="light-sunset"] .bg-orange-900\/50,
+[data-theme="light-steel"] .bg-orange-900\/50,
+[data-theme="light-vacay"] .bg-orange-900\/50 { background-color: hsl(25 70% 93% / 0.75); }
+
+[data-theme="light-white"] .bg-sky-900\/50,
+[data-theme="light-ocean"] .bg-sky-900\/50,
+[data-theme="light-sunset"] .bg-sky-900\/50,
+[data-theme="light-steel"] .bg-sky-900\/50,
+[data-theme="light-vacay"] .bg-sky-900\/50    { background-color: hsl(199 65% 92% / 0.75); }
+
+[data-theme="light-white"] .bg-lime-900\/50,
+[data-theme="light-ocean"] .bg-lime-900\/50,
+[data-theme="light-sunset"] .bg-lime-900\/50,
+[data-theme="light-steel"] .bg-lime-900\/50,
+[data-theme="light-vacay"] .bg-lime-900\/50   { background-color: hsl(84 55% 91% / 0.75); }
+
+[data-theme="light-white"] .bg-rose-900\/50,
+[data-theme="light-ocean"] .bg-rose-900\/50,
+[data-theme="light-sunset"] .bg-rose-900\/50,
+[data-theme="light-steel"] .bg-rose-900\/50,
+[data-theme="light-vacay"] .bg-rose-900\/50   { background-color: hsl(347 55% 93% / 0.75); }
+
+[data-theme="light-white"] .bg-purple-900\/50,
+[data-theme="light-ocean"] .bg-purple-900\/50,
+[data-theme="light-sunset"] .bg-purple-900\/50,
+[data-theme="light-steel"] .bg-purple-900\/50,
+[data-theme="light-vacay"] .bg-purple-900\/50 { background-color: hsl(270 50% 93% / 0.75); }
+
+/* border-{color}-700/60 → readable mid-tone borders */
+[data-theme="light-white"] .border-blue-700\/60,
+[data-theme="light-ocean"] .border-blue-700\/60,
+[data-theme="light-sunset"] .border-blue-700\/60,
+[data-theme="light-steel"] .border-blue-700\/60,
+[data-theme="light-vacay"] .border-blue-700\/60   { border-color: hsl(221 60% 48% / 0.55); }
+
+[data-theme="light-white"] .border-emerald-700\/60,
+[data-theme="light-ocean"] .border-emerald-700\/60,
+[data-theme="light-sunset"] .border-emerald-700\/60,
+[data-theme="light-steel"] .border-emerald-700\/60,
+[data-theme="light-vacay"] .border-emerald-700\/60 { border-color: hsl(160 55% 32% / 0.55); }
+
+[data-theme="light-white"] .border-amber-700\/60,
+[data-theme="light-ocean"] .border-amber-700\/60,
+[data-theme="light-sunset"] .border-amber-700\/60,
+[data-theme="light-steel"] .border-amber-700\/60,
+[data-theme="light-vacay"] .border-amber-700\/60  { border-color: hsl(38 80% 38% / 0.55); }
+
+[data-theme="light-white"] .border-pink-700\/60,
+[data-theme="light-ocean"] .border-pink-700\/60,
+[data-theme="light-sunset"] .border-pink-700\/60,
+[data-theme="light-steel"] .border-pink-700\/60,
+[data-theme="light-vacay"] .border-pink-700\/60   { border-color: hsl(330 55% 44% / 0.55); }
+
+[data-theme="light-white"] .border-violet-700\/60,
+[data-theme="light-ocean"] .border-violet-700\/60,
+[data-theme="light-sunset"] .border-violet-700\/60,
+[data-theme="light-steel"] .border-violet-700\/60,
+[data-theme="light-vacay"] .border-violet-700\/60 { border-color: hsl(263 52% 44% / 0.55); }
+
+[data-theme="light-white"] .border-teal-700\/60,
+[data-theme="light-ocean"] .border-teal-700\/60,
+[data-theme="light-sunset"] .border-teal-700\/60,
+[data-theme="light-steel"] .border-teal-700\/60,
+[data-theme="light-vacay"] .border-teal-700\/60   { border-color: hsl(174 55% 32% / 0.55); }
+
+[data-theme="light-white"] .border-orange-700\/60,
+[data-theme="light-ocean"] .border-orange-700\/60,
+[data-theme="light-sunset"] .border-orange-700\/60,
+[data-theme="light-steel"] .border-orange-700\/60,
+[data-theme="light-vacay"] .border-orange-700\/60 { border-color: hsl(25 68% 40% / 0.55); }
+
+[data-theme="light-white"] .border-sky-700\/60,
+[data-theme="light-ocean"] .border-sky-700\/60,
+[data-theme="light-sunset"] .border-sky-700\/60,
+[data-theme="light-steel"] .border-sky-700\/60,
+[data-theme="light-vacay"] .border-sky-700\/60    { border-color: hsl(199 65% 38% / 0.55); }
+
+[data-theme="light-white"] .border-lime-700\/60,
+[data-theme="light-ocean"] .border-lime-700\/60,
+[data-theme="light-sunset"] .border-lime-700\/60,
+[data-theme="light-steel"] .border-lime-700\/60,
+[data-theme="light-vacay"] .border-lime-700\/60   { border-color: hsl(84 52% 34% / 0.55); }
+
+[data-theme="light-white"] .border-rose-700\/60,
+[data-theme="light-ocean"] .border-rose-700\/60,
+[data-theme="light-sunset"] .border-rose-700\/60,
+[data-theme="light-steel"] .border-rose-700\/60,
+[data-theme="light-vacay"] .border-rose-700\/60   { border-color: hsl(347 55% 44% / 0.55); }
+
+[data-theme="light-white"] .border-purple-700\/60,
+[data-theme="light-ocean"] .border-purple-700\/60,
+[data-theme="light-sunset"] .border-purple-700\/60,
+[data-theme="light-steel"] .border-purple-700\/60,
+[data-theme="light-vacay"] .border-purple-700\/60 { border-color: hsl(270 52% 44% / 0.55); }
+
 /* ── TipTap rich text editor & renderer ────────────────────────────────────── */
 
 .rte-content {
