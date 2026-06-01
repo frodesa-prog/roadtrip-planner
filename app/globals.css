@@ -1073,6 +1073,25 @@
 [data-theme="light-steel"] .text-purple-300,
 [data-theme="light-vacay"] .text-purple-300   { color: hsl(270 58% 16%); }
 
+/* red — dining labels */
+[data-theme="light-white"] .text-red-200,
+[data-theme="light-ocean"] .text-red-200,
+[data-theme="light-sunset"] .text-red-200,
+[data-theme="light-steel"] .text-red-200,
+[data-theme="light-vacay"] .text-red-200       { color: hsl(0 72% 14%); }
+
+[data-theme="light-white"] .text-red-300,
+[data-theme="light-ocean"] .text-red-300,
+[data-theme="light-sunset"] .text-red-300,
+[data-theme="light-steel"] .text-red-300,
+[data-theme="light-vacay"] .text-red-300       { color: hsl(0 68% 18%); }
+
+[data-theme="light-white"] .text-red-400,
+[data-theme="light-ocean"] .text-red-400,
+[data-theme="light-sunset"] .text-red-400,
+[data-theme="light-steel"] .text-red-400,
+[data-theme="light-vacay"] .text-red-400       { color: hsl(0 72% 22%); }
+
 /* text-400 → readable dark (~18-22% lightness)
    used inline in calendar items (activities, possible activities, flights) */
 [data-theme="light-white"] .text-teal-400,
