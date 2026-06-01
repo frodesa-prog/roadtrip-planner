@@ -39,7 +39,7 @@ interface StopDetailPanelProps {
   tripDateFrom?: string
   stopIndex?: number
   onUpdateStop: (updates: Partial<Pick<Stop, 'nights' | 'arrival_date' | 'lat' | 'lng' | 'city' | 'state' | 'notes'>>) => void
-  onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'address' | 'url' | 'status' | 'cost' | 'parking_cost_per_night'>>, lat?: number | null, lng?: number | null) => void
+  onSaveHotel: (updates: Partial<Pick<HotelType, 'name' | 'address' | 'url' | 'status' | 'cost' | 'parking_cost_per_night' | 'has_washer' | 'has_kitchen' | 'has_breakfast'>>, lat?: number | null, lng?: number | null) => void
   onAddActivity: (data: AddActivityData) => void
   onRemoveActivity: (id: string) => void
   onUpdateActivity: (id: string, updates: UpdateActivityData) => void
@@ -104,6 +104,9 @@ export default function StopDetailPanel({
   const [hotelCost, setHotelCost]               = useState(hotel?.cost != null ? String(hotel.cost) : '')
   const [hotelParkingCost, setHotelParkingCost] = useState(hotel?.parking_cost_per_night != null ? String(hotel.parking_cost_per_night) : '')
   const [hotelBooked, setHotelBooked]           = useState(hotel?.status === 'confirmed')
+  const [hotelHasWasher,    setHotelHasWasher]    = useState(hotel?.has_washer ?? false)
+  const [hotelHasKitchen,   setHotelHasKitchen]   = useState(hotel?.has_kitchen ?? false)
+  const [hotelHasBreakfast, setHotelHasBreakfast] = useState(hotel?.has_breakfast ?? false)
   // Compact view when hotel has a name; open edit form when no hotel yet
   const [editingHotel, setEditingHotel] = useState(!(hotel?.name))
   const [nights, setNights]             = useState(stop.nights)
@@ -359,6 +362,9 @@ export default function StopDetailPanel({
         setHotelCost(hotel.cost != null ? String(hotel.cost) : '')
         setHotelParkingCost(hotel.parking_cost_per_night != null ? String(hotel.parking_cost_per_night) : '')
         setHotelBooked(hotel.status === 'confirmed')
+        setHotelHasWasher(hotel.has_washer ?? false)
+        setHotelHasKitchen(hotel.has_kitchen ?? false)
+        setHotelHasBreakfast(hotel.has_breakfast ?? false)
         setEditingHotel(!hotel.name)
         prevHotelId.current = hotel.id
       }
@@ -370,6 +376,9 @@ export default function StopDetailPanel({
       setHotelCost('')
       setHotelParkingCost('')
       setHotelBooked(false)
+      setHotelHasWasher(false)
+      setHotelHasKitchen(false)
+      setHotelHasBreakfast(false)
       setEditingHotel(true)
       prevHotelId.current = null
     }
@@ -399,6 +408,9 @@ export default function StopDetailPanel({
       url: hotelUrl.trim() || null,
       cost: hotelCost ? Number(hotelCost) : null,
       parking_cost_per_night: hotelParkingCost ? Number(hotelParkingCost) : null,
+      has_washer: hotelHasWasher || null,
+      has_kitchen: hotelHasKitchen || null,
+      has_breakfast: hotelHasBreakfast || null,
       status: hotelBooked ? 'confirmed' : 'not_booked',
     }
 
@@ -432,6 +444,9 @@ export default function StopDetailPanel({
     setHotelCost(hotel?.cost != null ? String(hotel.cost) : '')
     setHotelParkingCost(hotel?.parking_cost_per_night != null ? String(hotel.parking_cost_per_night) : '')
     setHotelBooked(hotel?.status === 'confirmed')
+    setHotelHasWasher(hotel?.has_washer ?? false)
+    setHotelHasKitchen(hotel?.has_kitchen ?? false)
+    setHotelHasBreakfast(hotel?.has_breakfast ?? false)
     setEditingHotel(!hotel?.name)
   }
 
@@ -683,6 +698,23 @@ export default function StopDetailPanel({
                     placeholder="Pris parkering pr. natt"
                     className="h-7 text-xs bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-600" />
                   <span className="text-xs text-slate-500 flex-shrink-0">kr</span>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input type="checkbox" checked={hotelHasWasher} onChange={(e) => setHotelHasWasher(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-green-500" />
+                    <span className="text-xs text-slate-300">Vaskemaskin</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input type="checkbox" checked={hotelHasKitchen} onChange={(e) => setHotelHasKitchen(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-green-500" />
+                    <span className="text-xs text-slate-300">Kjøkken</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input type="checkbox" checked={hotelHasBreakfast} onChange={(e) => setHotelHasBreakfast(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-green-500" />
+                    <span className="text-xs text-slate-300">Frokost</span>
+                  </label>
                 </div>
                 <button onClick={() => setHotelBooked(!hotelBooked)} className="flex items-center">
                   <Badge variant={hotelBooked ? 'default' : 'secondary'}

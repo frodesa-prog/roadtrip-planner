@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen, ListChecks } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen, ListChecks, WashingMachine, ChefHat, Coffee } from 'lucide-react'
 import { countryFlag } from '@/lib/countryFlag'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -223,6 +223,19 @@ export default function SummaryPage() {
   const hotelNameByStopId = useMemo(() => {
     const map: Record<string, string> = {}
     hotels.forEach((h) => { if (h.name) map[h.stop_id] = h.name })
+    return map
+  }, [hotels])
+
+  // Map: stop id → hotel amenities
+  const hotelAmenitiesByStopId = useMemo(() => {
+    const map: Record<string, { washer: boolean; kitchen: boolean; breakfast: boolean }> = {}
+    hotels.forEach((h) => {
+      map[h.stop_id] = {
+        washer: h.has_washer ?? false,
+        kitchen: h.has_kitchen ?? false,
+        breakfast: h.has_breakfast ?? false,
+      }
+    })
     return map
   }, [hotels])
 
@@ -640,6 +653,7 @@ export default function SummaryPage() {
                           hasConfirmedHotel={stop ? confirmedHotelStopIds.has(stop.id) : false}
                           confirmedHotelUrl={stop ? (confirmedHotelUrls[stop.id] ?? null) : null}
                           hotelName={stop ? (hotelNameByStopId[stop.id] ?? null) : null}
+                          hotelAmenities={stop ? (hotelAmenitiesByStopId[stop.id] ?? null) : null}
                           flight={flightsByDate[dateStr] ?? null}
                           onFlightClick={setFlightModal}
                           notesOnDay={notesByDate[dateStr] ?? []}
@@ -879,6 +893,7 @@ function DayCell({
   hasConfirmedHotel,
   confirmedHotelUrl,
   hotelName,
+  hotelAmenities,
   flight,
   onFlightClick,
   notesOnDay,
@@ -912,6 +927,7 @@ function DayCell({
   hasConfirmedHotel: boolean
   confirmedHotelUrl: string | null
   hotelName: string | null
+  hotelAmenities: { washer: boolean; kitchen: boolean; breakfast: boolean } | null
   flight: Flight | null
   onFlightClick: (f: Flight) => void
   notesOnDay: Note[]
@@ -1107,6 +1123,9 @@ function DayCell({
                     }`}
                   >
                     <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                    {hotelAmenities?.washer    && <WashingMachine className="w-2.5 h-2.5 flex-shrink-0" />}
+                    {hotelAmenities?.kitchen   && <ChefHat className="w-2.5 h-2.5 flex-shrink-0" />}
+                    {hotelAmenities?.breakfast && <Coffee className="w-2.5 h-2.5 flex-shrink-0" />}
                     <span className="truncate">{hotelName}</span>
                   </a>
                 ) : (
@@ -1114,6 +1133,9 @@ function DayCell({
                     hasConfirmedHotel ? 'text-green-400' : 'text-slate-500'
                   }`}>
                     <HotelIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                    {hotelAmenities?.washer    && <WashingMachine className="w-2.5 h-2.5 flex-shrink-0" />}
+                    {hotelAmenities?.kitchen   && <ChefHat className="w-2.5 h-2.5 flex-shrink-0" />}
+                    {hotelAmenities?.breakfast && <Coffee className="w-2.5 h-2.5 flex-shrink-0" />}
                     <span className="truncate">{hotelName}</span>
                   </div>
                 )
