@@ -1086,6 +1086,19 @@
 [data-theme="light-steel"] .text-red-300,
 [data-theme="light-vacay"] .text-red-300       { color: hsl(0 68% 18%); }
 
+[data-theme="light-white"] .text-red-300\/60,
+[data-theme="light-ocean"] .text-red-300\/60,
+[data-theme="light-sunset"] .text-red-300\/60,
+[data-theme="light-steel"] .text-red-300\/60,
+[data-theme="light-vacay"] .text-red-300\/60   { color: hsl(0 68% 20% / 0.85); }
+
+/* sky-400 — washer icon + flight times */
+[data-theme="light-white"] .text-sky-400,
+[data-theme="light-ocean"] .text-sky-400,
+[data-theme="light-sunset"] .text-sky-400,
+[data-theme="light-steel"] .text-sky-400,
+[data-theme="light-vacay"] .text-sky-400       { color: hsl(210 80% 22%); }
+
 [data-theme="light-white"] .text-red-400,
 [data-theme="light-ocean"] .text-red-400,
 [data-theme="light-sunset"] .text-red-400,
