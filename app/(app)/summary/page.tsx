@@ -853,7 +853,7 @@ function DayCell({
                 : <PlaneLanding className="w-2.5 h-2.5 text-sky-400 flex-shrink-0" />
               }
               {flight.leg1_departure && (
-                <span className="text-[9px] text-sky-300 leading-tight">{flight.leg1_departure}</span>
+                <span className="text-[9px] text-sky-400 leading-tight">{flight.leg1_departure}</span>
               )}
             </button>
           )}
@@ -891,7 +891,7 @@ function DayCell({
                       >
                         <span className="flex-shrink-0 leading-none"><ActivityTypeIcon type={a.activity_type} size={9} /></span>
                         {a.activity_time && (
-                          <span className="text-[9px] text-slate-500 flex-shrink-0 leading-tight">
+                          <span className="text-[9px] text-violet-400 flex-shrink-0 leading-tight">
                             {a.activity_time.slice(0, 5)}
                           </span>
                         )}
@@ -908,7 +908,7 @@ function DayCell({
                     >
                       <UtensilsCrossed className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />
                       {d.booking_time && (
-                        <span className="text-[9px] text-red-300/60 flex-shrink-0 leading-tight">
+                        <span className="text-[9px] text-red-400 flex-shrink-0 leading-tight">
                           {d.booking_time.slice(0, 5)}
                         </span>
                       )}
@@ -995,7 +995,7 @@ function DayCell({
                 : <PlaneLanding className="w-3 h-3 text-sky-400" />
               }
               {flight.leg1_departure && (
-                <span className="text-[9px] text-sky-200">{flight.leg1_departure}</span>
+                <span className="text-[9px] text-sky-400">{flight.leg1_departure}</span>
               )}
             </button>
           )}
@@ -1029,7 +1029,7 @@ function DayCell({
             >
               <span className="leading-none"><ActivityTypeIcon type={a.activity_type} size={12} /></span>
               {a.activity_time && (
-                <span className="text-[9px] text-slate-100">
+                <span className="text-[9px] text-violet-400">
                   {a.activity_time.slice(0, 5)}
                 </span>
               )}
