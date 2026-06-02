@@ -543,7 +543,7 @@ export default function SummaryPage() {
                           showDining={showDining}
                           showHotels={showHotels}
                           showNotes={showNotes}
-                          onClick={stop ? () => { setSidebarStopId(null); setSelectedDate(isSelected ? null : dateStr) } : undefined}
+                          onClick={stop ? () => { setSelectedDate(isSelected ? null : dateStr) } : undefined}
                           isHomeDeparture={!!(homeStart?.arrival_date && dateStr === homeStart.arrival_date)}
                           isHomeArrival={!!(homeEnd?.arrival_date && dateStr === homeEnd.arrival_date)}
                           homeCity={
