@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, CalendarDays, FileText, Receipt, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronDown, Check, Plus, BookHeart } from 'lucide-react'
+import { Map, CalendarDays, FileText, Receipt, Lightbulb, LogOut, UserCircle, ClipboardList, Package, X, Menu, MessageSquare, HelpCircle, ChevronDown, Check, Plus, BookHeart, ListChecks } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useChat } from '@/components/chat/ChatContext'
@@ -159,6 +159,7 @@ function TripDropdown() {
 const links = [
   { href: '/plan', label: 'Planlegg', icon: Map },
   { href: '/summary', label: 'Oversikt', icon: CalendarDays },
+  { href: '/aktiviteter', label: 'Aktiviteter', icon: ListChecks },
   { href: '/notes', label: 'Notater', icon: FileText },
   { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
   { href: '/kostnader', label: 'Kostnader', icon: Receipt },

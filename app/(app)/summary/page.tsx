@@ -16,7 +16,6 @@ import { useDrivingInfo, LegInfo } from '@/hooks/useDrivingInfo'
 import { useFlights } from '@/hooks/useFlights'
 import { useNotes } from '@/hooks/useNotes'
 import { useRouteWaypoints } from '@/hooks/useRouteWaypoints'
-import TripManager from '@/components/planning/TripManager'
 import StopDetailPanel from '@/components/planning/StopDetailPanel'
 import NoteModal from '@/components/planning/NoteModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -91,7 +90,6 @@ export default function SummaryPage() {
   const [activityModal, setActivityModal] = useState<Activity | null>(null)
   const [diningModal, setDiningModal] = useState<Dining | null>(null)
   const [possibleModal, setPossibleModal] = useState<PossibleActivity | null>(null)
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [showDetailed, setShowDetailed] = useState(true)
 
   // ── Kalenderfiltre ──────────────────────────────────────────────────────────
@@ -107,7 +105,6 @@ export default function SummaryPage() {
     setShowActivities(next); setShowPossible(next); setShowDining(next)
     setShowHotels(next); setShowNotes(next)
   }
-  const [sidebarStopId, setSidebarStopId] = useState<string | null>(null)
   type NoteModalState =
     | { mode: 'new'; stopId: string | null; initialDate: string | null }
     | { mode: 'edit'; note: Note }
@@ -372,137 +369,8 @@ export default function SummaryPage() {
   return (
     <div className="flex h-full overflow-hidden bg-slate-950">
 
-      {/* ── Mobil overlay-backdrop ── */}
-      {mobileSidebarOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-40 bg-black/60"
-          onClick={() => setMobileSidebarOpen(false)}
-        />
-      )}
-
-      {/* ── Left sidebar ────────────────────────────────────────────────── */}
-      <div className={`
-        fixed top-11 bottom-16 left-0 z-50 w-[280px]
-        md:relative md:top-auto md:bottom-auto md:z-auto md:w-[240px] md:min-w-[200px] md:translate-x-0
-        h-full bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0
-        transition-transform duration-200
-        ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        <TripManager currentTrip={currentTrip} loading={tripsLoading} />
-
-        {currentTrip && !stopsLoading && regularStops.filter((s) => s.arrival_date).length > 0 && (
-          <div className="flex-1 overflow-y-auto py-3 flex flex-col">
-            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide px-4 mb-2">
-              Stoppesteder
-            </p>
-            <div className="px-2">
-              {regularStops.filter((s) => s.arrival_date).map((stop) => {
-                const pal = PALETTES[stopPaletteIndex[stop.id] ?? 0]
-                const hotel = hotels.find((h) => h.stop_id === stop.id)
-                const hotelUrl = hotel?.url ?? null
-                const dateLabel = new Date(stop.arrival_date! + 'T12:00:00').toLocaleDateString('nb-NO', {
-                  day: 'numeric', month: 'short',
-                })
-                return (
-                  <div
-                    key={stop.id}
-                    className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-transparent group/stop"
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${pal.dot}`} />
-                    <div className="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
-                      <button
-                        onClick={() => { setSelectedDate(null); setSidebarStopId((prev) => prev === stop.id ? null : stop.id) }}
-                        className="text-xs font-semibold truncate flex-shrink-0 max-w-[70%] text-slate-200 hover:text-blue-300 transition-colors text-left"
-                      >
-                        {stop.city}
-                      </button>
-                      {currentTrip?.road_trip_region === 'international' && stop.state && countryFlag(stop.state) && (
-                        <span className="text-sm flex-shrink-0" title={stop.state}>
-                          {countryFlag(stop.state)}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-slate-500 truncate whitespace-nowrap">
-                        {dateLabel}{stop.nights > 0 && ` · ${stop.nights}n`}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setNoteModal({ mode: 'new', stopId: stop.id, initialDate: stop.arrival_date })}
-                      title="Legg til notat"
-                      className="opacity-0 group-hover/stop:opacity-100 transition-opacity flex-shrink-0 p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-amber-400"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Turnotater (unattached) */}
-            <div className="mt-3 pt-2 border-t border-slate-800 px-2">
-              <div className="flex items-center justify-between px-2 mb-1">
-                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">Turnotater</p>
-                <button
-                  onClick={() => setNoteModal({ mode: 'new', stopId: null, initialDate: null })}
-                  title="Nytt turnotat"
-                  className="p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-amber-400 transition-colors"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
-              {unattachedNotes.length === 0 && (
-                <p className="text-[10px] text-slate-600 px-2 italic">Ingen turnotater ennå</p>
-              )}
-              {unattachedNotes.map((note) => (
-                <button
-                  key={note.id}
-                  onClick={() => setNoteModal({ mode: 'edit', note })}
-                  className="w-full flex items-start gap-1.5 px-2 py-1.5 rounded hover:bg-slate-800/60 text-left transition-colors"
-                >
-                  <FileText className="w-3 h-3 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <span className="text-xs text-slate-300 truncate leading-snug">
-                    {note.title || note.content.slice(0, 28) || 'Tomt notat'}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Lenker */}
-            <div className="mt-3 pt-2 border-t border-slate-800 px-2 flex flex-col gap-0.5">
-              <Link
-                href="/aktiviteter"
-                className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 text-xs transition-colors"
-              >
-                <ListChecks className="w-3.5 h-3.5 flex-shrink-0" />
-                Avstand og rute til aktiviteter
-              </Link>
-              <Link
-                href="/beskrivelse"
-                className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 text-xs transition-colors"
-              >
-                <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
-                Beskrivelse
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {(!currentTrip || stopsLoading || regularStops.filter((s) => s.arrival_date).length === 0) && (
-          <div className="flex-1" />
-        )}
-      </div>
-
       {/* ── Main area ───────────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden flex-col md:flex-row">
-
-        {/* Mobil: sidebar-knapp */}
-        <div className="md:hidden flex items-center justify-end px-3 py-2 border-b border-slate-800 flex-shrink-0">
-          <button
-            onClick={() => setMobileSidebarOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-xs"
-          >
-            <CalendarDays className="w-3.5 h-3.5" />
-          </button>
-        </div>
 
         {/* Calendar */}
         <div className="flex-1 overflow-y-auto p-3 md:p-5">
@@ -592,8 +460,15 @@ export default function SummaryPage() {
                   <FileText className="w-3 h-3" />
                   Notater
                 </button>
-                {/* Kompakt/Detaljert – skilt fra filtrene med ml-auto */}
-                <div className="ml-auto">
+                {/* Kompakt/Detaljert + Oppsummering – skilt fra filtrene med ml-auto */}
+                <div className="ml-auto flex items-center gap-1.5">
+                  <Link
+                    href="/beskrivelse"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors bg-slate-800/40 border-slate-700/40 text-slate-400 hover:text-slate-200 hover:bg-slate-700/40"
+                  >
+                    <BookOpen className="w-3 h-3" />
+                    Oppsummering
+                  </Link>
                   <button
                     onClick={() => setShowDetailed((v) => !v)}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
@@ -779,48 +654,8 @@ export default function SummaryPage() {
           />
         )}
 
-        {/* Detail panel – shown when a calendar date OR a sidebar stop is clicked */}
+        {/* Detail panel – shown when a calendar date is clicked */}
         {(() => {
-          // Sidebar stop click: show all activities/dining for the whole stop
-          if (sidebarStopId) {
-            const sbStop = stops.find((s) => s.id === sidebarStopId) ?? null
-            if (!sbStop) return null
-            const sbLeg = sbStop.arrival_date ? (legByArrivalDate[sbStop.arrival_date] ?? null) : null
-            return (
-              <div className="w-[320px] flex-shrink-0 overflow-hidden">
-                <StopDetailPanel
-                  stop={sbStop}
-                  hotel={hotels.find((h) => h.stop_id === sbStop.id) ?? null}
-                  activities={activities.filter((a) => a.stop_id === sbStop.id)}
-                  dining={dining.filter((d) => d.stop_id === sbStop.id)}
-                  possibleActivities={possibleActivities.filter((a) => a.stop_id === sbStop.id)}
-                  leg={sbLeg}
-                  selectedDate={sbStop.arrival_date ?? ''}
-                  stopIndex={stopPaletteIndex[sbStop.id] ?? 0}
-                  hideArrivalDate
-                  onUpdateStop={(updates) => updateStop(sbStop.id, updates)}
-                  onSaveHotel={(updates, lat, lng) => {
-                    saveHotel(sbStop.id, updates)
-                    if (lat != null && lng != null) updateStop(sbStop.id, { lat, lng })
-                  }}
-                  onAddActivity={(data) => addActivity(sbStop.id, data)}
-                  onRemoveActivity={removeActivity}
-                  onUpdateActivity={updateActivity}
-                  onAddDining={(data) => addDining(sbStop.id, data)}
-                  onRemoveDining={removeDining}
-                  onUpdateDining={updateDining}
-                  onAddPossibleActivity={(data) => addPossibleActivity(sbStop.id, data)}
-                  onRemovePossibleActivity={removePossibleActivity}
-                  onUpdatePossibleActivity={updatePossibleActivity}
-                  stopNotes={notes.filter((n) => n.stop_id === sbStop.id)}
-                  onAddNote={addNote}
-                  onUpdateNote={updateNote}
-                  onDeleteNote={deleteNote}
-                  onClose={() => setSidebarStopId(null)}
-                />
-              </div>
-            )
-          }
           // Calendar date click: show activities/dining for that specific date
           if (selectedStop && selectedDate) {
             return (
