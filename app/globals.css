@@ -312,6 +312,7 @@
 [data-theme="light-white"] .text-slate-300 { color: hsl(215 28% 30%); }
 [data-theme="light-white"] .text-slate-400 { color: hsl(215 20% 38%); }
 [data-theme="light-white"] .text-slate-500 { color: hsl(215 18% 40%); }
+[data-theme="light-white"] .text-slate-600 { color: hsl(215 16% 42%); }
 
 /* green accents — confirmed hotel, booked status */
 [data-theme="light-white"] .text-green-400           { color: hsl(142 62% 28%); }
@@ -406,6 +407,7 @@
 [data-theme="light-ocean"] .text-slate-300 { color: hsl(202 50% 28%); }
 [data-theme="light-ocean"] .text-slate-400 { color: hsl(200 40% 36%); }
 [data-theme="light-ocean"] .text-slate-500 { color: hsl(200 35% 38%); }
+[data-theme="light-ocean"] .text-slate-600 { color: hsl(200 30% 40%); }
 
 /* green accents */
 [data-theme="light-ocean"] .text-green-400           { color: hsl(142 58% 26%); }
@@ -497,6 +499,7 @@
 [data-theme="light-sunset"] .text-slate-300 { color: hsl(20 42% 30%); }
 [data-theme="light-sunset"] .text-slate-400 { color: hsl(20 32% 38%); }
 [data-theme="light-sunset"] .text-slate-500 { color: hsl(20 25% 40%); }
+[data-theme="light-sunset"] .text-slate-600 { color: hsl(20 20% 42%); }
 
 /* green accents */
 [data-theme="light-sunset"] .text-green-400           { color: hsl(142 55% 26%); }
@@ -595,6 +598,7 @@
 [data-theme="light-steel"] .text-slate-300 { color: hsl(218 30% 28%); }
 [data-theme="light-steel"] .text-slate-400 { color: hsl(218 22% 38%); }
 [data-theme="light-steel"] .text-slate-500 { color: hsl(218 20% 40%); }
+[data-theme="light-steel"] .text-slate-600 { color: hsl(218 18% 42%); }
 
 /* hover text */
 [data-theme="light-steel"] .hover\:text-slate-100:hover { color: hsl(220 45% 8%); }
@@ -874,6 +878,7 @@
 [data-theme="light-vacay"] .text-slate-300  { color: hsl(220 22% 40%); }
 [data-theme="light-vacay"] .text-slate-400  { color: hsl(220 18% 50%); }
 [data-theme="light-vacay"] .text-slate-500  { color: hsl(220 15% 58%); }
+[data-theme="light-vacay"] .text-slate-600  { color: hsl(220 14% 42%); }
 
 /* Borders */
 [data-theme="light-vacay"] .border-slate-900 { border-color: hsl(220 20% 90%); }
@@ -1361,4 +1366,89 @@
 .rte-content a:hover,
 .rte-content .rte-link:hover {
   color: #93c5fd;
+}
+
+/* ── Light-theme overrides for RTE note editor ──────────────────────────────
+   The .rte-content styles use hardcoded dark-theme hex colours (light text
+   on dark bg). On light themes the background is white/near-white so the
+   pale text becomes invisible. Override all text colours here.
+   ────────────────────────────────────────────────────────────────────────── */
+
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content {
+  color: hsl(222 28% 16%);
+}
+
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content p.is-editor-empty:first-child::before {
+  color: hsl(215 18% 55%);
+}
+
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content h1,
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content h2 {
+  color: hsl(222 40% 10%);
+}
+
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content h3 {
+  color: hsl(222 35% 14%);
+}
+
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content strong {
+  color: hsl(222 40% 10%);
+}
+
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content blockquote {
+  color: hsl(222 22% 35%);
+}
+
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content a,
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content .rte-link {
+  color: hsl(221 72% 30%);
+}
+
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content a:hover,
+:is([data-theme="light-white"],
+    [data-theme="light-ocean"],
+    [data-theme="light-sunset"],
+    [data-theme="light-steel"],
+    [data-theme="light-vacay"]) .rte-content .rte-link:hover {
+  color: hsl(221 72% 20%);
 }
