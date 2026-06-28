@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen, ListChecks, WashingMachine, ChefHat, Coffee } from 'lucide-react'
+import { Loader2, Car, CalendarDays, Hotel as HotelIcon, PlaneTakeoff, PlaneLanding, X, Clock, FileText, Plus, Navigation, UtensilsCrossed, ExternalLink, BookOpen, ListChecks, WashingMachine, ChefHat, Coffee, Download } from 'lucide-react'
+import { exportCalendarToExcel } from '@/lib/exportToExcel'
 import { countryFlag } from '@/lib/countryFlag'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -462,6 +463,31 @@ export default function SummaryPage() {
                 </button>
                 {/* Kompakt/Detaljert + Oppsummering – skilt fra filtrene med ml-auto */}
                 <div className="ml-auto flex items-center gap-1.5">
+                  <button
+                    onClick={() => exportCalendarToExcel({
+                      tripName: currentTrip?.name ?? 'Reise',
+                      stops,
+                      activities,
+                      dining,
+                      possibleActivities,
+                      outbound: outbound ?? null,
+                      returnFlight: returnFlight ?? null,
+                      notes,
+                      hotels: hotels.map((h) => ({
+                        stop_id: h.stop_id,
+                        name: h.name,
+                        has_washer: h.has_washer ?? null,
+                        has_kitchen: h.has_kitchen ?? null,
+                        has_breakfast: h.has_breakfast ?? null,
+                      })),
+                      drivingLegs: drivingLegs.map((l) => l ?? null),
+                    })}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors bg-slate-800/40 border-slate-700/40 text-slate-400 hover:text-slate-200 hover:bg-slate-700/40"
+                    title="Eksporter til Excel"
+                  >
+                    <Download className="w-3 h-3" />
+                    Excel
+                  </button>
                   <Link
                     href="/beskrivelse"
                     className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors bg-slate-800/40 border-slate-700/40 text-slate-400 hover:text-slate-200 hover:bg-slate-700/40"
