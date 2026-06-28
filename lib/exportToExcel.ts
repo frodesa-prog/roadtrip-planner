@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx'
 import { Stop, Activity, Dining, PossibleActivity, Flight, Note } from '@/types'
 import { LegInfo } from '@/hooks/useDrivingInfo'
 
@@ -38,12 +37,21 @@ function amenityText(hotel: ExportOptions['hotels'][0]): string {
   return amenities.join(', ')
 }
 
+function csvEscape(val: string): string {
+  if (val.includes('"') || val.includes(',') || val.includes('\n') || val.includes(';')) {
+    return '"' + val.replace(/"/g, '""') + '"'
+  }
+  return val
+}
+
+function buildRow(fields: string[]): string {
+  return fields.map(csvEscape).join(';')
+}
+
 export function exportCalendarToExcel(options: ExportOptions) {
   const { tripName, stops, activities, dining, possibleActivities, outbound, returnFlight, notes, hotels, drivingLegs } = options
 
   const regularStops = stops.filter((s) => s.stop_type === 'stop')
-
-  // Build date range from first arrival to last departure
   const dated = regularStops.filter((s) => s.arrival_date)
   if (dated.length === 0) return
 
@@ -52,7 +60,7 @@ export function exportCalendarToExcel(options: ExportOptions) {
   const endDate = new Date(lastStop.arrival_date! + 'T12:00:00')
   endDate.setDate(endDate.getDate() + lastStop.nights)
 
-  // Maps for quick lookup
+  // Build lookup maps
   const stopsByDate: Record<string, Stop> = {}
   regularStops.forEach((stop) => {
     if (!stop.arrival_date) return
@@ -112,9 +120,9 @@ export function exportCalendarToExcel(options: ExportOptions) {
     if (stop.arrival_date && i > 0) legByArrivalDate[stop.arrival_date] = drivingLegs[i - 1] ?? null
   })
 
-  // ── Build rows ──────────────────────────────────────────────────────────────
-  type Row = Record<string, string>
-  const rows: Row[] = []
+  // ── Build CSV ───────────────────────────────────────────────────────────────
+  const headers = ['Dato', 'By', 'Land', 'Kjøring', 'Fly', 'Hotell', 'Aktiviteter', 'Spisesteder', 'Mulige aktiviteter', 'Notater']
+  const csvLines: string[] = [buildRow(headers)]
 
   const cur = new Date(startDate)
   while (toISO(cur) <= toISO(endDate)) {
@@ -130,20 +138,9 @@ export function exportCalendarToExcel(options: ExportOptions) {
     const leg = isArrival ? (legByArrivalDate[dateStr] ?? null) : null
     const hotel = stop ? hotelByStopId[stop.id] : null
 
-    const row: Row = {
-      Dato: formatDate(dateStr),
-      By: stop?.city ?? '',
-      Land: stop?.state ?? '',
-    }
+    const driving = leg ? [leg.distanceText, leg.durationText].filter(Boolean).join(' – ') : ''
 
-    // Driving info
-    if (leg) {
-      row['Kjøring'] = [leg.distanceText, leg.durationText].filter(Boolean).join(' – ')
-    } else {
-      row['Kjøring'] = ''
-    }
-
-    // Flight
+    let flyStr = ''
     if (flight) {
       const legs: string[] = []
       if (flight.leg1_from && flight.leg1_to) {
@@ -152,84 +149,57 @@ export function exportCalendarToExcel(options: ExportOptions) {
       if (flight.has_stopover && flight.leg2_to) {
         legs.push([flight.leg2_flight_nr, '→', flight.leg2_to, flight.leg2_departure ? `(${flight.leg2_departure})` : ''].filter(Boolean).join(' '))
       }
-      row['Fly'] = legs.join(' | ')
-    } else {
-      row['Fly'] = ''
+      flyStr = legs.join(' | ')
     }
 
-    // Hotel
+    let hotelStr = ''
     if (hotel) {
-      let hotelStr = hotel.name
+      hotelStr = hotel.name
       const a = amenityText(hotel)
       if (a) hotelStr += ` (${a})`
-      row['Hotell'] = hotelStr
-    } else {
-      row['Hotell'] = ''
     }
 
-    // Activities (sorted by time)
-    row['Aktiviteter'] = dayActivities
+    const aktiviteter = dayActivities
       .sort((a, b) => (a.activity_time ?? '').localeCompare(b.activity_time ?? ''))
       .map((a) => [a.activity_time ? a.activity_time.slice(0, 5) : '', a.name].filter(Boolean).join(' '))
       .join('\n')
 
-    // Dining
-    row['Spisesteder'] = dayDining
+    const spiser = dayDining
       .sort((a, b) => (a.booking_time ?? '').localeCompare(b.booking_time ?? ''))
       .map((d) => [d.booking_time ? d.booking_time.slice(0, 5) : '', d.name].filter(Boolean).join(' '))
       .join('\n')
 
-    // Possible activities
-    row['Mulige aktiviteter'] = dayPossible.map((p) => p.description).join('\n')
+    const mulige = dayPossible.map((p) => p.description).join('\n')
 
-    // Notes (strip HTML tags)
-    row['Notater'] = dayNotes
+    const notater = dayNotes
       .map((n) => (n.content ?? '').replace(/<[^>]*>/g, '').trim())
       .filter(Boolean)
       .join('\n')
 
-    rows.push(row)
+    csvLines.push(buildRow([
+      formatDate(dateStr),
+      stop?.city ?? '',
+      stop?.state ?? '',
+      driving,
+      flyStr,
+      hotelStr,
+      aktiviteter,
+      spiser,
+      mulige,
+      notater,
+    ]))
+
     cur.setDate(cur.getDate() + 1)
   }
 
-  // ── Create workbook ─────────────────────────────────────────────────────────
-  const wb = XLSX.utils.book_new()
-
-  // Main calendar sheet
-  const ws = XLSX.utils.json_to_sheet(rows)
-
-  // Column widths
-  ws['!cols'] = [
-    { wch: 32 }, // Dato
-    { wch: 18 }, // By
-    { wch: 14 }, // Land
-    { wch: 22 }, // Kjøring
-    { wch: 22 }, // Fly
-    { wch: 30 }, // Hotell
-    { wch: 35 }, // Aktiviteter
-    { wch: 30 }, // Spisesteder
-    { wch: 30 }, // Mulige aktiviteter
-    { wch: 40 }, // Notater
-  ]
-
-  XLSX.utils.book_append_sheet(wb, ws, 'Reiseplan')
-
-  // Stops overview sheet
-  const stopRows = regularStops.filter((s) => s.arrival_date).map((s) => {
-    const h = hotelByStopId[s.id]
-    return {
-      By: s.city ?? '',
-      Land: s.state ?? '',
-      Ankomst: s.arrival_date ?? '',
-      Netter: s.nights,
-      Hotell: h?.name ?? '',
-      Fasiliteter: h ? amenityText(h) : '',
-    }
-  })
-  const wsStops = XLSX.utils.json_to_sheet(stopRows)
-  wsStops['!cols'] = [{ wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 28 }, { wch: 28 }]
-  XLSX.utils.book_append_sheet(wb, wsStops, 'Stoppesteder')
-
-  const filename = `${tripName.replace(/[^a-zA-ZæøåÆØÅ0-9 ]/g, '').trim() || 'Reise'}_reiseplan.xlsx`
-  XLSX.writeFile(wb, filename)
+  // BOM for Excel to detect UTF-8
+  const bom = '﻿'
+  const csvContent = bom + csvLines.join('\r\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${tripName.replace(/[^a-zA-ZæøåÆØÅ0-9 ]/g, '').trim() || 'Reise'}_reiseplan.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
