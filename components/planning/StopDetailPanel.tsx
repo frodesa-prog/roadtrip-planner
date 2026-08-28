@@ -497,9 +497,9 @@ export default function StopDetailPanel({
     const timeB = b.activity_time ?? '99:99'
     return timeA < timeB ? -1 : timeA > timeB ? 1 : 0
   })
-  const dayLabel = new Date(selectedDate + 'T12:00:00').toLocaleDateString('nb-NO', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  })
+  const dayLabel = selectedDate
+    ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
+    : ''
   const pinningActivity = pinningActivityId
     ? activities.find((a) => a.id === pinningActivityId) ?? null
     : null
