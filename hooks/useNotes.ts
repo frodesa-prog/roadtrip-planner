@@ -8,9 +8,21 @@ import { toast } from 'sonner'
 export type NoteInput = Pick<Note, 'content' | 'title' | 'stop_id' | 'note_date'> &
   Partial<Pick<Note, 'activity_id' | 'dining_id' | 'possible_activity_id'>>
 
+// Module-level cache – keyed by tripId
+const notesCache = new Map<string, Note[]>()
+
 export function useNotes(tripId: string | null) {
-  const [notes, setNotes] = useState<Note[]>([])
+  const cached = tripId ? (notesCache.get(tripId) ?? null) : null
+  const [notes, setNotes] = useState<Note[]>(cached ?? [])
   const supabase = useMemo(() => createClient(), [])
+
+  const setAndCache = useCallback((updater: Note[] | ((prev: Note[]) => Note[])) => {
+    setNotes((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      if (tripId) notesCache.set(tripId, next)
+      return next
+    })
+  }, [tripId])
 
   useEffect(() => {
     if (!tripId) { setNotes([]); return }
@@ -20,7 +32,12 @@ export function useNotes(tripId: string | null) {
       .eq('trip_id', tripId)
       .is('archived_at', null)
       .order('created_at')
-      .then(({ data }) => { if (data) setNotes(data as Note[]) })
+      .then(({ data }) => {
+        if (data) {
+          notesCache.set(tripId, data as Note[])
+          setNotes(data as Note[])
+        }
+      })
   }, [tripId, supabase])
 
   const addNote = useCallback(async (data: NoteInput): Promise<Note | null> => {
@@ -36,45 +53,44 @@ export function useNotes(tripId: string | null) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
-    setNotes((prev) => [...prev, optimistic])
+    setAndCache((prev) => [...prev, optimistic])
     const { data: created, error } = await supabase
       .from('notes')
       .insert({ trip_id: tripId, ...data })
       .select()
       .single()
     if (error) {
-      setNotes((prev) => prev.filter((n) => n.id !== optimistic.id))
+      setAndCache((prev) => prev.filter((n) => n.id !== optimistic.id))
       toast.error('Kunne ikke lagre notat')
       return null
     }
-    setNotes((prev) => prev.map((n) => n.id === optimistic.id ? created as Note : n))
+    setAndCache((prev) => prev.map((n) => n.id === optimistic.id ? created as Note : n))
     return created as Note
-  }, [tripId, supabase])
+  }, [tripId, supabase, setAndCache])
 
   const updateNote = useCallback(async (id: string, data: Partial<NoteInput>) => {
-    setNotes((prev) => prev.map((n) => n.id === id ? { ...n, ...data } : n))
+    setAndCache((prev) => prev.map((n) => n.id === id ? { ...n, ...data } : n))
     const { error } = await supabase
       .from('notes')
       .update({ ...data, updated_at: new Date().toISOString() })
       .eq('id', id)
     if (error) toast.error('Kunne ikke oppdatere notat')
-  }, [supabase])
+  }, [supabase, setAndCache])
 
   const archiveNote = useCallback(async (id: string) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id))
+    setAndCache((prev) => prev.filter((n) => n.id !== id))
     const { error } = await supabase
       .from('notes')
       .update({ archived_at: new Date().toISOString() })
       .eq('id', id)
     if (error) toast.error('Kunne ikke arkivere notat')
-  }, [supabase])
+  }, [supabase, setAndCache])
 
-  // Kept for backwards compat / permanent deletion from archive
   const deleteNote = useCallback(async (id: string) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id))
+    setAndCache((prev) => prev.filter((n) => n.id !== id))
     const { error } = await supabase.from('notes').delete().eq('id', id)
     if (error) toast.error('Kunne ikke slette notat')
-  }, [supabase])
+  }, [supabase, setAndCache])
 
   return { notes, addNote, updateNote, archiveNote, deleteNote }
 }

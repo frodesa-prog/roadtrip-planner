@@ -16,11 +16,22 @@ export type UpdateActivityData = Partial<Pick<
   'stadium' | 'section' | 'seat_row' | 'seat'
 >>
 
+// Module-level cache – keyed by sorted stop-ids string
+const activitiesCache = new Map<string, Activity[]>()
+
 export function useActivities(stopIds: string[]) {
-  const [activities, setActivities] = useState<Activity[]>([])
+  const key = stopIds.slice().sort().join(',')
+  const cached = key ? (activitiesCache.get(key) ?? null) : null
+  const [activities, setActivities] = useState<Activity[]>(cached ?? [])
   const supabase = useMemo(() => createClient(), [])
 
-  const key = stopIds.join(',')
+  const setAndCache = useCallback((updater: Activity[] | ((prev: Activity[]) => Activity[])) => {
+    setActivities((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      if (key) activitiesCache.set(key, next)
+      return next
+    })
+  }, [key])
 
   useEffect(() => {
     if (stopIds.length === 0) {
@@ -33,7 +44,10 @@ export function useActivities(stopIds: string[]) {
       .in('stop_id', stopIds)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
-        if (data) setActivities(data as Activity[])
+        if (data) {
+          activitiesCache.set(key, data as Activity[])
+          setActivities(data as Activity[])
+        }
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, supabase])
@@ -58,38 +72,36 @@ export function useActivities(stopIds: string[]) {
         seat_row: data.seat_row ?? null,
         seat:     data.seat     ?? null,
       }
-      setActivities((prev) => [...prev, newActivity])
+      setAndCache((prev) => [...prev, newActivity])
       const { error } = await supabase.from('activities').insert(newActivity)
       if (error) {
-        setActivities((prev) => prev.filter((a) => a.id !== newActivity.id))
+        setAndCache((prev) => prev.filter((a) => a.id !== newActivity.id))
         toast.error('Kunne ikke lagre aktivitet')
       }
     },
-    [supabase]
+    [supabase, setAndCache]
   )
 
   const removeActivity = useCallback(
     async (id: string) => {
-      const snapshot = activities
-      setActivities((prev) => prev.filter((a) => a.id !== id))
+      const snapshot = activitiesCache.get(key) ?? activities
+      setAndCache((prev) => prev.filter((a) => a.id !== id))
       const { error } = await supabase.from('activities').delete().eq('id', id)
       if (error) {
-        setActivities(snapshot)
+        setAndCache(snapshot)
         toast.error('Kunne ikke slette aktivitet')
       }
     },
-    [activities, supabase]
+    [activities, supabase, setAndCache, key]
   )
 
   const updateActivity = useCallback(
     async (id: string, updates: UpdateActivityData) => {
-      setActivities((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
-      )
+      setAndCache((prev) => prev.map((a) => (a.id === id ? { ...a, ...updates } : a)))
       const { error } = await supabase.from('activities').update(updates).eq('id', id)
       if (error) toast.error('Kunne ikke oppdatere aktivitet')
     },
-    [supabase]
+    [supabase, setAndCache]
   )
 
   return { activities, addActivity, removeActivity, updateActivity }

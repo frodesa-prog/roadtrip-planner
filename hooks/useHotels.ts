@@ -5,13 +5,23 @@ import { createClient } from '@/lib/supabase/client'
 import { Hotel, BookingStatus } from '@/types'
 import { toast } from 'sonner'
 
+// Module-level cache – keyed by sorted stop-ids string
+const hotelsCache = new Map<string, Hotel[]>()
+
 export function useHotels(stopIds: string[]) {
-  const [hotels, setHotels] = useState<Hotel[]>([])
-  const [loading, setLoading] = useState(true)
+  const key = stopIds.slice().sort().join(',')
+  const cached = key ? (hotelsCache.get(key) ?? null) : null
+  const [hotels, setHotels] = useState<Hotel[]>(cached ?? [])
+  const [loading, setLoading] = useState(key ? cached === null : false)
   const supabase = useMemo(() => createClient(), [])
 
-  // Stringify the stop IDs to use as a stable dependency
-  const key = stopIds.join(',')
+  const setAndCache = useCallback((updater: Hotel[] | ((prev: Hotel[]) => Hotel[])) => {
+    setHotels((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      if (key) hotelsCache.set(key, next)
+      return next
+    })
+  }, [key])
 
   useEffect(() => {
     if (stopIds.length === 0) {
@@ -19,22 +29,21 @@ export function useHotels(stopIds: string[]) {
       setLoading(false)
       return
     }
-    setLoading(true)
+    if (!hotelsCache.has(key)) setLoading(true)
     supabase
       .from('hotels')
       .select('*')
       .in('stop_id', stopIds)
       .then(({ data }) => {
-        if (data) setHotels(data as Hotel[])
+        if (data) {
+          hotelsCache.set(key, data as Hotel[])
+          setHotels(data as Hotel[])
+        }
         setLoading(false)
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, supabase])
 
-  /**
-   * Upsert: if a hotel already exists for this stop, update it.
-   * Otherwise, insert a new one.
-   */
   const saveHotel = useCallback(
     async (
       stopId: string,
@@ -43,19 +52,10 @@ export function useHotels(stopIds: string[]) {
       const existing = hotels.find((h) => h.stop_id === stopId)
 
       if (existing) {
-        // Optimistic update
-        setHotels((prev) =>
-          prev.map((h) => (h.stop_id === stopId ? { ...h, ...updates } : h))
-        )
-        const { error } = await supabase
-          .from('hotels')
-          .update(updates)
-          .eq('id', existing.id)
+        setAndCache((prev) => prev.map((h) => (h.stop_id === stopId ? { ...h, ...updates } : h)))
+        const { error } = await supabase.from('hotels').update(updates).eq('id', existing.id)
         if (error) {
-          // Rollback
-          setHotels((prev) =>
-            prev.map((h) => (h.stop_id === stopId ? existing : h))
-          )
+          setAndCache((prev) => prev.map((h) => (h.stop_id === stopId ? existing : h)))
           toast.error('Kunne ikke lagre hotell')
         }
       } else {
@@ -74,16 +74,15 @@ export function useHotels(stopIds: string[]) {
           has_kitchen: updates.has_kitchen ?? null,
           has_breakfast: updates.has_breakfast ?? null,
         }
-        // Optimistic add
-        setHotels((prev) => [...prev, newHotel])
+        setAndCache((prev) => [...prev, newHotel])
         const { error } = await supabase.from('hotels').insert(newHotel)
         if (error) {
-          setHotels((prev) => prev.filter((h) => h.id !== newHotel.id))
+          setAndCache((prev) => prev.filter((h) => h.id !== newHotel.id))
           toast.error('Kunne ikke lagre hotell')
         }
       }
     },
-    [hotels, supabase]
+    [hotels, supabase, setAndCache]
   )
 
   return { hotels, saveHotel, loading }

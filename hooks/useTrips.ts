@@ -8,6 +8,9 @@ import { logActivity } from '@/hooks/useActivityLog'
 
 const SELECTED_TRIP_KEY = 'selected_trip_id'
 
+// Module-level cache – survives page navigation
+let tripsCache: Trip[] | null = null
+
 function getSavedTripId(): string | null {
   if (typeof window === 'undefined') return null
   return localStorage.getItem(SELECTED_TRIP_KEY)
@@ -23,12 +26,24 @@ function saveSelectedTripId(id: string | null) {
 }
 
 export function useTrips() {
-  const [trips, setTrips] = useState<Trip[]>([])
-  const [currentTrip, setCurrentTripState] = useState<Trip | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [trips, setTrips] = useState<Trip[]>(tripsCache ?? [])
+  const [currentTrip, setCurrentTripState] = useState<Trip | null>(() => {
+    if (!tripsCache) return null
+    const savedId = getSavedTripId()
+    return (savedId ? tripsCache.find((t) => t.id === savedId) : null) ?? tripsCache[0] ?? null
+  })
+  const [loading, setLoading] = useState(tripsCache === null)
   const [userId, setUserId] = useState<string | null>(null)
 
   const supabase = useMemo(() => createClient(), [])
+
+  const setAndCacheTrips = useCallback((updater: Trip[] | ((prev: Trip[]) => Trip[])) => {
+    setTrips((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      tripsCache = next
+      return next
+    })
+  }, [])
 
   // Wrapper: updates state, persists to localStorage og varsler andre instanser
   const setCurrentTrip = useCallback((trip: Trip | null) => {
@@ -49,6 +64,7 @@ export function useTrips() {
     if (user) setUserId(user.id)
 
     if (!error && data) {
+      tripsCache = data as Trip[]
       setTrips(data as Trip[])
 
       // Auto-velg tur: bruk lagret valg fra localStorage, ellers nyeste tur
@@ -117,7 +133,7 @@ export function useTrips() {
       }
 
       const newTrip = data as Trip
-      setTrips((prev) => [newTrip, ...prev])
+      setAndCacheTrips((prev) => [newTrip, ...prev])
       toast.success(`"${name}" er opprettet! 🗺️`)
       logActivity({ log_type: 'database', action: 'INSERT', entity_type: 'trip', entity_name: name, trip_id: newTrip.id })
 
@@ -243,7 +259,7 @@ export function useTrips() {
 
   const updateTrip = useCallback(
     async (tripId: string, data: Partial<Pick<Trip, 'group_description' | 'date_from' | 'date_to' | 'year' | 'different_end_location'>>) => {
-      setTrips((prev) => prev.map((t) => (t.id === tripId ? { ...t, ...data } : t)))
+      setAndCacheTrips((prev) => prev.map((t) => (t.id === tripId ? { ...t, ...data } : t)))
       // Oppdater currentTrip i state (ID endres ikke, localStorage trenger ikke oppdateres)
       setCurrentTripState((prev) => (prev?.id === tripId ? { ...prev, ...data } : prev))
       const { error } = await supabase.from('trips').update(data).eq('id', tripId)
@@ -254,12 +270,12 @@ export function useTrips() {
 
   const archiveTrip = useCallback(
     async (tripId: string) => {
-      setTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'archived' } : t))
+      setAndCacheTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'archived' } : t))
       setCurrentTripState((prev) => prev?.id === tripId ? { ...prev, status: 'archived' } : prev)
       const { error } = await supabase.from('trips').update({ status: 'archived' }).eq('id', tripId)
       if (error) {
         toast.error('Kunne ikke arkivere tur')
-        setTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'planning' } : t))
+        setAndCacheTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'planning' } : t))
       } else {
         toast.success('Tur arkivert')
         logActivity({ log_type: 'database', action: 'UPDATE', entity_type: 'trip', entity_name: trips.find((t) => t.id === tripId)?.name, trip_id: tripId })
@@ -278,12 +294,12 @@ export function useTrips() {
 
   const restoreTrip = useCallback(
     async (tripId: string) => {
-      setTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'planning' } : t))
+      setAndCacheTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'planning' } : t))
       setCurrentTripState((prev) => prev?.id === tripId ? { ...prev, status: 'planning' } : prev)
       const { error } = await supabase.from('trips').update({ status: 'planning' }).eq('id', tripId)
       if (error) {
         toast.error('Kunne ikke gjenopprette tur')
-        setTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'archived' } : t))
+        setAndCacheTrips((prev) => prev.map((t) => t.id === tripId ? { ...t, status: 'archived' } : t))
       } else {
         toast.success('Tur gjenopprettet')
       }
@@ -299,7 +315,7 @@ export function useTrips() {
         return
       }
       const deletedTrip = trips.find((t) => t.id === tripId)
-      setTrips((prev) => prev.filter((t) => t.id !== tripId))
+      setAndCacheTrips((prev) => prev.filter((t) => t.id !== tripId))
       // Fjern fra localStorage og nullstill valg hvis denne turen var aktiv
       setCurrentTripState((prev) => {
         if (prev?.id === tripId) {

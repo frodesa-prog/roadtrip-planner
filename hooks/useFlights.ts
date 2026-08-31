@@ -7,9 +7,21 @@ import { toast } from 'sonner'
 
 type FlightUpdates = Partial<Omit<Flight, 'id' | 'trip_id' | 'direction'>>
 
+// Module-level cache – keyed by tripId
+const flightsCache = new Map<string, Flight[]>()
+
 export function useFlights(tripId: string | null) {
-  const [flights, setFlights] = useState<Flight[]>([])
+  const cached = tripId ? (flightsCache.get(tripId) ?? null) : null
+  const [flights, setFlights] = useState<Flight[]>(cached ?? [])
   const supabase = useMemo(() => createClient(), [])
+
+  const setAndCache = useCallback((updater: Flight[] | ((prev: Flight[]) => Flight[])) => {
+    setFlights((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      if (tripId) flightsCache.set(tripId, next)
+      return next
+    })
+  }, [tripId])
 
   useEffect(() => {
     if (!tripId) {
@@ -21,26 +33,21 @@ export function useFlights(tripId: string | null) {
       .select('*')
       .eq('trip_id', tripId)
       .then(({ data }) => {
-        if (data) setFlights(data as Flight[])
+        if (data) {
+          flightsCache.set(tripId, data as Flight[])
+          setFlights(data as Flight[])
+        }
       })
   }, [tripId, supabase])
 
-  /**
-   * Upsert: creates the flight record the first time a field is saved,
-   * and updates it on subsequent saves.  Uses unique(trip_id, direction)
-   * as the conflict target so concurrent saves are safe.
-   */
   const saveFlight = useCallback(
     async (direction: 'outbound' | 'return', updates: FlightUpdates) => {
       if (!tripId) return
 
       const existing = flights.find((f) => f.direction === direction)
 
-      // Optimistic update
       if (existing) {
-        setFlights((prev) =>
-          prev.map((f) => (f.direction === direction ? { ...f, ...updates } : f))
-        )
+        setAndCache((prev) => prev.map((f) => (f.direction === direction ? { ...f, ...updates } : f)))
       } else {
         const newFlight: Flight = {
           id: crypto.randomUUID(),
@@ -74,10 +81,9 @@ export function useFlights(tripId: string | null) {
           leg3_seat_number: null,
           ...updates,
         }
-        setFlights((prev) => [...prev, newFlight])
+        setAndCache((prev) => [...prev, newFlight])
       }
 
-      // DB upsert – handles both insert and update gracefully
       const { error } = await supabase
         .from('flights')
         .upsert(
@@ -86,18 +92,15 @@ export function useFlights(tripId: string | null) {
         )
 
       if (error) {
-        // Rollback
-        setFlights((prev) =>
+        setAndCache((prev) =>
           existing
             ? prev.map((f) => (f.direction === direction ? existing : f))
-            : prev.filter(
-                (f) => !(f.trip_id === tripId && f.direction === direction)
-              )
+            : prev.filter((f) => !(f.trip_id === tripId && f.direction === direction))
         )
         toast.error('Kunne ikke lagre flyinformasjon')
       }
     },
-    [flights, tripId, supabase]
+    [flights, tripId, supabase, setAndCache]
   )
 
   const outbound = flights.find((f) => f.direction === 'outbound') ?? null

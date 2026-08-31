@@ -13,11 +13,22 @@ export type UpdateDiningData = Partial<Pick<
   'name' | 'url' | 'notes' | 'booking_date' | 'booking_time' | 'map_lat' | 'map_lng'
 >>
 
+// Module-level cache – keyed by sorted stop-ids string
+const diningCache = new Map<string, Dining[]>()
+
 export function useDining(stopIds: string[]) {
-  const [dining, setDining] = useState<Dining[]>([])
+  const key = stopIds.slice().sort().join(',')
+  const cached = key ? (diningCache.get(key) ?? null) : null
+  const [dining, setDining] = useState<Dining[]>(cached ?? [])
   const supabase = useMemo(() => createClient(), [])
 
-  const key = stopIds.join(',')
+  const setAndCache = useCallback((updater: Dining[] | ((prev: Dining[]) => Dining[])) => {
+    setDining((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      if (key) diningCache.set(key, next)
+      return next
+    })
+  }, [key])
 
   useEffect(() => {
     if (stopIds.length === 0) {
@@ -30,7 +41,10 @@ export function useDining(stopIds: string[]) {
       .in('stop_id', stopIds)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
-        if (data) setDining(data as Dining[])
+        if (data) {
+          diningCache.set(key, data as Dining[])
+          setDining(data as Dining[])
+        }
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, supabase])
@@ -48,38 +62,36 @@ export function useDining(stopIds: string[]) {
         map_lat: data.map_lat ?? null,
         map_lng: data.map_lng ?? null,
       }
-      setDining((prev) => [...prev, newEntry])
+      setAndCache((prev) => [...prev, newEntry])
       const { error } = await supabase.from('dining').insert(newEntry)
       if (error) {
-        setDining((prev) => prev.filter((d) => d.id !== newEntry.id))
+        setAndCache((prev) => prev.filter((d) => d.id !== newEntry.id))
         toast.error('Kunne ikke lagre spisested')
       }
     },
-    [supabase]
+    [supabase, setAndCache]
   )
 
   const removeDining = useCallback(
     async (id: string) => {
-      const snapshot = dining
-      setDining((prev) => prev.filter((d) => d.id !== id))
+      const snapshot = diningCache.get(key) ?? dining
+      setAndCache((prev) => prev.filter((d) => d.id !== id))
       const { error } = await supabase.from('dining').delete().eq('id', id)
       if (error) {
-        setDining(snapshot)
+        setAndCache(snapshot)
         toast.error('Kunne ikke slette spisested')
       }
     },
-    [dining, supabase]
+    [dining, supabase, setAndCache, key]
   )
 
   const updateDining = useCallback(
     async (id: string, updates: UpdateDiningData) => {
-      setDining((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, ...updates } : d))
-      )
+      setAndCache((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)))
       const { error } = await supabase.from('dining').update(updates).eq('id', id)
       if (error) toast.error('Kunne ikke oppdatere spisested')
     },
-    [supabase]
+    [supabase, setAndCache]
   )
 
   return { dining, addDining, removeDining, updateDining }
