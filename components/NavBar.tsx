@@ -172,8 +172,8 @@ const links = [
 // Vises i bottom tab bar på mobil
 const bottomNavLinks = [
   { href: '/plan', label: 'Plan', icon: Map },
+  { href: '/summary', label: 'Oversikt', icon: CalendarDays },
   { href: '/todo', label: 'ToDo', icon: ClipboardList },
-  { href: '/pakkeliste', label: 'Pakkeliste', icon: Package },
   { href: '/minner', label: 'Minner', icon: BookHeart, newTab: true },
   { href: '/ferietips', label: 'Ferietips', icon: Lightbulb },
 ]
